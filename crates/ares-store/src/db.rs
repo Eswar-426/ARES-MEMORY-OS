@@ -22,6 +22,14 @@ impl Store {
     pub fn open(path: &Path) -> Result<Self, AresError> {
         info!(db_path = %path.display(), "Opening ARES database");
 
+        if let Some(parent) = path.parent() {
+            if !parent.exists() {
+                std::fs::create_dir_all(parent).map_err(|e| {
+                    AresError::db(format!("Failed to create parent directory: {}", e))
+                })?;
+            }
+        }
+
         let manager =
             SqliteConnectionManager::file(path).with_init(|conn| configure_connection(conn));
 
@@ -152,11 +160,17 @@ mod tests {
     }
 
     #[test]
-    fn test_store_open_invalid_path() {
-        // Attempting to open a path where the parent directory does not exist
-        let invalid_path = std::path::Path::new("/nonexistent_directory_xyz/db.sqlite");
-        let result = Store::open(invalid_path);
-        assert!(result.is_err());
+    fn test_store_open_creates_parent_dir() {
+        let dir = tempfile::TempDir::new().unwrap();
+        // Path with a non-existent parent directory
+        let db_path = dir.path().join("nested").join("folder").join("test.db");
+
+        let store = Store::open(&db_path);
+        assert!(
+            store.is_ok(),
+            "Store::open should succeed and create parent directories"
+        );
+        assert!(db_path.exists(), "Database file should exist");
     }
 
     #[test]

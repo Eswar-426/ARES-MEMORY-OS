@@ -1,10 +1,10 @@
-use ares_app::AppState;
 use ares_agent::config::AgentConfig;
+use ares_app::AppState;
+use ares_mcp::server::run_stdio_server;
+use ares_mcp::McpServer;
 use std::sync::Arc;
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use ares_mcp::server::run_stdio_server;
-use ares_mcp::McpServer;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -19,7 +19,10 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr))
         .init();
 
-    info!(version = env!("CARGO_PKG_VERSION"), "Starting ARES MCP Server");
+    info!(
+        version = env!("CARGO_PKG_VERSION"),
+        "Starting ARES MCP Server"
+    );
 
     let project_path = std::env::current_dir()
         .expect("Cannot determine current directory")

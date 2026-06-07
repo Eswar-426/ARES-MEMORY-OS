@@ -31,5 +31,6 @@ pub async fn health() -> Json<HealthStatus> {
 )]
 pub async fn metrics() -> String {
     // Return mock metrics for now, or real metrics if registry is wired
-    "# HELP ares_requests_total Total number of HTTP requests\n# TYPE ares_requests_total counter\n".into()
+    "# HELP ares_requests_total Total number of HTTP requests\n# TYPE ares_requests_total counter\n"
+        .into()
 }

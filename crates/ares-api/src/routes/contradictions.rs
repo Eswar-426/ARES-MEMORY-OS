@@ -20,9 +20,12 @@ pub async fn detect_contradictions(
     State(state): State<AppState>,
     Json(_req): Json<DetectContradictionsRequest>,
 ) -> Json<Vec<ContradictionRecord>> {
-    let project_id = ares_core::id::new_id(); // Need parsing
-    
-    if let Ok(contradictions) = state.contradiction_detector.detect_contradictions(&project_id, &[]) {
+    let project_id = ares_core::ProjectId(ares_core::id::new_id()); // Need parsing
+
+    if let Ok(contradictions) = state
+        .contradiction_detector
+        .detect_contradictions(&project_id, &[])
+    {
         Json(contradictions)
     } else {
         Json(vec![])

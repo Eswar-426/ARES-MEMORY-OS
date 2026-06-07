@@ -1,6 +1,5 @@
 use ares_app::AppState;
-use std::sync::Arc;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value;
 
 #[derive(Serialize)]

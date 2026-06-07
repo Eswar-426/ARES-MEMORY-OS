@@ -1,6 +1,7 @@
 use ares_core::{Decision, GraphEdge, GraphNode, Memory, Project};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextBudget {
     pub max_memories: usize,
     pub max_decisions: usize,
@@ -21,7 +22,7 @@ impl Default for ContextBudget {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextSnapshot {
     pub memories: Vec<Memory>,
     pub decisions: Vec<Decision>,

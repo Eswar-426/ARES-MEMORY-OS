@@ -1,6 +1,6 @@
+use ares_agent::config::AgentConfig;
 use ares_api::create_router;
 use ares_app::AppState;
-use ares_agent::config::AgentConfig;
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -15,7 +15,10 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    info!(version = env!("CARGO_PKG_VERSION"), "Starting ARES API Platform");
+    info!(
+        version = env!("CARGO_PKG_VERSION"),
+        "Starting ARES API Platform"
+    );
 
     let project_path = std::env::current_dir()
         .expect("Cannot determine current directory")
@@ -30,7 +33,7 @@ async fn main() -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
     info!("API listening on http://127.0.0.1:3000");
     info!("Swagger UI available at http://127.0.0.1:3000/swagger-ui");
-    
+
     axum::serve(listener, app).await?;
 
     Ok(())

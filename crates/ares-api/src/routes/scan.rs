@@ -1,7 +1,7 @@
 use ares_app::AppState;
 use axum::{extract::State, Json};
-use utoipa::ToSchema;
 use serde::Serialize;
+use utoipa::ToSchema;
 
 #[derive(Serialize, ToSchema)]
 pub struct ScanResult {

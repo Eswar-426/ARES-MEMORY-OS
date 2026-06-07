@@ -1,8 +1,8 @@
 use crate::tools::McpServer;
 use jsonrpc_core::{IoHandler, Params, Value};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tracing::{error, info, debug};
 use std::sync::Arc;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tracing::{debug, error, info};
 
 pub async fn run_stdio_server(mcp: Arc<McpServer>) -> anyhow::Result<()> {
     let mut io = IoHandler::new();
@@ -25,9 +25,13 @@ pub async fn run_stdio_server(mcp: Arc<McpServer>) -> anyhow::Result<()> {
         async move {
             let map = match params {
                 Params::Map(m) => m,
-                _ => return Err(jsonrpc_core::Error::invalid_params("Expected named parameters")),
+                _ => {
+                    return Err(jsonrpc_core::Error::invalid_params(
+                        "Expected named parameters",
+                    ))
+                }
             };
-            
+
             let name = map.get("name").and_then(|v| v.as_str()).unwrap_or("");
             let _args = map.get("arguments").unwrap_or(&Value::Null);
 

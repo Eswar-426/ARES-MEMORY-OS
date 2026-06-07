@@ -1,16 +1,6 @@
-use ares_app::AppState;
-use axum::{
-    extract::{Request, State},
-    http::StatusCode,
-    middleware::Next,
-    response::Response,
-};
+use axum::{extract::Request, http::StatusCode, middleware::Next, response::Response};
 
-pub async fn auth_middleware(
-    State(_state): State<AppState>,
-    req: Request,
-    next: Next,
-) -> Result<Response, StatusCode> {
+pub async fn auth_middleware(req: Request, next: Next) -> Result<Response, StatusCode> {
     // Basic API Key validation
     // For this local platform, we just check if an API key is present.
     // In a real scenario, this would validate against the database or config.

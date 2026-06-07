@@ -1,19 +1,15 @@
 use ares_agent::config::AgentConfig;
 use ares_agent::services::{
-    context_pipeline::ContextPipeline,
+    context_builder::ContextBuilder, context_pipeline::ContextPipeline,
     contradiction_detector::ContradictionDetector,
-    decision_intelligence::DecisionIntelligenceEngine,
-    memory_ranking::MemoryRankingEngine,
+    decision_intelligence::DecisionIntelligenceEngine, memory_ranking::MemoryRankingEngine,
     retrieval::SemanticRetrievalLayer,
-    context_builder::ContextBuilder,
 };
 use ares_core::AresError;
 use ares_store::db::Store;
 use ares_store::repositories::{
-    decision::SqliteDecisionRepository,
-    graph::SqliteGraphRepository,
-    intelligence::SqliteIntelligenceRepository,
-    memory::SqliteMemoryRepository,
+    decision::SqliteDecisionRepository, graph::SqliteGraphRepository,
+    intelligence::SqliteIntelligenceRepository, memory::SqliteMemoryRepository,
 };
 use std::sync::Arc;
 use tracing::info;
@@ -22,7 +18,7 @@ use tracing::info;
 #[derive(Clone)]
 pub struct AppState {
     pub config: AgentConfig,
-    pub store: Arc<Store>,
+    pub store: Store,
     pub memory_repo: Arc<SqliteMemoryRepository>,
     pub intelligence_repo: Arc<SqliteIntelligenceRepository>,
     pub decision_repo: Arc<SqliteDecisionRepository>,
@@ -44,7 +40,8 @@ impl AppState {
         let db_path = std::path::Path::new(&config.project_path)
             .join(".ares")
             .join("ares.db");
-        let store = Arc::new(Store::open(&db_path).map_err(|_| AresError::Database("Failed to open DB".into()))?);
+        let store =
+            Store::open(&db_path).map_err(|_| AresError::Database("Failed to open DB".into()))?;
 
         // Initialize Repositories
         let memory_repo = Arc::new(SqliteMemoryRepository::new(store.clone()));

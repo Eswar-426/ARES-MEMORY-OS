@@ -4,8 +4,8 @@ use axum::{
     extract::{Path, State},
     Json,
 };
-use utoipa::ToSchema;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 #[derive(Serialize, ToSchema)]
 pub struct ProjectListResponse {
@@ -27,11 +27,16 @@ pub async fn list_projects(State(state): State<AppState>) -> Json<ProjectListRes
     // For now, return the single configured project
     // Future: Fetch all projects from global db
     let p = Project {
-        id: ares_core::id::new_id(), // Mock ID
+        id: ares_core::ProjectId(ares_core::id::new_id()),
         name: "Mock Project".into(),
-        path: state.config.project_path.clone(),
-        language: ares_core::Language::Rust,
-        maturity: ares_core::ProjectMaturity::Exploratory,
+        description: "Mock Description".into(),
+        root_path: state.config.project_path.clone(),
+        primary_language: ares_core::Language::Rust.as_str().into(),
+        domain: "Mock Domain".into(),
+        maturity: ares_core::ProjectMaturity::Greenfield,
+        created_at: chrono::Utc::now().timestamp_micros(),
+        updated_at: chrono::Utc::now().timestamp_micros(),
+        deleted_at: None,
     };
     Json(ProjectListResponse { projects: vec![p] })
 }
@@ -43,15 +48,20 @@ pub async fn list_projects(State(state): State<AppState>) -> Json<ProjectListRes
     responses((status = 200, description = "Project created", body = Project))
 )]
 pub async fn create_project(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Json(payload): Json<CreateProjectRequest>,
 ) -> Json<Project> {
     let p = Project {
-        id: ares_core::id::new_id(),
+        id: ares_core::ProjectId(ares_core::id::new_id()),
         name: payload.name,
-        path: payload.path,
-        language: ares_core::Language::Rust,
-        maturity: ares_core::ProjectMaturity::Exploratory,
+        description: "Mock Description".into(),
+        root_path: payload.path,
+        primary_language: ares_core::Language::Rust.as_str().into(),
+        domain: "Mock Domain".into(),
+        maturity: ares_core::ProjectMaturity::Greenfield,
+        created_at: chrono::Utc::now().timestamp_micros(),
+        updated_at: chrono::Utc::now().timestamp_micros(),
+        deleted_at: None,
     };
     // Future: Insert project into store
     Json(p)
@@ -65,16 +75,18 @@ pub async fn create_project(
     ),
     responses((status = 200, description = "Get project by ID", body = Project))
 )]
-pub async fn get_project(
-    State(state): State<AppState>,
-    Path(id): Path<String>,
-) -> Json<Project> {
+pub async fn get_project(State(state): State<AppState>, Path(_id): Path<String>) -> Json<Project> {
     let p = Project {
-        id: ares_core::id::new_id(),
+        id: ares_core::ProjectId(ares_core::id::new_id()),
         name: "Mock Project".into(),
-        path: state.config.project_path.clone(),
-        language: ares_core::Language::Rust,
-        maturity: ares_core::ProjectMaturity::Exploratory,
+        description: "Mock Description".into(),
+        root_path: state.config.project_path.clone(),
+        primary_language: ares_core::Language::Rust.as_str().into(),
+        domain: "Mock Domain".into(),
+        maturity: ares_core::ProjectMaturity::Greenfield,
+        created_at: chrono::Utc::now().timestamp_micros(),
+        updated_at: chrono::Utc::now().timestamp_micros(),
+        deleted_at: None,
     };
     Json(p)
 }

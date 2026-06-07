@@ -18,12 +18,15 @@ pub struct DecisionHistoryRequest {
 )]
 pub async fn decision_history(
     State(state): State<AppState>,
-    Json(req): Json<DecisionHistoryRequest>,
+    Json(_req): Json<DecisionHistoryRequest>,
 ) -> Json<Vec<Decision>> {
-    let project_id = ares_core::id::new_id(); // Need parsing from req
-    let decision_id = ares_core::id::new_id(); // Need parsing from req
-    
-    if let Ok(history) = state.decision_intelligence.decision_history(&project_id, &decision_id) {
+    let project_id = ares_core::ProjectId(ares_core::id::new_id()); // Need parsing from req
+    let decision_id = ares_core::DecisionId(ares_core::id::new_id()); // Need parsing from req
+
+    if let Ok(history) = state
+        .decision_intelligence
+        .decision_history(&project_id, &decision_id)
+    {
         Json(history)
     } else {
         Json(vec![])

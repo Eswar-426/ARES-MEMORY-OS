@@ -21,5 +21,9 @@ pub trait EmbeddingProvider: Send + Sync {
 #[async_trait]
 pub trait VectorStore: Send + Sync {
     async fn store_embedding(&self, id: &str, embedding: &Embedding) -> Result<(), AresError>;
-    async fn search(&self, query_embedding: &Embedding, limit: usize) -> Result<Vec<(String, f32)>, AresError>;
+    async fn search(
+        &self,
+        query_embedding: &Embedding,
+        limit: usize,
+    ) -> Result<Vec<(String, f32)>, AresError>;
 }

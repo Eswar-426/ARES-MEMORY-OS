@@ -1,7 +1,7 @@
 use ares_app::AppState;
 use ares_core::{CreateMemoryInput, Memory, MemorySearchResult};
 use axum::{extract::State, Json};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use utoipa::ToSchema;
 
 #[derive(Deserialize, ToSchema)]
@@ -17,8 +17,8 @@ pub struct SearchMemoryRequest {
     responses((status = 200, description = "Search results", body = Vec<MemorySearchResult>))
 )]
 pub async fn search_memory(
-    State(state): State<AppState>,
-    Json(req): Json<SearchMemoryRequest>,
+    State(_state): State<AppState>,
+    Json(_req): Json<SearchMemoryRequest>,
 ) -> Json<Vec<MemorySearchResult>> {
     // For now, mock memory search
     // In Week 5, this will call state.retrieval_layer.search(...)
@@ -32,23 +32,26 @@ pub async fn search_memory(
     responses((status = 200, description = "Created memory", body = Memory))
 )]
 pub async fn create_memory(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Json(_req): Json<CreateMemoryInput>,
 ) -> Json<Memory> {
     // Mock memory creation
     let memory = Memory {
-        id: ares_core::id::new_id(),
-        project_id: ares_core::id::new_id(),
-        source: ares_core::MemorySource::UserAssigned,
-        memory_type: ares_core::MemoryType::Concept,
+        id: ares_core::MemoryId(ares_core::id::new_id()),
+        project_id: ares_core::ProjectId(ares_core::id::new_id()),
+        source: ares_core::MemorySource::Human,
+        memory_type: ares_core::MemoryType::Feature,
+        title: "Mock Title".into(),
         content: "Mock".into(),
         importance: ares_core::ImportanceLevel::High,
         status: ares_core::MemoryStatus::Active,
         version: 1,
-        created_at: chrono::Utc::now(),
-        updated_at: chrono::Utc::now(),
-        expires_at: None,
-        context_tags: vec![],
+        parent_id: None,
+        confidence: 1.0,
+        ai_assisted: false,
+        created_at: chrono::Utc::now().timestamp_micros(),
+        updated_at: chrono::Utc::now().timestamp_micros(),
+        deleted_at: None,
     };
     Json(memory)
 }
