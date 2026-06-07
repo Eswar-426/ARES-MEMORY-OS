@@ -1,0 +1,77 @@
+# =============================================================================
+# ARES MemoryOS — .gitignore
+# =============================================================================
+
+# --- Rust ---
+/target/
+**/target/
+Cargo.lock          # tracked for binaries; excluded here for library policy
+**/*.rs.bk
+
+# --- Node.js ---
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# --- TypeScript build output ---
+**/dist/
+**/out/
+**/build/
+**/.tsbuildinfo
+**/*.js.map
+**/*.d.ts.map
+
+# --- VS Code Extension ---
+*.vsix
+
+# --- ARES local data ---
+# Never commit local project databases or agent state
+.ares/
+**/.ares/
+ares.db
+*.db-shm
+*.db-wal
+
+# --- Environment & secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.toml
+
+# --- OS ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# --- IDE ---
+.idea/
+*.iml
+.vscode/settings.json     # user settings; keep extensions.json and launch.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# --- Testing ---
+/coverage/
+**/coverage/
+*.lcov
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Temp ---
+*.tmp
+*.temp
+.cache/

@@ -1,0 +1,30 @@
+[package]
+name        = "ares-scanner"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+ares-core   = { path = "../ares-core" }
+ares-store  = { path = "../ares-store" }
+
+serde       = { workspace = true }
+serde_json  = { workspace = true }
+thiserror   = { workspace = true }
+tracing     = { workspace = true }
+
+tree-sitter            = { workspace = true }
+tree-sitter-typescript = { workspace = true }
+tree-sitter-python     = { workspace = true }
+tree-sitter-go         = { workspace = true }
+
+blake3      = { workspace = true }
+hex         = { workspace = true }
+walkdir     = { workspace = true }
+ignore      = { workspace = true }
+notify      = { workspace = true }
+notify-debouncer-mini = { workspace = true }
+
+[dev-dependencies]
+tempfile    = { workspace = true }

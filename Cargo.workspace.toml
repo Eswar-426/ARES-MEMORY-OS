@@ -1,0 +1,93 @@
+[workspace]
+members = [
+    "crates/ares-core",
+    "crates/ares-store",
+    "crates/ares-scanner",
+    "crates/ares-agent",
+]
+resolver = "2"
+
+[workspace.package]
+version     = "0.1.0"
+edition     = "2021"
+authors     = ["ARES MemoryOS"]
+license     = "MIT"
+repository  = "https://github.com/ares-memoryos/ares"
+rust-version = "1.78"
+
+[workspace.dependencies]
+# Async runtime
+tokio          = { version = "1.40", features = ["full"] }
+tokio-util     = { version = "0.7" }
+
+# Serialization
+serde          = { version = "1.0", features = ["derive"] }
+serde_json     = { version = "1.0" }
+
+# Error handling
+thiserror      = { version = "1.0" }
+anyhow         = { version = "1.0" }
+
+# Logging / tracing
+tracing        = { version = "0.1" }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Database
+rusqlite       = { version = "0.32", features = ["bundled", "hooks"] }
+r2d2           = { version = "0.8" }
+r2d2_sqlite    = { version = "0.25" }
+refinery       = { version = "0.8", features = ["rusqlite"] }
+
+# ID generation (UUIDv7)
+uuid           = { version = "1.10", features = ["v7", "serde"] }
+
+# Hashing
+blake3         = { version = "1.5" }
+
+# File watching
+notify         = { version = "6.1", features = ["macos_kqueue"] }
+notify-debouncer-mini = { version = "0.4" }
+
+# Tree-sitter (parsing)
+tree-sitter    = { version = "0.23" }
+tree-sitter-typescript = { version = "0.23" }
+tree-sitter-python     = { version = "0.23" }
+tree-sitter-go         = { version = "0.23" }
+
+# CLI (agent binary)
+clap           = { version = "4.5", features = ["derive", "env"] }
+
+# Config
+toml           = { version = "1.0" }
+config         = { version = "0.14" }
+
+# Regex (secret detection)
+regex          = { version = "1.11" }
+once_cell      = { version = "1.20" }
+
+# Path utils
+walkdir        = { version = "2.5" }
+ignore         = { version = "0.4" }           # gitignore-aware walking
+
+# Hashing / encoding
+hex            = { version = "0.4" }
+base64         = { version = "0.22" }
+
+# Time
+chrono         = { version = "0.4", features = ["serde"] }
+
+# Interprocess communication
+interprocess   = { version = "2.2", features = ["tokio", "tokio_named_pipe"] }
+
+# Testing
+tempfile       = { version = "3.12" }
+
+[profile.release]
+opt-level     = 3
+lto           = "thin"
+codegen-units = 1
+strip         = true
+
+[profile.dev]
+opt-level     = 0
+debug         = true

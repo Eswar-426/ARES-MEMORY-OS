@@ -1,0 +1,38 @@
+[package]
+name        = "ares-agent"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "ares-agent"
+path = "src/main.rs"
+
+[[bin]]
+name = "ares"
+path = "src/cli.rs"
+
+[dependencies]
+ares-core    = { path = "../ares-core" }
+ares-store   = { path = "../ares-store" }
+ares-scanner = { path = "../ares-scanner" }
+
+tokio        = { workspace = true }
+tokio-util   = { workspace = true }
+serde        = { workspace = true }
+serde_json   = { workspace = true }
+thiserror    = { workspace = true }
+anyhow       = { workspace = true }
+tracing      = { workspace = true }
+tracing-subscriber = { workspace = true }
+clap         = { workspace = true }
+dialoguer    = { workspace = true }
+toml         = { workspace = true }
+once_cell    = { workspace = true }
+regex        = { workspace = true }
+chrono       = { workspace = true }
+blake3       = { workspace = true }
+
+[dev-dependencies]
+tempfile     = { workspace = true }
