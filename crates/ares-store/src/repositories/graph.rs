@@ -1,9 +1,8 @@
-use ares_core::{
-    AresError, Contradiction, EdgeDirection, EdgeType, GraphEdge, GraphNode,
-    ImpactEntry, ImpactGraph, NodeId, NodeType, ProjectId, new_id,
-    types::event::now_micros,
-};
 use crate::db::Store;
+use ares_core::{
+    new_id, types::event::now_micros, AresError, Contradiction, EdgeDirection, EdgeType, GraphEdge,
+    GraphNode, ImpactEntry, ImpactGraph, NodeId, NodeType, ProjectId,
+};
 use rusqlite::params;
 
 pub struct SqliteGraphRepository {
@@ -42,7 +41,8 @@ impl SqliteGraphRepository {
             ],
         ).map_err(AresError::db)?;
 
-        self.get_node(&node.id)?.ok_or_else(|| AresError::not_found("node", node.id.as_str()))
+        self.get_node(&node.id)?
+            .ok_or_else(|| AresError::not_found("node", node.id.as_str()))
     }
 
     // ----------------------------------------------------------------
@@ -77,9 +77,16 @@ impl SqliteGraphRepository {
                 now,
                 now,
             ],
-        ).map_err(AresError::db)?;
+        )
+        .map_err(AresError::db)?;
 
-        Ok(GraphEdge { id: edge_id, valid_from: now, valid_until: None, created_at: now, ..edge })
+        Ok(GraphEdge {
+            id: edge_id,
+            valid_from: now,
+            valid_until: None,
+            created_at: now,
+            ..edge
+        })
     }
 
     // ----------------------------------------------------------------
@@ -87,17 +94,19 @@ impl SqliteGraphRepository {
     // ----------------------------------------------------------------
     pub fn get_node(&self, id: &NodeId) -> Result<Option<GraphNode>, AresError> {
         let conn = self.store.get_conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT id, project_id, node_type, label, properties, file_path,
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, project_id, node_type, label, properties, file_path,
                     created_at, updated_at, deleted_at
-             FROM graph_nodes WHERE id = ?1 AND deleted_at IS NULL"
-        ).map_err(AresError::db)?;
+             FROM graph_nodes WHERE id = ?1 AND deleted_at IS NULL",
+            )
+            .map_err(AresError::db)?;
 
         let result = stmt.query_row(params![id.as_str()], row_to_node);
         match result {
-            Ok(n)                                     => Ok(Some(n)),
+            Ok(n) => Ok(Some(n)),
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(e)                                    => Err(AresError::db(e)),
+            Err(e) => Err(AresError::db(e)),
         }
     }
 
@@ -107,14 +116,17 @@ impl SqliteGraphRepository {
         path: &str,
     ) -> Result<Vec<GraphNode>, AresError> {
         let conn = self.store.get_conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT id, project_id, node_type, label, properties, file_path,
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, project_id, node_type, label, properties, file_path,
                     created_at, updated_at, deleted_at
              FROM graph_nodes
-             WHERE project_id = ?1 AND file_path = ?2 AND deleted_at IS NULL"
-        ).map_err(AresError::db)?;
+             WHERE project_id = ?1 AND file_path = ?2 AND deleted_at IS NULL",
+            )
+            .map_err(AresError::db)?;
 
-        let rows = stmt.query_map(params![project_id.as_str(), path], row_to_node)
+        let rows = stmt
+            .query_map(params![project_id.as_str(), path], row_to_node)
             .map_err(AresError::db)?;
         rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)
     }
@@ -138,12 +150,17 @@ impl SqliteGraphRepository {
         let (join_col, node_col) = match direction {
             EdgeDirection::Outgoing => ("from_node_id", "to_node_id"),
             EdgeDirection::Incoming => ("to_node_id", "from_node_id"),
-            EdgeDirection::Both     => {
+            EdgeDirection::Both => {
                 // For Both, do two queries and merge
                 let mut out = self.get_neighbors(node_id, EdgeDirection::Outgoing, edge_types)?;
-                let inc     = self.get_neighbors(node_id, EdgeDirection::Incoming, edge_types)?;
-                let existing_ids: std::collections::HashSet<_> = out.iter().map(|n| n.id.clone()).collect();
-                for n in inc { if !existing_ids.contains(&n.id) { out.push(n); } }
+                let inc = self.get_neighbors(node_id, EdgeDirection::Incoming, edge_types)?;
+                let existing_ids: std::collections::HashSet<_> =
+                    out.iter().map(|n| n.id.clone()).collect();
+                for n in inc {
+                    if !existing_ids.contains(&n.id) {
+                        out.push(n);
+                    }
+                }
                 return Ok(out);
             }
         };
@@ -160,16 +177,51 @@ impl SqliteGraphRepository {
         );
 
         let mut stmt = conn.prepare(&sql).map_err(AresError::db)?;
-        let mut params_vec: Vec<Box<dyn rusqlite::ToSql>> = vec![
-            Box::new(node_id.as_str().to_string()),
-        ];
+        let mut params_vec: Vec<Box<dyn rusqlite::ToSql>> =
+            vec![Box::new(node_id.as_str().to_string())];
         for (i, et) in edge_types.iter().enumerate() {
             params_vec.push(Box::new(et.as_str().to_string()));
             let _ = i;
         }
         let refs: Vec<&dyn rusqlite::ToSql> = params_vec.iter().map(|b| b.as_ref()).collect();
 
-        let rows = stmt.query_map(refs.as_slice(), row_to_node).map_err(AresError::db)?;
+        let rows = stmt
+            .query_map(refs.as_slice(), row_to_node)
+            .map_err(AresError::db)?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)
+    }
+
+    pub fn get_edges_from(&self, node_id: &NodeId) -> Result<Vec<GraphEdge>, AresError> {
+        let conn = self.store.get_conn()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, project_id, from_node_id, to_node_id, edge_type, weight,
+                    confidence, source, valid_from, valid_until, created_at
+             FROM graph_edges
+             WHERE from_node_id = ?1 AND valid_until IS NULL",
+            )
+            .map_err(AresError::db)?;
+
+        let rows = stmt
+            .query_map(params![node_id.as_str()], row_to_edge)
+            .map_err(AresError::db)?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)
+    }
+
+    pub fn get_edges_to(&self, node_id: &NodeId) -> Result<Vec<GraphEdge>, AresError> {
+        let conn = self.store.get_conn()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, project_id, from_node_id, to_node_id, edge_type, weight,
+                    confidence, source, valid_from, valid_until, created_at
+             FROM graph_edges
+             WHERE to_node_id = ?1 AND valid_until IS NULL",
+            )
+            .map_err(AresError::db)?;
+
+        let rows = stmt
+            .query_map(params![node_id.as_str()], row_to_edge)
+            .map_err(AresError::db)?;
         rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)
     }
 
@@ -182,12 +234,14 @@ impl SqliteGraphRepository {
         depth: u8,
     ) -> Result<ImpactGraph, AresError> {
         let depth = depth.min(5); // hard cap
-        let start = self.get_node(start_node_id)?
+        let start = self
+            .get_node(start_node_id)?
             .ok_or_else(|| AresError::not_found("node", start_node_id.as_str()))?;
 
         let conn = self.store.get_conn()?;
-        let mut stmt = conn.prepare(
-            "WITH RECURSIVE impact(node_id, depth, via_edge_type) AS (
+        let mut stmt = conn
+            .prepare(
+                "WITH RECURSIVE impact(node_id, depth, via_edge_type) AS (
                SELECT ?1, 0, ''
                UNION ALL
                SELECT e.to_node_id, i.depth + 1, e.edge_type
@@ -206,18 +260,18 @@ impl SqliteGraphRepository {
              WHERE n.id != ?1 AND n.deleted_at IS NULL
              GROUP BY n.id
              ORDER BY min_depth ASC
-             LIMIT 500"
-        ).map_err(AresError::db)?;
+             LIMIT 500",
+            )
+            .map_err(AresError::db)?;
 
-        let rows = stmt.query_map(
-            params![start_node_id.as_str(), depth as i64],
-            |row| {
+        let rows = stmt
+            .query_map(params![start_node_id.as_str(), depth as i64], |row| {
                 let node = row_to_node(row)?;
                 let dist: i64 = row.get(9)?;
                 let edges_str: String = row.get(10)?;
                 Ok((node, dist as u8, edges_str))
-            }
-        ).map_err(AresError::db)?;
+            })
+            .map_err(AresError::db)?;
 
         let mut impacts = vec![];
         for row in rows {
@@ -229,10 +283,18 @@ impl SqliteGraphRepository {
                 .collect();
             // Confidence decays 0.1 per hop from 1.0
             let confidence = (1.0_f32 - (distance as f32 * 0.1)).max(0.1);
-            impacts.push(ImpactEntry { node, distance, confidence, via_edges });
+            impacts.push(ImpactEntry {
+                node,
+                distance,
+                confidence,
+                via_edges,
+            });
         }
 
-        Ok(ImpactGraph { target: start, impacts })
+        Ok(ImpactGraph {
+            target: start,
+            impacts,
+        })
     }
 
     // ----------------------------------------------------------------
@@ -259,25 +321,28 @@ impl SqliteGraphRepository {
              HAVING cnt >= 2"
         ).map_err(AresError::db)?;
 
-        let rows = stmt.query_map(params![project_id.as_str()], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-            ))
-        }).map_err(AresError::db)?;
+        let rows = stmt
+            .query_map(params![project_id.as_str()], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })
+            .map_err(AresError::db)?;
 
         let mut contradictions = vec![];
         for row in rows {
-            let (node_id, node_label, ids_str) = row.map_err(AresError::db)?;
+            let (_node_id, node_label, ids_str) = row.map_err(AresError::db)?;
             let decision_ids: Vec<String> = ids_str.split(',').map(String::from).collect();
-            contradictions.push(Contradiction {
-                node_id:                  NodeId::from(node_id.clone()),
-                node_label:               node_label.clone(),
-                conflicting_decision_ids: decision_ids,
-                description:              format!("Multiple decisions impact node '{node_label}'"),
-                confidence:               0.7,
-            });
+            if decision_ids.len() >= 2 {
+                contradictions.push(Contradiction {
+                    source_id: NodeId::from(decision_ids[0].clone()),
+                    target_id: NodeId::from(decision_ids[1].clone()),
+                    reason: format!("Multiple decisions impact node '{node_label}'"),
+                    confidence: 0.7,
+                });
+            }
         }
         Ok(contradictions)
     }
@@ -296,11 +361,13 @@ impl SqliteGraphRepository {
         let mut total = 0u32;
 
         for path in stale_paths {
-            let rows = conn.execute(
-                "UPDATE graph_nodes SET deleted_at = ?1, updated_at = ?1
+            let rows = conn
+                .execute(
+                    "UPDATE graph_nodes SET deleted_at = ?1, updated_at = ?1
                  WHERE project_id = ?2 AND file_path = ?3 AND deleted_at IS NULL",
-                params![now, project_id.as_str(), path],
-            ).map_err(AresError::db)?;
+                    params![now, project_id.as_str(), path],
+                )
+                .map_err(AresError::db)?;
             total += rows as u32;
         }
         Ok(total)
@@ -315,10 +382,11 @@ impl SqliteGraphRepository {
         file_path: &str,
     ) -> Result<Option<String>, AresError> {
         let conn = self.store.get_conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT file_hash FROM scan_state WHERE project_id = ?1 AND file_path = ?2"
-        ).map_err(AresError::db)?;
-        let result: Result<String, _> = stmt.query_row(params![project_id.as_str(), file_path], |row| row.get(0));
+        let mut stmt = conn
+            .prepare("SELECT file_hash FROM scan_state WHERE project_id = ?1 AND file_path = ?2")
+            .map_err(AresError::db)?;
+        let result: Result<String, _> =
+            stmt.query_row(params![project_id.as_str(), file_path], |row| row.get(0));
         match result {
             Ok(hash) => Ok(Some(hash)),
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
@@ -345,22 +413,20 @@ impl SqliteGraphRepository {
                file_hash = excluded.file_hash,
                last_scanned = excluded.last_scanned,
                node_ids = excluded.node_ids",
-            params![
-                id,
-                project_id.as_str(),
-                file_path,
-                file_hash,
-                now,
-                ids_json,
-            ],
-        ).map_err(AresError::db)?;
+            params![id, project_id.as_str(), file_path, file_hash, now, ids_json,],
+        )
+        .map_err(AresError::db)?;
         Ok(())
     }
 
     // ----------------------------------------------------------------
     // Scan Runs
     // ----------------------------------------------------------------
-    pub fn start_scan_run(&self, project_id: &ProjectId, run_type: &str) -> Result<String, AresError> {
+    pub fn start_scan_run(
+        &self,
+        project_id: &ProjectId,
+        run_type: &str,
+    ) -> Result<String, AresError> {
         let conn = self.store.get_conn()?;
         let id = new_id();
         let now = now_micros();
@@ -368,7 +434,8 @@ impl SqliteGraphRepository {
             "INSERT INTO scan_runs (id, project_id, run_type, status, started_at)
              VALUES (?1, ?2, ?3, 'running', ?4)",
             params![id, project_id.as_str(), run_type, now],
-        ).map_err(AresError::db)?;
+        )
+        .map_err(AresError::db)?;
         Ok(id)
     }
 
@@ -400,15 +467,32 @@ fn row_to_node(row: &rusqlite::Row<'_>) -> Result<GraphNode, rusqlite::Error> {
     let props_str: String = row.get(4)?;
 
     Ok(GraphNode {
-        id:         NodeId::from(row.get::<_, String>(0)?),
+        id: NodeId::from(row.get::<_, String>(0)?),
         project_id: ProjectId::from(row.get::<_, String>(1)?),
-        node_type:  node_type_str.parse().unwrap_or(NodeType::Concept),
-        label:      row.get(3)?,
+        node_type: node_type_str.parse().unwrap_or(NodeType::Concept),
+        label: row.get(3)?,
         properties: serde_json::from_str(&props_str).unwrap_or_default(),
-        file_path:  row.get(5)?,
+        file_path: row.get(5)?,
         created_at: row.get(6)?,
         updated_at: row.get(7)?,
         deleted_at: row.get(8)?,
+    })
+}
+
+fn row_to_edge(row: &rusqlite::Row<'_>) -> Result<GraphEdge, rusqlite::Error> {
+    let edge_type_str: String = row.get(4)?;
+    Ok(GraphEdge {
+        id: row.get(0)?,
+        project_id: ProjectId::from(row.get::<_, String>(1)?),
+        from_node_id: NodeId::from(row.get::<_, String>(2)?),
+        to_node_id: NodeId::from(row.get::<_, String>(3)?),
+        edge_type: edge_type_str.parse().unwrap_or(EdgeType::RelatedTo),
+        weight: row.get(5)?,
+        confidence: row.get(6)?,
+        source: row.get(7)?,
+        valid_from: row.get(8)?,
+        valid_until: row.get(9)?,
+        created_at: row.get(10)?,
     })
 }
 
@@ -431,21 +515,26 @@ mod tests {
             primary_language: "ts".into(),
             domain: "".into(),
             maturity: ProjectMaturity::Greenfield,
-            created_at: now, updated_at: now, deleted_at: None,
-        }).unwrap();
+            created_at: now,
+            updated_at: now,
+            deleted_at: None,
+        })
+        .unwrap();
         project_id
     }
 
     fn make_node(project_id: &ProjectId, label: &str, file_path: Option<&str>) -> GraphNode {
         let now = now_micros();
         GraphNode {
-            id:         NodeId::new(),
+            id: NodeId::new(),
             project_id: project_id.clone(),
-            node_type:  NodeType::File,
-            label:      label.into(),
+            node_type: NodeType::File,
+            label: label.into(),
             properties: serde_json::json!({}),
-            file_path:  file_path.map(String::from),
-            created_at: now, updated_at: now, deleted_at: None,
+            file_path: file_path.map(String::from),
+            created_at: now,
+            updated_at: now,
+            deleted_at: None,
         }
     }
 
@@ -468,21 +557,31 @@ mod tests {
         let project_id = setup_project(&store);
         let repo = SqliteGraphRepository::new(store);
 
-        let file_node  = repo.upsert_node(make_node(&project_id, "auth.ts", Some("auth.ts"))).unwrap();
-        let func_node  = repo.upsert_node(make_node(&project_id, "validateJwt", None)).unwrap();
+        let file_node = repo
+            .upsert_node(make_node(&project_id, "auth.ts", Some("auth.ts")))
+            .unwrap();
+        let func_node = repo
+            .upsert_node(make_node(&project_id, "validateJwt", None))
+            .unwrap();
 
         repo.upsert_edge(GraphEdge {
-            id:           String::new(),
-            project_id:   project_id.clone(),
+            id: String::new(),
+            project_id: project_id.clone(),
             from_node_id: file_node.id.clone(),
-            to_node_id:   func_node.id.clone(),
-            edge_type:    EdgeType::Defines,
-            weight:       1.0, confidence: 1.0,
-            source:       "scanner".into(),
-            valid_from:   0, valid_until: None, created_at: 0,
-        }).unwrap();
+            to_node_id: func_node.id.clone(),
+            edge_type: EdgeType::Defines,
+            weight: 1.0,
+            confidence: 1.0,
+            source: "scanner".into(),
+            valid_from: 0,
+            valid_until: None,
+            created_at: 0,
+        })
+        .unwrap();
 
-        let neighbors = repo.get_neighbors(&file_node.id, EdgeDirection::Outgoing, &[EdgeType::Defines]).unwrap();
+        let neighbors = repo
+            .get_neighbors(&file_node.id, EdgeDirection::Outgoing, &[EdgeType::Defines])
+            .unwrap();
         assert_eq!(neighbors.len(), 1);
         assert_eq!(neighbors[0].id, func_node.id);
     }
@@ -494,15 +593,28 @@ mod tests {
         let repo = SqliteGraphRepository::new(store);
 
         // A → imports → B → imports → C
-        let a = repo.upsert_node(make_node(&project_id, "a.ts", Some("a.ts"))).unwrap();
-        let b = repo.upsert_node(make_node(&project_id, "b.ts", Some("b.ts"))).unwrap();
-        let c = repo.upsert_node(make_node(&project_id, "c.ts", Some("c.ts"))).unwrap();
+        let a = repo
+            .upsert_node(make_node(&project_id, "a.ts", Some("a.ts")))
+            .unwrap();
+        let b = repo
+            .upsert_node(make_node(&project_id, "b.ts", Some("b.ts")))
+            .unwrap();
+        let c = repo
+            .upsert_node(make_node(&project_id, "c.ts", Some("c.ts")))
+            .unwrap();
 
         let make_edge = |from: &NodeId, to: &NodeId| GraphEdge {
-            id: String::new(), project_id: project_id.clone(),
-            from_node_id: from.clone(), to_node_id: to.clone(),
-            edge_type: EdgeType::Imports, weight: 1.0, confidence: 1.0,
-            source: "scanner".into(), valid_from: 0, valid_until: None, created_at: 0,
+            id: String::new(),
+            project_id: project_id.clone(),
+            from_node_id: from.clone(),
+            to_node_id: to.clone(),
+            edge_type: EdgeType::Imports,
+            weight: 1.0,
+            confidence: 1.0,
+            source: "scanner".into(),
+            valid_from: 0,
+            valid_until: None,
+            created_at: 0,
         };
 
         repo.upsert_edge(make_edge(&a.id, &b.id)).unwrap();
@@ -512,7 +624,7 @@ mod tests {
         assert_eq!(impact.impacts.len(), 2); // b and c
         assert_eq!(impact.impacts[0].distance, 1); // b at depth 1
         assert_eq!(impact.impacts[1].distance, 2); // c at depth 2
-        // Confidence decay
+                                                   // Confidence decay
         assert!((impact.impacts[0].confidence - 0.9).abs() < 0.01);
         assert!((impact.impacts[1].confidence - 0.8).abs() < 0.01);
     }

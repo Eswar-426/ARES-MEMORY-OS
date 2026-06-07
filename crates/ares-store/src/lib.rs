@@ -8,14 +8,11 @@
 
 pub mod db;
 pub mod migrations;
-pub mod repositories;
 pub mod query;
+pub mod repositories;
 
 pub use db::Store;
 pub use repositories::{
-    decision::SqliteDecisionRepository,
-    event::SqliteEventRepository,
-    graph::SqliteGraphRepository,
-    memory::SqliteMemoryRepository,
-    project::SqliteProjectRepository,
+    decision::SqliteDecisionRepository, event::SqliteEventRepository, graph::SqliteGraphRepository,
+    memory::SqliteMemoryRepository, project::SqliteProjectRepository,
 };

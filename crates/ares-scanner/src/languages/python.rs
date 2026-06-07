@@ -1,5 +1,5 @@
 use super::{ExtractionResult, LanguageExtractor};
-use ares_core::{GraphNode, NodeId, NodeType, ProjectId, types::event::now_micros};
+use ares_core::{types::event::now_micros, GraphNode, NodeId, NodeType, ProjectId};
 use tree_sitter::{Parser, Query, QueryCursor};
 
 pub struct PythonExtractor {
@@ -15,6 +15,12 @@ impl PythonExtractor {
         "#;
         let query = Query::new(&language, query_str).expect("Invalid Python Tree-sitter query");
         Self { query }
+    }
+}
+
+impl Default for PythonExtractor {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

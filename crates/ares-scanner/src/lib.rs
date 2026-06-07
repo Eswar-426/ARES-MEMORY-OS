@@ -11,6 +11,5 @@ pub mod parser;
 pub mod scanner;
 pub mod watcher;
 
-pub use scanner::Scanner;
 pub use hasher::hash_file;
-
+pub use scanner::Scanner;

@@ -1,0 +1,22 @@
+[package]
+name = "ares-mcp"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+ares-core  = { path = "../ares-core" }
+ares-app   = { path = "../ares-app" }
+ares-agent = { path = "../ares-agent" }
+
+tokio      = { workspace = true, features = ["io-std", "io-util"] }
+serde      = { workspace = true }
+serde_json = { workspace = true }
+tracing    = { workspace = true }
+tracing-subscriber = { workspace = true }
+jsonrpc-core = "18.0"
+anyhow     = { workspace = true }
+
+[dev-dependencies]
+tempfile   = { workspace = true }

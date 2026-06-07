@@ -6,14 +6,25 @@
 pub mod error;
 pub mod id;
 pub mod types;
+pub mod vector;
 
 pub use error::AresError;
 pub use id::{new_id, DecisionId, EventId, MemoryId, NodeId, ProjectId, ScanRunId};
 pub use types::{
-    decision::{Alternative, CreateDecisionInput, Decision, DecisionFilter, DecisionPatch, DecisionSearchResult, DecisionStatus, Risk},
+    decision::{
+        Alternative, CreateDecisionInput, Decision, DecisionFilter, DecisionPatch,
+        DecisionSearchResult, DecisionStatus, Risk,
+    },
     event::{AresEvent, EventSource, EventType},
-    memory::{Memory, CreateMemoryInput, MemoryFilter, MemoryPatch, MemorySearchResult, MemorySource, MemoryStatus, MemoryType},
-    node::{Contradiction, EdgeDirection, EdgeType, GraphEdge, GraphNode, ImpactEntry, ImpactGraph, NodeType},
-    project::{Language, Project, ProjectMaturity},
+    intelligence::{AccessContext, ContradictionRecord, MemoryAccessLog, RankingCache},
+    memory::{
+        CreateMemoryInput, ImportanceLevel, Memory, MemoryFilter, MemoryPatch, MemorySearchResult,
+        MemorySource, MemoryStatus, MemoryType,
+    },
+    node::{
+        Contradiction, EdgeDirection, EdgeType, GraphEdge, GraphNode, ImpactEntry, ImpactGraph,
+        NodeType,
+    },
     pagination::{Page, Pagination},
+    project::{Language, Project, ProjectMaturity},
 };

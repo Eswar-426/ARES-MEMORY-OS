@@ -10,10 +10,7 @@ use uuid::Uuid;
 
 macro_rules! define_id {
     ($name:ident, $resource:literal) => {
-        #[derive(
-            Debug, Clone, PartialEq, Eq, Hash,
-            serde::Serialize, serde::Deserialize,
-        )]
+        #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
         #[serde(transparent)]
         pub struct $name(pub String);
 
@@ -22,16 +19,20 @@ macro_rules! define_id {
                 Self(new_id())
             }
 
-            pub fn from_str(s: &str) -> Self {
-                Self(s.to_string())
-            }
-
             pub fn as_str(&self) -> &str {
                 &self.0
             }
 
             pub fn resource_type() -> &'static str {
                 $resource
+            }
+        }
+
+        impl std::str::FromStr for $name {
+            type Err = std::convert::Infallible;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                Ok(Self(s.to_string()))
             }
         }
 
@@ -76,16 +77,17 @@ pub fn new_id() -> String {
     Uuid::now_v7().to_string()
 }
 
-define_id!(ProjectId,  "project");
-define_id!(MemoryId,   "memory");
+define_id!(ProjectId, "project");
+define_id!(MemoryId, "memory");
 define_id!(DecisionId, "decision");
-define_id!(NodeId,     "node");
-define_id!(EventId,    "event");
-define_id!(ScanRunId,  "scan_run");
+define_id!(NodeId, "node");
+define_id!(EventId, "event");
+define_id!(ScanRunId, "scan_run");
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str::FromStr;
 
     #[test]
     fn new_id_is_valid_uuid() {
@@ -106,7 +108,12 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(2));
         let id2 = new_id();
         // UUIDv7 strings are lexicographically time-ordered
-        assert!(id1 < id2, "UUIDv7 ids should be time-ordered: {} < {}", id1, id2);
+        assert!(
+            id1 < id2,
+            "UUIDv7 ids should be time-ordered: {} < {}",
+            id1,
+            id2
+        );
     }
 
     #[test]
@@ -120,7 +127,7 @@ mod tests {
 
     #[test]
     fn id_serializes_as_plain_string() {
-        let id = MemoryId::from_str("test-id-123");
+        let id = MemoryId::from_str("test-id-123").unwrap();
         let json = serde_json::to_string(&id).unwrap();
         assert_eq!(json, r#""test-id-123""#);
     }

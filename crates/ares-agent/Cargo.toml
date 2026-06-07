@@ -5,6 +5,10 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 
+[lib]
+name = "ares_agent"
+path = "src/lib.rs"
+
 [[bin]]
 name = "ares-agent"
 path = "src/main.rs"

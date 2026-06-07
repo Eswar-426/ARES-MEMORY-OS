@@ -1,10 +1,10 @@
 use ares_core::{GraphEdge, GraphNode, ProjectId};
 
-pub mod rust;
-pub mod typescript;
+pub mod go;
 pub mod javascript;
 pub mod python;
-pub mod go;
+pub mod rust;
+pub mod typescript;
 
 pub struct ExtractionResult {
     pub nodes: Vec<GraphNode>,

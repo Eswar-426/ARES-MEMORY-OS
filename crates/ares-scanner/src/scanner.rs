@@ -1,12 +1,12 @@
-use ares_core::{AresError, ProjectId};
-use ares_store::repositories::graph::SqliteGraphRepository;
 use crate::extractor::ExtractorRouter;
 use crate::hasher::hash_file;
+use ares_core::{AresError, ProjectId};
+use ares_store::repositories::graph::SqliteGraphRepository;
 use ignore::WalkBuilder;
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
 
 pub struct Scanner {
     graph_repo: Arc<SqliteGraphRepository>,
@@ -29,12 +29,26 @@ impl Scanner {
         self.scan_internal(project_id, root_path, false, None)
     }
 
-    pub fn scan_changed_files(&self, project_id: &ProjectId, changed_files: &[PathBuf]) -> Result<(), AresError> {
-        self.scan_internal(project_id, Path::new(""), false, Some(changed_files.to_vec()))
+    pub fn scan_changed_files(
+        &self,
+        project_id: &ProjectId,
+        changed_files: &[PathBuf],
+    ) -> Result<(), AresError> {
+        self.scan_internal(
+            project_id,
+            Path::new(""),
+            false,
+            Some(changed_files.to_vec()),
+        )
     }
 
     pub fn scan_file(&self, project_id: &ProjectId, file_path: &Path) -> Result<(), AresError> {
-        self.scan_internal(project_id, Path::new(""), false, Some(vec![file_path.to_path_buf()]))
+        self.scan_internal(
+            project_id,
+            Path::new(""),
+            false,
+            Some(vec![file_path.to_path_buf()]),
+        )
     }
 
     fn scan_internal(
@@ -54,7 +68,7 @@ impl Scanner {
                 for result in WalkBuilder::new(root_path).hidden(false).build() {
                     match result {
                         Ok(entry) => {
-                            if entry.file_type().map_or(false, |ft| ft.is_file()) {
+                            if entry.file_type().is_some_and(|ft| ft.is_file()) {
                                 paths.push(entry.into_path());
                             }
                         }
@@ -71,7 +85,7 @@ impl Scanner {
 
         files.par_iter().for_each(|path| {
             let path_str = path.to_string_lossy().to_string();
-            
+
             let current_hash = match hash_file(path) {
                 Ok(h) => h,
                 Err(_) => {
@@ -106,8 +120,13 @@ impl Scanner {
                     for edge in result.edges {
                         let _ = self.graph_repo.upsert_edge(edge);
                     }
-                    
-                    let _ = self.graph_repo.update_scan_state(project_id, &path_str, &current_hash, &node_ids);
+
+                    let _ = self.graph_repo.update_scan_state(
+                        project_id,
+                        &path_str,
+                        &current_hash,
+                        &node_ids,
+                    );
                     parsed.fetch_add(1, Ordering::Relaxed);
                 }
                 Ok(None) => {

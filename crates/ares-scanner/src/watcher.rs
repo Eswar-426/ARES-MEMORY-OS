@@ -11,13 +11,18 @@ pub struct ProjectWatcher {
 
 impl ProjectWatcher {
     pub fn new(project_id: ProjectId, root_path: PathBuf) -> Self {
-        Self { _project_id: project_id, root_path }
+        Self {
+            _project_id: project_id,
+            root_path,
+        }
     }
 
     /// Watch the directory for changes, returning a channel of batched file paths that changed.
-    pub fn watch(self) -> Result<mpsc::Receiver<Vec<PathBuf>>, Box<dyn std::error::Error + Send + Sync>> {
+    pub fn watch(
+        self,
+    ) -> Result<mpsc::Receiver<Vec<PathBuf>>, Box<dyn std::error::Error + Send + Sync>> {
         let (tx, rx) = mpsc::channel();
-        
+
         std::thread::spawn(move || {
             let (debounce_tx, debounce_rx) = mpsc::channel();
             let mut debouncer = match new_debouncer(Duration::from_millis(500), debounce_tx) {
@@ -27,8 +32,11 @@ impl ProjectWatcher {
                     return;
                 }
             };
-            
-            if let Err(e) = debouncer.watcher().watch(&self.root_path, RecursiveMode::Recursive) {
+
+            if let Err(e) = debouncer
+                .watcher()
+                .watch(&self.root_path, RecursiveMode::Recursive)
+            {
                 eprintln!("Failed to watch {}: {}", self.root_path.display(), e);
                 return;
             }

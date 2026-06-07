@@ -14,7 +14,10 @@ pub enum AresError {
     // Domain errors
     // ----------------------------------------------------------------
     #[error("Not found: {resource_type} with id '{id}'")]
-    NotFound { resource_type: &'static str, id: String },
+    NotFound {
+        resource_type: &'static str,
+        id: String,
+    },
 
     #[error("Conflict: {0}")]
     Conflict(String),
@@ -77,7 +80,10 @@ impl AresError {
     // ----------------------------------------------------------------
 
     pub fn not_found(resource_type: &'static str, id: impl Into<String>) -> Self {
-        Self::NotFound { resource_type, id: id.into() }
+        Self::NotFound {
+            resource_type,
+            id: id.into(),
+        }
     }
 
     pub fn conflict(msg: impl Into<String>) -> Self {
@@ -114,18 +120,18 @@ impl AresError {
 
     pub fn ipc_code(&self) -> i32 {
         match self {
-            Self::NotFound { .. }          => 404,
-            Self::Conflict(_)              => 409,
-            Self::Validation(_)            => 400,
-            Self::NotInitialized(_)        => 1001,
-            Self::ScanInProgress { .. }    => 1002,
+            Self::NotFound { .. } => 404,
+            Self::Conflict(_) => 409,
+            Self::Validation(_) => 400,
+            Self::NotInitialized(_) => 1001,
+            Self::ScanInProgress { .. } => 1002,
             Self::AlreadySuperseded { .. } => 409,
-            Self::UnknownMethod(_)         => 400,
-            Self::InvalidPath(_)           => 400,
-            Self::IpcConnection(_)         => 503,
-            Self::IpcTimeout { .. }        => 504,
-            Self::UnsupportedLanguage(_)   => 400,
-            _                              => 500,
+            Self::UnknownMethod(_) => 400,
+            Self::InvalidPath(_) => 400,
+            Self::IpcConnection(_) => 503,
+            Self::IpcTimeout { .. } => 504,
+            Self::UnsupportedLanguage(_) => 400,
+            _ => 500,
         }
     }
 }
@@ -155,7 +161,9 @@ mod tests {
 
     #[test]
     fn scan_in_progress_has_correct_code() {
-        let e = AresError::ScanInProgress { project_id: "proj_1".into() };
+        let e = AresError::ScanInProgress {
+            project_id: "proj_1".into(),
+        };
         assert_eq!(e.ipc_code(), 1002);
     }
 

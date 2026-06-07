@@ -6,13 +6,8 @@
 pub const MAX_TRAVERSAL_DEPTH: u8 = 5;
 
 /// Edge types that represent structural dependencies (used in impact analysis).
-pub const STRUCTURAL_EDGE_TYPES: &[&str] = &[
-    "imports",
-    "depends_on",
-    "calls",
-    "implements",
-    "defines",
-];
+pub const STRUCTURAL_EDGE_TYPES: &[&str] =
+    &["imports", "depends_on", "calls", "implements", "defines"];
 
 /// Edge types that represent knowledge relationships.
 pub const KNOWLEDGE_EDGE_TYPES: &[&str] = &[

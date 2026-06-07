@@ -28,8 +28,11 @@ mod tests {
         assert!(result.is_ok(), "Fresh migrations failed: {:?}", result);
 
         // Verify tables exist by querying sqlite_master
-        let mut stmt = conn.prepare("SELECT name FROM sqlite_master WHERE type='table'").unwrap();
-        let tables: Vec<String> = stmt.query_map([], |row| row.get(0))
+        let mut stmt = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+            .unwrap();
+        let tables: Vec<String> = stmt
+            .query_map([], |row| row.get(0))
             .unwrap()
             .map(|r| r.unwrap())
             .collect();
@@ -60,23 +63,27 @@ mod tests {
         assert!(result.is_ok(), "Rerunning migrations failed: {:?}", result);
 
         // Verify data is still intact
-        let project_name: String = conn.query_row(
-            "SELECT name FROM projects WHERE id = 'proj_1'",
-            [],
-            |row| row.get(0),
-        ).unwrap();
+        let project_name: String = conn
+            .query_row("SELECT name FROM projects WHERE id = 'proj_1'", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
         assert_eq!(project_name, "Test");
 
         // Rerun migrations again (third run)
         let result_3 = run(&mut conn);
-        assert!(result_3.is_ok(), "Third run of migrations failed: {:?}", result_3);
+        assert!(
+            result_3.is_ok(),
+            "Third run of migrations failed: {:?}",
+            result_3
+        );
 
         // Verify data is still intact
-        let project_name_3: String = conn.query_row(
-            "SELECT name FROM projects WHERE id = 'proj_1'",
-            [],
-            |row| row.get(0),
-        ).unwrap();
+        let project_name_3: String = conn
+            .query_row("SELECT name FROM projects WHERE id = 'proj_1'", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
         assert_eq!(project_name_3, "Test");
     }
 }

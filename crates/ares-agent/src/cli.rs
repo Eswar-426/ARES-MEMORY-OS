@@ -71,5 +71,8 @@ enum DecisionAction {
 fn main() {
     let _cli = Cli::parse();
     // TODO Week 16: Implement all commands
-    println!("ARES CLI v{} — commands coming in Week 16", env!("CARGO_PKG_VERSION"));
+    println!(
+        "ARES CLI v{} — commands coming in Week 16",
+        env!("CARGO_PKG_VERSION")
+    );
 }

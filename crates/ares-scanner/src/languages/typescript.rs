@@ -1,5 +1,5 @@
 use super::{ExtractionResult, LanguageExtractor};
-use ares_core::{GraphNode, NodeId, NodeType, ProjectId, types::event::now_micros};
+use ares_core::{types::event::now_micros, GraphNode, NodeId, NodeType, ProjectId};
 use tree_sitter::{Parser, Query, QueryCursor};
 
 pub struct TypeScriptExtractor {
@@ -18,6 +18,12 @@ impl TypeScriptExtractor {
         "#;
         let query = Query::new(&language, query_str).expect("Invalid TS Tree-sitter query");
         Self { query }
+    }
+}
+
+impl Default for TypeScriptExtractor {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

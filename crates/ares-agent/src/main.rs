@@ -6,21 +6,15 @@
 //! 3. Manages the project scanner
 //! 4. Emits events to in-process subscribers
 
-mod agent;
-mod config;
-mod ipc;
-mod services;
+use ares_agent::agent;
+use ares_agent::config;
 
 use clap::Parser;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
 #[derive(Parser, Debug)]
-#[command(
-    name = "ares-agent",
-    about = "ARES MemoryOS Local Agent",
-    version
-)]
+#[command(name = "ares-agent", about = "ARES MemoryOS Local Agent", version)]
 struct Args {
     /// Path to the project root (defaults to current directory)
     #[arg(short, long)]
@@ -44,8 +38,7 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     // Initialize structured logging
-    let filter = EnvFilter::try_new(&args.log_level)
-        .unwrap_or_else(|_| EnvFilter::new("info"));
+    let filter = EnvFilter::try_new(&args.log_level).unwrap_or_else(|_| EnvFilter::new("info"));
     tracing_subscriber::fmt()
         .with_env_filter(filter)
         .with_target(false)
@@ -59,11 +52,12 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let project_path = args.project_path
-        .unwrap_or_else(|| std::env::current_dir()
+    let project_path = args.project_path.unwrap_or_else(|| {
+        std::env::current_dir()
             .expect("Cannot determine current directory")
             .to_string_lossy()
-            .to_string());
+            .to_string()
+    });
 
     // Load config and start agent
     let config = config::AgentConfig::load(&project_path)?;

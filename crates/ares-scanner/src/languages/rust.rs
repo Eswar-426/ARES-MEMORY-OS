@@ -1,5 +1,5 @@
 use super::{ExtractionResult, LanguageExtractor};
-use ares_core::{GraphNode, NodeId, NodeType, ProjectId, types::event::now_micros};
+use ares_core::{types::event::now_micros, GraphNode, NodeId, NodeType, ProjectId};
 use tree_sitter::{Parser, Query, QueryCursor};
 
 pub struct RustExtractor {
@@ -19,6 +19,12 @@ impl RustExtractor {
         "#;
         let query = Query::new(&language, query_str).expect("Invalid Rust Tree-sitter query");
         Self { query }
+    }
+}
+
+impl Default for RustExtractor {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

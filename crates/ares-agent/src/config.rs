@@ -6,10 +6,10 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentConfig {
     pub project_path: String,
-    pub project_id:   Option<String>,
-    pub ares_home:    PathBuf,
-    pub socket_path:  PathBuf,
-    pub log_level:    String,
+    pub project_id: Option<String>,
+    pub ares_home: PathBuf,
+    pub socket_path: PathBuf,
+    pub log_level: String,
 }
 
 impl AgentConfig {
@@ -29,7 +29,7 @@ impl AgentConfig {
 
         Ok(Self {
             project_path: project_path.to_string(),
-            project_id:   None, // populated after init
+            project_id: None, // populated after init
             ares_home,
             socket_path,
             log_level: "info".into(),
@@ -60,9 +60,10 @@ fn dirs_home() -> PathBuf {
     #[cfg(windows)]
     {
         std::env::var("USERPROFILE")
-            .or_else(|_| std::env::var("HOMEDRIVE").and_then(|d| {
-                std::env::var("HOMEPATH").map(|p| format!("{d}{p}"))
-            }))
+            .or_else(|_| {
+                std::env::var("HOMEDRIVE")
+                    .and_then(|d| std::env::var("HOMEPATH").map(|p| format!("{d}{p}")))
+            })
             .map(PathBuf::from)
             .unwrap_or_else(|_| PathBuf::from("C:\\Users\\default"))
     }

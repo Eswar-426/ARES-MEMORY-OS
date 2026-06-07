@@ -45,27 +45,27 @@ pub enum EventType {
 impl EventType {
     pub fn as_str(&self) -> &'static str {
         match self {
-            Self::MemoryCreated             => "memory.created",
-            Self::MemoryUpdated             => "memory.updated",
-            Self::MemoryDeleted             => "memory.deleted",
-            Self::MemoryVersionCreated      => "memory.version_created",
-            Self::DecisionCreated           => "decision.created",
-            Self::DecisionUpdated           => "decision.updated",
-            Self::DecisionSuperseded        => "decision.superseded",
-            Self::DecisionReviewDue         => "decision.review_due",
-            Self::ScannerRunStarted         => "scanner.run_started",
-            Self::ScannerFileParsed         => "scanner.file_parsed",
-            Self::ScannerRunCompleted       => "scanner.run_completed",
-            Self::ScannerRunFailed          => "scanner.run_failed",
-            Self::ScannerChangeDetected     => "scanner.change_detected",
-            Self::GraphNodeCreated          => "graph.node_created",
-            Self::GraphEdgeCreated          => "graph.edge_created",
+            Self::MemoryCreated => "memory.created",
+            Self::MemoryUpdated => "memory.updated",
+            Self::MemoryDeleted => "memory.deleted",
+            Self::MemoryVersionCreated => "memory.version_created",
+            Self::DecisionCreated => "decision.created",
+            Self::DecisionUpdated => "decision.updated",
+            Self::DecisionSuperseded => "decision.superseded",
+            Self::DecisionReviewDue => "decision.review_due",
+            Self::ScannerRunStarted => "scanner.run_started",
+            Self::ScannerFileParsed => "scanner.file_parsed",
+            Self::ScannerRunCompleted => "scanner.run_completed",
+            Self::ScannerRunFailed => "scanner.run_failed",
+            Self::ScannerChangeDetected => "scanner.change_detected",
+            Self::GraphNodeCreated => "graph.node_created",
+            Self::GraphEdgeCreated => "graph.edge_created",
             Self::GraphContradictionDetected => "graph.contradiction_detected",
-            Self::AgentSessionStarted       => "agent.session_started",
-            Self::AgentActionLogged         => "agent.action_logged",
-            Self::AgentSessionEnded         => "agent.session_ended",
-            Self::ProjectInitialized        => "project.initialized",
-            Self::ProjectUpdated            => "project.updated",
+            Self::AgentSessionStarted => "agent.session_started",
+            Self::AgentActionLogged => "agent.action_logged",
+            Self::AgentSessionEnded => "agent.session_ended",
+            Self::ProjectInitialized => "project.initialized",
+            Self::ProjectUpdated => "project.updated",
         }
     }
 }
@@ -83,10 +83,10 @@ pub enum EventSource {
 impl EventSource {
     pub fn as_str(&self) -> &'static str {
         match self {
-            Self::Agent   => "agent",
+            Self::Agent => "agent",
             Self::Scanner => "scanner",
-            Self::User    => "user",
-            Self::Mcp     => "mcp",
+            Self::User => "user",
+            Self::Mcp => "mcp",
         }
     }
 }
@@ -95,11 +95,11 @@ impl std::str::FromStr for EventSource {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "agent"   => Ok(Self::Agent),
+            "agent" => Ok(Self::Agent),
             "scanner" => Ok(Self::Scanner),
-            "user"    => Ok(Self::User),
-            "mcp"     => Ok(Self::Mcp),
-            other     => Err(format!("Unknown event source: {other}")),
+            "user" => Ok(Self::User),
+            "mcp" => Ok(Self::Mcp),
+            other => Err(format!("Unknown event source: {other}")),
         }
     }
 }
@@ -110,11 +110,11 @@ impl std::str::FromStr for EventSource {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AresEvent {
-    pub id:         EventId,
+    pub id: EventId,
     pub event_type: EventType,
     pub project_id: Option<ProjectId>,
-    pub payload:    serde_json::Value,
-    pub source:     EventSource,
+    pub payload: serde_json::Value,
+    pub source: EventSource,
     /// Unix microseconds
     pub created_at: i64,
 }

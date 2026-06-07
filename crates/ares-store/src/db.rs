@@ -22,8 +22,8 @@ impl Store {
     pub fn open(path: &Path) -> Result<Self, AresError> {
         info!(db_path = %path.display(), "Opening ARES database");
 
-        let manager = SqliteConnectionManager::file(path)
-            .with_init(|conn| configure_connection(conn));
+        let manager =
+            SqliteConnectionManager::file(path).with_init(|conn| configure_connection(conn));
 
         let pool = Pool::builder()
             .max_size(8)
@@ -46,7 +46,9 @@ impl Store {
 
     /// Acquire a connection from the pool.
     pub fn get_conn(&self) -> Result<DbConn, AresError> {
-        self.pool.get().map_err(|e| AresError::db(format!("Failed to get connection: {e}")))
+        self.pool
+            .get()
+            .map_err(|e| AresError::db(format!("Failed to get connection: {e}")))
     }
 
     /// Execute a closure within a transaction.
@@ -77,7 +79,9 @@ impl Store {
             .query_row("PRAGMA integrity_check", [], |row| row.get(0))
             .map_err(AresError::db)?;
         if result != "ok" {
-            return Err(AresError::conflict(format!("Database integrity check failed: {result}")));
+            return Err(AresError::conflict(format!(
+                "Database integrity check failed: {result}"
+            )));
         }
         Ok(())
     }
@@ -123,19 +127,27 @@ mod tests {
         let conn = store.get_conn().unwrap();
 
         // Verify journal mode is WAL
-        let journal_mode: String = conn.query_row("PRAGMA journal_mode", [], |row| row.get(0)).unwrap();
+        let journal_mode: String = conn
+            .query_row("PRAGMA journal_mode", [], |row| row.get(0))
+            .unwrap();
         assert_eq!(journal_mode, "wal");
 
         // Verify foreign keys are enabled
-        let foreign_keys: i32 = conn.query_row("PRAGMA foreign_keys", [], |row| row.get(0)).unwrap();
+        let foreign_keys: i32 = conn
+            .query_row("PRAGMA foreign_keys", [], |row| row.get(0))
+            .unwrap();
         assert_eq!(foreign_keys, 1);
 
         // Verify synchronous mode is NORMAL (1)
-        let synchronous: i32 = conn.query_row("PRAGMA synchronous", [], |row| row.get(0)).unwrap();
+        let synchronous: i32 = conn
+            .query_row("PRAGMA synchronous", [], |row| row.get(0))
+            .unwrap();
         assert_eq!(synchronous, 1);
 
         // Verify busy timeout is configured to 5000ms
-        let busy_timeout: i32 = conn.query_row("PRAGMA busy_timeout", [], |row| row.get(0)).unwrap();
+        let busy_timeout: i32 = conn
+            .query_row("PRAGMA busy_timeout", [], |row| row.get(0))
+            .unwrap();
         assert_eq!(busy_timeout, 5000);
     }
 
@@ -169,7 +181,11 @@ mod tests {
 
         // Verify project was inserted
         let conn = store.get_conn().unwrap();
-        let exists: i32 = conn.query_row("SELECT COUNT(*) FROM projects WHERE id='p1'", [], |r| r.get(0)).unwrap();
+        let exists: i32 = conn
+            .query_row("SELECT COUNT(*) FROM projects WHERE id='p1'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
         assert_eq!(exists, 1);
     }
 
@@ -192,7 +208,11 @@ mod tests {
 
         // Verify project was NOT inserted
         let conn = store.get_conn().unwrap();
-        let exists: i32 = conn.query_row("SELECT COUNT(*) FROM projects WHERE id='p2'", [], |r| r.get(0)).unwrap();
+        let exists: i32 = conn
+            .query_row("SELECT COUNT(*) FROM projects WHERE id='p2'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
         assert_eq!(exists, 0);
     }
 }

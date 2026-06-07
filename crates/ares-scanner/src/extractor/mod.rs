@@ -43,6 +43,16 @@ impl ExtractorRouter {
             _ => return Ok(None),
         };
 
-        Ok(Some(extractor.extract(project_id, file_path, source_code)?))
+        Ok(Some(extractor.extract(
+            project_id,
+            file_path,
+            source_code,
+        )?))
+    }
+}
+
+impl Default for ExtractorRouter {
+    fn default() -> Self {
+        Self::new()
     }
 }
