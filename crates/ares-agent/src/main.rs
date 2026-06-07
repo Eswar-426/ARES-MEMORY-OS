@@ -13,7 +13,7 @@ mod services;
 
 use clap::Parser;
 use tracing::info;
-use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::EnvFilter;
 
 #[derive(Parser, Debug)]
 #[command(

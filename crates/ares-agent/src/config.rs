@@ -1,6 +1,6 @@
 use ares_core::AresError;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// Agent configuration — loaded from ~/.ares/config.toml or project .ares/config.toml
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,6 +36,7 @@ impl AgentConfig {
         })
     }
 
+    #[allow(dead_code)]
     pub fn db_path(&self, project_id: &str) -> PathBuf {
         self.ares_home
             .join("projects")
@@ -43,6 +44,7 @@ impl AgentConfig {
             .join("ares.db")
     }
 
+    #[allow(dead_code)]
     pub fn registry_path(&self) -> PathBuf {
         self.ares_home.join("registry.json")
     }

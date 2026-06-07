@@ -305,6 +305,90 @@ impl SqliteGraphRepository {
         }
         Ok(total)
     }
+
+    // ----------------------------------------------------------------
+    // Scan State
+    // ----------------------------------------------------------------
+    pub fn get_scan_state(
+        &self,
+        project_id: &ProjectId,
+        file_path: &str,
+    ) -> Result<Option<String>, AresError> {
+        let conn = self.store.get_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT file_hash FROM scan_state WHERE project_id = ?1 AND file_path = ?2"
+        ).map_err(AresError::db)?;
+        let result: Result<String, _> = stmt.query_row(params![project_id.as_str(), file_path], |row| row.get(0));
+        match result {
+            Ok(hash) => Ok(Some(hash)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(AresError::db(e)),
+        }
+    }
+
+    pub fn update_scan_state(
+        &self,
+        project_id: &ProjectId,
+        file_path: &str,
+        file_hash: &str,
+        node_ids: &[NodeId],
+    ) -> Result<(), AresError> {
+        let conn = self.store.get_conn()?;
+        let now = now_micros();
+        let ids_json = serde_json::to_string(node_ids).unwrap_or_else(|_| "[]".to_string());
+        let id = new_id();
+
+        conn.execute(
+            "INSERT INTO scan_state (id, project_id, file_path, file_hash, last_scanned, node_ids)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+             ON CONFLICT(project_id, file_path) DO UPDATE SET
+               file_hash = excluded.file_hash,
+               last_scanned = excluded.last_scanned,
+               node_ids = excluded.node_ids",
+            params![
+                id,
+                project_id.as_str(),
+                file_path,
+                file_hash,
+                now,
+                ids_json,
+            ],
+        ).map_err(AresError::db)?;
+        Ok(())
+    }
+
+    // ----------------------------------------------------------------
+    // Scan Runs
+    // ----------------------------------------------------------------
+    pub fn start_scan_run(&self, project_id: &ProjectId, run_type: &str) -> Result<String, AresError> {
+        let conn = self.store.get_conn()?;
+        let id = new_id();
+        let now = now_micros();
+        conn.execute(
+            "INSERT INTO scan_runs (id, project_id, run_type, status, started_at)
+             VALUES (?1, ?2, ?3, 'running', ?4)",
+            params![id, project_id.as_str(), run_type, now],
+        ).map_err(AresError::db)?;
+        Ok(id)
+    }
+
+    pub fn complete_scan_run(
+        &self,
+        run_id: &str,
+        status: &str,
+        files_total: u32,
+        files_parsed: u32,
+        files_failed: u32,
+    ) -> Result<(), AresError> {
+        let conn = self.store.get_conn()?;
+        let now = now_micros();
+        conn.execute(
+            "UPDATE scan_runs SET status = ?1, files_total = ?2, files_parsed = ?3, files_failed = ?4, completed_at = ?5
+             WHERE id = ?6",
+            params![status, files_total, files_parsed, files_failed, now, run_id],
+        ).map_err(AresError::db)?;
+        Ok(())
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────

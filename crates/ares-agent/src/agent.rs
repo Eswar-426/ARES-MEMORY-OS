@@ -5,13 +5,13 @@ use tracing::info;
 /// The ARES Local Agent — manages lifecycle of IPC server + scanner.
 /// Implemented progressively across Weeks 4–7.
 pub struct Agent {
-    config: AgentConfig,
+    _config: AgentConfig,
 }
 
 impl Agent {
     pub async fn new(config: AgentConfig) -> Result<Self, AresError> {
         info!(project = %config.project_path, "Agent initialized");
-        Ok(Self { config })
+        Ok(Self { _config: config })
     }
 
     /// Main event loop — starts IPC server and waits for shutdown signal.

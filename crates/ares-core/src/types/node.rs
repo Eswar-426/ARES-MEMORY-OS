@@ -11,7 +11,12 @@ pub enum NodeType {
     Project,
     File,
     Function,
+    Method,
     Class,
+    Struct,
+    Enum,
+    Trait,
+    Interface,
     Module,
     Service,
     Decision,
@@ -27,7 +32,12 @@ impl NodeType {
             Self::Project  => "project",
             Self::File     => "file",
             Self::Function => "function",
+            Self::Method   => "method",
             Self::Class    => "class",
+            Self::Struct   => "struct",
+            Self::Enum     => "enum",
+            Self::Trait    => "trait",
+            Self::Interface => "interface",
             Self::Module   => "module",
             Self::Service  => "service",
             Self::Decision => "decision",
@@ -46,7 +56,12 @@ impl std::str::FromStr for NodeType {
             "project"  => Ok(Self::Project),
             "file"     => Ok(Self::File),
             "function" => Ok(Self::Function),
+            "method"   => Ok(Self::Method),
             "class"    => Ok(Self::Class),
+            "struct"   => Ok(Self::Struct),
+            "enum"     => Ok(Self::Enum),
+            "trait"    => Ok(Self::Trait),
+            "interface"=> Ok(Self::Interface),
             "module"   => Ok(Self::Module),
             "service"  => Ok(Self::Service),
             "decision" => Ok(Self::Decision),
@@ -78,6 +93,7 @@ pub enum EdgeType {
     RelatedTo,
     TemporalFollows,
     Contradicts,
+    Uses,
 }
 
 impl EdgeType {
@@ -99,6 +115,7 @@ impl EdgeType {
             Self::RelatedTo       => "related_to",
             Self::TemporalFollows => "temporal_follows",
             Self::Contradicts     => "contradicts",
+            Self::Uses            => "uses",
         }
     }
 }
@@ -123,6 +140,7 @@ impl std::str::FromStr for EdgeType {
             "related_to"       => Ok(Self::RelatedTo),
             "temporal_follows" => Ok(Self::TemporalFollows),
             "contradicts"      => Ok(Self::Contradicts),
+            "uses"             => Ok(Self::Uses),
             other              => Err(format!("Unknown edge type: {other}")),
         }
     }

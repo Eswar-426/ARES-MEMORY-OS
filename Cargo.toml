@@ -48,11 +48,16 @@ blake3         = { version = "1.5" }
 notify         = { version = "6.1" }
 notify-debouncer-mini = { version = "0.4" }
 
+# Concurrency
+rayon          = { version = "1.10" }
+
 # Tree-sitter (parsing)
 tree-sitter    = { version = "0.23" }
 tree-sitter-typescript = { version = "0.23" }
 tree-sitter-python     = { version = "0.23" }
 tree-sitter-go         = { version = "0.23" }
+tree-sitter-rust       = { version = "0.23" }
+tree-sitter-javascript = { version = "0.23" }
 
 # CLI (agent binary)
 clap           = { version = "4.5", features = ["derive", "env"] }
