@@ -12,3 +12,7 @@ thiserror   = { workspace = true }
 uuid        = { workspace = true }
 chrono      = { workspace = true }
 async-trait = { workspace = true }
+utoipa      = { workspace = true, optional = true }
+
+[features]
+utoipa = ["dep:utoipa"]

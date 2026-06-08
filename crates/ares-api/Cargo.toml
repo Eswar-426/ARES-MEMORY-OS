@@ -6,7 +6,7 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
-ares-core  = { path = "../ares-core" }
+ares-core  = { path = "../ares-core", features = ["utoipa"] }
 ares-app   = { path = "../ares-app" }
 ares-store = { path = "../ares-store" }
 ares-agent = { path = "../ares-agent" }
@@ -26,6 +26,12 @@ tracing-subscriber = { workspace = true }
 anyhow     = { workspace = true }
 once_cell  = { workspace = true }
 chrono     = { workspace = true }
+futures    = { workspace = true }
+tokio-stream = { workspace = true }
+async-stream = { workspace = true }
 
 [dev-dependencies]
-tempfile   = { workspace = true }
+tower = { workspace = true, features = ["util"] }
+tempfile = { workspace = true }
+rusqlite = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

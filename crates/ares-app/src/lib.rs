@@ -38,6 +38,13 @@ pub struct AppState {
     pub vector_repo: Arc<SqliteVectorRepository>,
     pub embedding_provider: Arc<dyn EmbeddingProvider>,
     pub semantic_search: Arc<SemanticSearchService>,
+    // Week 8 - Phase 4 Engines & Repositories
+    pub workflow_repo: Arc<dyn ares_store::repositories::traits::WorkflowRepository + Send + Sync>,
+    pub agent_registry: Arc<ares_agent::services::agent_registry::AgentRegistry>,
+    pub workflow_engine: Arc<ares_agent::services::workflow_engine::WorkflowEngine>,
+    pub replay_service: Arc<ares_agent::services::replay_service::ReplayService>,
+    pub workflow_analytics: Arc<ares_agent::services::workflow_analytics::WorkflowAnalytics>,
+    pub workflow_visualizer: Arc<ares_agent::services::workflow_visualizer::WorkflowVisualizer>,
 }
 
 impl AppState {
@@ -95,6 +102,32 @@ impl AppState {
             intelligence_repo.clone(),
         ));
 
+        // Initialize Phase 4 Engines & Repositories
+        let workflow_repo_impl =
+            ares_store::repositories::workflow::SqliteWorkflowRepository::new(store.clone());
+        let workflow_repo: Arc<
+            dyn ares_store::repositories::traits::WorkflowRepository + Send + Sync,
+        > = Arc::new(workflow_repo_impl);
+
+        let agent_registry = Arc::new(ares_agent::services::agent_registry::AgentRegistry::new(
+            workflow_repo.clone(),
+        )?);
+        let workflow_engine = Arc::new(ares_agent::services::workflow_engine::WorkflowEngine::new(
+            workflow_repo.clone(),
+        ));
+        let replay_service = Arc::new(ares_agent::services::replay_service::ReplayService::new(
+            workflow_repo.clone(),
+            workflow_engine.clone(),
+        ));
+        let workflow_analytics = Arc::new(
+            ares_agent::services::workflow_analytics::WorkflowAnalytics::new(workflow_repo.clone()),
+        );
+        let workflow_visualizer = Arc::new(
+            ares_agent::services::workflow_visualizer::WorkflowVisualizer::new(
+                workflow_repo.clone(),
+            ),
+        );
+
         Ok(Self {
             config,
             store,
@@ -111,6 +144,12 @@ impl AppState {
             vector_repo,
             embedding_provider,
             semantic_search,
+            workflow_repo,
+            agent_registry,
+            workflow_engine,
+            replay_service,
+            workflow_analytics,
+            workflow_visualizer,
         })
     }
 }

@@ -43,6 +43,9 @@ mod tests {
         assert!(tables.contains(&"graph_nodes".to_string()));
         assert!(tables.contains(&"graph_edges".to_string()));
         assert!(tables.contains(&"events".to_string()));
+        assert!(tables.contains(&"workflow_visualizations".to_string()));
+        assert!(tables.contains(&"workflow_analytics_cache".to_string()));
+        assert!(tables.contains(&"replay_audit_log".to_string()));
     }
 
     #[test]

@@ -10,7 +10,8 @@ use uuid::Uuid;
 
 macro_rules! define_id {
     ($name:ident, $resource:literal) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+        #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
         #[serde(transparent)]
         pub struct $name(pub String);
 
@@ -83,6 +84,13 @@ define_id!(DecisionId, "decision");
 define_id!(NodeId, "node");
 define_id!(EventId, "event");
 define_id!(ScanRunId, "scan_run");
+
+// Week 8 — Workflow orchestration IDs
+define_id!(WorkflowId, "workflow");
+define_id!(ExecutionId, "execution");
+define_id!(AgentId, "agent");
+define_id!(TaskId, "task");
+define_id!(StepId, "step");
 
 #[cfg(test)]
 mod tests {

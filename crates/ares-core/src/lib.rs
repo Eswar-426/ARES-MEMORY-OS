@@ -10,7 +10,10 @@ pub mod types;
 pub mod vector;
 
 pub use error::AresError;
-pub use id::{new_id, DecisionId, EventId, MemoryId, NodeId, ProjectId, ScanRunId};
+pub use id::{
+    new_id, AgentId, DecisionId, EventId, ExecutionId, MemoryId, NodeId, ProjectId, ScanRunId,
+    StepId, TaskId, WorkflowId,
+};
 pub use types::{
     decision::{
         Alternative, CreateDecisionInput, Decision, DecisionFilter, DecisionPatch,
@@ -28,6 +31,12 @@ pub use types::{
     },
     pagination::{Page, Pagination},
     project::{Language, Project, ProjectMaturity},
+    workflow::{
+        AgentHealth, AgentInfo, AgentPerformance, CompensationAction, DeadLetterEntry,
+        ExecutionPlan, ExecutionState, RetryPolicy, TaskPriority, WorkflowDefinition,
+        WorkflowDependency, WorkflowEvent, WorkflowEventType, WorkflowExecutionSnapshot,
+        WorkflowStatus, WorkflowStepDef, WORKFLOW_EVENT_SCHEMA_VERSION,
+    },
 };
 
 // Week 5 — Semantic Memory Engine re-exports

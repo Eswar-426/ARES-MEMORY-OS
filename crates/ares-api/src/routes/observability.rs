@@ -32,6 +32,21 @@ static RECORDER: Lazy<PrometheusHandle> = Lazy::new(|| {
         .expect("Failed to install Prometheus recorder")
 });
 
+pub fn init_metrics() {
+    Lazy::force(&RECORDER);
+    metrics::counter!("ares_app_starts_total").increment(1);
+
+    // Eagerly initialize metrics to 0 so they appear in Prometheus
+    metrics::counter!("workflow_runs_total").absolute(0);
+    metrics::counter!("workflow_search_requests_total").absolute(0);
+    metrics::counter!("workflow_replay_requests_total").absolute(0);
+    metrics::counter!("workflow_analytics_requests_total").absolute(0);
+    metrics::counter!("workflow_visualization_requests_total").absolute(0);
+    metrics::counter!("agent_registrations_total").absolute(0);
+    metrics::counter!("agent_list_requests_total").absolute(0);
+    metrics::counter!("agent_heartbeat_total").absolute(0);
+}
+
 #[utoipa::path(
     get,
     path = "/metrics",

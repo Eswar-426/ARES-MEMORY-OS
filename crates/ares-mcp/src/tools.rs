@@ -126,6 +126,34 @@ impl McpServer {
                     "required": ["query"]
                 }),
             },
+            // Orchestration
+            McpToolInfo {
+                name: "run_workflow".into(),
+                description: "Start a workflow execution".into(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "workflow_version_id": { "type": "string" }
+                    },
+                    "required": ["workflow_version_id"]
+                }),
+            },
+            McpToolInfo {
+                name: "workflow_metrics".into(),
+                description: "Get analytics and runtime metrics for workflows".into(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {}
+                }),
+            },
+            McpToolInfo {
+                name: "list_agents".into(),
+                description: "List registered agents and their health".into(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {}
+                }),
+            },
         ]
     }
 }
