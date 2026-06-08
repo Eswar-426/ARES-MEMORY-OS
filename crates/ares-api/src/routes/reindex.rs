@@ -31,7 +31,10 @@ pub async fn reindex(
     info!(project_id = %req.project_id, "Reindex API request received");
     let project_id = ProjectId::from(req.project_id);
 
-    let count = state.semantic_search.reindex_project(&project_id).await
+    let count = state
+        .semantic_search
+        .reindex_project(&project_id)
+        .await
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     // Update embedding count metric

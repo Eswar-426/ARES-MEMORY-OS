@@ -123,7 +123,9 @@ impl SemanticSearchService {
             semantic_scores.insert(mem_id.clone(), vr.score);
 
             // Load memory from DB if not yet loaded
-            if let std::collections::hash_map::Entry::Vacant(e) = candidate_map.entry(mem_id.clone()) {
+            if let std::collections::hash_map::Entry::Vacant(e) =
+                candidate_map.entry(mem_id.clone())
+            {
                 if let Ok(Some(memory)) = self.memory_repo.get_by_id(&mem_id) {
                     // Only include active memories for the right project
                     if memory.project_id == *project_id && memory.deleted_at.is_none() {
@@ -224,7 +226,7 @@ impl SemanticSearchService {
 
         let mut count = 0u32;
         let mut current_page = 1;
-        
+
         loop {
             let page = self.memory_repo.list(
                 project_id,

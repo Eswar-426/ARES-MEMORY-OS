@@ -1,4 +1,4 @@
-use ares_agent::services::context_builder::{ContextBudget, ContextSnapshot};
+use ares_agent::services::context_builder::{ContextBudget, ReasoningContext};
 use ares_app::AppState;
 use ares_core::Project;
 use axum::{extract::State, Json};
@@ -15,12 +15,12 @@ pub struct GetContextRequest {
     post,
     path = "/api/v1/context",
     request_body = GetContextRequest,
-    responses((status = 200, description = "AI-ready context", body = ContextSnapshot))
+    responses((status = 200, description = "AI-ready context", body = ReasoningContext))
 )]
 pub async fn get_context(
     State(state): State<AppState>,
     Json(req): Json<GetContextRequest>,
-) -> Json<ContextSnapshot> {
+) -> Json<ReasoningContext> {
     let project = Project {
         id: ares_core::ProjectId(ares_core::id::new_id()),
         name: "Mock Project".into(),
@@ -43,11 +43,14 @@ pub async fn get_context(
         Json(snapshot)
     } else {
         // Mock fallback if something fails
-        Json(ContextSnapshot {
+        Json(ReasoningContext {
             memories: vec![],
             decisions: vec![],
-            graph_nodes: vec![],
-            graph_edges: vec![],
+            contradictions: vec![],
+            dependencies: vec![],
+            timeline: None,
+            confidence: 0.0,
+            summary: "".into(),
             estimated_tokens: 0,
         })
     }

@@ -1,51 +1,81 @@
-use ares_core::{Decision, GraphEdge, GraphNode, Memory, Project};
+use crate::services::context_intelligence::ContextAnalysis;
+use crate::services::evolution_engine::EvolutionAnalysis;
+use ares_core::{Decision, Memory, Project};
 use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum ContextCompressionLevel {
+    Full,
+    Compressed,
+    ExecutiveSummary,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextBudget {
-    pub max_memories: usize,
-    pub max_decisions: usize,
-    pub max_graph_nodes: usize,
-    pub max_graph_edges: usize,
     pub max_total_tokens: usize,
+    pub compression_level: ContextCompressionLevel,
 }
 
-impl Default for ContextBudget {
-    fn default() -> Self {
+impl ContextBudget {
+    pub fn budget_2k() -> Self {
         Self {
-            max_memories: 20,
-            max_decisions: 10,
-            max_graph_nodes: 50,
-            max_graph_edges: 100,
-            max_total_tokens: 32_000,
+            max_total_tokens: 2000,
+            compression_level: ContextCompressionLevel::ExecutiveSummary,
+        }
+    }
+    pub fn budget_4k() -> Self {
+        Self {
+            max_total_tokens: 4000,
+            compression_level: ContextCompressionLevel::Compressed,
+        }
+    }
+    pub fn budget_8k() -> Self {
+        Self {
+            max_total_tokens: 8000,
+            compression_level: ContextCompressionLevel::Full,
+        }
+    }
+    pub fn budget_16k() -> Self {
+        Self {
+            max_total_tokens: 16000,
+            compression_level: ContextCompressionLevel::Full,
         }
     }
 }
 
+impl Default for ContextBudget {
+    fn default() -> Self {
+        Self::budget_8k()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ContextSnapshot {
+pub struct ReasoningContext {
     pub memories: Vec<Memory>,
     pub decisions: Vec<Decision>,
-    pub graph_nodes: Vec<GraphNode>,
-    pub graph_edges: Vec<GraphEdge>,
+    pub contradictions: Vec<String>,
+    pub dependencies: Vec<String>,
+    pub timeline: Option<EvolutionAnalysis>,
+    pub confidence: f32,
+    pub summary: String,
     pub estimated_tokens: usize,
 }
 
-pub struct ContextBuilder;
+pub struct ReasoningContextBuilder;
 
-impl ContextBuilder {
+impl ReasoningContextBuilder {
     pub fn new() -> Self {
         Self
     }
 }
 
-impl Default for ContextBuilder {
+impl Default for ReasoningContextBuilder {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ContextBuilder {
+impl ReasoningContextBuilder {
     #[allow(clippy::too_many_arguments)]
     pub fn build(
         &self,
@@ -53,24 +83,19 @@ impl ContextBuilder {
         query: &str,
         mut memories: Vec<Memory>,
         mut decisions: Vec<Decision>,
-        mut graph_nodes: Vec<GraphNode>,
-        mut graph_edges: Vec<GraphEdge>,
+        context_analysis: ContextAnalysis,
+        timeline: Option<EvolutionAnalysis>,
         budget: ContextBudget,
-    ) -> ContextSnapshot {
-        // We assume memories, decisions, nodes are already sorted by relevance
-        // from the ranking pipeline. We just truncate according to budget and estimate tokens.
-
+    ) -> ReasoningContext {
+        // Deterministic ordering: highest relevance first, but for this mock we just use vector order.
         let mut snapshot_memories = Vec::new();
         let mut snapshot_decisions = Vec::new();
-        let mut snapshot_nodes = Vec::new();
-        let mut snapshot_edges = Vec::new();
-        let mut total_tokens = self.estimate_base_tokens(project, query);
+
+        let base_text = format!("{} {} {}", project.name, project.description, query);
+        let mut total_tokens = self.estimate_tokens(&base_text);
 
         for mem in memories.drain(..) {
-            if snapshot_memories.len() >= budget.max_memories {
-                break;
-            }
-            let tokens = self.estimate_memory_tokens(&mem);
+            let tokens = self.estimate_memory_tokens(&mem, &budget.compression_level);
             if total_tokens + tokens > budget.max_total_tokens {
                 break;
             }
@@ -79,10 +104,7 @@ impl ContextBuilder {
         }
 
         for dec in decisions.drain(..) {
-            if snapshot_decisions.len() >= budget.max_decisions {
-                break;
-            }
-            let tokens = self.estimate_decision_tokens(&dec);
+            let tokens = self.estimate_decision_tokens(&dec, &budget.compression_level);
             if total_tokens + tokens > budget.max_total_tokens {
                 break;
             }
@@ -90,60 +112,52 @@ impl ContextBuilder {
             snapshot_decisions.push(dec);
         }
 
-        for node in graph_nodes.drain(..) {
-            if snapshot_nodes.len() >= budget.max_graph_nodes {
-                break;
+        let summary = match budget.compression_level {
+            ContextCompressionLevel::Full => context_analysis.reasoning_summary.clone(),
+            ContextCompressionLevel::Compressed => {
+                format!("Compressed: {}", context_analysis.reasoning_summary)
             }
-            let tokens = self.estimate_node_tokens(&node);
-            if total_tokens + tokens > budget.max_total_tokens {
-                break;
-            }
-            total_tokens += tokens;
-            snapshot_nodes.push(node);
-        }
+            ContextCompressionLevel::ExecutiveSummary => "Executive Summary".to_string(),
+        };
 
-        for edge in graph_edges.drain(..) {
-            if snapshot_edges.len() >= budget.max_graph_edges {
-                break;
-            }
-            let tokens = self.estimate_edge_tokens(&edge);
-            if total_tokens + tokens > budget.max_total_tokens {
-                break;
-            }
-            total_tokens += tokens;
-            snapshot_edges.push(edge);
-        }
+        total_tokens += self.estimate_tokens(&summary);
 
-        ContextSnapshot {
+        ReasoningContext {
             memories: snapshot_memories,
             decisions: snapshot_decisions,
-            graph_nodes: snapshot_nodes,
-            graph_edges: snapshot_edges,
+            contradictions: context_analysis.contradictions,
+            dependencies: context_analysis.dependency_chain,
+            timeline,
+            confidence: context_analysis.confidence,
+            summary,
             estimated_tokens: total_tokens,
         }
     }
 
-    // Crude token estimation based on character count / 4
-    fn estimate_base_tokens(&self, project: &Project, query: &str) -> usize {
-        (project.name.len() + project.description.len() + query.len()) / 4 + 10
+    /// Exact token estimator requested: estimated_tokens = (text_length / 4)
+    fn estimate_tokens(&self, text: &str) -> usize {
+        text.len() / 4
     }
 
-    fn estimate_memory_tokens(&self, memory: &Memory) -> usize {
-        let content_len = memory.content.to_string().len();
-        (memory.title.len() + content_len) / 4 + 10
+    fn estimate_memory_tokens(&self, memory: &Memory, level: &ContextCompressionLevel) -> usize {
+        match level {
+            ContextCompressionLevel::Full => self.estimate_tokens(&memory.content.to_string()),
+            ContextCompressionLevel::Compressed => {
+                self.estimate_tokens(&memory.content.to_string()) / 2
+            } // Assume compressed is half
+            ContextCompressionLevel::ExecutiveSummary => self.estimate_tokens(&memory.title),
+        }
     }
 
-    fn estimate_decision_tokens(&self, decision: &Decision) -> usize {
-        let text_len = decision.title.len() + decision.reason.len() + decision.decision_text.len();
-        text_len / 4 + 20
-    }
-
-    fn estimate_node_tokens(&self, node: &GraphNode) -> usize {
-        let props_len = node.properties.to_string().len();
-        (node.label.len() + props_len) / 4 + 10
-    }
-
-    fn estimate_edge_tokens(&self, _edge: &GraphEdge) -> usize {
-        10 // Edges are short IDs and types
+    fn estimate_decision_tokens(
+        &self,
+        decision: &Decision,
+        level: &ContextCompressionLevel,
+    ) -> usize {
+        match level {
+            ContextCompressionLevel::Full => self.estimate_tokens(&decision.decision_text),
+            ContextCompressionLevel::Compressed => self.estimate_tokens(&decision.reason),
+            ContextCompressionLevel::ExecutiveSummary => self.estimate_tokens(&decision.title),
+        }
     }
 }

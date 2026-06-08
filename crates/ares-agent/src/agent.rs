@@ -2,7 +2,7 @@ use crate::config::AgentConfig;
 use ares_core::AresError;
 use tracing::info;
 
-use crate::services::context_builder::ContextBuilder;
+use crate::services::context_builder::{ContextBudget, ReasoningContext, ReasoningContextBuilder};
 use crate::services::context_pipeline::ContextPipeline;
 use crate::services::contradiction_detector::ContradictionDetector;
 use crate::services::decision_intelligence::DecisionIntelligenceEngine;
@@ -50,7 +50,7 @@ impl Agent {
             intelligence_repo.clone(),
             ranking_engine.clone(),
         ));
-        let context_builder = Arc::new(ContextBuilder::new());
+        let context_builder = Arc::new(ReasoningContextBuilder::new());
 
         let decision_intelligence = Arc::new(DecisionIntelligenceEngine::new(
             decision_repo.clone(),
@@ -82,8 +82,8 @@ impl Agent {
         &self,
         project: &ares_core::Project,
         query: &str,
-        budget: crate::services::context_builder::ContextBudget,
-    ) -> Result<crate::services::context_builder::ContextSnapshot, AresError> {
+        budget: ContextBudget,
+    ) -> Result<ReasoningContext, AresError> {
         self.context_pipeline
             .assemble_context(project, query, budget)
     }

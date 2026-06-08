@@ -2,9 +2,16 @@ use ares_agent::config::AgentConfig;
 use ares_agent::services::hybrid_ranking::HybridRankingConfig;
 use ares_agent::services::semantic_retrieval::SemanticSearchService;
 use ares_agent::services::{
-    context_builder::ContextBuilder, context_pipeline::ContextPipeline,
-    contradiction_detector::ContradictionDetector,
-    decision_intelligence::DecisionIntelligenceEngine, memory_ranking::MemoryRankingEngine,
+    context_builder::ReasoningContextBuilder,
+    context_intelligence::ContextIntelligenceEngine,
+    context_pipeline::ContextPipeline,
+    contradiction_detector::{ContradictionDetector, ContradictionReasoner},
+    decision_intelligence::DecisionIntelligenceEngine,
+    dependency_analysis::DependencyAnalyzer,
+    evolution_engine::EvolutionEngine,
+    intent_analysis::IntentAnalyzer,
+    memory_ranking::MemoryRankingEngine,
+    reasoning_pipeline::ReasoningPipeline,
     retrieval::SemanticRetrievalLayer,
 };
 use ares_core::vector::traits::EmbeddingProvider;
@@ -30,7 +37,7 @@ pub struct AppState {
     pub graph_repo: Arc<SqliteGraphRepository>,
     pub ranking_engine: Arc<MemoryRankingEngine>,
     pub retrieval_layer: Arc<SemanticRetrievalLayer>,
-    pub context_builder: Arc<ContextBuilder>,
+    pub context_builder: Arc<ReasoningContextBuilder>,
     pub decision_intelligence: Arc<DecisionIntelligenceEngine>,
     pub context_pipeline: Arc<ContextPipeline>,
     pub contradiction_detector: Arc<ContradictionDetector>,
@@ -38,6 +45,13 @@ pub struct AppState {
     pub vector_repo: Arc<SqliteVectorRepository>,
     pub embedding_provider: Arc<dyn EmbeddingProvider>,
     pub semantic_search: Arc<SemanticSearchService>,
+    // Week 6 - Reasoning Pipeline
+    pub intent_analyzer: Arc<IntentAnalyzer>,
+    pub dependency_analyzer: Arc<DependencyAnalyzer>,
+    pub contradiction_reasoner: Arc<ContradictionReasoner>,
+    pub evolution_engine: Arc<EvolutionEngine>,
+    pub context_intelligence: Arc<ContextIntelligenceEngine>,
+    pub reasoning_pipeline: Arc<ReasoningPipeline>,
 }
 
 impl AppState {
@@ -76,7 +90,7 @@ impl AppState {
             memory_repo.clone(),
             HybridRankingConfig::default(),
         ));
-        let context_builder = Arc::new(ContextBuilder::new());
+        let context_builder = Arc::new(ReasoningContextBuilder::new());
 
         let decision_intelligence = Arc::new(DecisionIntelligenceEngine::new(
             decision_repo.clone(),
@@ -95,6 +109,22 @@ impl AppState {
             intelligence_repo.clone(),
         ));
 
+        // Week 6 - Reasoning
+        let intent_analyzer = Arc::new(IntentAnalyzer::new());
+        let dependency_analyzer = Arc::new(DependencyAnalyzer::new(graph_repo.clone()));
+        let contradiction_reasoner = Arc::new(ContradictionReasoner::new());
+        let evolution_engine = Arc::new(EvolutionEngine::new());
+        let context_intelligence = Arc::new(ContextIntelligenceEngine::new());
+        let reasoning_pipeline = Arc::new(ReasoningPipeline::new(
+            intent_analyzer.clone(),
+            retrieval_layer.clone(),
+            dependency_analyzer.clone(),
+            contradiction_reasoner.clone(),
+            evolution_engine.clone(),
+            context_intelligence.clone(),
+            context_builder.clone(),
+        ));
+
         Ok(Self {
             config,
             store,
@@ -111,6 +141,12 @@ impl AppState {
             vector_repo,
             embedding_provider,
             semantic_search,
+            intent_analyzer,
+            dependency_analyzer,
+            contradiction_reasoner,
+            evolution_engine,
+            context_intelligence,
+            reasoning_pipeline,
         })
     }
 }

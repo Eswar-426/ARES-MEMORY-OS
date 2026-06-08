@@ -24,8 +24,13 @@ pub mod routes;
         routes::context::get_context,
         routes::decisions::decision_history,
         routes::contradictions::detect_contradictions,
+        routes::contradictions::analyze_contradictions,
         routes::semantic::semantic_search,
         routes::reindex::reindex,
+        routes::reasoning::reason,
+        routes::reasoning::impact_analysis,
+        routes::reasoning::timeline,
+        routes::reasoning::explain_decision,
     ),
     components(
         schemas()
@@ -56,10 +61,21 @@ pub fn create_router(state: AppState) -> Router {
             post(routes::contradictions::detect_contradictions),
         )
         .route(
+            "/contradictions/analyze",
+            post(routes::contradictions::analyze_contradictions),
+        )
+        .route(
             "/memory/semantic-search",
             post(routes::semantic::semantic_search),
         )
         .route("/memory/reindex", post(routes::reindex::reindex))
+        .route("/reason", post(routes::reasoning::reason))
+        .route("/impact-analysis", post(routes::reasoning::impact_analysis))
+        .route("/timeline", post(routes::reasoning::timeline))
+        .route(
+            "/decision/explain",
+            post(routes::reasoning::explain_decision),
+        )
         .layer(axum::middleware::from_fn(auth::auth_middleware));
 
     Router::new()

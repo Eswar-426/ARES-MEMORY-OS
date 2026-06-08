@@ -1,9 +1,7 @@
 use crate::services::hybrid_ranking::HybridRankingConfig;
 use crate::services::semantic_retrieval::SemanticSearchService;
 use ares_core::vector::traits::EmbeddingProvider;
-use ares_core::{
-    ImportanceLevel, MemorySource, MemoryType, ProjectId,
-};
+use ares_core::{ImportanceLevel, MemorySource, MemoryType, ProjectId};
 use ares_embeddings::MockEmbeddingProvider;
 use ares_store::db::Store;
 use ares_store::repositories::memory::SqliteMemoryRepository;

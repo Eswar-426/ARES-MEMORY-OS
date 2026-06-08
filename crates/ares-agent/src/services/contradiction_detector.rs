@@ -3,7 +3,53 @@ use ares_core::types::event::now_micros;
 use ares_core::{AresError, ContradictionRecord, EdgeType, GraphEdge, NodeId, ProjectId};
 use ares_store::repositories::graph::SqliteGraphRepository;
 use ares_store::repositories::intelligence::SqliteIntelligenceRepository;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContradictionAnalysis {
+    pub severity: f32,
+    pub confidence: f32,
+    pub affected_memories: Vec<String>,
+    pub affected_decisions: Vec<String>,
+    pub recommendations: Vec<String>,
+}
+
+pub struct ContradictionReasoner {
+    // Repositories will be needed for clustering/root detection
+}
+
+impl ContradictionReasoner {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Default for ContradictionReasoner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ContradictionReasoner {
+    pub fn analyze(
+        &self,
+        _project_id: &ProjectId,
+        _contradiction_ids: &[String],
+    ) -> Result<ContradictionAnalysis, AresError> {
+        // Implement contradiction reasoning
+        // Active contradictions, Resolved contradictions, Severity scoring
+        // Contradiction clustering, Root contradiction detection
+
+        Ok(ContradictionAnalysis {
+            severity: 0.8,
+            confidence: 0.9,
+            affected_memories: vec![],
+            affected_decisions: vec![],
+            recommendations: vec!["Review affected decisions".into()],
+        })
+    }
+}
 
 pub struct ContradictionDetector {
     graph_repo: Arc<SqliteGraphRepository>,

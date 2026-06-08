@@ -126,6 +126,85 @@ impl McpServer {
                     "required": ["query"]
                 }),
             },
+            McpToolInfo {
+                name: "reason_about_query".into(),
+                description: "Run reasoning pipeline for a query to get evidence-backed context"
+                    .into(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "query": { "type": "string" }
+                    },
+                    "required": ["query"]
+                }),
+            },
+            McpToolInfo {
+                name: "explain_decision".into(),
+                description: "Explain why a decision was made and its evolution".into(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "decision_id": { "type": "string" }
+                    },
+                    "required": ["decision_id"]
+                }),
+            },
+            McpToolInfo {
+                name: "impact_analysis".into(),
+                description: "Analyze the impact of changing a node".into(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "node_id": { "type": "string" },
+                        "depth": { "type": "number" }
+                    },
+                    "required": ["node_id"]
+                }),
+            },
+            McpToolInfo {
+                name: "dependency_graph".into(),
+                description: "Get transitive dependencies for a node".into(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "node_id": { "type": "string" }
+                    },
+                    "required": ["node_id"]
+                }),
+            },
+            McpToolInfo {
+                name: "decision_timeline".into(),
+                description: "Get the lineage and timeline of a decision".into(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "decision_id": { "type": "string" }
+                    },
+                    "required": ["decision_id"]
+                }),
+            },
+            McpToolInfo {
+                name: "memory_timeline".into(),
+                description: "Get the full timeline of a memory".into(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "memory_id": { "type": "string" }
+                    },
+                    "required": ["memory_id"]
+                }),
+            },
+            McpToolInfo {
+                name: "contradiction_analysis".into(),
+                description: "Deeply analyze a detected contradiction".into(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "contradiction_ids": { "type": "array", "items": { "type": "string" } }
+                    },
+                    "required": ["contradiction_ids"]
+                }),
+            },
         ]
     }
 }
