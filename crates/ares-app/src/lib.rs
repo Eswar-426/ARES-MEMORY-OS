@@ -2,6 +2,7 @@ use ares_agent::config::AgentConfig;
 use ares_agent::services::hybrid_ranking::HybridRankingConfig;
 use ares_agent::services::semantic_retrieval::SemanticSearchService;
 use ares_agent::services::{
+    architectural_analysis::ArchitecturalAnalysisEngine,
     context_builder::ReasoningContextBuilder,
     context_intelligence::ContextIntelligenceEngine,
     context_pipeline::ContextPipeline,
@@ -9,10 +10,16 @@ use ares_agent::services::{
     decision_intelligence::DecisionIntelligenceEngine,
     dependency_analysis::DependencyAnalyzer,
     evolution_engine::EvolutionEngine,
+    graph_cache::GraphCache,
+    graph_clustering::GraphClusteringEngine,
+    impact_prediction::ImpactPredictionEngine,
     intent_analysis::IntentAnalyzer,
+    knowledge_graph_engine::KnowledgeGraphEngine,
     memory_ranking::MemoryRankingEngine,
     reasoning_pipeline::ReasoningPipeline,
     retrieval::SemanticRetrievalLayer,
+    risk_engine::RiskEngine,
+    root_cause_engine::RootCauseEngine,
 };
 use ares_core::vector::traits::EmbeddingProvider;
 use ares_core::AresError;
@@ -52,6 +59,14 @@ pub struct AppState {
     pub evolution_engine: Arc<EvolutionEngine>,
     pub context_intelligence: Arc<ContextIntelligenceEngine>,
     pub reasoning_pipeline: Arc<ReasoningPipeline>,
+    // Week 7 - Graph Intelligence
+    pub graph_cache: Arc<GraphCache>,
+    pub knowledge_graph_engine: Arc<KnowledgeGraphEngine>,
+    pub impact_prediction_engine: Arc<ImpactPredictionEngine>,
+    pub root_cause_engine: Arc<RootCauseEngine>,
+    pub architectural_analysis_engine: Arc<ArchitecturalAnalysisEngine>,
+    pub graph_clustering_engine: Arc<GraphClusteringEngine>,
+    pub risk_engine: Arc<RiskEngine>,
 }
 
 impl AppState {
@@ -125,6 +140,18 @@ impl AppState {
             context_builder.clone(),
         ));
 
+        // Week 7 - Graph Intelligence
+        let graph_cache = Arc::new(GraphCache::new());
+        let knowledge_graph_engine = Arc::new(KnowledgeGraphEngine::new(
+            graph_repo.clone(),
+            graph_cache.clone(),
+        ));
+        let impact_prediction_engine = Arc::new(ImpactPredictionEngine::new());
+        let root_cause_engine = Arc::new(RootCauseEngine::new());
+        let architectural_analysis_engine = Arc::new(ArchitecturalAnalysisEngine::new());
+        let graph_clustering_engine = Arc::new(GraphClusteringEngine::new());
+        let risk_engine = Arc::new(RiskEngine::new());
+
         Ok(Self {
             config,
             store,
@@ -147,6 +174,13 @@ impl AppState {
             evolution_engine,
             context_intelligence,
             reasoning_pipeline,
+            graph_cache,
+            knowledge_graph_engine,
+            impact_prediction_engine,
+            root_cause_engine,
+            architectural_analysis_engine,
+            graph_clustering_engine,
+            risk_engine,
         })
     }
 }

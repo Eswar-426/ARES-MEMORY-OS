@@ -38,6 +38,7 @@ regex        = { workspace = true }
 chrono       = { workspace = true }
 blake3       = { workspace = true }
 async-trait  = { workspace = true }
+metrics      = { workspace = true }
 
 [dev-dependencies]
 tempfile     = { workspace = true }

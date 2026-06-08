@@ -31,6 +31,14 @@ pub mod routes;
         routes::reasoning::impact_analysis,
         routes::reasoning::timeline,
         routes::reasoning::explain_decision,
+        routes::graph::analyze_graph,
+        routes::graph::predict_impact,
+        routes::graph::find_root_cause,
+        routes::graph::architecture_report,
+        routes::graph::risk_analysis,
+        routes::graph::graph_statistics,
+        routes::graph::graph_clusters,
+        routes::graph::graph_critical_path,
     ),
     components(
         schemas()
@@ -75,6 +83,20 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/decision/explain",
             post(routes::reasoning::explain_decision),
+        )
+        .route("/graph/analyze", post(routes::graph::analyze_graph))
+        .route("/impact/predict", post(routes::graph::predict_impact))
+        .route("/root-cause", post(routes::graph::find_root_cause))
+        .route(
+            "/architecture/report",
+            post(routes::graph::architecture_report),
+        )
+        .route("/risk-analysis", post(routes::graph::risk_analysis))
+        .route("/graph/statistics", post(routes::graph::graph_statistics))
+        .route("/graph/cluster", post(routes::graph::graph_clusters))
+        .route(
+            "/graph/critical-path",
+            post(routes::graph::graph_critical_path),
         )
         .layer(axum::middleware::from_fn(auth::auth_middleware));
 

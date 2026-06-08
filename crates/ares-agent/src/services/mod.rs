@@ -1,4 +1,5 @@
 // Services module — implemented Week 4-8
+pub mod architectural_analysis;
 pub mod context_builder;
 pub mod context_intelligence;
 pub mod context_pipeline;
@@ -8,13 +9,19 @@ pub mod decision_intelligence;
 pub mod decision_service;
 pub mod dependency_analysis;
 pub mod evolution_engine;
+pub mod graph_cache;
+pub mod graph_clustering;
 pub mod graph_service;
 pub mod hybrid_ranking;
+pub mod impact_prediction;
 pub mod intent_analysis;
+pub mod knowledge_graph_engine;
 pub mod memory_ranking;
 pub mod memory_service;
 pub mod reasoning_pipeline;
 pub mod retrieval;
+pub mod risk_engine;
+pub mod root_cause_engine;
 pub mod scanner_service;
 pub mod semantic_retrieval;
 

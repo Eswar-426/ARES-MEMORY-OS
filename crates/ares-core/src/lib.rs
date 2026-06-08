@@ -17,6 +17,10 @@ pub use types::{
         DecisionSearchResult, DecisionStatus, Risk,
     },
     event::{AresEvent, EventSource, EventType},
+    graph_intelligence::{
+        AnalysisScope, ArchitectureHealthReport, EvidenceStep, GraphStatistics, ImpactPrediction,
+        KnowledgeCluster, KnowledgeGraph, RiskAssessment, RootCauseAnalysis,
+    },
     intelligence::{AccessContext, ContradictionRecord, MemoryAccessLog, RankingCache},
     memory::{
         CreateMemoryInput, ImportanceLevel, Memory, MemoryFilter, MemoryPatch, MemorySearchResult,

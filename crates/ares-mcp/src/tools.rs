@@ -205,6 +205,73 @@ impl McpServer {
                     "required": ["contradiction_ids"]
                 }),
             },
+            // Week 7 - Graph Intelligence MCP Tools
+            McpToolInfo {
+                name: "analyze_graph".into(),
+                description: "Trigger full analysis of knowledge graph".into(),
+                input_schema: serde_json::json!({ "type": "object", "properties": {} }),
+            },
+            McpToolInfo {
+                name: "predict_impact".into(),
+                description: "Predict the impact of changing a node".into(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": { "node_id": { "type": "string" } },
+                    "required": ["node_id"]
+                }),
+            },
+            McpToolInfo {
+                name: "find_root_cause".into(),
+                description: "Find root cause of an issue backward".into(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": { "node_id": { "type": "string" } },
+                    "required": ["node_id"]
+                }),
+            },
+            McpToolInfo {
+                name: "architecture_report".into(),
+                description: "Get architecture health report".into(),
+                input_schema: serde_json::json!({ "type": "object", "properties": {} }),
+            },
+            McpToolInfo {
+                name: "risk_analysis".into(),
+                description: "Get holistic risk assessment".into(),
+                input_schema: serde_json::json!({ "type": "object", "properties": {} }),
+            },
+            McpToolInfo {
+                name: "knowledge_clusters".into(),
+                description: "Get detected knowledge clusters".into(),
+                input_schema: serde_json::json!({ "type": "object", "properties": {} }),
+            },
+            McpToolInfo {
+                name: "critical_path".into(),
+                description: "Find the critical path".into(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": { "node_id": { "type": "string" } },
+                    "required": ["node_id"]
+                }),
+            },
+            McpToolInfo {
+                name: "graph_statistics".into(),
+                description: "Get graph statistics".into(),
+                input_schema: serde_json::json!({ "type": "object", "properties": {} }),
+            },
+            McpToolInfo {
+                name: "graph_clusters".into(),
+                description: "Get graph clusters (alias to knowledge_clusters)".into(),
+                input_schema: serde_json::json!({ "type": "object", "properties": {} }),
+            },
+            McpToolInfo {
+                name: "graph_neighbors".into(),
+                description: "Get neighbors for a node in the graph".into(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": { "node_id": { "type": "string" } },
+                    "required": ["node_id"]
+                }),
+            },
         ]
     }
 }
