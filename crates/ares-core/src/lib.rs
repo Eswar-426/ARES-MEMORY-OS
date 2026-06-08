@@ -6,6 +6,7 @@
 pub mod error;
 pub mod id;
 pub mod types;
+#[path = "vector/mod.rs"]
 pub mod vector;
 
 pub use error::AresError;
@@ -27,4 +28,10 @@ pub use types::{
     },
     pagination::{Page, Pagination},
     project::{Language, Project, ProjectMaturity},
+};
+
+// Week 5 — Semantic Memory Engine re-exports
+pub use vector::{
+    cosine_similarity, normalize_vector, Embedding, EmbeddingMetadata, EmbeddingProvider,
+    RetrievalDiagnostics, SimilarityResult, StoredEmbedding, VectorRepository,
 };

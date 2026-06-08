@@ -1,15 +1,20 @@
 use ares_agent::config::AgentConfig;
+use ares_agent::services::hybrid_ranking::HybridRankingConfig;
+use ares_agent::services::semantic_retrieval::SemanticSearchService;
 use ares_agent::services::{
     context_builder::ContextBuilder, context_pipeline::ContextPipeline,
     contradiction_detector::ContradictionDetector,
     decision_intelligence::DecisionIntelligenceEngine, memory_ranking::MemoryRankingEngine,
     retrieval::SemanticRetrievalLayer,
 };
+use ares_core::vector::traits::EmbeddingProvider;
 use ares_core::AresError;
+use ares_embeddings::MockEmbeddingProvider;
 use ares_store::db::Store;
 use ares_store::repositories::{
     decision::SqliteDecisionRepository, graph::SqliteGraphRepository,
     intelligence::SqliteIntelligenceRepository, memory::SqliteMemoryRepository,
+    vector::SqliteVectorRepository,
 };
 use std::sync::Arc;
 use tracing::info;
@@ -29,6 +34,10 @@ pub struct AppState {
     pub decision_intelligence: Arc<DecisionIntelligenceEngine>,
     pub context_pipeline: Arc<ContextPipeline>,
     pub contradiction_detector: Arc<ContradictionDetector>,
+    // Week 5 - Semantic Search
+    pub vector_repo: Arc<SqliteVectorRepository>,
+    pub embedding_provider: Arc<dyn EmbeddingProvider>,
+    pub semantic_search: Arc<SemanticSearchService>,
 }
 
 impl AppState {
@@ -48,6 +57,11 @@ impl AppState {
         let intelligence_repo = Arc::new(SqliteIntelligenceRepository::new(store.clone()));
         let decision_repo = Arc::new(SqliteDecisionRepository::new(store.clone()));
         let graph_repo = Arc::new(SqliteGraphRepository::new(store.clone()));
+        let vector_repo = Arc::new(SqliteVectorRepository::new(store.clone()));
+
+        // Initialize Embedding Provider
+        // Defaulting to Mock for safety. Users can configure OpenAI/Ollama via env vars later.
+        let embedding_provider = Arc::new(MockEmbeddingProvider::default());
 
         // Initialize Intelligence Engines
         let ranking_engine = Arc::new(MemoryRankingEngine::new());
@@ -55,6 +69,12 @@ impl AppState {
             memory_repo.clone(),
             intelligence_repo.clone(),
             ranking_engine.clone(),
+        ));
+        let semantic_search = Arc::new(SemanticSearchService::new(
+            embedding_provider.clone(),
+            vector_repo.clone(),
+            memory_repo.clone(),
+            HybridRankingConfig::default(),
         ));
         let context_builder = Arc::new(ContextBuilder::new());
 
@@ -88,6 +108,9 @@ impl AppState {
             decision_intelligence,
             context_pipeline,
             contradiction_detector,
+            vector_repo,
+            embedding_provider,
+            semantic_search,
         })
     }
 }

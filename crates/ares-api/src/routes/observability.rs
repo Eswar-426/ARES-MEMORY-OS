@@ -22,6 +22,16 @@ pub async fn health() -> Json<HealthStatus> {
     })
 }
 
+use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
+use once_cell::sync::Lazy;
+
+static RECORDER: Lazy<PrometheusHandle> = Lazy::new(|| {
+    let builder = PrometheusBuilder::new();
+    builder
+        .install_recorder()
+        .expect("Failed to install Prometheus recorder")
+});
+
 #[utoipa::path(
     get,
     path = "/metrics",
@@ -30,7 +40,5 @@ pub async fn health() -> Json<HealthStatus> {
     )
 )]
 pub async fn metrics() -> String {
-    // Return mock metrics for now, or real metrics if registry is wired
-    "# HELP ares_requests_total Total number of HTTP requests\n# TYPE ares_requests_total counter\n"
-        .into()
+    RECORDER.render()
 }

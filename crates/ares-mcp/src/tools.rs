@@ -114,6 +114,18 @@ impl McpServer {
                     "properties": {}
                 }),
             },
+            McpToolInfo {
+                name: "semantic_search".into(),
+                description: "Search memories by semantic meaning".into(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "query": { "type": "string" },
+                        "limit": { "type": "number" }
+                    },
+                    "required": ["query"]
+                }),
+            },
         ]
     }
 }

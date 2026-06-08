@@ -1,0 +1,28 @@
+[package]
+name        = "ares-embeddings"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+ares-core   = { path = "../ares-core" }
+
+serde       = { workspace = true }
+serde_json  = { workspace = true }
+async-trait = { workspace = true }
+tracing     = { workspace = true }
+thiserror   = { workspace = true }
+
+# HTTP client for provider APIs (OpenAI, Ollama)
+reqwest     = { version = "0.12", features = ["json"], optional = true }
+tokio       = { workspace = true }
+
+[features]
+default  = []
+openai   = ["reqwest"]
+ollama   = ["reqwest"]
+all-providers = ["openai", "ollama"]
+
+[dev-dependencies]
+tokio    = { workspace = true, features = ["rt", "macros"] }

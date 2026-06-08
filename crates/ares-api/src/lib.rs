@@ -24,6 +24,8 @@ pub mod routes;
         routes::context::get_context,
         routes::decisions::decision_history,
         routes::contradictions::detect_contradictions,
+        routes::semantic::semantic_search,
+        routes::reindex::reindex,
     ),
     components(
         schemas()
@@ -53,6 +55,11 @@ pub fn create_router(state: AppState) -> Router {
             "/contradictions",
             post(routes::contradictions::detect_contradictions),
         )
+        .route(
+            "/memory/semantic-search",
+            post(routes::semantic::semantic_search),
+        )
+        .route("/memory/reindex", post(routes::reindex::reindex))
         .layer(axum::middleware::from_fn(auth::auth_middleware));
 
     Router::new()

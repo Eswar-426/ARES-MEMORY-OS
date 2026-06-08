@@ -4,4 +4,6 @@ pub mod decisions;
 pub mod memory;
 pub mod observability;
 pub mod projects;
+pub mod reindex;
 pub mod scan;
+pub mod semantic;
