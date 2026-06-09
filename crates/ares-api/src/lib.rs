@@ -39,6 +39,16 @@ pub mod routes;
         routes::agents::register_agent,
         routes::agents::list_agents,
         routes::agents::agent_heartbeat,
+        // Orchestrator
+        ares_orchestrator::control::workers::api::register_worker,
+        ares_orchestrator::control::heartbeat::api::worker_heartbeat,
+        ares_orchestrator::control::discovery::api::discover_by_capability,
+        ares_orchestrator::control::discovery::api::discover_by_capability_and_version,
+        ares_orchestrator::control::health::api::get_worker_health,
+        ares_orchestrator::control::analytics::api::get_analytics,
+        ares_orchestrator::runtime::queue::api::enqueue_workflow,
+        ares_orchestrator::runtime::dlq::api::list_dlq,
+        ares_orchestrator::runtime::execution::api::list_distributed_executions,
     ),
     components(
         schemas(
@@ -66,6 +76,24 @@ pub mod routes;
             ares_core::ExecutionId,
             ares_core::WorkflowStatus,
             routes::observability::HealthStatus,
+            // Orchestrator models
+            ares_orchestrator::control::workers::models::Worker,
+            ares_orchestrator::control::workers::models::WorkerResources,
+            ares_orchestrator::control::workers::models::WorkerCapability,
+            ares_orchestrator::control::workers::models::WorkerStatus,
+            ares_orchestrator::control::workers::dto::WorkerRegistrationRequest,
+            ares_orchestrator::control::workers::dto::WorkerStatusUpdateRequest,
+            ares_orchestrator::control::health::worker_health::WorkerHealth,
+            ares_orchestrator::control::analytics::service::OrchestratorAnalytics,
+            ares_orchestrator::runtime::queue::models::WorkflowQueueItem,
+            ares_orchestrator::runtime::queue::models::QueueStatus,
+            ares_orchestrator::runtime::queue::dto::EnqueueRequest,
+            ares_orchestrator::runtime::dlq::models::DeadLetterItem,
+            ares_orchestrator::runtime::execution::models::DistributedExecution,
+            ares_orchestrator::runtime::execution::models::DistributedExecutionAttempt,
+            ares_orchestrator::runtime::execution::models::WorkflowExecutionStep,
+            ares_orchestrator::runtime::leases::models::JobLease,
+            ares_orchestrator::runtime::retry::RetryPolicy,
         )
     ),
     tags(
@@ -150,12 +178,60 @@ pub fn create_router(state: AppState) -> Router {
         )
         .layer(axum::middleware::from_fn(auth::admin_middleware));
 
+    // Orchestrator initialization
+    let orchestrator_config = ares_orchestrator::control::config::OrchestratorConfig::default();
+    let orchestrator = ares_orchestrator::start_orchestrator(state.store.clone(), orchestrator_config).unwrap();
+
+    let workers_router = Router::new()
+        .route("/", post(ares_orchestrator::control::workers::api::register_worker))
+        .with_state(orchestrator.workers_api_state);
+
+    let heartbeat_router = Router::new()
+        .route("/:id/heartbeat", post(ares_orchestrator::control::heartbeat::api::worker_heartbeat))
+        .with_state(orchestrator.heartbeat_api_state);
+
+    let discovery_router = Router::new()
+        .route("/discovery/:capability_name", get(ares_orchestrator::control::discovery::api::discover_by_capability))
+        .route("/discovery/:capability_name/:capability_version", get(ares_orchestrator::control::discovery::api::discover_by_capability_and_version))
+        .with_state(orchestrator.discovery_api_state);
+
+    let health_router = Router::new()
+        .route("/health", get(ares_orchestrator::control::health::api::get_worker_health))
+        .with_state(orchestrator.health_api_state);
+
+    let analytics_router = Router::new()
+        .route("/analytics", get(ares_orchestrator::control::analytics::api::get_analytics))
+        .with_state(orchestrator.analytics_api_state);
+
+    let queue_router = Router::new()
+        .route("/queue", post(ares_orchestrator::runtime::queue::api::enqueue_workflow))
+        .with_state(orchestrator.queue_api_state);
+
+    let dlq_router = Router::new()
+        .route("/dlq", get(ares_orchestrator::runtime::dlq::api::list_dlq))
+        .with_state(orchestrator.dlq_api_state);
+
+    let execution_router = Router::new()
+        .route("/executions/distributed", get(ares_orchestrator::runtime::execution::api::list_distributed_executions))
+        .with_state(orchestrator.execution_api_state);
+
+    let combined_orchestrator_routes = Router::new()
+        .nest("/workers", workers_router)
+        .nest("/workers", heartbeat_router)
+        .nest("/workers", discovery_router)
+        .nest("/workers", health_router)
+        .nest("/", analytics_router)
+        .nest("/", queue_router)
+        .nest("/", dlq_router)
+        .nest("/", execution_router);
+
     Router::new()
         .route("/", get(root))
         .route("/health", get(routes::observability::health))
         .route("/metrics", get(routes::observability::metrics))
         .nest("/api/v1", api_routes)
         .nest("/api/v1", admin_routes)
+        .nest("/api/v1/orchestrator", combined_orchestrator_routes)
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .layer(TraceLayer::new_for_http())
         .with_state(state)

@@ -45,6 +45,14 @@ pub fn init_metrics() {
     metrics::counter!("agent_registrations_total").absolute(0);
     metrics::counter!("agent_list_requests_total").absolute(0);
     metrics::counter!("agent_heartbeat_total").absolute(0);
+
+    // Orchestrator metrics
+    metrics::counter!("orchestrator_worker_registrations_total").absolute(0);
+    metrics::counter!("orchestrator_heartbeats_total").absolute(0);
+    metrics::counter!("orchestrator_job_enqueues_total").absolute(0);
+    metrics::counter!("orchestrator_dlq_events_total").absolute(0);
+    metrics::gauge!("orchestrator_active_workers").set(0.0);
+    metrics::gauge!("orchestrator_queue_depth").set(0.0);
 }
 
 #[utoipa::path(

@@ -140,6 +140,7 @@ dependencies = [
  "ares-agent",
  "ares-app",
  "ares-core",
+ "ares-orchestrator",
  "ares-store",
  "async-stream",
  "axum",
@@ -219,6 +220,29 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "ares-orchestrator"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ares-core",
+ "ares-store",
+ "async-trait",
+ "axum",
+ "chrono",
+ "metrics",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tower 0.4.13",
+ "tower-http 0.5.2",
+ "tracing",
+ "utoipa",
+ "uuid",
 ]
 
 [[package]]

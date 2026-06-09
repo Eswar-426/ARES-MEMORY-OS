@@ -13,6 +13,7 @@ use tempfile::TempDir;
 use tower::ServiceExt;
 
 async fn setup_app() -> (axum::Router, Connection, TempDir) {
+    std::env::set_var("ARES_AUTH_DISABLED", "true");
     let temp_dir = tempfile::tempdir().unwrap();
     let config = AgentConfig::load(temp_dir.path().to_str().unwrap()).unwrap();
 
