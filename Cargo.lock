@@ -273,6 +273,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "ares-planner"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ares-core",
+ "ares-knowledge",
+ "ares-orchestrator",
+ "ares-store",
+ "async-trait",
+ "axum",
+ "chrono",
+ "metrics",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "ares-scanner"
 version = "0.1.0"
 dependencies = [

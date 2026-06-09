@@ -11,15 +11,16 @@ impl EventKnowledgeSinkImpl {
     pub fn new() -> Self {
         Self
     }
-    
+
     // We mock the consumption of an event here. The orchestrator will pass events to this sink.
     pub async fn consume_event(&self, event_type: &str, _payload: Value) -> Result<(), AresError> {
         match event_type {
-            "WorkflowStarted" | "WorkflowCompleted" | "AgentRegistered" | "DecisionCreated" | "MemoryCreated" | "ExecutionCompleted" => {
+            "WorkflowStarted" | "WorkflowCompleted" | "AgentRegistered" | "DecisionCreated"
+            | "MemoryCreated" | "ExecutionCompleted" => {
                 // Here we would push to a channel or DB for the KnowledgeIngestionWorker to process
                 Ok(())
-            },
-            _ => Ok(()) // Ignore unknown
+            }
+            _ => Ok(()), // Ignore unknown
         }
     }
 }

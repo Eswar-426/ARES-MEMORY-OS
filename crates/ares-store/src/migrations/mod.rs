@@ -56,7 +56,7 @@ mod tests {
         assert!(tables.contains(&"event_subscriptions".to_string()));
         assert!(tables.contains(&"event_delivery_log".to_string()));
         assert!(tables.contains(&"event_replay_log".to_string()));
-        
+
         // V13
         assert!(tables.contains(&"graph_entities".to_string()));
         assert!(tables.contains(&"graph_relationships".to_string()));
@@ -73,6 +73,12 @@ mod tests {
         assert!(tables.contains(&"knowledge_provenance".to_string()));
         assert!(tables.contains(&"graph_constraints".to_string()));
         assert!(tables.contains(&"graph_exports".to_string()));
+
+        // V14
+        assert!(tables.contains(&"goals".to_string()));
+        assert!(tables.contains(&"goal_state_transitions".to_string()));
+        assert!(tables.contains(&"plans".to_string()));
+        assert!(tables.contains(&"plan_candidates".to_string()));
     }
     #[test]
     fn test_migrations_rerun_and_idempotency() {

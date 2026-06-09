@@ -1,6 +1,6 @@
+use super::processor::EventProcessor;
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
-use super::processor::EventProcessor;
 
 pub struct KnowledgeIngestionWorker {
     _processor: Arc<EventProcessor>,
@@ -8,7 +8,9 @@ pub struct KnowledgeIngestionWorker {
 
 impl KnowledgeIngestionWorker {
     pub fn new(processor: Arc<EventProcessor>) -> Self {
-        Self { _processor: processor }
+        Self {
+            _processor: processor,
+        }
     }
 
     pub async fn run(&self) {

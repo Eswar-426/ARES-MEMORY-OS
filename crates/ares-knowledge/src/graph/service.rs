@@ -1,6 +1,6 @@
-use ares_store::db::Store;
-use ares_core::AresError;
 use super::repository::GraphRepository;
+use ares_core::AresError;
+use ares_store::db::Store;
 
 pub struct GraphService {
     db: Store,

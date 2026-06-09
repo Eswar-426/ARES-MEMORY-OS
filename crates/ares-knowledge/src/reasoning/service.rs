@@ -1,8 +1,8 @@
-use ares_store::db::Store;
-use ares_core::AresError;
-use uuid::Uuid;
 use super::models::ReasoningResponse;
 use crate::graph::traversal::engine::{TraversalEngine, TraversalStrategy};
+use ares_core::AresError;
+use ares_store::db::Store;
+use uuid::Uuid;
 
 pub struct ReasoningService {
     db: Store,
@@ -17,11 +17,17 @@ impl ReasoningService {
         }
     }
 
-    pub async fn evaluate_path(&self, start: Uuid, end: Uuid) -> Result<ReasoningResponse, AresError> {
+    pub async fn evaluate_path(
+        &self,
+        start: Uuid,
+        end: Uuid,
+    ) -> Result<ReasoningResponse, AresError> {
         let _conn = self.db.get_conn()?;
-        
+
         // Mock evaluating a path between two entities
-        let path = self.traversal_engine.traverse(start, TraversalStrategy::BFS, 3);
+        let path = self
+            .traversal_engine
+            .traverse(start, TraversalStrategy::BFS, 3);
         let mut full_path = path.clone();
         if !full_path.contains(&end) {
             full_path.push(end);
@@ -35,7 +41,10 @@ impl ReasoningService {
         })
     }
 
-    pub async fn detect_contradictions(&self, _entity_id: Uuid) -> Result<Vec<ReasoningResponse>, AresError> {
+    pub async fn detect_contradictions(
+        &self,
+        _entity_id: Uuid,
+    ) -> Result<Vec<ReasoningResponse>, AresError> {
         // Scaffolding for contradiction detection
         Ok(vec![])
     }

@@ -1,10 +1,10 @@
-use ares_store::db::Store;
-use ares_core::AresError;
-use uuid::Uuid;
 use super::models::{ExecutionPlan, ExplainPlanResponse, GoalState};
 use super::repository::GoalStateRepository;
 use crate::graph::traversal::engine::{TraversalEngine, TraversalStrategy};
+use ares_core::AresError;
+use ares_store::db::Store;
 use chrono::Utc;
+use uuid::Uuid;
 
 pub struct PlannerIntegrationService {
     db: Store,
@@ -21,9 +21,14 @@ impl PlannerIntegrationService {
         }
     }
 
-    pub async fn track_goal_state(&self, entity_id: Uuid, status: String, progress: f64) -> Result<(), AresError> {
+    pub async fn track_goal_state(
+        &self,
+        entity_id: Uuid,
+        status: String,
+        progress: f64,
+    ) -> Result<(), AresError> {
         let conn = self.db.get_conn()?;
-        
+
         let state = GoalState {
             id: Uuid::now_v7(),
             entity_id,
@@ -46,7 +51,9 @@ impl PlannerIntegrationService {
     pub async fn find_dependencies(&self, goal_id: Uuid) -> Result<Vec<Uuid>, AresError> {
         let _conn = self.db.get_conn()?;
         // Mock traversal for DEPENDS_ON / PREREQUISITE_FOR
-        let deps = self.traversal_engine.traverse(goal_id, TraversalStrategy::BFS, 2);
+        let deps = self
+            .traversal_engine
+            .traverse(goal_id, TraversalStrategy::BFS, 2);
         Ok(deps)
     }
 
@@ -54,7 +61,11 @@ impl PlannerIntegrationService {
         self.find_dependencies(goal_id).await
     }
 
-    pub async fn find_goal_path(&self, start_entity: Uuid, goal_entity: Uuid) -> Result<Vec<Uuid>, AresError> {
+    pub async fn find_goal_path(
+        &self,
+        start_entity: Uuid,
+        goal_entity: Uuid,
+    ) -> Result<Vec<Uuid>, AresError> {
         let _conn = self.db.get_conn()?;
         // Mock returning a path to achieve a goal
         Ok(vec![start_entity, goal_entity])
@@ -76,10 +87,12 @@ impl PlannerIntegrationService {
 
     pub async fn explain_plan(&self, goal_id: Uuid) -> Result<ExplainPlanResponse, AresError> {
         let plan = self.find_execution_plan(goal_id).await?;
-        
+
         let _conn = self.db.get_conn()?;
         // Mock traversal for CONFLICTS_WITH relationship detection
-        let conflicting_goals = self.traversal_engine.traverse(goal_id, TraversalStrategy::DFS, 1);
+        let conflicting_goals = self
+            .traversal_engine
+            .traverse(goal_id, TraversalStrategy::DFS, 1);
 
         Ok(ExplainPlanResponse {
             execution_plan: plan,

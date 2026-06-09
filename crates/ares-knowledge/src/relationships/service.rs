@@ -1,8 +1,8 @@
-use ares_store::db::Store;
-use uuid::Uuid;
-use ares_core::AresError;
 use super::models::Relationship;
 use super::repository::RelationshipRepository;
+use ares_core::AresError;
+use ares_store::db::Store;
+use uuid::Uuid;
 
 pub struct RelationshipService {
     db: Store,

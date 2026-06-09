@@ -10,6 +10,7 @@ members = [
     "crates/ares-embeddings",
     "crates/ares-orchestrator",
     "crates/ares-knowledge",
+    "crates/ares-planner",
 ]
 resolver = "2"
 

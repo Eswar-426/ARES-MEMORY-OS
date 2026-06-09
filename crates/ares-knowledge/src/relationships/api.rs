@@ -1,14 +1,10 @@
-use axum::{
-    extract::State,
-    routing::post,
-    Json, Router,
-};
+use super::models::Relationship;
+use super::service::RelationshipService;
+use axum::{extract::State, routing::post, Json, Router};
+use chrono::Utc;
 use serde::Deserialize;
 use std::sync::Arc;
 use uuid::Uuid;
-use super::service::RelationshipService;
-use super::models::Relationship;
-use chrono::Utc;
 
 #[derive(Clone)]
 pub struct RelationshipApiState {
@@ -23,9 +19,9 @@ pub struct CreateRelationshipRequest {
     pub properties: serde_json::Value,
 }
 
-pub fn router<S>(state: RelationshipApiState) -> Router<S> 
-where 
-    S: Clone + Send + Sync + 'static
+pub fn router<S>(state: RelationshipApiState) -> Router<S>
+where
+    S: Clone + Send + Sync + 'static,
 {
     Router::new()
         .route("/", post(create_relationship))
@@ -52,6 +48,10 @@ async fn create_relationship(
         source_event_id: None,
     };
 
-    let created = state.service.create_relationship(rel).await.map_err(|e| e.to_string())?;
+    let created = state
+        .service
+        .create_relationship(rel)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(Json(created))
 }

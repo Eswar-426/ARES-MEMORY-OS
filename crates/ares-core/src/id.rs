@@ -92,6 +92,11 @@ define_id!(AgentId, "agent");
 define_id!(TaskId, "task");
 define_id!(StepId, "step");
 
+// Week 12 — Autonomous Planning IDs
+define_id!(GoalId, "goal");
+define_id!(PlanId, "plan");
+define_id!(PlanCandidateId, "plan_candidate");
+
 #[cfg(test)]
 mod tests {
     use super::*;

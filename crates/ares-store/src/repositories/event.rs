@@ -138,6 +138,20 @@ fn map_event_type(s: &str) -> EventType {
         "agent.session_ended" => EventType::AgentSessionEnded,
         "project.initialized" => EventType::ProjectInitialized,
         "project.updated" => EventType::ProjectUpdated,
+        "planner.goal_created" => EventType::GoalCreated,
+        "planner.goal_updated" => EventType::GoalUpdated,
+        "planner.goal_completed" => EventType::GoalCompleted,
+        "planner.goal_decomposed" => EventType::GoalDecomposed,
+        "planner.plan_generated" => EventType::PlanGenerated,
+        "planner.plan_simulated" => EventType::PlanSimulated,
+        "planner.plan_selected" => EventType::PlanSelected,
+        "planner.plan_approved" => EventType::PlanApproved,
+        "planner.plan_rejected" => EventType::PlanRejected,
+        "planner.plan_started" => EventType::PlanStarted,
+        "planner.plan_paused" => EventType::PlanPaused,
+        "planner.replanning_triggered" => EventType::ReplanningTriggered,
+        "planner.plan_failed" => EventType::PlanFailed,
+        "planner.plan_completed" => EventType::PlanCompleted,
         _ => EventType::ProjectUpdated, // fallback
     }
 }

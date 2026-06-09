@@ -1,6 +1,6 @@
-use uuid::Uuid;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GraphVersion {
@@ -17,7 +17,7 @@ impl VersioningService {
     pub fn new() -> Self {
         Self
     }
-    
+
     pub fn create_version(&self, name: String, description: Option<String>) -> GraphVersion {
         GraphVersion {
             id: Uuid::now_v7(),

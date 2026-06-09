@@ -1,0 +1,23 @@
+[package]
+name = "ares-planner"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ares-core = { path = "../ares-core" }
+ares-store = { path = "../ares-store" }
+ares-knowledge = { path = "../ares-knowledge" }
+ares-orchestrator = { path = "../ares-orchestrator" }
+
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+async-trait = { workspace = true }
+metrics = { workspace = true }
+rusqlite = { workspace = true }
+axum = "0.7.9"

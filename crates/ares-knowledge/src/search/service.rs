@@ -1,7 +1,7 @@
-use ares_store::db::Store;
-use ares_core::AresError;
 use super::super::entities::models::Entity;
 use super::repository::SearchRepository;
+use ares_core::AresError;
+use ares_store::db::Store;
 
 pub struct SearchService {
     db: Store,

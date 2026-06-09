@@ -15,5 +15,7 @@ pub fn is_normalized_match(a: &str, b: &str) -> bool {
 
 pub fn is_alias_match(aliases: &[String], name: &str) -> bool {
     let normalized_name = normalize_name(name);
-    aliases.iter().any(|alias| normalize_name(alias) == normalized_name)
+    aliases
+        .iter()
+        .any(|alias| normalize_name(alias) == normalized_name)
 }

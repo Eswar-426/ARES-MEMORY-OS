@@ -1,9 +1,9 @@
-use ares_store::db::Store;
-use ares_core::AresError;
-use uuid::Uuid;
-use chrono::Utc;
 use super::models::ProvenanceRecord;
 use super::repository::ProvenanceRepository;
+use ares_core::AresError;
+use ares_store::db::Store;
+use chrono::Utc;
+use uuid::Uuid;
 
 pub struct ProvenanceService {
     db: Store,
@@ -19,14 +19,14 @@ impl ProvenanceService {
     }
 
     pub async fn track_entity_provenance(
-        &self, 
-        entity_id: Uuid, 
-        event_id: Uuid, 
-        source_type: String, 
-        created_by: Option<String>
+        &self,
+        entity_id: Uuid,
+        event_id: Uuid,
+        source_type: String,
+        created_by: Option<String>,
     ) -> Result<ProvenanceRecord, AresError> {
         let conn = self.db.get_conn()?;
-        
+
         let record = ProvenanceRecord {
             id: Uuid::now_v7(),
             entity_id: Some(entity_id),
@@ -42,14 +42,14 @@ impl ProvenanceService {
     }
 
     pub async fn track_relationship_provenance(
-        &self, 
-        relationship_id: Uuid, 
-        event_id: Uuid, 
-        source_type: String, 
-        created_by: Option<String>
+        &self,
+        relationship_id: Uuid,
+        event_id: Uuid,
+        source_type: String,
+        created_by: Option<String>,
     ) -> Result<ProvenanceRecord, AresError> {
         let conn = self.db.get_conn()?;
-        
+
         let record = ProvenanceRecord {
             id: Uuid::now_v7(),
             entity_id: None,

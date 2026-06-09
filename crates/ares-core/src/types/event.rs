@@ -40,6 +40,22 @@ pub enum EventType {
     // System
     ProjectInitialized,
     ProjectUpdated,
+
+    // Planner / Goals
+    GoalCreated,
+    GoalUpdated,
+    GoalCompleted,
+    GoalDecomposed,
+    PlanGenerated,
+    PlanSimulated,
+    PlanSelected,
+    PlanApproved,
+    PlanRejected,
+    PlanStarted,
+    PlanPaused,
+    ReplanningTriggered,
+    PlanFailed,
+    PlanCompleted,
 }
 
 impl EventType {
@@ -66,6 +82,22 @@ impl EventType {
             Self::AgentSessionEnded => "agent.session_ended",
             Self::ProjectInitialized => "project.initialized",
             Self::ProjectUpdated => "project.updated",
+
+            // Planner
+            Self::GoalCreated => "planner.goal_created",
+            Self::GoalUpdated => "planner.goal_updated",
+            Self::GoalCompleted => "planner.goal_completed",
+            Self::GoalDecomposed => "planner.goal_decomposed",
+            Self::PlanGenerated => "planner.plan_generated",
+            Self::PlanSimulated => "planner.plan_simulated",
+            Self::PlanSelected => "planner.plan_selected",
+            Self::PlanApproved => "planner.plan_approved",
+            Self::PlanRejected => "planner.plan_rejected",
+            Self::PlanStarted => "planner.plan_started",
+            Self::PlanPaused => "planner.plan_paused",
+            Self::ReplanningTriggered => "planner.replanning_triggered",
+            Self::PlanFailed => "planner.plan_failed",
+            Self::PlanCompleted => "planner.plan_completed",
         }
     }
 }

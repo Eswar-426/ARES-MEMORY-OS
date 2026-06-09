@@ -1,6 +1,6 @@
+use super::models::ProvenanceRecord;
 use ares_core::AresError;
 use rusqlite::{params, Connection};
-use super::models::ProvenanceRecord;
 
 pub struct ProvenanceRepository;
 
@@ -23,7 +23,8 @@ impl ProvenanceRepository {
                 record.created_by,
                 record.created_at.to_rfc3339(),
             ],
-        ).map_err(|e| AresError::Database(e.to_string()))?;
+        )
+        .map_err(|e| AresError::Database(e.to_string()))?;
         Ok(())
     }
 }

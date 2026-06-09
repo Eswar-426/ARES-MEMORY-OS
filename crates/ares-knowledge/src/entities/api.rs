@@ -1,14 +1,14 @@
+use super::models::Entity;
+use super::service::EntityService;
 use axum::{
     extract::{Path, State},
     routing::{get, post},
     Json, Router,
 };
+use chrono::Utc;
 use serde::Deserialize;
 use std::sync::Arc;
 use uuid::Uuid;
-use super::service::EntityService;
-use super::models::Entity;
-use chrono::Utc;
 
 #[derive(Clone)]
 pub struct EntityApiState {
@@ -23,9 +23,9 @@ pub struct CreateEntityRequest {
     pub properties: serde_json::Value,
 }
 
-pub fn router<S>(state: EntityApiState) -> Router<S> 
-where 
-    S: Clone + Send + Sync + 'static
+pub fn router<S>(state: EntityApiState) -> Router<S>
+where
+    S: Clone + Send + Sync + 'static,
 {
     Router::new()
         .route("/", post(create_entity))
@@ -52,7 +52,11 @@ async fn create_entity(
         source_event_id: None,
     };
 
-    let created = state.service.create_entity(entity).await.map_err(|e| e.to_string())?;
+    let created = state
+        .service
+        .create_entity(entity)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(Json(created))
 }
 
@@ -60,7 +64,11 @@ async fn get_entity(
     State(state): State<EntityApiState>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Entity>, String> {
-    let entity = state.service.get_entity(id).await.map_err(|e| e.to_string())?;
+    let entity = state
+        .service
+        .get_entity(id)
+        .await
+        .map_err(|e| e.to_string())?;
     match entity {
         Some(e) => Ok(Json(e)),
         None => Err("Entity not found".to_string()),

@@ -1,5 +1,5 @@
-use uuid::Uuid;
 use serde_json::Value;
+use uuid::Uuid;
 
 pub enum KnowledgeCommand {
     CreateEntity {

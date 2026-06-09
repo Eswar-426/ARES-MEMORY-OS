@@ -1,15 +1,21 @@
 use super::super::entities::models::Entity;
-use uuid::Uuid;
 use chrono::Utc;
+use uuid::Uuid;
 
 pub struct GraphBuilder;
 
 impl GraphBuilder {
-    pub fn build_entity_from_event(event_type: &str, payload: &serde_json::Value) -> Option<Entity> {
+    pub fn build_entity_from_event(
+        event_type: &str,
+        payload: &serde_json::Value,
+    ) -> Option<Entity> {
         // Mock implementation
         Some(Entity {
             id: Uuid::now_v7(),
-            entity_type: event_type.replace("Created", "").replace("Registered", "").to_uppercase(),
+            entity_type: event_type
+                .replace("Created", "")
+                .replace("Registered", "")
+                .to_uppercase(),
             name: "Generated Entity".to_string(),
             description: None,
             properties: payload.clone(),

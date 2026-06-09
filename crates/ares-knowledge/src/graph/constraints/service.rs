@@ -1,6 +1,6 @@
-use ares_store::db::Store;
-use ares_core::AresError;
 use super::models::Constraint;
+use ares_core::AresError;
+use ares_store::db::Store;
 
 pub struct ConstraintService {
     db: Store,

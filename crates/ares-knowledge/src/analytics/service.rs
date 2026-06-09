@@ -1,6 +1,6 @@
-use ares_store::db::Store;
-use ares_core::AresError;
 use super::community::Community;
+use ares_core::AresError;
+use ares_store::db::Store;
 
 pub struct AnalyticsService {
     db: Store,

@@ -1,7 +1,7 @@
+use super::models::Relationship;
 use ares_core::AresError;
 use rusqlite::{params, Connection};
 use uuid::Uuid;
-use super::models::Relationship;
 
 pub struct RelationshipRepository;
 
@@ -11,12 +11,13 @@ impl RelationshipRepository {
     }
 
     pub fn insert(&self, conn: &Connection, rel: &Relationship) -> Result<(), AresError> {
-        let props_json = serde_json::to_string(&rel.properties).unwrap_or_else(|_| "{}".to_string());
-        
+        let props_json =
+            serde_json::to_string(&rel.properties).unwrap_or_else(|_| "{}".to_string());
+
         let source_event_id = rel.source_event_id.map(|u| u.to_string());
         let valid_from = rel.valid_from.map(|dt| dt.to_rfc3339());
         let valid_to = rel.valid_to.map(|dt| dt.to_rfc3339());
-        
+
         conn.execute(
             "INSERT INTO graph_relationships (
                 id, source_entity, target_entity, relationship_type, properties,
@@ -37,7 +38,8 @@ impl RelationshipRepository {
                 rel.evidence_count,
                 source_event_id,
             ],
-        ).map_err(|e| AresError::Database(e.to_string()))?;
+        )
+        .map_err(|e| AresError::Database(e.to_string()))?;
         Ok(())
     }
 
@@ -45,7 +47,8 @@ impl RelationshipRepository {
         conn.execute(
             "DELETE FROM graph_relationships WHERE id = ?1",
             params![id.to_string()],
-        ).map_err(|e| AresError::Database(e.to_string()))?;
+        )
+        .map_err(|e| AresError::Database(e.to_string()))?;
         Ok(())
     }
 }

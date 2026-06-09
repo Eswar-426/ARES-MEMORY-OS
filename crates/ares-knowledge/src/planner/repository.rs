@@ -1,8 +1,7 @@
+use super::models::GoalState;
 use ares_core::AresError;
 use rusqlite::{params, Connection};
-use super::models::GoalState;
 use uuid::Uuid;
-
 
 pub struct GoalStateRepository;
 
@@ -22,7 +21,8 @@ impl GoalStateRepository {
                 state.progress,
                 state.updated_at.to_rfc3339(),
             ],
-        ).map_err(|e| AresError::Database(e.to_string()))?;
+        )
+        .map_err(|e| AresError::Database(e.to_string()))?;
         Ok(())
     }
 
@@ -35,28 +35,40 @@ impl GoalStateRepository {
                 state.updated_at.to_rfc3339(),
                 state.id.to_string(),
             ],
-        ).map_err(|e| AresError::Database(e.to_string()))?;
+        )
+        .map_err(|e| AresError::Database(e.to_string()))?;
         Ok(())
     }
 
-    pub fn get_by_entity_id(&self, conn: &Connection, entity_id: Uuid) -> Result<Option<GoalState>, AresError> {
-        let mut stmt = conn.prepare("SELECT * FROM goal_states WHERE entity_id = ?1")
-            .map_err(|e| AresError::Database(e.to_string()))?;
-            
-        let mut rows = stmt.query(params![entity_id.to_string()])
+    pub fn get_by_entity_id(
+        &self,
+        conn: &Connection,
+        entity_id: Uuid,
+    ) -> Result<Option<GoalState>, AresError> {
+        let mut stmt = conn
+            .prepare("SELECT * FROM goal_states WHERE entity_id = ?1")
             .map_err(|e| AresError::Database(e.to_string()))?;
 
-        if let Some(row) = rows.next().map_err(|e| AresError::Database(e.to_string()))? {
+        let mut rows = stmt
+            .query(params![entity_id.to_string()])
+            .map_err(|e| AresError::Database(e.to_string()))?;
+
+        if let Some(row) = rows
+            .next()
+            .map_err(|e| AresError::Database(e.to_string()))?
+        {
             let id_str: String = row.get("id").unwrap();
             let entity_id_str: String = row.get("entity_id").unwrap();
             let updated_at_str: String = row.get("updated_at").unwrap();
-            
+
             Ok(Some(GoalState {
                 id: Uuid::parse_str(&id_str).unwrap(),
                 entity_id: Uuid::parse_str(&entity_id_str).unwrap(),
                 status: row.get("status").unwrap(),
                 progress: row.get("progress").unwrap(),
-                updated_at: chrono::DateTime::parse_from_rfc3339(&updated_at_str).unwrap().into(),
+                updated_at: chrono::DateTime::parse_from_rfc3339(&updated_at_str)
+                    .unwrap()
+                    .into(),
             }))
         } else {
             Ok(None)
