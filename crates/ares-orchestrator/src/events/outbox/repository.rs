@@ -4,6 +4,7 @@ use ares_store::db::Store;
 use chrono::Utc;
 use rusqlite::params;
 
+#[derive(Clone)]
 pub struct OutboxRepository {
     store: Store,
 }

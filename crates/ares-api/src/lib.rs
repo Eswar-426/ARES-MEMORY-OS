@@ -240,6 +240,15 @@ pub fn create_router(state: AppState) -> Router {
         )
         .with_state(orchestrator.execution_api_state);
 
+    let event_store_router = ares_orchestrator::events::store::api::router()
+        .with_state(orchestrator.event_store_api_state);
+
+    let ws_router = ares_orchestrator::events::websocket::api::router()
+        .with_state(orchestrator.ws_api_state);
+
+    let sse_router = ares_orchestrator::events::sse::api::router()
+        .with_state(orchestrator.sse_api_state);
+
     let combined_orchestrator_routes = Router::new()
         .nest("/workers", workers_router)
         .nest("/workers", heartbeat_router)
@@ -248,7 +257,10 @@ pub fn create_router(state: AppState) -> Router {
         .nest("/", analytics_router)
         .nest("/", queue_router)
         .nest("/", dlq_router)
-        .nest("/", execution_router);
+        .nest("/", execution_router)
+        .nest("/events", event_store_router)
+        .nest("/", ws_router)
+        .nest("/", sse_router);
 
     Router::new()
         .route("/", get(root))

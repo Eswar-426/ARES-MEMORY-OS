@@ -92,7 +92,7 @@ interprocess   = { version = "2.2" }
 tempfile       = { version = "3.12" }
 
 # Web / API
-axum           = { version = "0.7" }
+axum           = { version = "0.7", features = ["ws"] }
 tower          = { version = "0.4" }
 tower-http     = { version = "0.5", features = ["cors", "trace"] }
 utoipa         = { version = "4.2", features = ["axum_extras"] }
@@ -105,7 +105,8 @@ byteorder      = { version = "1.5" }
 futures        = { version = "0.3" }
 tokio-stream   = { version = "0.1", features = ["sync"] }
 async-stream   = { version = "0.3" }
-
+async-nats     = { version = "0.33" }
+axum-extra     = { version = "0.9", features = ["typed-header"] }
 [profile.release]
 opt-level     = 3
 lto           = "thin"

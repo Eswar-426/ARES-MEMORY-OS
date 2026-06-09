@@ -15,6 +15,9 @@ pub struct OrchestratorComponents {
     pub queue_api_state: Arc<runtime::queue::api::QueueApiState>,
     pub dlq_api_state: Arc<runtime::dlq::api::DlqApiState>,
     pub execution_api_state: Arc<runtime::execution::api::ExecutionApiState>,
+    pub event_store_api_state: Arc<events::store::api::EventStoreApiState>,
+    pub ws_api_state: Arc<events::websocket::api::WsApiState>,
+    pub sse_api_state: Arc<events::sse::api::SseApiState>,
 }
 
 pub fn start_orchestrator(
@@ -79,6 +82,23 @@ pub fn start_orchestrator(
     let execution_api_state = Arc::new(runtime::execution::api::ExecutionApiState {
         service: exec_service,
     });
+    
+    let event_store_service = events::store::service::EventStoreService::new(
+        events::store::repository::EventStoreRepository::new(store.clone()),
+        (*outbox_repo).clone(),
+    );
+    let event_store_api_state = Arc::new(events::store::api::EventStoreApiState {
+        service: Arc::new(event_store_service),
+    });
+    
+    let ws_hub = Arc::new(events::websocket::hub::WsHub::new());
+    let ws_api_state = Arc::new(events::websocket::api::WsApiState {
+        hub: ws_hub,
+    });
+    
+    let sse_api_state = Arc::new(events::sse::api::SseApiState {
+        // Shared state goes here if needed later
+    });
 
     // 4. Background Workers
     let heartbeat_monitor =
@@ -100,13 +120,34 @@ pub fn start_orchestrator(
     );
     lease_recovery.start();
 
-    let publisher = Arc::new(events::publisher::LocalEventPublisher);
-    let outbox_worker = events::outbox::worker::OutboxPublisherWorker::new(
-        outbox_repo.clone(),
-        publisher,
-        config.clone(),
-    );
-    outbox_worker.start();
+    // Event Streaming Backbone Background Workers
+    let bus = Arc::new(events::bus::local::LocalEventBus::new(vec![]));
+    let dispatcher = events::bus::dispatcher::OutboxDispatcher::new(outbox_repo.clone(), bus.clone());
+    dispatcher.start();
+
+    // Replay Worker stub
+    tokio::spawn(async {
+        tracing::info!("ReplayWorker started");
+        loop {
+            tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+        }
+    });
+
+    // Subscription Monitor stub
+    tokio::spawn(async {
+        tracing::info!("SubscriptionMonitor started");
+        loop {
+            tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+        }
+    });
+
+    // Stream Metrics Collector stub
+    tokio::spawn(async {
+        tracing::info!("StreamMetricsCollector started");
+        loop {
+            tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+        }
+    });
 
     Ok(OrchestratorComponents {
         workers_api_state,
@@ -117,5 +158,8 @@ pub fn start_orchestrator(
         queue_api_state,
         dlq_api_state,
         execution_api_state,
+        event_store_api_state,
+        ws_api_state,
+        sse_api_state,
     })
 }

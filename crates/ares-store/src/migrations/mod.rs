@@ -46,6 +46,16 @@ mod tests {
         assert!(tables.contains(&"workflow_visualizations".to_string()));
         assert!(tables.contains(&"workflow_analytics_cache".to_string()));
         assert!(tables.contains(&"replay_audit_log".to_string()));
+        assert!(tables.contains(&"event_store".to_string()));
+        assert!(tables.contains(&"event_aggregates".to_string()));
+        assert!(tables.contains(&"event_snapshots".to_string()));
+        assert!(tables.contains(&"event_consumer_groups".to_string()));
+        assert!(tables.contains(&"event_group_offsets".to_string()));
+        assert!(tables.contains(&"event_dlq".to_string()));
+        assert!(tables.contains(&"event_streams".to_string()));
+        assert!(tables.contains(&"event_subscriptions".to_string()));
+        assert!(tables.contains(&"event_delivery_log".to_string()));
+        assert!(tables.contains(&"event_replay_log".to_string()));
     }
 
     #[test]
