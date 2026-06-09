@@ -12,7 +12,10 @@ pub struct EventStoreService {
 
 impl EventStoreService {
     pub fn new(store_repo: EventStoreRepository, outbox_repo: OutboxRepository) -> Self {
-        Self { store_repo, outbox_repo }
+        Self {
+            store_repo,
+            outbox_repo,
+        }
     }
 
     /// Appends an event to the Event Store and atomically publishes it to the Outbox.
@@ -22,7 +25,8 @@ impl EventStoreService {
         self.store_repo.insert(event)?;
 
         // 2. Write to Outbox
-        let payload_str = serde_json::to_string(event).map_err(|e| AresError::Serialization(e.to_string()))?;
+        let payload_str =
+            serde_json::to_string(event).map_err(|e| AresError::Serialization(e.to_string()))?;
         let outbox_event = OutboxEvent {
             id: uuid::Uuid::new_v4().to_string(),
             topic: event.topic.clone(),

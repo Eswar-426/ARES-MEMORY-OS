@@ -5,10 +5,10 @@ use ares_orchestrator::events::envelope::EventEnvelope;
 #[tokio::test]
 async fn test_local_event_bus_routing() {
     let bus = LocalEventBus::new(vec![]);
-    
+
     let mut sub1 = bus.subscribe("system.*".to_string()).await.unwrap();
     let mut sub2 = bus.subscribe("system.logs".to_string()).await.unwrap();
-    
+
     let event = EventEnvelope::new(
         "evt_1",
         "system.logs",

@@ -14,10 +14,10 @@ impl EventStoreRepository {
 
     pub fn insert(&self, event: &EventEnvelope) -> Result<(), AresError> {
         let conn = self.store.get_conn()?;
-        
+
         let payload_str = serde_json::to_string(&event.payload).unwrap_or_default();
         let metadata_str = serde_json::to_string(&event.metadata).unwrap_or_default();
-        
+
         conn.execute(
             "INSERT INTO event_store (
                 id, topic, event_type, source, schema_version, event_version, 
@@ -40,8 +40,9 @@ impl EventStoreRepository {
                 event.timestamp.timestamp_millis(),
                 chrono::Utc::now().timestamp_millis()
             ],
-        ).map_err(AresError::db)?;
-        
+        )
+        .map_err(AresError::db)?;
+
         Ok(())
     }
 }

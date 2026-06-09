@@ -8,13 +8,13 @@ async fn test_event_store_insert() {
     let dir = tempdir().unwrap();
     let db_path = dir.path().join("ares.db");
     let store = Store::open(&db_path).unwrap();
-    
+
     // Run migrations
     let mut conn = store.get_conn().unwrap();
     ares_store::migrations::run(&mut conn).unwrap();
 
     let repo = EventStoreRepository::new(store.clone());
-    
+
     let event = EventEnvelope::new(
         "evt_1",
         "system.test",

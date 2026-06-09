@@ -82,7 +82,7 @@ pub fn start_orchestrator(
     let execution_api_state = Arc::new(runtime::execution::api::ExecutionApiState {
         service: exec_service,
     });
-    
+
     let event_store_service = events::store::service::EventStoreService::new(
         events::store::repository::EventStoreRepository::new(store.clone()),
         (*outbox_repo).clone(),
@@ -90,12 +90,10 @@ pub fn start_orchestrator(
     let event_store_api_state = Arc::new(events::store::api::EventStoreApiState {
         service: Arc::new(event_store_service),
     });
-    
+
     let ws_hub = Arc::new(events::websocket::hub::WsHub::new());
-    let ws_api_state = Arc::new(events::websocket::api::WsApiState {
-        hub: ws_hub,
-    });
-    
+    let ws_api_state = Arc::new(events::websocket::api::WsApiState { hub: ws_hub });
+
     let sse_api_state = Arc::new(events::sse::api::SseApiState {
         // Shared state goes here if needed later
     });
@@ -122,7 +120,8 @@ pub fn start_orchestrator(
 
     // Event Streaming Backbone Background Workers
     let bus = Arc::new(events::bus::local::LocalEventBus::new(vec![]));
-    let dispatcher = events::bus::dispatcher::OutboxDispatcher::new(outbox_repo.clone(), bus.clone());
+    let dispatcher =
+        events::bus::dispatcher::OutboxDispatcher::new(outbox_repo.clone(), bus.clone());
     dispatcher.start();
 
     // Replay Worker stub

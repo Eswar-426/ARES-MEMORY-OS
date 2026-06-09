@@ -1,6 +1,6 @@
-use ares_orchestrator::events::projections::service::{ProjectionEngine, Projection};
-use ares_orchestrator::events::envelope::EventEnvelope;
 use ares_core::AresError;
+use ares_orchestrator::events::envelope::EventEnvelope;
+use ares_orchestrator::events::projections::service::{Projection, ProjectionEngine};
 use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -22,12 +22,14 @@ impl Projection for TestProjection {
 async fn test_projection_engine() {
     let mut engine = ProjectionEngine::new();
     let count = Arc::new(Mutex::new(0));
-    
-    engine.register(Box::new(TestProjection { count: count.clone() }));
-    
+
+    engine.register(Box::new(TestProjection {
+        count: count.clone(),
+    }));
+
     let event = EventEnvelope::new("evt_1", "sys", "type", serde_json::json!({}));
     engine.process_event(&event).await.unwrap();
-    
+
     let final_count = *count.lock().await;
     assert_eq!(final_count, 1);
 }

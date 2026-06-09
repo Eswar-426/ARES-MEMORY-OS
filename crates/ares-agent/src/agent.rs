@@ -34,8 +34,7 @@ impl Agent {
         let db_path = std::path::Path::new(&config.project_path)
             .join(".ares")
             .join("ares.db");
-        let store =
-            Store::open(&db_path)?;
+        let store = Store::open(&db_path)?;
 
         // Initialize Repositories
         let memory_repo = Arc::new(SqliteMemoryRepository::new(store.clone()));

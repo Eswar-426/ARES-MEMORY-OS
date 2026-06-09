@@ -243,11 +243,11 @@ pub fn create_router(state: AppState) -> Router {
     let event_store_router = ares_orchestrator::events::store::api::router()
         .with_state(orchestrator.event_store_api_state);
 
-    let ws_router = ares_orchestrator::events::websocket::api::router()
-        .with_state(orchestrator.ws_api_state);
+    let ws_router =
+        ares_orchestrator::events::websocket::api::router().with_state(orchestrator.ws_api_state);
 
-    let sse_router = ares_orchestrator::events::sse::api::router()
-        .with_state(orchestrator.sse_api_state);
+    let sse_router =
+        ares_orchestrator::events::sse::api::router().with_state(orchestrator.sse_api_state);
 
     let combined_orchestrator_routes = Router::new()
         .nest("/workers", workers_router)

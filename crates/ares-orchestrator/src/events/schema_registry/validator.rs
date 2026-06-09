@@ -9,7 +9,9 @@ impl SchemaValidator {
         // for `event.event_type` and validate `event.payload` against it.
         // For now, it's a stub allowing everything.
         if event.schema_version == 0 {
-            return Err(AresError::validation("Schema version cannot be 0".to_string()));
+            return Err(AresError::validation(
+                "Schema version cannot be 0".to_string(),
+            ));
         }
         Ok(())
     }

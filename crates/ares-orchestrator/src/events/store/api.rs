@@ -1,7 +1,7 @@
-use axum::{Extension, Json, Router, routing::post};
-use std::sync::Arc;
 use crate::events::envelope::EventEnvelope;
 use crate::events::store::service::EventStoreService;
+use axum::{routing::post, Extension, Json, Router};
+use std::sync::Arc;
 
 pub struct EventStoreApiState {
     pub service: Arc<EventStoreService>,

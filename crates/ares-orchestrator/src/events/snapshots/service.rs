@@ -10,8 +10,15 @@ impl SnapshotService {
         Self { repo }
     }
 
-    pub fn take_snapshot(&self, aggregate_id: &str, aggregate_type: &str, version: u32, snapshot_data: &str) -> Result<(), AresError> {
-        self.repo.insert_snapshot(aggregate_id, aggregate_type, version, snapshot_data)?;
+    pub fn take_snapshot(
+        &self,
+        aggregate_id: &str,
+        aggregate_type: &str,
+        version: u32,
+        snapshot_data: &str,
+    ) -> Result<(), AresError> {
+        self.repo
+            .insert_snapshot(aggregate_id, aggregate_type, version, snapshot_data)?;
         Ok(())
     }
 }
