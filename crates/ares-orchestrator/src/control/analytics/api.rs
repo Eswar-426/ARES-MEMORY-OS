@@ -1,11 +1,7 @@
 #[allow(unused_imports)]
 use super::service::{AnalyticsService, OrchestratorAnalytics};
 use ares_core::AresError;
-use axum::{
-    extract::State,
-    response::IntoResponse,
-    Json,
-};
+use axum::{extract::State, response::IntoResponse, Json};
 use std::sync::Arc;
 
 fn map_err(e: AresError) -> (axum::http::StatusCode, String) {

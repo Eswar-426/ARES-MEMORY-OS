@@ -180,31 +180,53 @@ pub fn create_router(state: AppState) -> Router {
 
     // Orchestrator initialization
     let orchestrator_config = ares_orchestrator::control::config::OrchestratorConfig::default();
-    let orchestrator = ares_orchestrator::start_orchestrator(state.store.clone(), orchestrator_config).unwrap();
+    let orchestrator =
+        ares_orchestrator::start_orchestrator(state.store.clone(), orchestrator_config).unwrap();
 
     let workers_router = Router::new()
-        .route("/", post(ares_orchestrator::control::workers::api::register_worker))
+        .route(
+            "/",
+            post(ares_orchestrator::control::workers::api::register_worker),
+        )
         .with_state(orchestrator.workers_api_state);
 
     let heartbeat_router = Router::new()
-        .route("/:id/heartbeat", post(ares_orchestrator::control::heartbeat::api::worker_heartbeat))
+        .route(
+            "/:id/heartbeat",
+            post(ares_orchestrator::control::heartbeat::api::worker_heartbeat),
+        )
         .with_state(orchestrator.heartbeat_api_state);
 
     let discovery_router = Router::new()
-        .route("/discovery/:capability_name", get(ares_orchestrator::control::discovery::api::discover_by_capability))
-        .route("/discovery/:capability_name/:capability_version", get(ares_orchestrator::control::discovery::api::discover_by_capability_and_version))
+        .route(
+            "/discovery/:capability_name",
+            get(ares_orchestrator::control::discovery::api::discover_by_capability),
+        )
+        .route(
+            "/discovery/:capability_name/:capability_version",
+            get(ares_orchestrator::control::discovery::api::discover_by_capability_and_version),
+        )
         .with_state(orchestrator.discovery_api_state);
 
     let health_router = Router::new()
-        .route("/health", get(ares_orchestrator::control::health::api::get_worker_health))
+        .route(
+            "/health",
+            get(ares_orchestrator::control::health::api::get_worker_health),
+        )
         .with_state(orchestrator.health_api_state);
 
     let analytics_router = Router::new()
-        .route("/analytics", get(ares_orchestrator::control::analytics::api::get_analytics))
+        .route(
+            "/analytics",
+            get(ares_orchestrator::control::analytics::api::get_analytics),
+        )
         .with_state(orchestrator.analytics_api_state);
 
     let queue_router = Router::new()
-        .route("/queue", post(ares_orchestrator::runtime::queue::api::enqueue_workflow))
+        .route(
+            "/queue",
+            post(ares_orchestrator::runtime::queue::api::enqueue_workflow),
+        )
         .with_state(orchestrator.queue_api_state);
 
     let dlq_router = Router::new()
@@ -212,7 +234,10 @@ pub fn create_router(state: AppState) -> Router {
         .with_state(orchestrator.dlq_api_state);
 
     let execution_router = Router::new()
-        .route("/executions/distributed", get(ares_orchestrator::runtime::execution::api::list_distributed_executions))
+        .route(
+            "/executions/distributed",
+            get(ares_orchestrator::runtime::execution::api::list_distributed_executions),
+        )
         .with_state(orchestrator.execution_api_state);
 
     let combined_orchestrator_routes = Router::new()

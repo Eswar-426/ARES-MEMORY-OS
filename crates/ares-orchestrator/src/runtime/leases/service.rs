@@ -23,7 +23,9 @@ impl LeaseService {
         execution_id: &str,
     ) -> Result<JobLease, AresError> {
         let now = Utc::now();
-        let expires_at = now + chrono::Duration::from_std(self.config.default_lease_duration).unwrap_or(Duration::seconds(60));
+        let expires_at = now
+            + chrono::Duration::from_std(self.config.default_lease_duration)
+                .unwrap_or(Duration::seconds(60));
 
         let lease = JobLease {
             id: Uuid::now_v7().to_string(),
@@ -40,7 +42,9 @@ impl LeaseService {
     }
 
     pub fn renew_lease(&self, lease_id: &str) -> Result<(), AresError> {
-        let expires_at = Utc::now() + chrono::Duration::from_std(self.config.default_lease_duration).unwrap_or(Duration::seconds(60));
+        let expires_at = Utc::now()
+            + chrono::Duration::from_std(self.config.default_lease_duration)
+                .unwrap_or(Duration::seconds(60));
         self.repo.renew(lease_id, &expires_at.to_rfc3339())
     }
 

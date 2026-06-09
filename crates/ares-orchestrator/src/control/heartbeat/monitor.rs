@@ -1,6 +1,6 @@
+use crate::control::config::OrchestratorConfig;
 use crate::control::workers::models::WorkerStatus;
 use crate::control::workers::repository::WorkerRepository;
-use crate::control::config::OrchestratorConfig;
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use tokio::time::interval;
@@ -34,7 +34,10 @@ impl HeartbeatMonitor {
         });
     }
 
-    fn check_heartbeats(repo: &WorkerRepository, config: &OrchestratorConfig) -> Result<(), ares_core::AresError> {
+    fn check_heartbeats(
+        repo: &WorkerRepository,
+        config: &OrchestratorConfig,
+    ) -> Result<(), ares_core::AresError> {
         let workers = repo.list()?;
         let now = Utc::now();
 
@@ -49,8 +52,9 @@ impl HeartbeatMonitor {
 
                 if duration_since_last_hb.to_std().unwrap_or_default() > config.heartbeat_timeout {
                     warn!("Worker {} missed heartbeat. Marking as Offline.", worker.id);
-                    
-                    let resources_json = serde_json::to_string(&worker.resources).unwrap_or_default();
+
+                    let resources_json =
+                        serde_json::to_string(&worker.resources).unwrap_or_default();
                     repo.update_status(
                         &worker.id,
                         &WorkerStatus::Offline,

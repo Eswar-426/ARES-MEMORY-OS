@@ -1,4 +1,8 @@
-use super::{dto::EnqueueRequest, models::{QueueStatus, WorkflowQueueItem}, repository::QueueRepository};
+use super::{
+    dto::EnqueueRequest,
+    models::{QueueStatus, WorkflowQueueItem},
+    repository::QueueRepository,
+};
 use ares_core::AresError;
 use chrono::Utc;
 use uuid::Uuid;
@@ -14,7 +18,7 @@ impl QueueService {
 
     pub fn enqueue(&self, req: EnqueueRequest) -> Result<WorkflowQueueItem, AresError> {
         let now = Utc::now().to_rfc3339();
-        
+
         let item = WorkflowQueueItem {
             id: Uuid::now_v7().to_string(),
             workflow_id: req.workflow_id,
@@ -34,6 +38,12 @@ impl QueueService {
     }
 
     pub fn assign_worker(&self, queue_item_id: &str, worker_id: &str) -> Result<(), AresError> {
-        self.repo.update_status(queue_item_id, &QueueStatus::Assigned, Some(worker_id), None, None)
+        self.repo.update_status(
+            queue_item_id,
+            &QueueStatus::Assigned,
+            Some(worker_id),
+            None,
+            None,
+        )
     }
 }

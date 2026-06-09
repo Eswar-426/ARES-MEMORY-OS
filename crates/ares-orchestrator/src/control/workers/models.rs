@@ -19,9 +19,9 @@ pub struct WorkerCapability {
 
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct WorkerResources {
-    pub cpu: f32, // Cores
+    pub cpu: f32,    // Cores
     pub memory: u64, // MB
-    pub disk: u64, // MB
+    pub disk: u64,   // MB
     pub available_cpu: f32,
     pub available_memory: u64,
 }

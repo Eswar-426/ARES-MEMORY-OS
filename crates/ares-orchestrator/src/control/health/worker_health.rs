@@ -29,7 +29,8 @@ pub fn calculate_health_score(worker: &Worker) -> u8 {
     }
 
     if worker.resources.memory > 0 {
-        let mem_usage_pct = 1.0 - (worker.resources.available_memory as f64 / worker.resources.memory as f64);
+        let mem_usage_pct =
+            1.0 - (worker.resources.available_memory as f64 / worker.resources.memory as f64);
         if mem_usage_pct > 0.9 {
             score -= 20;
         } else if mem_usage_pct > 0.7 {
@@ -40,7 +41,9 @@ pub fn calculate_health_score(worker: &Worker) -> u8 {
     // Deduct points for stale heartbeat (even if not fully timed out)
     let now = Utc::now();
     if let Ok(last_hb) = DateTime::parse_from_rfc3339(&worker.last_heartbeat) {
-        let duration = now.signed_duration_since(last_hb.with_timezone(&Utc)).num_seconds();
+        let duration = now
+            .signed_duration_since(last_hb.with_timezone(&Utc))
+            .num_seconds();
         if duration > 15 {
             score -= 30; // Missing multiple heartbeats is bad
         } else if duration > 5 {

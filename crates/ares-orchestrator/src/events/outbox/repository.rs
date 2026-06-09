@@ -1,8 +1,8 @@
 use super::models::OutboxEvent;
 use ares_core::AresError;
 use ares_store::db::Store;
-use rusqlite::params;
 use chrono::Utc;
+use rusqlite::params;
 
 pub struct OutboxRepository {
     store: Store,
@@ -29,17 +29,19 @@ impl OutboxRepository {
             "SELECT id, topic, payload, created_at, published_at, status, retry_count FROM outbox_events WHERE status = 'Pending' ORDER BY created_at ASC LIMIT ?1"
         ).map_err(AresError::db)?;
 
-        let rows = stmt.query_map(params![limit as i64], |row| {
-            Ok(OutboxEvent {
-                id: row.get(0)?,
-                topic: row.get(1)?,
-                payload: row.get(2)?,
-                created_at: row.get(3)?,
-                published_at: row.get(4)?,
-                status: row.get(5)?,
-                retry_count: row.get(6)?,
+        let rows = stmt
+            .query_map(params![limit as i64], |row| {
+                Ok(OutboxEvent {
+                    id: row.get(0)?,
+                    topic: row.get(1)?,
+                    payload: row.get(2)?,
+                    created_at: row.get(3)?,
+                    published_at: row.get(4)?,
+                    status: row.get(5)?,
+                    retry_count: row.get(6)?,
+                })
             })
-        }).map_err(AresError::db)?;
+            .map_err(AresError::db)?;
 
         let mut items = Vec::new();
         for r in rows {
@@ -54,7 +56,8 @@ impl OutboxRepository {
         conn.execute(
             "UPDATE outbox_events SET status = 'Published', published_at = ?1 WHERE id = ?2",
             params![now, id],
-        ).map_err(AresError::db)?;
+        )
+        .map_err(AresError::db)?;
         Ok(())
     }
 
@@ -63,7 +66,8 @@ impl OutboxRepository {
         conn.execute(
             "UPDATE outbox_events SET retry_count = retry_count + 1 WHERE id = ?1",
             params![id],
-        ).map_err(AresError::db)?;
+        )
+        .map_err(AresError::db)?;
         Ok(())
     }
 
@@ -72,7 +76,8 @@ impl OutboxRepository {
         conn.execute(
             "UPDATE outbox_events SET status = 'Failed' WHERE id = ?1",
             params![id],
-        ).map_err(AresError::db)?;
+        )
+        .map_err(AresError::db)?;
         Ok(())
     }
 }

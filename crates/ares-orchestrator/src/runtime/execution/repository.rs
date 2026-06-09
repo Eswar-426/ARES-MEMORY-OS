@@ -17,8 +17,15 @@ impl ExecutionRepository {
         conn.execute(
             "INSERT INTO distributed_executions (id, workflow_id, status, created_at, completed_at)
              VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![exec.id, exec.workflow_id, exec.status, exec.created_at, exec.completed_at],
-        ).map_err(AresError::db)?;
+            params![
+                exec.id,
+                exec.workflow_id,
+                exec.status,
+                exec.created_at,
+                exec.completed_at
+            ],
+        )
+        .map_err(AresError::db)?;
         Ok(())
     }
 
@@ -61,15 +68,17 @@ impl ExecutionRepository {
             "SELECT id, workflow_id, status, created_at, completed_at FROM distributed_executions ORDER BY created_at DESC LIMIT ?1"
         ).map_err(AresError::db)?;
 
-        let rows = stmt.query_map(params![limit as i64], |row| {
-            Ok(DistributedExecution {
-                id: row.get(0)?,
-                workflow_id: row.get(1)?,
-                status: row.get(2)?,
-                created_at: row.get(3)?,
-                completed_at: row.get(4)?,
+        let rows = stmt
+            .query_map(params![limit as i64], |row| {
+                Ok(DistributedExecution {
+                    id: row.get(0)?,
+                    workflow_id: row.get(1)?,
+                    status: row.get(2)?,
+                    created_at: row.get(3)?,
+                    completed_at: row.get(4)?,
+                })
             })
-        }).map_err(AresError::db)?;
+            .map_err(AresError::db)?;
 
         let mut items = Vec::new();
         for r in rows {

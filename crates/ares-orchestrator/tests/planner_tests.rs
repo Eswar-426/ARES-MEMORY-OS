@@ -1,8 +1,8 @@
+use ares_orchestrator::runtime::execution::models::WorkflowExecutionStep;
 use ares_orchestrator::runtime::planner::{DefaultExecutionPlanner, ExecutionPlanner};
 use ares_orchestrator::runtime::queue::models::{QueueStatus, WorkflowQueueItem};
-use ares_orchestrator::runtime::execution::models::WorkflowExecutionStep;
-use uuid::Uuid;
 use chrono::Utc;
+use uuid::Uuid;
 
 fn mock_queue_item() -> WorkflowQueueItem {
     WorkflowQueueItem {
@@ -35,7 +35,7 @@ fn mock_failed_step() -> WorkflowExecutionStep {
 async fn test_simple_workflow_planning() {
     let planner = DefaultExecutionPlanner;
     let item = mock_queue_item();
-    
+
     let plan = planner.plan(&item).await.unwrap();
     // Currently defaults to empty, but structure is validated
     assert_eq!(plan.len(), 0);
@@ -45,7 +45,7 @@ async fn test_simple_workflow_planning() {
 async fn test_multi_step_workflow_planning() {
     let planner = DefaultExecutionPlanner;
     let item = mock_queue_item();
-    
+
     let plan = planner.plan(&item).await.unwrap();
     assert_eq!(plan.len(), 0);
 }
@@ -54,7 +54,7 @@ async fn test_multi_step_workflow_planning() {
 async fn test_dag_workflow_planning() {
     let planner = DefaultExecutionPlanner;
     let item = mock_queue_item();
-    
+
     let plan = planner.plan(&item).await.unwrap();
     assert_eq!(plan.len(), 0);
 }
@@ -63,7 +63,7 @@ async fn test_dag_workflow_planning() {
 async fn test_recovery_plan() {
     let planner = DefaultExecutionPlanner;
     let item = mock_queue_item();
-    
+
     let plan = planner.recover(&item).await.unwrap();
     assert_eq!(plan.len(), 0);
 }
@@ -73,7 +73,7 @@ async fn test_replan() {
     let planner = DefaultExecutionPlanner;
     let item = mock_queue_item();
     let failed_step = mock_failed_step();
-    
+
     let plan = planner.replan(&item, &failed_step).await.unwrap();
     assert_eq!(plan.len(), 0);
 }

@@ -16,8 +16,10 @@ fn test_acquire_and_renew_lease() {
     let workflow_id = "wf1";
     let execution_id = "ex1";
 
-    let lease = service.acquire_lease(worker_id, queue_id, workflow_id, execution_id).expect("Should acquire lease");
-    
+    let lease = service
+        .acquire_lease(worker_id, queue_id, workflow_id, execution_id)
+        .expect("Should acquire lease");
+
     assert_eq!(lease.worker_id, worker_id);
     assert_eq!(lease.queue_id, queue_id);
 
@@ -37,14 +39,19 @@ fn test_double_acquire_rejected() {
     let workflow_id = "wf1";
     let execution_id = "ex1";
 
-    let _lease = service.acquire_lease(worker_id, queue_id, workflow_id, execution_id).unwrap();
+    let _lease = service
+        .acquire_lease(worker_id, queue_id, workflow_id, execution_id)
+        .unwrap();
 
     // Trying to insert the identical queue_id again directly should fail via Unique Constraint
     // Wait, the acquire_lease creates a new UUID for lease.id. The constraint in sqlite for job_leases:
     // `execution_id TEXT UNIQUE NOT NULL` or `queue_id TEXT UNIQUE NOT NULL`?
     // Let's attempt to acquire a lease for the same execution_id
     let res = service.acquire_lease(worker_id, queue_id, workflow_id, execution_id);
-    assert!(res.is_err(), "Should reject double acquire on same execution/queue");
+    assert!(
+        res.is_err(),
+        "Should reject double acquire on same execution/queue"
+    );
 }
 
 #[test]
@@ -58,7 +65,9 @@ fn test_expire_and_recover_lease() {
     let workflow_id = "wf1";
     let execution_id = "ex1";
 
-    let lease = service.acquire_lease(worker_id, queue_id, workflow_id, execution_id).unwrap();
+    let lease = service
+        .acquire_lease(worker_id, queue_id, workflow_id, execution_id)
+        .unwrap();
 
     // Manually force expiration by updating the DB via repo (simulate time passing)
     let past = Utc::now() - Duration::seconds(100);
@@ -71,7 +80,7 @@ fn test_expire_and_recover_lease() {
 
     // Delete it (simulate recovery)
     service.release_lease(&lease.id).unwrap();
-    
+
     let expired_after = repo.find_expired().unwrap();
     assert_eq!(expired_after.len(), 0);
 }

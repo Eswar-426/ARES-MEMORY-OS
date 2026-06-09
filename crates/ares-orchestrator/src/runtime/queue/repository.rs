@@ -14,7 +14,9 @@ impl QueueRepository {
 
     pub fn enqueue(&self, item: &WorkflowQueueItem) -> Result<(), AresError> {
         let conn = self.store.get_conn()?;
-        let status_str = serde_json::to_string(&item.status).unwrap().replace("\"", "");
+        let status_str = serde_json::to_string(&item.status)
+            .unwrap()
+            .replace("\"", "");
 
         // execution_key has a UNIQUE constraint in the DB.
         // If it violates, SQLite will return an error, providing idempotency.
@@ -51,24 +53,27 @@ impl QueueRepository {
              FROM workflow_queue WHERE status = 'Queued' ORDER BY priority DESC, created_at ASC LIMIT ?1"
         ).map_err(AresError::db)?;
 
-        let rows = stmt.query_map(params![limit as i64], |row| {
-            let status_str: String = row.get(3)?;
-            let status = serde_json::from_str(&format!("\"{}\"", status_str)).unwrap_or(QueueStatus::Queued);
+        let rows = stmt
+            .query_map(params![limit as i64], |row| {
+                let status_str: String = row.get(3)?;
+                let status = serde_json::from_str(&format!("\"{}\"", status_str))
+                    .unwrap_or(QueueStatus::Queued);
 
-            Ok(WorkflowQueueItem {
-                id: row.get(0)?,
-                workflow_id: row.get(1)?,
-                priority: row.get(2)?,
-                status,
-                assigned_worker: row.get(4)?,
-                retry_count: row.get(5)?,
-                created_at: row.get(6)?,
-                started_at: row.get(7)?,
-                completed_at: row.get(8)?,
-                execution_key: row.get(9)?,
-                execution_checksum: row.get(10)?,
+                Ok(WorkflowQueueItem {
+                    id: row.get(0)?,
+                    workflow_id: row.get(1)?,
+                    priority: row.get(2)?,
+                    status,
+                    assigned_worker: row.get(4)?,
+                    retry_count: row.get(5)?,
+                    created_at: row.get(6)?,
+                    started_at: row.get(7)?,
+                    completed_at: row.get(8)?,
+                    execution_key: row.get(9)?,
+                    execution_checksum: row.get(10)?,
+                })
             })
-        }).map_err(AresError::db)?;
+            .map_err(AresError::db)?;
 
         let mut items = Vec::new();
         for r in rows {
@@ -77,7 +82,14 @@ impl QueueRepository {
         Ok(items)
     }
 
-    pub fn update_status(&self, id: &str, status: &QueueStatus, assigned_worker: Option<&str>, started_at: Option<&str>, completed_at: Option<&str>) -> Result<(), AresError> {
+    pub fn update_status(
+        &self,
+        id: &str,
+        status: &QueueStatus,
+        assigned_worker: Option<&str>,
+        started_at: Option<&str>,
+        completed_at: Option<&str>,
+    ) -> Result<(), AresError> {
         let conn = self.store.get_conn()?;
         let status_str = serde_json::to_string(status).unwrap().replace("\"", "");
 

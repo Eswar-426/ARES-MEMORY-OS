@@ -37,17 +37,19 @@ impl DlqRepository {
              FROM dead_letter_queue ORDER BY failed_at DESC LIMIT ?1"
         ).map_err(AresError::db)?;
 
-        let rows = stmt.query_map(params![limit as i64], |row| {
-            Ok(DeadLetterItem {
-                id: row.get(0)?,
-                original_queue_id: row.get(1)?,
-                workflow_id: row.get(2)?,
-                execution_key: row.get(3)?,
-                failure_reason: row.get(4)?,
-                failed_at: row.get(5)?,
-                attempt_count: row.get(6)?,
+        let rows = stmt
+            .query_map(params![limit as i64], |row| {
+                Ok(DeadLetterItem {
+                    id: row.get(0)?,
+                    original_queue_id: row.get(1)?,
+                    workflow_id: row.get(2)?,
+                    execution_key: row.get(3)?,
+                    failure_reason: row.get(4)?,
+                    failed_at: row.get(5)?,
+                    attempt_count: row.get(6)?,
+                })
             })
-        }).map_err(AresError::db)?;
+            .map_err(AresError::db)?;
 
         let mut items = Vec::new();
         for r in rows {

@@ -1,11 +1,11 @@
 use super::{dto::*, service::WorkerService};
+use ares_core::AresError;
 use axum::{
     extract::{Path, State},
     response::IntoResponse,
     Json,
 };
 use std::sync::Arc;
-use ares_core::AresError;
 
 fn map_err(e: AresError) -> (axum::http::StatusCode, String) {
     (

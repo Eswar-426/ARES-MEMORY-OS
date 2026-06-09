@@ -51,12 +51,15 @@ impl LeaseRecoveryTask {
         let expired_leases = lease_repo.find_expired()?;
 
         for lease in expired_leases {
-            warn!("Lease {} expired for worker {}. Recovering queue item {}", lease.id, lease.worker_id, lease.queue_id);
-            
+            warn!(
+                "Lease {} expired for worker {}. Recovering queue item {}",
+                lease.id, lease.worker_id, lease.queue_id
+            );
+
             // Re-queue the job (Orphaned or Queued depending on retry logic)
             // For now, let's mark it back to Queued and clear the assigned worker
             queue_repo.update_status(&lease.queue_id, &QueueStatus::Orphaned, None, None, None)?;
-            
+
             // Delete the expired lease
             lease_repo.delete(&lease.id)?;
         }

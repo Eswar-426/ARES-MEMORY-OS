@@ -12,8 +12,16 @@ pub struct OutboxPublisherWorker {
 }
 
 impl OutboxPublisherWorker {
-    pub fn new(repo: Arc<OutboxRepository>, publisher: Arc<dyn EventPublisher>, config: OrchestratorConfig) -> Self {
-        Self { repo, publisher, config }
+    pub fn new(
+        repo: Arc<OutboxRepository>,
+        publisher: Arc<dyn EventPublisher>,
+        config: OrchestratorConfig,
+    ) -> Self {
+        Self {
+            repo,
+            publisher,
+            config,
+        }
     }
 
     pub fn start(self) {
@@ -35,7 +43,10 @@ impl OutboxPublisherWorker {
         });
     }
 
-    pub async fn process_outbox(repo: &OutboxRepository, publisher: &dyn EventPublisher) -> Result<(), ares_core::AresError> {
+    pub async fn process_outbox(
+        repo: &OutboxRepository,
+        publisher: &dyn EventPublisher,
+    ) -> Result<(), ares_core::AresError> {
         let pending_events = repo.fetch_pending(50)?;
 
         for event in pending_events {
@@ -47,9 +58,12 @@ impl OutboxPublisherWorker {
                 Err(e) => {
                     warn!("Failed to publish outbox event {}: {}", event.id, e);
                     repo.increment_retry(&event.id)?;
-                    
+
                     if event.retry_count >= 5 {
-                        error!("Outbox event {} reached max retries, marking failed", event.id);
+                        error!(
+                            "Outbox event {} reached max retries, marking failed",
+                            event.id
+                        );
                         repo.mark_failed(&event.id)?;
                     }
                 }

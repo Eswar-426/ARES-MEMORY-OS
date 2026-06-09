@@ -14,12 +14,13 @@ impl WorkerService {
     pub fn register_worker(&self, req: WorkerRegistrationRequest) -> Result<Worker, AresError> {
         let worker = WorkerMapper::from_registration(req);
         self.repo.register(&worker)?;
-        
+
         // Let's immediately transition it to Online after registering.
         let now = Utc::now().to_rfc3339();
         let resources_json = serde_json::to_string(&worker.resources).unwrap_or_default();
-        self.repo.update_status(&worker.id, &WorkerStatus::Online, &resources_json, &now)?;
-        
+        self.repo
+            .update_status(&worker.id, &WorkerStatus::Online, &resources_json, &now)?;
+
         let mut final_worker = worker.clone();
         final_worker.status = WorkerStatus::Online;
         final_worker.last_heartbeat = now;

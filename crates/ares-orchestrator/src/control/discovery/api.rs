@@ -1,11 +1,11 @@
 use super::routing::DiscoveryService;
+use ares_core::AresError;
 use axum::{
     extract::{Path, State},
     response::IntoResponse,
     Json,
 };
 use std::sync::Arc;
-use ares_core::AresError;
 
 fn map_err(e: AresError) -> (axum::http::StatusCode, String) {
     (
@@ -33,7 +33,10 @@ pub async fn discover_by_capability(
     State(state): State<Arc<DiscoveryApiState>>,
     Path(capability_name): Path<String>,
 ) -> Result<impl IntoResponse, (axum::http::StatusCode, String)> {
-    let workers = state.service.find_workers_by_capability(&capability_name, None).map_err(map_err)?;
+    let workers = state
+        .service
+        .find_workers_by_capability(&capability_name, None)
+        .map_err(map_err)?;
     Ok(Json(workers))
 }
 
@@ -52,6 +55,9 @@ pub async fn discover_by_capability_and_version(
     State(state): State<Arc<DiscoveryApiState>>,
     Path((capability_name, capability_version)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, (axum::http::StatusCode, String)> {
-    let workers = state.service.find_workers_by_capability(&capability_name, Some(&capability_version)).map_err(map_err)?;
+    let workers = state
+        .service
+        .find_workers_by_capability(&capability_name, Some(&capability_version))
+        .map_err(map_err)?;
     Ok(Json(workers))
 }

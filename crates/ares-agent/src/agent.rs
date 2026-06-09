@@ -35,7 +35,7 @@ impl Agent {
             .join(".ares")
             .join("ares.db");
         let store =
-            Store::open(&db_path).map_err(|_| AresError::Database("Failed to open DB".into()))?;
+            Store::open(&db_path)?;
 
         // Initialize Repositories
         let memory_repo = Arc::new(SqliteMemoryRepository::new(store.clone()));

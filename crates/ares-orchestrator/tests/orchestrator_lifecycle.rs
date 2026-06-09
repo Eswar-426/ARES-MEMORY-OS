@@ -18,9 +18,9 @@ use ares_orchestrator::runtime::leases::service::LeaseService;
 use ares_orchestrator::events::outbox::models::OutboxEvent;
 use ares_orchestrator::events::outbox::repository::OutboxRepository;
 
+use chrono::Utc;
 use std::collections::HashMap;
 use std::sync::Arc;
-use chrono::Utc;
 use uuid::Uuid;
 
 #[test]
@@ -42,7 +42,10 @@ fn test_orchestrator_lifecycle() {
     // 2. Worker Register
     let req = WorkerRegistrationRequest {
         hostname: "lifecycle-worker".into(),
-        capabilities: vec![WorkerCapability { name: "test-cap".into(), version: "1.0".into() }],
+        capabilities: vec![WorkerCapability {
+            name: "test-cap".into(),
+            version: "1.0".into(),
+        }],
         labels: HashMap::new(),
         resources: WorkerResources {
             cpu: 4.0,
@@ -52,7 +55,9 @@ fn test_orchestrator_lifecycle() {
             available_memory: 16000,
         },
     };
-    let worker = worker_service.register_worker(req).expect("Failed to register worker");
+    let worker = worker_service
+        .register_worker(req)
+        .expect("Failed to register worker");
 
     // (Heartbeat is implicit in register as it sets it to Online + updates heartbeat)
 
@@ -67,23 +72,31 @@ fn test_orchestrator_lifecycle() {
 
     // 4. Scheduler
     let strategy = LeastLoadedStrategy;
-    let workers = worker_service.list_workers().expect("Failed to list workers");
-    let selected_worker = strategy.select_worker(&workers, &[]).expect("Failed to select worker");
+    let workers = worker_service
+        .list_workers()
+        .expect("Failed to list workers");
+    let selected_worker = strategy
+        .select_worker(&workers, &[])
+        .expect("Failed to select worker");
     assert_eq!(selected_worker.id, worker.id);
 
     // Assign
-    queue_service.assign_worker(&queue_item.id, &selected_worker.id).expect("Failed to assign");
-    
+    queue_service
+        .assign_worker(&queue_item.id, &selected_worker.id)
+        .expect("Failed to assign");
+
     // Refresh queue_item
     // Since QueueService doesn't have a get method easily accessible here, we'll assume it succeeded.
 
     // 5. Lease
-    let lease = lease_service.acquire_lease(
-        &selected_worker.id,
-        &queue_item.id,
-        &queue_item.workflow_id,
-        &Uuid::now_v7().to_string(), // execution_id
-    ).expect("Failed to acquire lease");
+    let lease = lease_service
+        .acquire_lease(
+            &selected_worker.id,
+            &queue_item.id,
+            &queue_item.workflow_id,
+            &Uuid::now_v7().to_string(), // execution_id
+        )
+        .expect("Failed to acquire lease");
 
     // 6. Execution (Simulated)
     // Create an Outbox Event
@@ -96,14 +109,26 @@ fn test_orchestrator_lifecycle() {
         status: "Pending".into(),
         retry_count: 0,
     };
-    outbox_repo.insert(&event).expect("Failed to insert outbox event");
+    outbox_repo
+        .insert(&event)
+        .expect("Failed to insert outbox event");
 
     // 7. Complete Queue Item
     let q_repo = QueueRepository::new(store.clone());
-    q_repo.update_status(&queue_item.id, &QueueStatus::Completed, None, None, Some(&Utc::now().to_rfc3339())).expect("Failed to complete queue item");
+    q_repo
+        .update_status(
+            &queue_item.id,
+            &QueueStatus::Completed,
+            None,
+            None,
+            Some(&Utc::now().to_rfc3339()),
+        )
+        .expect("Failed to complete queue item");
 
     // 8. Release Lease
-    lease_service.release_lease(&lease.id).expect("Failed to release lease");
+    lease_service
+        .release_lease(&lease.id)
+        .expect("Failed to release lease");
 
     // Assertions
     let pending_events = outbox_repo.fetch_pending(10).unwrap();

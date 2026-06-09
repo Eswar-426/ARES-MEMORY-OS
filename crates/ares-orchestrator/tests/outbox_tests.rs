@@ -1,12 +1,12 @@
 mod common;
 
+use ares_core::AresError;
 use ares_orchestrator::events::outbox::models::OutboxEvent;
 use ares_orchestrator::events::outbox::repository::OutboxRepository;
 use ares_orchestrator::events::outbox::worker::OutboxPublisherWorker;
 use ares_orchestrator::events::publisher::EventPublisher;
-use ares_core::AresError;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use chrono::Utc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 struct MockPublisher {
     call_count: AtomicUsize,
@@ -41,7 +41,7 @@ fn mock_event(id: &str) -> OutboxEvent {
 async fn test_insert_and_publish() {
     let (store, _config, _dir) = common::setup_test_env();
     let repo = OutboxRepository::new(store);
-    
+
     let event = mock_event("evt1");
     repo.insert(&event).unwrap();
 
@@ -53,7 +53,9 @@ async fn test_insert_and_publish() {
         fail_first_n: 0,
     };
 
-    OutboxPublisherWorker::process_outbox(&repo, &publisher).await.unwrap();
+    OutboxPublisherWorker::process_outbox(&repo, &publisher)
+        .await
+        .unwrap();
 
     let pending_after = repo.fetch_pending(10).unwrap();
     assert_eq!(pending_after.len(), 0);
@@ -64,10 +66,10 @@ async fn test_insert_and_publish() {
 async fn test_duplicate_event() {
     let (store, _config, _dir) = common::setup_test_env();
     let repo = OutboxRepository::new(store);
-    
+
     let event = mock_event("evt2");
     repo.insert(&event).unwrap();
-    
+
     // Insert identical ID should fail (PrimaryKey)
     let res = repo.insert(&event);
     assert!(res.is_err(), "Duplicate OutboxEvent should fail");
@@ -77,7 +79,7 @@ async fn test_duplicate_event() {
 async fn test_publisher_failure_and_recovery() {
     let (store, _config, _dir) = common::setup_test_env();
     let repo = OutboxRepository::new(store);
-    
+
     let event = mock_event("evt3");
     repo.insert(&event).unwrap();
 
@@ -87,22 +89,28 @@ async fn test_publisher_failure_and_recovery() {
     };
 
     // Attempt 1 (Fails)
-    OutboxPublisherWorker::process_outbox(&repo, &publisher).await.unwrap();
-    
+    OutboxPublisherWorker::process_outbox(&repo, &publisher)
+        .await
+        .unwrap();
+
     let pending = repo.fetch_pending(10).unwrap();
     assert_eq!(pending.len(), 1);
     assert_eq!(pending[0].retry_count, 1);
     assert_eq!(pending[0].status, "Pending");
 
     // Attempt 2 (Fails)
-    OutboxPublisherWorker::process_outbox(&repo, &publisher).await.unwrap();
-    
+    OutboxPublisherWorker::process_outbox(&repo, &publisher)
+        .await
+        .unwrap();
+
     let pending2 = repo.fetch_pending(10).unwrap();
     assert_eq!(pending2[0].retry_count, 2);
 
     // Attempt 3 (Succeeds)
-    OutboxPublisherWorker::process_outbox(&repo, &publisher).await.unwrap();
-    
+    OutboxPublisherWorker::process_outbox(&repo, &publisher)
+        .await
+        .unwrap();
+
     let pending3 = repo.fetch_pending(10).unwrap();
     assert_eq!(pending3.len(), 0); // successfully published
 }
@@ -111,7 +119,7 @@ async fn test_publisher_failure_and_recovery() {
 async fn test_publisher_max_retries_failed() {
     let (store, _config, _dir) = common::setup_test_env();
     let repo = OutboxRepository::new(store);
-    
+
     let event = mock_event("evt4");
     repo.insert(&event).unwrap();
 
@@ -122,7 +130,9 @@ async fn test_publisher_max_retries_failed() {
 
     // Retry 6 times to reach the threshold (5)
     for _ in 0..6 {
-        OutboxPublisherWorker::process_outbox(&repo, &publisher).await.unwrap();
+        OutboxPublisherWorker::process_outbox(&repo, &publisher)
+            .await
+            .unwrap();
     }
 
     // After 5 retries it should be marked Failed and not show up in pending

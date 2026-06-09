@@ -1,5 +1,5 @@
-use crate::control::workers::dto::WorkerStatusUpdateRequest;
 use super::service::HeartbeatService;
+use crate::control::workers::dto::WorkerStatusUpdateRequest;
 use ares_core::AresError;
 use axum::{
     extract::{Path, State},
@@ -36,6 +36,9 @@ pub async fn worker_heartbeat(
     Path(id): Path<String>,
     Json(payload): Json<WorkerStatusUpdateRequest>,
 ) -> Result<impl IntoResponse, (axum::http::StatusCode, String)> {
-    state.service.process_heartbeat(&id, payload.available_cpu, payload.available_memory).map_err(map_err)?;
+    state
+        .service
+        .process_heartbeat(&id, payload.available_cpu, payload.available_memory)
+        .map_err(map_err)?;
     Ok(Json(serde_json::json!({ "status": "ok" })))
 }

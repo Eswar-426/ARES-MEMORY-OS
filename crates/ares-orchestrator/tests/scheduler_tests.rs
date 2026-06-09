@@ -1,10 +1,19 @@
 use ares_orchestrator::control::scheduler::strategy::{
-    CapabilityAwareStrategy, LeastLoadedStrategy, PriorityStrategy, RoundRobinStrategy, SchedulingStrategy,
+    CapabilityAwareStrategy, LeastLoadedStrategy, PriorityStrategy, RoundRobinStrategy,
+    SchedulingStrategy,
 };
-use ares_orchestrator::control::workers::models::{Worker, WorkerCapability, WorkerResources, WorkerStatus};
+use ares_orchestrator::control::workers::models::{
+    Worker, WorkerCapability, WorkerResources, WorkerStatus,
+};
 use std::collections::HashMap;
 
-fn mock_worker(id: &str, status: WorkerStatus, memory: u64, labels: Vec<(&str, &str)>, caps: Vec<(&str, &str)>) -> Worker {
+fn mock_worker(
+    id: &str,
+    status: WorkerStatus,
+    memory: u64,
+    labels: Vec<(&str, &str)>,
+    caps: Vec<(&str, &str)>,
+) -> Worker {
     let mut label_map = HashMap::new();
     for (k, v) in labels {
         label_map.insert(k.to_string(), v.to_string());
@@ -46,7 +55,9 @@ fn test_least_loaded_strategy() {
         mock_worker("w3", WorkerStatus::Online, 2000, vec![], vec![]),
     ];
 
-    let selected = strategy.select_worker(&workers, &[]).expect("Should select a worker");
+    let selected = strategy
+        .select_worker(&workers, &[])
+        .expect("Should select a worker");
     assert_eq!(selected.id, "w2");
 }
 
@@ -60,7 +71,9 @@ fn test_least_loaded_ignores_offline_and_dead() {
         mock_worker("w3", WorkerStatus::Online, 2000, vec![], vec![]),
     ];
 
-    let selected = strategy.select_worker(&workers, &[]).expect("Should select a worker");
+    let selected = strategy
+        .select_worker(&workers, &[])
+        .expect("Should select a worker");
     assert_eq!(selected.id, "w3"); // Only w3 is online
 }
 
@@ -69,16 +82,36 @@ fn test_capability_aware_strategy_exact_match() {
     let strategy = CapabilityAwareStrategy;
 
     let workers = vec![
-        mock_worker("w1", WorkerStatus::Online, 1000, vec![], vec![("rust", "1.0")]),
-        mock_worker("w2", WorkerStatus::Online, 1000, vec![], vec![("python", "3.9"), ("rust", "1.0")]),
+        mock_worker(
+            "w1",
+            WorkerStatus::Online,
+            1000,
+            vec![],
+            vec![("rust", "1.0")],
+        ),
+        mock_worker(
+            "w2",
+            WorkerStatus::Online,
+            1000,
+            vec![],
+            vec![("python", "3.9"), ("rust", "1.0")],
+        ),
     ];
 
     let req = vec![
-        WorkerCapability { name: "python".into(), version: "3.9".into() },
-        WorkerCapability { name: "rust".into(), version: "1.0".into() },
+        WorkerCapability {
+            name: "python".into(),
+            version: "3.9".into(),
+        },
+        WorkerCapability {
+            name: "rust".into(),
+            version: "1.0".into(),
+        },
     ];
 
-    let selected = strategy.select_worker(&workers, &req).expect("Should select w2");
+    let selected = strategy
+        .select_worker(&workers, &req)
+        .expect("Should select w2");
     assert_eq!(selected.id, "w2");
 }
 
@@ -86,13 +119,18 @@ fn test_capability_aware_strategy_exact_match() {
 fn test_capability_aware_strategy_version_mismatch() {
     let strategy = CapabilityAwareStrategy;
 
-    let workers = vec![
-        mock_worker("w1", WorkerStatus::Online, 1000, vec![], vec![("python", "3.8")]),
-    ];
+    let workers = vec![mock_worker(
+        "w1",
+        WorkerStatus::Online,
+        1000,
+        vec![],
+        vec![("python", "3.8")],
+    )];
 
-    let req = vec![
-        WorkerCapability { name: "python".into(), version: "3.9".into() },
-    ];
+    let req = vec![WorkerCapability {
+        name: "python".into(),
+        version: "3.9".into(),
+    }];
 
     let selected = strategy.select_worker(&workers, &req);
     assert!(selected.is_none(), "Should return None on version mismatch");
@@ -105,11 +143,29 @@ fn test_priority_strategy_ordering() {
     // PriorityStrategy currently uses simple alphabetical comparison of tier values
     // "medium" > "low" > "high" (m > l > h) => "medium" should win... wait, m is 109, l is 108.
     // Let's use numeric string values or clear alphabet
-    
+
     let workers = vec![
-        mock_worker("w1", WorkerStatus::Online, 1000, vec![("tier", "1-low")], vec![]),
-        mock_worker("w2", WorkerStatus::Online, 1000, vec![("tier", "3-high")], vec![]),
-        mock_worker("w3", WorkerStatus::Online, 1000, vec![("tier", "2-medium")], vec![]),
+        mock_worker(
+            "w1",
+            WorkerStatus::Online,
+            1000,
+            vec![("tier", "1-low")],
+            vec![],
+        ),
+        mock_worker(
+            "w2",
+            WorkerStatus::Online,
+            1000,
+            vec![("tier", "3-high")],
+            vec![],
+        ),
+        mock_worker(
+            "w3",
+            WorkerStatus::Online,
+            1000,
+            vec![("tier", "2-medium")],
+            vec![],
+        ),
     ];
 
     let selected = strategy.select_worker(&workers, &[]).unwrap();
@@ -120,9 +176,13 @@ fn test_priority_strategy_ordering() {
 fn test_round_robin_strategy() {
     let strategy = RoundRobinStrategy {};
 
-    let workers = vec![
-        mock_worker("w1", WorkerStatus::Online, 1000, vec![], vec![]),
-    ];
+    let workers = vec![mock_worker(
+        "w1",
+        WorkerStatus::Online,
+        1000,
+        vec![],
+        vec![],
+    )];
 
     let selected = strategy.select_worker(&workers, &[]).unwrap();
     assert_eq!(selected.id, "w1");
@@ -135,11 +195,18 @@ fn test_all_strategies_ignore_offline() {
     let cap = CapabilityAwareStrategy;
     let prio = PriorityStrategy;
 
-    let workers = vec![
-        mock_worker("w1", WorkerStatus::Offline, 10000, vec![("tier", "9-high")], vec![("python", "3.9")]),
-    ];
+    let workers = vec![mock_worker(
+        "w1",
+        WorkerStatus::Offline,
+        10000,
+        vec![("tier", "9-high")],
+        vec![("python", "3.9")],
+    )];
 
-    let req = vec![WorkerCapability { name: "python".into(), version: "3.9".into() }];
+    let req = vec![WorkerCapability {
+        name: "python".into(),
+        version: "3.9".into(),
+    }];
 
     assert!(least.select_worker(&workers, &[]).is_none());
     assert!(rr.select_worker(&workers, &[]).is_none());

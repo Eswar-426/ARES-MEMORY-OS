@@ -1,11 +1,7 @@
 use super::worker_health::{calculate_health_score, WorkerHealth};
 use crate::control::workers::repository::WorkerRepository;
 use ares_core::AresError;
-use axum::{
-    extract::State,
-    response::IntoResponse,
-    Json,
-};
+use axum::{extract::State, response::IntoResponse, Json};
 use std::sync::Arc;
 
 fn map_err(e: AresError) -> (axum::http::StatusCode, String) {
@@ -31,7 +27,8 @@ pub async fn get_worker_health(
     State(state): State<Arc<HealthApiState>>,
 ) -> Result<impl IntoResponse, (axum::http::StatusCode, String)> {
     let workers = state.worker_repo.list().map_err(map_err)?;
-    let health_scores: Vec<WorkerHealth> = workers.into_iter()
+    let health_scores: Vec<WorkerHealth> = workers
+        .into_iter()
         .map(|w| {
             let score = calculate_health_score(&w);
             WorkerHealth {

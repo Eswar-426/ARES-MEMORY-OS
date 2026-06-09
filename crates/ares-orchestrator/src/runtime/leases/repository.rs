@@ -1,8 +1,8 @@
 use super::models::JobLease;
 use ares_core::AresError;
 use ares_store::db::Store;
-use rusqlite::params;
 use chrono::Utc;
+use rusqlite::params;
 
 pub struct LeaseRepository {
     store: Store,
@@ -42,13 +42,15 @@ impl LeaseRepository {
         conn.execute(
             "UPDATE job_leases SET expires_at = ?1 WHERE id = ?2",
             params![new_expires_at, lease_id],
-        ).map_err(AresError::db)?;
+        )
+        .map_err(AresError::db)?;
         Ok(())
     }
 
     pub fn delete(&self, lease_id: &str) -> Result<(), AresError> {
         let conn = self.store.get_conn()?;
-        conn.execute("DELETE FROM job_leases WHERE id = ?1", params![lease_id]).map_err(AresError::db)?;
+        conn.execute("DELETE FROM job_leases WHERE id = ?1", params![lease_id])
+            .map_err(AresError::db)?;
         Ok(())
     }
 
@@ -61,17 +63,19 @@ impl LeaseRepository {
              FROM job_leases WHERE expires_at < ?1"
         ).map_err(AresError::db)?;
 
-        let rows = stmt.query_map(params![now], |row| {
-            Ok(JobLease {
-                id: row.get(0)?,
-                worker_id: row.get(1)?,
-                queue_id: row.get(2)?,
-                workflow_id: row.get(3)?,
-                execution_id: row.get(4)?,
-                acquired_at: row.get(5)?,
-                expires_at: row.get(6)?,
+        let rows = stmt
+            .query_map(params![now], |row| {
+                Ok(JobLease {
+                    id: row.get(0)?,
+                    worker_id: row.get(1)?,
+                    queue_id: row.get(2)?,
+                    workflow_id: row.get(3)?,
+                    execution_id: row.get(4)?,
+                    acquired_at: row.get(5)?,
+                    expires_at: row.get(6)?,
+                })
             })
-        }).map_err(AresError::db)?;
+            .map_err(AresError::db)?;
 
         let mut items = Vec::new();
         for r in rows {
