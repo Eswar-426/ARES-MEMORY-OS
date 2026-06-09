@@ -1,10 +1,15 @@
+pub mod analytics;
 pub mod cache;
 pub mod commands;
+pub mod context;
 pub mod entities;
 pub mod events;
 pub mod graph;
 pub mod ingestion;
 pub mod projections;
+pub mod provenance;
+pub mod reasoning;
 pub mod relationships;
 pub mod search;
+pub mod planner;
 pub mod tests;
