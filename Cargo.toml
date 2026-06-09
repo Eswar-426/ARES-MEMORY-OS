@@ -9,6 +9,7 @@ members = [
     "crates/ares-mcp",
     "crates/ares-embeddings",
     "crates/ares-orchestrator",
+    "crates/ares-knowledge",
 ]
 resolver = "2"
 

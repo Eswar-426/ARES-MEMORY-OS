@@ -10,6 +10,7 @@ pub mod reindex;
 pub mod scan;
 pub mod semantic;
 pub mod workflows;
+pub mod knowledge;
 
 use ares_core::AresError;
 use axum::{

@@ -56,8 +56,24 @@ mod tests {
         assert!(tables.contains(&"event_subscriptions".to_string()));
         assert!(tables.contains(&"event_delivery_log".to_string()));
         assert!(tables.contains(&"event_replay_log".to_string()));
+        
+        // V13
+        assert!(tables.contains(&"graph_entities".to_string()));
+        assert!(tables.contains(&"graph_relationships".to_string()));
+        assert!(tables.contains(&"graph_embeddings".to_string()));
+        assert!(tables.contains(&"graph_versions".to_string()));
+        assert!(tables.contains(&"entity_aliases".to_string()));
+        assert!(tables.contains(&"knowledge_events".to_string()));
+        assert!(tables.contains(&"knowledge_projections".to_string()));
+        assert!(tables.contains(&"knowledge_cache".to_string()));
+        assert!(tables.contains(&"goal_states".to_string()));
+        assert!(tables.contains(&"graph_traversals".to_string()));
+        assert!(tables.contains(&"graph_communities".to_string()));
+        assert!(tables.contains(&"graph_snapshots".to_string()));
+        assert!(tables.contains(&"knowledge_provenance".to_string()));
+        assert!(tables.contains(&"graph_constraints".to_string()));
+        assert!(tables.contains(&"graph_exports".to_string()));
     }
-
     #[test]
     fn test_migrations_rerun_and_idempotency() {
         let mut conn = Connection::open_in_memory().unwrap();

@@ -140,6 +140,7 @@ dependencies = [
  "ares-agent",
  "ares-app",
  "ares-core",
+ "ares-knowledge",
  "ares-orchestrator",
  "ares-store",
  "async-stream",
@@ -206,6 +207,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "ares-knowledge"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ares-core",
+ "ares-store",
+ "async-trait",
+ "axum",
+ "chrono",
+ "metrics",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
 name = "ares-mcp"
 version = "0.1.0"
 dependencies = [
@@ -228,6 +250,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "ares-core",
+ "ares-knowledge",
  "ares-store",
  "async-nats",
  "async-trait",

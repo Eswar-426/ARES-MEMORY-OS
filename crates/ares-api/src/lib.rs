@@ -165,6 +165,7 @@ pub fn create_router(state: AppState) -> Router {
             "/workflows/visualize/:id",
             get(routes::workflows::visualize_workflow),
         )
+        .nest("/knowledge", routes::knowledge::router(state.store.clone()))
         .layer(axum::middleware::from_fn(auth::auth_middleware));
 
     let admin_routes = Router::new()

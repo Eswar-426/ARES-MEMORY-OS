@@ -1,5 +1,6 @@
 pub mod control;
 pub mod events;
+pub mod knowledge;
 pub mod runtime;
 
 use ares_core::AresError;
