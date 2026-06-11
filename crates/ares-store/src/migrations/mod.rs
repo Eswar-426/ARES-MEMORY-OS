@@ -79,6 +79,11 @@ mod tests {
         assert!(tables.contains(&"goal_state_transitions".to_string()));
         assert!(tables.contains(&"plans".to_string()));
         assert!(tables.contains(&"plan_candidates".to_string()));
+
+        // V18
+        assert!(tables.contains(&"mission_outcomes".to_string()));
+        assert!(tables.contains(&"strategy_history".to_string()));
+        assert!(tables.contains(&"learning_profiles".to_string()));
     }
     #[test]
     fn test_migrations_rerun_and_idempotency() {

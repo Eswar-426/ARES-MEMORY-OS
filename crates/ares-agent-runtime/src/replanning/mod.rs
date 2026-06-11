@@ -1,5 +1,7 @@
 use crate::models::{AgentId, MissionId, TaskId};
-use crate::workflow::MissionDag;
+use crate::workflow::{MissionDag, MissionNode};
+
+pub mod autonomous;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ReplanningTrigger {
@@ -9,6 +11,8 @@ pub enum ReplanningTrigger {
     BudgetExhaustion,
     LowConfidence,
     MissingInformation,
+    Timeout,
+    QualityBelowThreshold(u64),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -18,6 +22,9 @@ pub enum ReplanningAction {
     SwitchModel(AgentId, String),   // Agent, New Model
     RetryStrategy(TaskId),
     Escalate(String),
+    SplitTask(TaskId, Vec<MissionNode>),
+    RebuildDag(MissionDag),
+    ChangeModel(AgentId, String),
 }
 
 pub struct Replanner {
@@ -41,20 +48,12 @@ impl Replanner {
         current_dag: &MissionDag,
         trigger: ReplanningTrigger,
     ) -> Result<ReplanningAction, String> {
-        // In a real implementation, this would prompt the Intelligence layer
-        // to figure out how to modify the plan based on the failure context.
         match trigger {
-            ReplanningTrigger::TaskFailure(task_id) => {
-                // Heuristic or AI-driven decision: retry the task
-                Ok(ReplanningAction::RetryStrategy(task_id))
-            }
-            ReplanningTrigger::AgentFailure(agent_id) => {
-                // Heuristic: Escalate or try replacing
-                Ok(ReplanningAction::Escalate(format!(
-                    "Agent {} failed irreparably",
-                    agent_id.0
-                )))
-            }
+            ReplanningTrigger::TaskFailure(task_id) => Ok(ReplanningAction::RetryStrategy(task_id)),
+            ReplanningTrigger::AgentFailure(agent_id) => Ok(ReplanningAction::Escalate(format!(
+                "Agent {} failed irreparably",
+                agent_id.0
+            ))),
             ReplanningTrigger::ToolFailure(tool_name) => Ok(ReplanningAction::Escalate(format!(
                 "Critical tool {} failed",
                 tool_name
@@ -62,8 +61,14 @@ impl Replanner {
             ReplanningTrigger::BudgetExhaustion => {
                 Ok(ReplanningAction::Escalate("Budget exhausted".into()))
             }
+            ReplanningTrigger::Timeout => {
+                Ok(ReplanningAction::Escalate("Mission timed out".into()))
+            }
+            ReplanningTrigger::QualityBelowThreshold(_threshold_pct) => {
+                // Rebuild the DAG with potential modifications
+                Ok(ReplanningAction::RebuildDag(current_dag.clone()))
+            }
             ReplanningTrigger::LowConfidence | ReplanningTrigger::MissingInformation => {
-                // Example of modify plan: return current DAG for now
                 Ok(ReplanningAction::ModifyPlan(current_dag.clone()))
             }
         }

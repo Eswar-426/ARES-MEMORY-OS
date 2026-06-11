@@ -1,3 +1,5 @@
+pub mod mission_reflection;
+
 use crate::models::{AgentId, MissionId, TaskId};
 use serde::{Deserialize, Serialize};
 
