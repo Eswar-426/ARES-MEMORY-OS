@@ -97,6 +97,14 @@ define_id!(GoalId, "goal");
 define_id!(PlanId, "plan");
 define_id!(PlanCandidateId, "plan_candidate");
 
+// Week 17 — Memory Intelligence IDs
+define_id!(EpisodeId, "episode");
+define_id!(SemanticMemoryId, "semantic_memory");
+define_id!(ClusterId, "cluster");
+define_id!(PrincipleId, "principle");
+define_id!(ExperienceId, "experience");
+define_id!(LessonId, "lesson");
+
 #[cfg(test)]
 mod tests {
     use super::*;

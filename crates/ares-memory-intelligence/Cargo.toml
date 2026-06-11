@@ -1,12 +1,13 @@
 [package]
-name = "ares-knowledge"
-version = "0.1.0"
-edition = "2021"
+name = "ares-memory-intelligence"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
 
 [dependencies]
 ares-core = { path = "../ares-core" }
 ares-store = { path = "../ares-store" }
-ares-memory-intelligence = { path = "../ares-memory-intelligence" }
 
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -14,13 +15,8 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
-anyhow = { workspace = true }
-async-trait = { workspace = true }
-tokio = { workspace = true }
-metrics = { workspace = true }
-axum = { workspace = true }
-utoipa = { workspace = true }
 rusqlite = { workspace = true }
+tempfile = { workspace = true }
 
 [dev-dependencies]
-tempfile = { workspace = true }
+tokio = { workspace = true }

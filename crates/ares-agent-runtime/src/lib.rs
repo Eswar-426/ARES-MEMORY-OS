@@ -6,6 +6,7 @@ pub mod execution;
 pub mod id_bridge;
 pub mod learning;
 pub mod memory;
+pub mod memory_bridge;
 pub mod mission;
 pub mod models;
 pub mod recovery;

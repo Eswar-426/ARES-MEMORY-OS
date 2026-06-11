@@ -139,11 +139,13 @@ dependencies = [
  "anyhow",
  "ares-core",
  "ares-intelligence",
+ "ares-memory-intelligence",
  "ares-store",
  "async-trait",
  "chrono",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
@@ -247,6 +249,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "ares-core",
+ "ares-memory-intelligence",
  "ares-store",
  "async-trait",
  "axum",
@@ -255,6 +258,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
@@ -277,6 +281,23 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "ares-memory-intelligence"
+version = "0.1.0"
+dependencies = [
+ "ares-core",
+ "ares-store",
+ "chrono",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -314,6 +335,7 @@ dependencies = [
  "anyhow",
  "ares-core",
  "ares-knowledge",
+ "ares-memory-intelligence",
  "ares-orchestrator",
  "ares-store",
  "async-trait",
@@ -323,6 +345,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tracing",

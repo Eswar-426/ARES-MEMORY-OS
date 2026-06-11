@@ -6,6 +6,7 @@ pub mod entities;
 pub mod events;
 pub mod graph;
 pub mod ingestion;
+pub mod memory_graph;
 pub mod planner;
 pub mod projections;
 pub mod provenance;

@@ -13,6 +13,7 @@ members = [
     "crates/ares-planner",
     "crates/ares-intelligence",
     "crates/ares-agent-runtime",
+    "crates/ares-memory-intelligence",
 ]
 resolver = "2"
 

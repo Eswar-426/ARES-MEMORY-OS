@@ -84,6 +84,19 @@ mod tests {
         assert!(tables.contains(&"mission_outcomes".to_string()));
         assert!(tables.contains(&"strategy_history".to_string()));
         assert!(tables.contains(&"learning_profiles".to_string()));
+
+        // V19 — Memory Intelligence Engine
+        assert!(tables.contains(&"episodes".to_string()));
+        assert!(tables.contains(&"episode_events".to_string()));
+        assert!(tables.contains(&"episode_summaries".to_string()));
+        assert!(tables.contains(&"semantic_memories".to_string()));
+        assert!(tables.contains(&"knowledge_evolution".to_string()));
+        assert!(tables.contains(&"memory_clusters".to_string()));
+        assert!(tables.contains(&"cluster_memberships".to_string()));
+        assert!(tables.contains(&"memory_principles".to_string()));
+        assert!(tables.contains(&"decision_history".to_string()));
+        assert!(tables.contains(&"experience_reports".to_string()));
+        assert!(tables.contains(&"memory_retrieval_log".to_string()));
     }
     #[test]
     fn test_migrations_rerun_and_idempotency() {

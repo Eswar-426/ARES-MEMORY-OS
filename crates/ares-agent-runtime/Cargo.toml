@@ -12,6 +12,7 @@ rust-version.workspace = true
 ares-core = { path = "../ares-core" }
 ares-store = { path = "../ares-store" }
 ares-intelligence = { path = "../ares-intelligence" }
+ares-memory-intelligence = { path = "../ares-memory-intelligence" }
 
 # Async runtime
 tokio.workspace = true
@@ -31,3 +32,6 @@ serde_json.workspace = true
 uuid.workspace = true
 chrono.workspace = true
 async-trait.workspace = true
+
+[dev-dependencies]
+tempfile = { workspace = true }

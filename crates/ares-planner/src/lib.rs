@@ -13,6 +13,7 @@ pub mod feedback;
 pub mod goals;
 pub mod guardrails;
 pub mod history;
+pub mod memory_advisor;
 pub mod meta_planner;
 pub mod mission_generator;
 pub mod model_selection;
