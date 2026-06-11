@@ -72,7 +72,7 @@ async fn test_circuit_breaker_open_state() {
 
 #[tokio::test]
 async fn test_budget_manager() {
-    let manager = BudgetManager::new(100.0);
+    let manager = BudgetManager::new(100.0, 10.0);
     manager.add_spend(50.0);
     assert!(!manager.is_budget_exceeded());
     manager.add_spend(50.1);

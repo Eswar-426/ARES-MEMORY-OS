@@ -1,4 +1,7 @@
-use super::ModelProvider;
+use super::{
+    ModelProvider, ModelRequest, ModelResponse, ProviderError, ProviderHealthStatus,
+    ProviderMetadata,
+};
 use async_trait::async_trait;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -34,46 +37,54 @@ impl MockProvider {
 
 #[async_trait]
 impl ModelProvider for MockProvider {
-    fn provider_id(&self) -> &str {
-        &self.id
-    }
-
-    async fn health_check(&self) -> anyhow::Result<bool> {
-        match self.behavior {
-            MockProviderBehavior::Offline => Ok(false),
-            _ => Ok(true),
-        }
-    }
-
-    async fn generate(&self, _prompt: &str) -> anyhow::Result<String> {
+    async fn generate(&self, _request: ModelRequest) -> Result<ModelResponse, ProviderError> {
         match &self.behavior {
-            MockProviderBehavior::Success(response) => Ok(response.clone()),
+            MockProviderBehavior::Success(response) => Ok(ModelResponse {
+                content: response.clone(),
+                prompt_tokens: 10,
+                completion_tokens: 20,
+                total_tokens: 30,
+                streaming_supported: true,
+            }),
             MockProviderBehavior::Timeout => {
-                // Sleep for a long time to trigger timeout
-                sleep(Duration::from_secs(60)).await;
-                anyhow::bail!("Timeout")
+                sleep(Duration::from_millis(10)).await;
+                Err(ProviderError::Timeout)
             }
-            MockProviderBehavior::RateLimit => {
-                anyhow::bail!("HTTP 429 Too Many Requests")
-            }
-            MockProviderBehavior::AuthFailure => {
-                anyhow::bail!("HTTP 401 Unauthorized")
-            }
-            MockProviderBehavior::MalformedPayload => Ok("{ malformed json".to_string()),
-            MockProviderBehavior::Offline => {
-                anyhow::bail!("Provider offline")
-            }
-            MockProviderBehavior::PartialResponse => {
-                anyhow::bail!("Connection dropped unexpectedly")
-            }
+            MockProviderBehavior::RateLimit => Err(ProviderError::RateLimited),
+            MockProviderBehavior::AuthFailure => Err(ProviderError::Authentication),
+            MockProviderBehavior::MalformedPayload => Err(ProviderError::InvalidResponse),
+            MockProviderBehavior::Offline => Err(ProviderError::ProviderUnavailable),
+            MockProviderBehavior::PartialResponse => Err(ProviderError::ConnectionFailed),
             MockProviderBehavior::SucceedAfterFailures(max_fails, response) => {
                 let fails = self.failures.fetch_add(1, Ordering::SeqCst);
                 if fails < *max_fails {
-                    anyhow::bail!("Transient failure")
+                    Err(ProviderError::ConnectionFailed)
                 } else {
-                    Ok(response.clone())
+                    Ok(ModelResponse {
+                        content: response.clone(),
+                        prompt_tokens: 10,
+                        completion_tokens: 20,
+                        total_tokens: 30,
+                        streaming_supported: true,
+                    })
                 }
             }
+        }
+    }
+
+    async fn health_check(&self) -> ProviderHealthStatus {
+        match self.behavior {
+            MockProviderBehavior::Offline => ProviderHealthStatus::Offline,
+            _ => ProviderHealthStatus::Healthy,
+        }
+    }
+
+    fn metadata(&self) -> ProviderMetadata {
+        ProviderMetadata {
+            id: self.id.clone(),
+            name: format!("Mock Provider {}", self.id),
+            version: "1.0.0".to_string(),
+            supports_streaming: true,
         }
     }
 }

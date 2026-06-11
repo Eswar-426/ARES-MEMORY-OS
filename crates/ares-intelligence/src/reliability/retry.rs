@@ -1,4 +1,3 @@
-use anyhow::Result;
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -21,10 +20,10 @@ impl RetryEngine {
         }
     }
 
-    pub async fn execute_with_retry<F, Fut, T>(&self, mut action: F) -> Result<T>
+    pub async fn execute_with_retry<F, Fut, T, E>(&self, mut action: F) -> Result<T, E>
     where
         F: FnMut() -> Fut,
-        Fut: std::future::Future<Output = Result<T>>,
+        Fut: std::future::Future<Output = Result<T, E>>,
     {
         let mut attempt = 0;
         loop {

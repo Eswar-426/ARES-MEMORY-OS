@@ -24,11 +24,18 @@ impl SandboxExecutor {
             anyhow::bail!("Token limit exceeded");
         }
 
-        let fut = provider.generate(prompt);
+        let request = crate::providers::types::ModelRequest {
+            prompt: prompt.to_string(),
+            max_tokens: None,
+            temperature: None,
+            stream: false,
+        };
+        let fut = provider.generate(request);
         let timeout_duration = Duration::from_millis(100);
 
         match tokio::time::timeout(timeout_duration, fut).await {
-            Ok(result) => result,
+            Ok(Ok(result)) => Ok(result.content),
+            Ok(Err(e)) => Err(anyhow::anyhow!("Provider error: {:?}", e)),
             Err(_) => anyhow::bail!("Execution timeout"),
         }
     }

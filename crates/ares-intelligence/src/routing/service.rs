@@ -1,97 +1,123 @@
-use super::fallback::FallbackManager;
-use crate::explanations::models::{RoutingAttempt, RoutingExplanation};
-use crate::models::model::Model;
-use crate::providers::ModelProvider;
-use crate::sandbox::executor::SandboxExecutor;
-use std::collections::HashMap;
+use crate::catalog::ModelCatalog;
+use crate::cost::budget_manager::BudgetManager;
+use crate::providers::registry::ProviderRegistry;
+use crate::providers::{
+    types::{ModelRequest, ModelResponse},
+    ProviderError,
+};
+use crate::reliability::circuit_breaker::{BreakerState, CircuitBreaker};
+use crate::reliability::quota_manager::QuotaManager;
+use crate::reliability::retry::RetryEngine;
+use crate::tokens::TokenEstimator;
 use std::sync::Arc;
 
 pub struct RoutingService {
-    #[allow(dead_code)]
-    fallback_manager: FallbackManager,
-}
-
-impl Default for RoutingService {
-    fn default() -> Self {
-        Self::new(FallbackManager)
-    }
+    registry: Arc<ProviderRegistry>,
+    circuit_breaker: Arc<CircuitBreaker>,
+    retry_engine: Arc<RetryEngine>,
+    quota_manager: Arc<QuotaManager>,
+    budget_manager: Arc<BudgetManager>,
+    catalog: Arc<ModelCatalog>,
 }
 
 impl RoutingService {
-    pub fn new(fallback_manager: FallbackManager) -> Self {
-        Self { fallback_manager }
+    pub fn new(
+        registry: Arc<ProviderRegistry>,
+        circuit_breaker: Arc<CircuitBreaker>,
+        retry_engine: Arc<RetryEngine>,
+        quota_manager: Arc<QuotaManager>,
+        budget_manager: Arc<BudgetManager>,
+        catalog: Arc<ModelCatalog>,
+    ) -> Self {
+        Self {
+            registry,
+            circuit_breaker,
+            retry_engine,
+            quota_manager,
+            budget_manager,
+            catalog,
+        }
     }
 
-    pub async fn execute_with_routing_and_fallback(
+    pub async fn execute(
         &self,
-        task_id: &str,
+        model_id: &str,
         prompt: &str,
-        primary_model: Model,
-        available_models: &[Model],
-        providers: &HashMap<String, Arc<dyn ModelProvider>>,
-        executor: &SandboxExecutor,
-    ) -> anyhow::Result<(String, RoutingExplanation)> {
-        let mut attempts = Vec::new();
-        let mut current_model = primary_model.clone();
+    ) -> Result<ModelResponse, ProviderError> {
+        let model_entry = self
+            .catalog
+            .get(model_id)
+            .ok_or_else(|| ProviderError::Unknown("Model not found in catalog".to_string()))?;
 
-        loop {
-            let provider = providers.get(&current_model.provider_id).ok_or_else(|| {
-                anyhow::anyhow!(
-                    "Provider not found for model: {}",
-                    current_model.provider_id
-                )
-            })?;
+        let provider = self
+            .registry
+            .get(&model_entry.provider_id)
+            .await
+            .ok_or(ProviderError::ProviderUnavailable)?;
 
-            match executor.execute(provider.as_ref(), prompt).await {
-                Ok(result) => {
-                    attempts.push(RoutingAttempt {
-                        model_id: current_model.id.to_string(),
-                        error: None,
-                    });
-                    let explanation = RoutingExplanation {
-                        task_id: task_id.to_string(),
-                        primary_model_id: primary_model.id.to_string(),
-                        successful_model_id: current_model.id.to_string(),
-                        attempts,
-                    };
-                    return Ok((result, explanation));
-                }
-                Err(e) => {
-                    attempts.push(RoutingAttempt {
-                        model_id: current_model.id.to_string(),
-                        error: Some(e.to_string()),
-                    });
-
-                    // Attempt fallback
-                    let mut found_fallback = false;
-                    for candidate in available_models {
-                        // Skip models we've already attempted
-                        if !attempts
-                            .iter()
-                            .any(|a| a.model_id == candidate.id.to_string())
-                        {
-                            current_model = candidate.clone();
-                            found_fallback = true;
-                            break;
-                        }
-                    }
-
-                    if !found_fallback {
-                        break; // Exhausted all fallbacks
-                    }
-                }
-            }
+        // Pre-flight Checks
+        // 1. Quota
+        if !self
+            .quota_manager
+            .check_and_consume(&model_entry.provider_id)
+            .await
+        {
+            return Err(ProviderError::RateLimited);
         }
 
-        let explanation = RoutingExplanation {
-            task_id: task_id.to_string(),
-            primary_model_id: primary_model.id.to_string(),
-            successful_model_id: "".to_string(),
-            attempts: attempts.clone(),
+        // 2. Budget
+        let est_cost =
+            TokenEstimator::estimate_prompt_cost(prompt, model_entry.cost_per_input_token);
+        if !self.budget_manager.check_request_budget(est_cost) {
+            return Err(ProviderError::BudgetExceeded);
+        }
+
+        // 3. Circuit Breaker
+        match self.circuit_breaker.check(&model_entry.provider_id).await {
+            Ok(BreakerState::Open) => return Err(ProviderError::CircuitOpen),
+            Err(_) => return Err(ProviderError::Unknown("Circuit breaker failed".to_string())),
+            _ => {}
+        }
+
+        let request = ModelRequest {
+            prompt: prompt.to_string(),
+            max_tokens: None,
+            temperature: None,
+            stream: false,
         };
-        Err(anyhow::anyhow!(
-            "Routing failed and all fallbacks exhausted. Explanation: {:?}",
-            explanation
-        ))
+
+        // 4. Execution with Retry
+        let result = self
+            .retry_engine
+            .execute_with_retry(|| async { provider.generate(request.clone()).await })
+            .await;
+
+        match result {
+            Ok(resp) => {
+                let _ = self
+                    .circuit_breaker
+                    .record_success(&model_entry.provider_id)
+                    .await;
+                // Add actual spend based on resp tokens
+                let total_cost = (resp.prompt_tokens as f64 * model_entry.cost_per_input_token)
+                    + (resp.completion_tokens as f64 * model_entry.cost_per_output_token);
+                self.budget_manager.add_spend(total_cost);
+                Ok(resp)
+            }
+            Err(e) => {
+                match e {
+                    ProviderError::Timeout
+                    | ProviderError::ConnectionFailed
+                    | ProviderError::ProviderUnavailable => {
+                        let _ = self
+                            .circuit_breaker
+                            .record_failure(&model_entry.provider_id)
+                            .await;
+                    }
+                    _ => {}
+                }
+                Err(e)
+            }
+        }
     }
 }

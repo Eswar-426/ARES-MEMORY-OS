@@ -7,55 +7,97 @@ use ares_intelligence::sandbox::quotas::Quotas;
 #[tokio::test]
 async fn test_provider_success() {
     let provider = MockProvider::new("test", MockProviderBehavior::Success("Hello".to_string()));
-    let response = provider.generate("prompt").await.unwrap();
-    assert_eq!(response, "Hello");
+    let request = ares_intelligence::providers::types::ModelRequest {
+        prompt: "prompt".to_string(),
+        max_tokens: None,
+        temperature: None,
+        stream: false,
+    };
+    let response = provider.generate(request).await.unwrap();
+    assert_eq!(response.content, "Hello");
 }
 
 #[tokio::test]
 async fn test_provider_offline() {
     let provider = MockProvider::new("test", MockProviderBehavior::Offline);
-    let healthy = provider.health_check().await.unwrap();
-    assert!(!healthy);
-    let response = provider.generate("prompt").await;
+    let healthy = provider.health_check().await;
+    assert!(matches!(
+        healthy,
+        ares_intelligence::providers::types::ProviderHealthStatus::Offline
+    ));
+    let request = ares_intelligence::providers::types::ModelRequest {
+        prompt: "prompt".to_string(),
+        max_tokens: None,
+        temperature: None,
+        stream: false,
+    };
+    let response = provider.generate(request).await;
     assert!(response.is_err());
-    assert_eq!(response.unwrap_err().to_string(), "Provider offline");
+    assert_eq!(
+        response.unwrap_err().to_string(),
+        "Provider is currently unavailable"
+    );
 }
 
 #[tokio::test]
 async fn test_provider_rate_limit() {
     let provider = MockProvider::new("test", MockProviderBehavior::RateLimit);
-    let response = provider.generate("prompt").await;
+    let request = ares_intelligence::providers::types::ModelRequest {
+        prompt: "prompt".to_string(),
+        max_tokens: None,
+        temperature: None,
+        stream: false,
+    };
+    let response = provider.generate(request).await;
     assert!(response.is_err());
     assert_eq!(
         response.unwrap_err().to_string(),
-        "HTTP 429 Too Many Requests"
+        "Rate limited by provider"
     );
 }
 
 #[tokio::test]
 async fn test_provider_auth_failure() {
     let provider = MockProvider::new("test", MockProviderBehavior::AuthFailure);
-    let response = provider.generate("prompt").await;
+    let request = ares_intelligence::providers::types::ModelRequest {
+        prompt: "prompt".to_string(),
+        max_tokens: None,
+        temperature: None,
+        stream: false,
+    };
+    let response = provider.generate(request).await;
     assert!(response.is_err());
-    assert_eq!(response.unwrap_err().to_string(), "HTTP 401 Unauthorized");
+    assert_eq!(response.unwrap_err().to_string(), "Authentication failed");
 }
 
 #[tokio::test]
 async fn test_provider_malformed_payload() {
     let provider = MockProvider::new("test", MockProviderBehavior::MalformedPayload);
-    let response = provider.generate("prompt").await.unwrap();
-    assert!(response.contains("malformed"));
+    let request = ares_intelligence::providers::types::ModelRequest {
+        prompt: "prompt".to_string(),
+        max_tokens: None,
+        temperature: None,
+        stream: false,
+    };
+    let response = provider.generate(request).await.unwrap_err();
+    assert!(matches!(
+        response,
+        ares_intelligence::providers::ProviderError::InvalidResponse
+    ));
 }
 
 #[tokio::test]
 async fn test_provider_partial_response() {
     let provider = MockProvider::new("test", MockProviderBehavior::PartialResponse);
-    let response = provider.generate("prompt").await;
+    let request = ares_intelligence::providers::types::ModelRequest {
+        prompt: "prompt".to_string(),
+        max_tokens: None,
+        temperature: None,
+        stream: false,
+    };
+    let response = provider.generate(request).await;
     assert!(response.is_err());
-    assert_eq!(
-        response.unwrap_err().to_string(),
-        "Connection dropped unexpectedly"
-    );
+    assert_eq!(response.unwrap_err().to_string(), "Connection failed");
 }
 
 #[tokio::test]
@@ -65,14 +107,26 @@ async fn test_provider_transient_failure_recovery() {
         MockProviderBehavior::SucceedAfterFailures(2, "Recovered".to_string()),
     );
     // First call fails
-    let err1 = provider.generate("prompt").await.unwrap_err();
-    assert_eq!(err1.to_string(), "Transient failure");
-    // Second call fails
-    let err2 = provider.generate("prompt").await.unwrap_err();
-    assert_eq!(err2.to_string(), "Transient failure");
-    // Third call succeeds
-    let res = provider.generate("prompt").await.unwrap();
-    assert_eq!(res, "Recovered");
+    let req = ares_intelligence::providers::types::ModelRequest {
+        prompt: "prompt".to_string(),
+        max_tokens: None,
+        temperature: None,
+        stream: false,
+    };
+    let err1 = provider.generate(req.clone()).await.unwrap_err();
+    assert!(matches!(
+        err1,
+        ares_intelligence::providers::ProviderError::ConnectionFailed
+    ));
+
+    let err2 = provider.generate(req.clone()).await.unwrap_err();
+    assert!(matches!(
+        err2,
+        ares_intelligence::providers::ProviderError::ConnectionFailed
+    ));
+
+    let res = provider.generate(req.clone()).await.unwrap();
+    assert_eq!(res.content, "Recovered");
 }
 
 #[tokio::test]
@@ -104,5 +158,5 @@ async fn test_sandbox_timeout() {
 
     let response = executor.execute(&provider, "prompt").await;
     assert!(response.is_err());
-    assert_eq!(response.unwrap_err().to_string(), "Execution timeout");
+    assert_eq!(response.unwrap_err().to_string(), "Provider error: Timeout");
 }

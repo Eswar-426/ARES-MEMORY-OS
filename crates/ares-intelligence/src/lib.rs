@@ -1,6 +1,8 @@
 pub mod analysis;
 pub mod api;
 pub mod benchmark;
+pub mod capabilities;
+pub mod catalog;
 pub mod collaboration;
 pub mod context;
 pub mod coordinator;
@@ -29,4 +31,5 @@ pub mod selection;
 pub mod session;
 pub mod state;
 pub mod telemetry;
+pub mod tokens;
 pub mod tools;

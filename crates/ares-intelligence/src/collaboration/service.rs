@@ -81,59 +81,43 @@ impl CollaborationService {
     #[allow(clippy::too_many_arguments)]
     pub async fn execute_collaboration(
         &self,
-        task_id: &str,
+        _task_id: &str,
         task_type: TaskType,
         prompt: &str,
         selected_model: Model,
         available_models: &[Model],
         routing_service: &RoutingService,
         ensemble_service: &EnsembleService,
-        providers: &HashMap<String, Arc<dyn ModelProvider>>,
-        executor: &SandboxExecutor,
+        _providers: &HashMap<String, Arc<dyn ModelProvider>>,
+        _executor: &SandboxExecutor,
     ) -> anyhow::Result<String> {
         let config = self.determine_strategy(task_type, selected_model.clone(), available_models);
 
         match config.strategy {
             CollaborationStrategy::SingleModel => {
-                let (res, _) = routing_service
-                    .execute_with_routing_and_fallback(
-                        task_id,
-                        prompt,
-                        selected_model,
-                        available_models,
-                        providers,
-                        executor,
-                    )
-                    .await?;
-                Ok(res)
+                let res = routing_service
+                    .execute(&selected_model.id.to_string(), prompt)
+                    .await
+                    .map_err(|e| anyhow::anyhow!("Routing error: {:?}", e))?;
+                Ok(res.content)
             }
             CollaborationStrategy::ReasonAndVerify => {
-                let (primary_res, _) = routing_service
-                    .execute_with_routing_and_fallback(
-                        task_id,
-                        prompt,
-                        config.primary_model,
-                        available_models,
-                        providers,
-                        executor,
-                    )
-                    .await?;
+                let primary_res = routing_service
+                    .execute(&config.primary_model.id.to_string(), prompt)
+                    .await
+                    .map_err(|e| anyhow::anyhow!("Routing error: {:?}", e))?
+                    .content;
 
                 if let Some(verifier) = config.secondary_models.first() {
                     let verify_prompt = format!(
                         "Verify this output:\n{}\n\nOriginal Prompt:\n{}",
                         primary_res, prompt
                     );
-                    let (verify_res, _) = routing_service
-                        .execute_with_routing_and_fallback(
-                            task_id,
-                            &verify_prompt,
-                            verifier.clone(),
-                            available_models,
-                            providers,
-                            executor,
-                        )
-                        .await?;
+                    let verify_res = routing_service
+                        .execute(&verifier.id.to_string(), &verify_prompt)
+                        .await
+                        .map_err(|e| anyhow::anyhow!("Routing error: {:?}", e))?
+                        .content;
 
                     if verify_res.contains("REJECT") {
                         anyhow::bail!("Verification rejected the response");
@@ -150,27 +134,20 @@ impl CollaborationService {
                 for model in all_models {
                     let routing = routing_service;
                     let p = prompt.to_string();
-                    let t_id = task_id.to_string();
-                    let fallback_models = available_models.to_vec();
                     // We must not pass Arc<RoutingService>, instead we'll just execute sequentially for simplicity since it's a test architecture
                     // Actually, let's just await sequentially instead of tokio::spawn to avoid lifetime issues with references!
 
                     let res = routing
-                        .execute_with_routing_and_fallback(
-                            &t_id,
-                            &p,
-                            model.clone(),
-                            &fallback_models,
-                            providers,
-                            executor,
-                        )
-                        .await;
+                        .execute(&model.id.to_string(), &p)
+                        .await
+                        .map(|resp| resp.content)
+                        .map_err(|e| anyhow::anyhow!("Routing error: {:?}", e));
 
                     tasks.push(res);
                 }
 
                 let mut successful_responses = Vec::new();
-                for (answer, _) in tasks.into_iter().flatten() {
+                for answer in tasks.into_iter().flatten() {
                     successful_responses.push(answer);
                 }
 
