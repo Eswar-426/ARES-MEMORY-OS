@@ -133,6 +133,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "ares-agent-runtime"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ares-core",
+ "ares-intelligence",
+ "ares-store",
+ "async-trait",
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "ares-api"
 version = "0.1.0"
 dependencies = [
