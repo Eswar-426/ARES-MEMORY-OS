@@ -137,10 +137,16 @@ mod tests {
         let db_path = std::env::temp_dir().join(format!("test_db_{}.sqlite", uuid::Uuid::new_v4()));
         let store = ares_store::db::Store::open(&db_path).unwrap();
         let store_arc = Arc::new(store.clone());
-        
-        let repo = Arc::new(crate::repository::approvals::SqliteApprovalRepository::new(store_arc));
-        let event_repo = Arc::new(ares_store::repositories::event::SqliteEventRepository::new(store));
-        let publisher = Arc::new(crate::events::publisher::PlannerEventPublisher::new(event_repo));
+
+        let repo = Arc::new(crate::repository::approvals::SqliteApprovalRepository::new(
+            store_arc,
+        ));
+        let event_repo = Arc::new(ares_store::repositories::event::SqliteEventRepository::new(
+            store,
+        ));
+        let publisher = Arc::new(crate::events::publisher::PlannerEventPublisher::new(
+            event_repo,
+        ));
 
         let coordinator = PlannerCoordinator::new(
             Arc::new(GoalDecompositionEngine::new()),

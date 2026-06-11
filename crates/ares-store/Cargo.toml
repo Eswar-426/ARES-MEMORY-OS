@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 ares-core   = { path = "../ares-core" }
+ares-intelligence = { path = "../ares-intelligence" }
 
 serde       = { workspace = true }
 serde_json  = { workspace = true }
@@ -14,6 +15,8 @@ thiserror   = { workspace = true }
 tracing     = { workspace = true }
 uuid        = { workspace = true }
 chrono      = { workspace = true }
+anyhow      = { workspace = true }
+async-trait = { workspace = true }
 
 rusqlite    = { workspace = true }
 r2d2        = { workspace = true }

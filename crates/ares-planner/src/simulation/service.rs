@@ -77,7 +77,8 @@ mod tests {
             }],
         };
 
-        let candidate = PlanCandidate::new_test(PlanId::new(), serde_json::to_string(&dag).unwrap());
+        let candidate =
+            PlanCandidate::new_test(PlanId::new(), serde_json::to_string(&dag).unwrap());
 
         let service = SimulationService::new();
         let result = service.simulate(&candidate).unwrap();

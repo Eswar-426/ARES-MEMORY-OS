@@ -11,6 +11,7 @@ members = [
     "crates/ares-orchestrator",
     "crates/ares-knowledge",
     "crates/ares-planner",
+    "crates/ares-intelligence",
 ]
 resolver = "2"
 
