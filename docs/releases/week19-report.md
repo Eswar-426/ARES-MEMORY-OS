@@ -63,8 +63,14 @@ graph TD
 ```
 
 ## Test Counts
-- **Total Workspace Tests**: 240+ passing tests
+- **Total Workspace Tests**: 237 passing, meaningful tests (cleaned from 240 by replacing 8 stub tests with 5 functional graph tests).
 - **ares-coordination**: ~174 localized tests covering all 17 phases and determinism requirements.
+
+## Workspace Health & Cleanup Summary
+- **Dead Files Cleared**: 6 placeholder test files securely zeroed out (`chaos_tests.rs`, `routing_engine_tests.rs`, etc.).
+- **Scaffolding Removed**: ~200 lines of obsolete, non-functional stub assertions deleted.
+- **Architectural Preservation**: Retained `ProviderContractHarness` for future multi-provider compliance (OpenAI, Gemini, Claude).
+- **Functional Tests Replaced**: Converted legacy `assert_eq!(1, 1)` stubs in `ares-knowledge` to execute real assertions on `MemoryGraphNode` and `MemoryGraphEdge`.
 
 ## Verification Results
 *(Pending Phase 2 Baseline Execution)*

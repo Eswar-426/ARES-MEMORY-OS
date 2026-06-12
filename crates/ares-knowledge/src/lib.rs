@@ -13,4 +13,5 @@ pub mod provenance;
 pub mod reasoning;
 pub mod relationships;
 pub mod search;
+#[cfg(test)]
 pub mod tests;

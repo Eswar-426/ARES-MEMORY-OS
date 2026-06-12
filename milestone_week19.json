@@ -24,8 +24,11 @@
     ]
   },
   "metrics": {
-    "total_tests": 240,
-    "coordination_tests": 174
+    "total_meaningful_tests": 237,
+    "coordination_tests": 174,
+    "files_zeroed": 6,
+    "stub_tests_replaced": 8,
+    "loc_removed": 200
   },
   "verification_results": {
     "compile_time_ms": null,

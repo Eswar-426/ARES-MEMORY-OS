@@ -1,1 +1,1 @@
-#![allow(warnings)]
+// Deleted test file
