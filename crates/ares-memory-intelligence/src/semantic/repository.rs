@@ -48,7 +48,7 @@ impl SemanticRepository {
                     confidence, evidence_count, tags, created_at, updated_at
              FROM semantic_memories WHERE id = ?1",
             params![id],
-            |row| Self::row_to_memory(row),
+            Self::row_to_memory,
         );
         match result {
             Ok(m) => Ok(Some(m)),
@@ -93,7 +93,7 @@ impl SemanticRepository {
             param_values.iter().map(|p| p.as_ref()).collect();
         let mut stmt = conn.prepare(&sql).map_err(AresError::db)?;
         let rows = stmt
-            .query_map(params_ref.as_slice(), |row| Self::row_to_memory(row))
+            .query_map(params_ref.as_slice(), Self::row_to_memory)
             .map_err(AresError::db)?;
 
         let mut memories = Vec::new();

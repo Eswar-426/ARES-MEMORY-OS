@@ -97,6 +97,15 @@ mod tests {
         assert!(tables.contains(&"decision_history".to_string()));
         assert!(tables.contains(&"experience_reports".to_string()));
         assert!(tables.contains(&"memory_retrieval_log".to_string()));
+
+        // V20 — World Model & Predictive Planning
+        assert!(tables.contains(&"world_states".to_string()));
+        assert!(tables.contains(&"scenarios".to_string()));
+        assert!(tables.contains(&"simulations".to_string()));
+        assert!(tables.contains(&"risk_reports".to_string()));
+        assert!(tables.contains(&"predictions".to_string()));
+        assert!(tables.contains(&"forecast_history".to_string()));
+        assert!(tables.contains(&"strategy_rankings".to_string()));
     }
     #[test]
     fn test_migrations_rerun_and_idempotency() {

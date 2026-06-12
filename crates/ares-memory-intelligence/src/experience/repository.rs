@@ -191,7 +191,7 @@ impl ExperienceRepository {
                     domain, is_active, created_at, updated_at
              FROM memory_principles WHERE id = ?1",
             params![id],
-            |row| Self::row_to_principle(row),
+            Self::row_to_principle,
         );
         match result {
             Ok(p) => Ok(Some(p)),
@@ -231,7 +231,7 @@ impl ExperienceRepository {
             param_values.iter().map(|p| p.as_ref()).collect();
         let mut stmt = conn.prepare(&sql).map_err(AresError::db)?;
         let rows = stmt
-            .query_map(params_ref.as_slice(), |row| Self::row_to_principle(row))
+            .query_map(params_ref.as_slice(), Self::row_to_principle)
             .map_err(AresError::db)?;
 
         let mut principles = Vec::new();

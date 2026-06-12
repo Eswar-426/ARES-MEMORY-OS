@@ -85,7 +85,7 @@ impl ConsolidationEngine {
             }
         }
 
-        patterns.sort_by(|a, b| b.frequency.cmp(&a.frequency));
+        patterns.sort_by_key(|b| std::cmp::Reverse(b.frequency));
         patterns
     }
 
@@ -118,7 +118,7 @@ impl ConsolidationEngine {
                     }
                 }
                 let mut tags: Vec<(&str, usize)> = tag_freq.into_iter().collect();
-                tags.sort_by(|a, b| b.1.cmp(&a.1));
+                tags.sort_by_key(|b| std::cmp::Reverse(b.1));
                 let centroid_tags: Vec<String> =
                     tags.iter().take(5).map(|(t, _)| t.to_string()).collect();
 

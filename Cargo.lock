@@ -141,6 +141,7 @@ dependencies = [
  "ares-intelligence",
  "ares-memory-intelligence",
  "ares-store",
+ "ares-world-model",
  "async-trait",
  "chrono",
  "serde",
@@ -338,6 +339,7 @@ dependencies = [
  "ares-memory-intelligence",
  "ares-orchestrator",
  "ares-store",
+ "ares-world-model",
  "async-trait",
  "axum",
  "chrono",
@@ -391,6 +393,25 @@ dependencies = [
  "r2d2",
  "r2d2_sqlite",
  "refinery",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "ares-world-model"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ares-core",
+ "ares-memory-intelligence",
+ "ares-store",
+ "chrono",
+ "metrics",
  "rusqlite",
  "serde",
  "serde_json",

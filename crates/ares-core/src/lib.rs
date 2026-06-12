@@ -12,8 +12,9 @@ pub mod vector;
 pub use error::AresError;
 pub use id::{
     new_id, AgentId, ClusterId, DecisionId, EpisodeId, EventId, ExecutionId, ExperienceId,
-    LessonId, MemoryId, NodeId, PlanCandidateId, PlanId, PrincipleId, ProjectId, ScanRunId,
-    SemanticMemoryId, StepId, TaskId, WorkflowId,
+    ForecastId, LessonId, MemoryId, NodeId, PlanCandidateId, PlanId, PredictionId, PrincipleId,
+    ProjectId, RiskReportId, ScanRunId, ScenarioId, SemanticMemoryId, SimulationId, StepId, TaskId,
+    WorkflowId, WorldStateId,
 };
 pub use types::{
     decision::{

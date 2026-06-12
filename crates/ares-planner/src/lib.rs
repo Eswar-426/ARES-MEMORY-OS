@@ -25,3 +25,4 @@ pub mod simulation;
 pub mod strategy;
 pub mod telemetry;
 pub mod workflow_mapper;
+pub mod world_model_bridge;

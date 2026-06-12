@@ -73,7 +73,7 @@ impl ConsolidationRepository {
                     summary, created_at, updated_at
              FROM memory_clusters WHERE id = ?1",
             params![id],
-            |row| Self::row_to_cluster(row),
+            Self::row_to_cluster,
         );
         match result {
             Ok(c) => Ok(Some(c)),
@@ -94,7 +94,7 @@ impl ConsolidationRepository {
             .map_err(AresError::db)?;
 
         let rows = stmt
-            .query_map([], |row| Self::row_to_cluster(row))
+            .query_map([], Self::row_to_cluster)
             .map_err(AresError::db)?;
 
         let mut clusters = Vec::new();

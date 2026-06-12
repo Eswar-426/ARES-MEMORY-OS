@@ -18,6 +18,7 @@ impl DecisionIntelligenceEngine {
     }
 
     /// Record a new decision with its reasoning and alternatives.
+    #[allow(clippy::too_many_arguments)]
     pub fn record_decision(
         &self,
         episode_id: Option<&str>,

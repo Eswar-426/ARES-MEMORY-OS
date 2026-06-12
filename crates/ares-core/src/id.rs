@@ -105,6 +105,14 @@ define_id!(PrincipleId, "principle");
 define_id!(ExperienceId, "experience");
 define_id!(LessonId, "lesson");
 
+// Week 18 — World Model & Predictive Planning IDs
+define_id!(WorldStateId, "world_state");
+define_id!(ScenarioId, "scenario");
+define_id!(SimulationId, "simulation");
+define_id!(RiskReportId, "risk_report");
+define_id!(PredictionId, "prediction");
+define_id!(ForecastId, "forecast");
+
 #[cfg(test)]
 mod tests {
     use super::*;

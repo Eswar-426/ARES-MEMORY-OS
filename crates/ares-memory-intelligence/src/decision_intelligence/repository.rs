@@ -53,7 +53,7 @@ impl DecisionIntelligenceRepository {
                     reasoning, confidence, outcome, context, created_at, resolved_at
              FROM decision_history WHERE id = ?1",
             params![id],
-            |row| Self::row_to_record(row),
+            Self::row_to_record,
         );
         match result {
             Ok(r) => Ok(Some(r)),
@@ -106,7 +106,7 @@ impl DecisionIntelligenceRepository {
             param_values.iter().map(|p| p.as_ref()).collect();
         let mut stmt = conn.prepare(&sql).map_err(AresError::db)?;
         let rows = stmt
-            .query_map(params_ref.as_slice(), |row| Self::row_to_record(row))
+            .query_map(params_ref.as_slice(), Self::row_to_record)
             .map_err(AresError::db)?;
 
         let mut records = Vec::new();

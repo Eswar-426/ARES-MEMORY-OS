@@ -9,6 +9,7 @@ ares-store = { path = "../ares-store" }
 ares-knowledge = { path = "../ares-knowledge" }
 ares-orchestrator = { path = "../ares-orchestrator" }
 ares-memory-intelligence = { path = "../ares-memory-intelligence" }
+ares-world-model = { path = "../ares-world-model" }
 
 tokio = { workspace = true }
 serde = { workspace = true }

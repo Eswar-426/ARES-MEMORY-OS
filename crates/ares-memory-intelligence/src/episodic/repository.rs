@@ -65,7 +65,7 @@ impl EpisodeRepository {
                     tags, created_at, completed_at
              FROM episodes WHERE id = ?1",
             params![id],
-            |row| Self::row_to_episode(row),
+            Self::row_to_episode,
         );
         match result {
             Ok(ep) => Ok(Some(ep)),
@@ -126,7 +126,7 @@ impl EpisodeRepository {
             param_values.iter().map(|p| p.as_ref()).collect();
         let mut stmt = conn.prepare(&sql).map_err(AresError::db)?;
         let rows = stmt
-            .query_map(params_ref.as_slice(), |row| Self::row_to_episode(row))
+            .query_map(params_ref.as_slice(), Self::row_to_episode)
             .map_err(AresError::db)?;
 
         let mut episodes = Vec::new();

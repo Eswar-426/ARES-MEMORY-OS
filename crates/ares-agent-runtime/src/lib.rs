@@ -9,6 +9,7 @@ pub mod memory;
 pub mod memory_bridge;
 pub mod mission;
 pub mod models;
+pub mod prediction_gate;
 pub mod recovery;
 pub mod reflection;
 pub mod replanning;
