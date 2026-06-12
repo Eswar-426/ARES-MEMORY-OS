@@ -106,6 +106,21 @@ mod tests {
         assert!(tables.contains(&"predictions".to_string()));
         assert!(tables.contains(&"forecast_history".to_string()));
         assert!(tables.contains(&"strategy_rankings".to_string()));
+
+        // V21 — Multi-Agent Coordination
+        assert!(tables.contains(&"agent_teams".to_string()));
+        assert!(tables.contains(&"agent_team_members".to_string()));
+        assert!(tables.contains(&"agent_messages".to_string()));
+        assert!(tables.contains(&"agent_conversations".to_string()));
+        assert!(tables.contains(&"agent_reputation".to_string()));
+        assert!(tables.contains(&"agent_delegations".to_string()));
+        assert!(tables.contains(&"agent_consensus".to_string()));
+        assert!(tables.contains(&"agent_debates".to_string()));
+        assert!(tables.contains(&"agent_conflicts".to_string()));
+        assert!(tables.contains(&"swarm_executions".to_string()));
+        assert!(tables.contains(&"org_learning".to_string()));
+        assert!(tables.contains(&"resource_reservations".to_string()));
+        assert!(tables.contains(&"governor_decisions".to_string()));
     }
     #[test]
     fn test_migrations_rerun_and_idempotency() {

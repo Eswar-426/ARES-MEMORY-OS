@@ -15,6 +15,7 @@ members = [
     "crates/ares-agent-runtime",
     "crates/ares-memory-intelligence",
     "crates/ares-world-model",
+    "crates/ares-coordination",
 ]
 resolver = "2"
 

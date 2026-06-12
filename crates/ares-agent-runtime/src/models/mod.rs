@@ -15,15 +15,27 @@ pub struct ExecutionId(pub Uuid);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TaskId(pub Uuid);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TeamId(pub Uuid);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ConversationId(pub Uuid);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct OrganizationId(pub Uuid);
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AgentRole {
+    CEO,
     Architect,
+    Planner,
     Researcher,
     Coder,
     Tester,
     Reviewer,
     Security,
     Documentation,
+    Operator,
     Custom(String),
 }
 
@@ -109,6 +121,42 @@ impl Default for TaskId {
 }
 
 impl TaskId {
+    pub fn new() -> Self {
+        Self(Uuid::now_v7())
+    }
+}
+
+impl Default for TeamId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TeamId {
+    pub fn new() -> Self {
+        Self(Uuid::now_v7())
+    }
+}
+
+impl Default for ConversationId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ConversationId {
+    pub fn new() -> Self {
+        Self(Uuid::now_v7())
+    }
+}
+
+impl Default for OrganizationId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl OrganizationId {
     pub fn new() -> Self {
         Self(Uuid::now_v7())
     }

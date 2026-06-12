@@ -10,6 +10,7 @@
 //! - Memory compression (summarization, deduplication, principle extraction)
 //! - Retrieval engine (similar missions, failures, successes, lessons)
 
+pub mod agent_knowledge;
 pub mod compression;
 pub mod consolidation;
 pub mod decision_intelligence;

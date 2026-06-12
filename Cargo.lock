@@ -201,6 +201,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "ares-coordination"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ares-agent-runtime",
+ "ares-core",
+ "async-trait",
+ "chrono",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "ares-core"
 version = "0.1.0"
 dependencies = [
