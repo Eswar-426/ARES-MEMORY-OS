@@ -1,5 +1,6 @@
 use ares_agent::services::context_builder::{ContextBudget, ContextSnapshot};
 use ares_app::AppState;
+use ares_context_injector::{ContextInjector, ContextPackage, TokenBudget};
 use ares_core::Project;
 use axum::{extract::State, Json};
 use serde::Deserialize;
@@ -52,3 +53,38 @@ pub async fn get_context(
         })
     }
 }
+
+#[derive(Deserialize, ToSchema)]
+pub struct InjectContextRequest {
+    pub project_id: String,
+    pub prompt: String,
+    pub budget: Option<String>, // "small", "medium", "large", "maximum"
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/context/inject",
+    request_body = InjectContextRequest,
+    responses((status = 200, description = "AI-ready context injected into prompt", body = ContextPackage))
+)]
+pub async fn inject_context(
+    State(state): State<AppState>,
+    Json(req): Json<InjectContextRequest>,
+) -> Result<Json<ContextPackage>, (axum::http::StatusCode, String)> {
+    let budget = match req.budget.as_deref() {
+        Some("small") => TokenBudget::Small,
+        Some("large") => TokenBudget::Large,
+        Some("maximum") => TokenBudget::Maximum,
+        _ => TokenBudget::Medium,
+    };
+
+    let injector = ContextInjector::new(state.store.clone());
+    match injector.inject(&req.project_id, &req.prompt, budget).await {
+        Ok(package) => Ok(Json(package)),
+        Err(e) => Err((
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            e.to_string(),
+        )),
+    }
+}
+

@@ -2,6 +2,7 @@
 
 use ares_app::AppState;
 use ares_context_generator::ContextGenerator;
+use ares_context_injector::{ContextInjector, TokenBudget};
 use ares_core::{CreateMemoryInput, MemoryType, ProjectId};
 use serde_json::Value;
 use tracing::{debug, info};
@@ -25,6 +26,7 @@ impl ToolHandler {
             "create_memory" | "store_memory" => self.handle_store_memory(args).await,
             "update_memory" => self.handle_update_memory(args).await,
             "get_context" => self.handle_get_context(args).await,
+            "get_context_for_prompt" => self.handle_get_context_for_prompt(args).await,
             "get_project_context" => self.handle_get_project_context(args).await,
             "decision_history" => self.handle_decision_history(args).await,
             "detect_contradictions" => self.handle_detect_contradictions(args).await,
@@ -185,6 +187,29 @@ impl ToolHandler {
                 Ok(Self::text_content(&context.text))
             }
             Err(e) => Err(format!("Context generation failed: {}", e)),
+        }
+    }
+
+    async fn handle_get_context_for_prompt(&self, args: &Value) -> Result<Value, String> {
+        let prompt = args.get("prompt").and_then(|v| v.as_str()).unwrap_or("");
+        let project_id_str = args
+            .get("project_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+
+        let project_id = if project_id_str.is_empty() {
+            match self.state.project_repo.list_all() {
+                Ok(projects) if !projects.is_empty() => projects[0].id.clone(),
+                _ => return Ok(Self::text_content("No projects found.")),
+            }
+        } else {
+            ProjectId::from(project_id_str.to_string())
+        };
+
+        let injector = ContextInjector::new(self.state.store.clone());
+        match injector.inject(project_id.as_str(), prompt, TokenBudget::Medium).await {
+            Ok(package) => Ok(Self::text_content(&package.assembled_prompt)),
+            Err(e) => Err(format!("Context injection failed: {}", e)),
         }
     }
 

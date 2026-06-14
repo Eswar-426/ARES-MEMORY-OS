@@ -184,6 +184,7 @@ dependencies = [
  "ares-app",
  "ares-chat-import",
  "ares-context-generator",
+ "ares-context-injector",
  "ares-core",
  "ares-knowledge",
  "ares-orchestrator",
@@ -254,6 +255,21 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror 1.0.69",
+ "tracing",
+]
+
+[[package]]
+name = "ares-context-injector"
+version = "0.1.0"
+dependencies = [
+ "ares-context-generator",
+ "ares-core",
+ "ares-store",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
  "tracing",
 ]
 
@@ -350,6 +366,7 @@ dependencies = [
  "ares-agent",
  "ares-app",
  "ares-context-generator",
+ "ares-context-injector",
  "ares-core",
  "ares-project-memory",
  "ares-store",

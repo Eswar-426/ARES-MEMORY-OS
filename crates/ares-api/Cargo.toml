@@ -15,6 +15,7 @@ ares-orchestrator = { path = "../ares-orchestrator", features = [] }
 ares-knowledge = { path = "../ares-knowledge" }
 ares-project-memory = { path = "../ares-project-memory" }
 ares-context-generator = { path = "../ares-context-generator" }
+ares-context-injector = { path = "../ares-context-injector" }
 tokio      = { workspace = true }
 axum       = { workspace = true }
 tower      = { workspace = true }

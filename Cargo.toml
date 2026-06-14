@@ -20,6 +20,7 @@ members = [
     "crates/ares-coordination",
     "crates/ares-project-memory",
     "crates/ares-context-generator",
+    "crates/ares-context-injector",
     "crates/ares-model-testing",
 ]
 resolver = "2"

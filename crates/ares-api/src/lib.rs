@@ -27,6 +27,7 @@ pub mod routes;
         routes::memory::get_memory_decisions,
         routes::memory::get_memory_context,
         routes::context::get_context,
+        routes::context::inject_context,
         routes::decisions::decision_history,
         routes::contradictions::detect_contradictions,
         routes::semantic::semantic_search,
@@ -139,6 +140,7 @@ pub fn create_router(state: AppState) -> Router {
             post(routes::snapshot::generate_context).get(routes::memory::get_memory_context),
         )
         .route("/context", post(routes::context::get_context))
+        .route("/context/inject", post(routes::context::inject_context))
         // Snapshot routes
         .route(
             "/project/snapshot",

@@ -111,6 +111,18 @@ impl McpServer {
                 }),
             },
             McpToolInfo {
+                name: "get_context_for_prompt".into(),
+                description: "Retrieves AI-ready context packages for a given prompt, including relevant architecture, decisions, and bugs.".into(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "project_id": { "type": "string", "description": "Optional project ID" },
+                        "prompt": { "type": "string", "description": "The user prompt to generate context for" }
+                    },
+                    "required": ["prompt"]
+                }),
+            },
+            McpToolInfo {
                 name: "get_context".into(),
                 description: "Get AI-ready context for a specific query".into(),
                 input_schema: serde_json::json!({
