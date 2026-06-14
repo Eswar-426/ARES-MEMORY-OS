@@ -5,6 +5,7 @@ import { MemoryExplorer } from './pages/MemoryExplorer';
 import { ArchitectureExplorer } from './pages/ArchitectureExplorer';
 import { DecisionTimeline } from './pages/DecisionTimeline';
 import { ContextInjection } from './pages/ContextInjection';
+import { PlannerExplorer } from './pages/PlannerExplorer';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <Route path="/architecture" element={<ArchitectureExplorer />} />
         <Route path="/decisions" element={<DecisionTimeline />} />
         <Route path="/context" element={<ContextInjection />} />
+        <Route path="/planner" element={<PlannerExplorer />} />
       </Routes>
     </div>
   );

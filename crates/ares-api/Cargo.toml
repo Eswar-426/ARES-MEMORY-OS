@@ -16,6 +16,7 @@ ares-knowledge = { path = "../ares-knowledge" }
 ares-project-memory = { path = "../ares-project-memory" }
 ares-context-generator = { path = "../ares-context-generator" }
 ares-context-injector = { path = "../ares-context-injector" }
+ares-planner = { path = "../ares-planner" }
 tokio      = { workspace = true }
 axum       = { workspace = true }
 tower      = { workspace = true }

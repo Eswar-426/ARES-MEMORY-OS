@@ -227,6 +227,18 @@ impl McpServer {
                     "properties": {}
                 }),
             },
+            McpToolInfo {
+                name: "create_plan_from_goal".into(),
+                description: "Create an autonomous development plan from a high-level goal".into(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "goal": { "type": "string", "description": "High-level goal statement" },
+                        "priority": { "type": "string", "enum": ["Low", "Medium", "High", "Critical"], "description": "Goal priority (default: Medium)" }
+                    },
+                    "required": ["goal"]
+                }),
+            },
         ]
     }
 }

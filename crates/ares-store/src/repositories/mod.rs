@@ -3,6 +3,7 @@ pub mod event;
 pub mod graph;
 pub mod intelligence;
 pub mod memory;
+pub mod plan;
 pub mod project;
 pub mod telemetry;
 pub mod timeline;

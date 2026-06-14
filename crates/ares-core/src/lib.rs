@@ -32,6 +32,7 @@ pub use types::{
         NodeType,
     },
     pagination::{Page, Pagination},
+    plan::{Goal, Milestone, Plan, PlanDetails, PlanStatus, Task, TaskDependency, TaskStatus},
     project::{Language, Project, ProjectMaturity},
     workflow::{
         AgentHealth, AgentInfo, AgentPerformance, CompensationAction, DeadLetterEntry,

@@ -19,6 +19,7 @@ pub mod mission_generator;
 pub mod model_selection;
 pub mod models;
 pub mod observers;
+pub mod planner;
 pub mod replanning;
 pub mod repository;
 pub mod simulation;
