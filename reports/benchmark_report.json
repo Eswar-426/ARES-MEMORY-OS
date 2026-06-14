@@ -1,0 +1,51 @@
+{
+  "task": "Add OAuth",
+  "repository": ".",
+  "timestamp": "2026-06-14T18:05:41.553241500+00:00",
+  "results": {
+    "ContextDumpAndAres": {
+      "time_elapsed_secs": 0.0877227,
+      "total_tokens": 7750,
+      "input_tokens": 7500,
+      "output_tokens": 250,
+      "provider_cost_usd": 0.0075,
+      "search_depth": 5,
+      "success_score": 91.25,
+      "repeated_failure": false,
+      "planning_quality_score": 60.0
+    },
+    "Baseline": {
+      "time_elapsed_secs": 0.0885027,
+      "total_tokens": 7750,
+      "input_tokens": 7500,
+      "output_tokens": 250,
+      "provider_cost_usd": 0.0075,
+      "search_depth": 5,
+      "success_score": 64.0,
+      "repeated_failure": true,
+      "planning_quality_score": 60.0
+    },
+    "Ares": {
+      "time_elapsed_secs": 0.0806946,
+      "total_tokens": 7750,
+      "input_tokens": 7500,
+      "output_tokens": 250,
+      "provider_cost_usd": 0.0075,
+      "search_depth": 5,
+      "success_score": 96.0,
+      "repeated_failure": false,
+      "planning_quality_score": 100.0
+    },
+    "ContextDump": {
+      "time_elapsed_secs": 0.0801182,
+      "total_tokens": 7750,
+      "input_tokens": 7500,
+      "output_tokens": 250,
+      "provider_cost_usd": 0.0075,
+      "search_depth": 5,
+      "success_score": 89.0,
+      "repeated_failure": true,
+      "planning_quality_score": 60.0
+    }
+  }
+}

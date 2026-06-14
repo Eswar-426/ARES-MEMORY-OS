@@ -231,6 +231,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "ares-benchmark"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ares-app",
+ "ares-context-generator",
+ "ares-core",
+ "ares-mcp",
+ "ares-project-memory",
+ "ares-store",
+ "async-trait",
+ "chrono",
+ "clap",
+ "dotenvy",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "ares-chat-import"
 version = "0.1.0"
 dependencies = [

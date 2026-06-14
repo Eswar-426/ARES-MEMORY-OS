@@ -23,6 +23,7 @@ members = [
     "crates/ares-context-injector",
     "crates/ares-model-testing",
     "crates/ares-extractor",
+    "crates/ares-benchmark",
 ]
 resolver = "2"
 

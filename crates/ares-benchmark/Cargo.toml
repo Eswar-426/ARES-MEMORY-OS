@@ -1,0 +1,30 @@
+[package]
+name = "ares-benchmark"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+ares-core = { path = "../ares-core" }
+ares-mcp = { path = "../ares-mcp" }
+ares-store = { path = "../ares-store" }
+ares-context-generator = { path = "../ares-context-generator" }
+ares-project-memory = { path = "../ares-project-memory" }
+ares-app = { path = "../ares-app" }
+
+tokio = { workspace = true, features = ["full"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+reqwest = { workspace = true, features = ["json"] }
+chrono = { workspace = true }
+async-trait = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+dotenvy = "0.15"
+
+[dev-dependencies]
+tempfile = { workspace = true }
