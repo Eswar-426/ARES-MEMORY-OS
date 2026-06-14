@@ -19,7 +19,7 @@ export function ContextInjection() {
 
   const injectMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("http://localhost:3000/api/v1/context/inject", {
+      const res = await fetch("/api/v1/context/inject", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
