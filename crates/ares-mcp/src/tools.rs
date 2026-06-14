@@ -239,6 +239,20 @@ impl McpServer {
                     "required": ["goal"]
                 }),
             },
+            // ── Knowledge Extraction Tools ───────────────────────────
+            McpToolInfo {
+                name: "extract_knowledge_from_commit".into(),
+                description: "Extract structured project knowledge (decisions, bugs, architecture changes, experiments) from a git commit. Stores qualifying candidates in ARES memory.".into(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "commit_hash": { "type": "string", "description": "Git commit hash. Defaults to HEAD if omitted." },
+                        "repo_path": { "type": "string", "description": "Path to the git repository root. Defaults to current directory." },
+                        "project_id": { "type": "string", "description": "Optional project ID to associate extracted knowledge with." },
+                        "confidence_threshold": { "type": "number", "description": "Minimum confidence to persist (default: 0.80)" }
+                    }
+                }),
+            },
         ]
     }
 }

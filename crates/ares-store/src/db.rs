@@ -110,7 +110,7 @@ fn configure_connection(conn: &Connection) -> Result<(), rusqlite::Error> {
     )
 }
 
-#[cfg(test)]
+// Available to other crates for testing
 pub mod test_helpers {
     use super::*;
     use tempfile::TempDir;

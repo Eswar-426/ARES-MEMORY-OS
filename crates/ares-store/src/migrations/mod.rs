@@ -126,6 +126,9 @@ mod tests {
         assert!(tables.contains(&"milestones".to_string()));
         assert!(tables.contains(&"tasks".to_string()));
         assert!(tables.contains(&"task_dependencies".to_string()));
+
+        // V25 — Knowledge Extraction Engine
+        assert!(tables.contains(&"knowledge_candidates".to_string()));
     }
     #[test]
     fn test_migrations_rerun_and_idempotency() {

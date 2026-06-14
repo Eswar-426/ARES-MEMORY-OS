@@ -23,6 +23,9 @@ pub use types::{
     },
     event::{AresEvent, EventSource, EventType},
     intelligence::{AccessContext, ContradictionRecord, MemoryAccessLog, RankingCache},
+    knowledge::{
+        ExtractionConfig, ExtractionRequest, ExtractionResult, KnowledgeCandidate, KnowledgeType,
+    },
     memory::{
         CreateMemoryInput, ImportanceLevel, Memory, MemoryFilter, MemoryPatch, MemorySearchResult,
         MemorySource, MemoryStatus, MemoryType,

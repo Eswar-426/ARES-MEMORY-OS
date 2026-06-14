@@ -1,6 +1,7 @@
 pub mod context;
 pub mod contradictions;
 pub mod decisions;
+pub mod extractor;
 pub mod import;
 pub mod memory;
 pub mod observability;

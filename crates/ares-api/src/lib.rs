@@ -58,6 +58,8 @@ pub mod routes;
         routes::planner::list_plans,
         routes::planner::get_plan,
         routes::planner::get_plan_graph,
+        // Extractor
+        routes::extractor::extract_knowledge,
         // Orchestrator
         ares_orchestrator::control::workers::api::register_worker,
         ares_orchestrator::control::heartbeat::api::worker_heartbeat,
@@ -120,6 +122,8 @@ pub mod routes;
             routes::planner::PlanGraphResponse,
             routes::planner::PlanGraphNode,
             routes::planner::PlanGraphEdge,
+            // Extractor
+            routes::extractor::ExtractKnowledgeRequest,
         )
     ),
     tags(
@@ -188,6 +192,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/plans", get(routes::planner::list_plans))
         .route("/plans/:id", get(routes::planner::get_plan))
         .route("/plans/:id/graph", get(routes::planner::get_plan_graph))
+        // Extractor routes
+        .route("/knowledge/extract", post(routes::extractor::extract_knowledge))
         // Agent routes
         .route("/agents", get(routes::agents::list_agents))
         .route("/agents/register", post(routes::agents::register_agent))

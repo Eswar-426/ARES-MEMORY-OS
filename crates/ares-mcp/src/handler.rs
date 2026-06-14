@@ -5,6 +5,8 @@ use ares_context_generator::ContextGenerator;
 use ares_context_injector::{ContextInjector, TokenBudget};
 use ares_core::{CreateMemoryInput, MemoryType, ProjectId};
 use ares_planner::planner::{MockPlannerProvider, PlannerEngine};
+use ares_extractor::{ExtractionEngine, MockExtractorProvider};
+use ares_core::{ExtractionConfig};
 use serde_json::Value;
 use tracing::{debug, info};
 
@@ -37,6 +39,7 @@ impl ToolHandler {
             "generate_snapshot" => self.handle_generate_snapshot(args).await,
             "list_projects" => self.handle_list_projects(args).await,
             "create_plan_from_goal" => self.handle_create_plan_from_goal(args).await,
+            "extract_knowledge_from_commit" => self.handle_extract_knowledge(args).await,
             // Orchestration tools (pass through as before)
             "run_workflow" | "workflow_metrics" | "list_agents" => {
                 Ok(Self::text_content(&format!(
@@ -435,6 +438,55 @@ impl ToolHandler {
                 Ok(Self::text_content(&text))
             }
             Err(e) => Err(format!("Failed to create plan: {}", e)),
+        }
+    }
+
+    async fn handle_extract_knowledge(&self, args: &Value) -> Result<Value, String> {
+        let commit_hash = args.get("commit_hash").and_then(|v| v.as_str());
+        let repo_path_str = args.get("repo_path").and_then(|v| v.as_str());
+        let project_id = args.get("project_id").and_then(|v| v.as_str());
+        let threshold = args
+            .get("confidence_threshold")
+            .and_then(|v| v.as_f64())
+            .map(|v| v as f32);
+
+        let repo_path = repo_path_str
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")));
+
+        let mut config = ExtractionConfig::default();
+        if let Some(t) = threshold {
+            config.confidence_threshold = t;
+        }
+
+        let provider = Box::new(MockExtractorProvider);
+        let engine = ExtractionEngine::new(self.state.store.clone(), provider, config);
+
+        match engine.extract_from_commit(&repo_path, commit_hash, project_id).await {
+            Ok(result) => {
+                let mut text = format!(
+                    "Knowledge extracted from commit {}\n\
+                     Commit: {}\n\
+                     Total candidates: {}\n\
+                     Persisted (above threshold): {}\n\
+                     Rejected (below threshold): {}\n\n",
+                    &result.commit_hash[..8.min(result.commit_hash.len())],
+                    result.commit_message.lines().next().unwrap_or(""),
+                    result.all_candidates.len(),
+                    result.persisted_candidates.len(),
+                    result.rejected_count,
+                );
+
+                for c in &result.persisted_candidates {
+                    text.push_str(&format!(
+                        "• [{}] {} (confidence: {:.2})\n",
+                        c.knowledge_type, c.title, c.confidence
+                    ));
+                }
+
+                Ok(Self::text_content(&text))
+            }
+            Err(e) => Err(format!("Knowledge extraction failed: {}", e)),
         }
     }
 

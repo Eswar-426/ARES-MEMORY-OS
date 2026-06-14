@@ -186,6 +186,7 @@ dependencies = [
  "ares-context-generator",
  "ares-context-injector",
  "ares-core",
+ "ares-extractor",
  "ares-knowledge",
  "ares-orchestrator",
  "ares-planner",
@@ -320,6 +321,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "ares-extractor"
+version = "0.1.0"
+dependencies = [
+ "ares-core",
+ "ares-store",
+ "async-trait",
+ "chrono",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "ares-intelligence"
 version = "0.1.0"
 dependencies = [
@@ -369,6 +387,7 @@ dependencies = [
  "ares-context-generator",
  "ares-context-injector",
  "ares-core",
+ "ares-extractor",
  "ares-planner",
  "ares-project-memory",
  "ares-store",

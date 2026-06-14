@@ -1,6 +1,7 @@
 pub mod decision;
 pub mod event;
 pub mod intelligence;
+pub mod knowledge;
 pub mod memory;
 pub mod node;
 pub mod pagination;
