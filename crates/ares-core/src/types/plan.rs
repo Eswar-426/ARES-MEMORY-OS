@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "utoipa")]
 use utoipa::ToSchema;
@@ -19,20 +19,21 @@ pub enum PlanStatus {
     Cancelled,
 }
 
-impl ToString for PlanStatus {
-    fn to_string(&self) -> String {
-        match self {
-            PlanStatus::Draft => "Draft".to_string(),
-            PlanStatus::Generated => "Generated".to_string(),
-            PlanStatus::Simulated => "Simulated".to_string(),
-            PlanStatus::Approved => "Approved".to_string(),
-            PlanStatus::Scheduled => "Scheduled".to_string(),
-            PlanStatus::Executing => "Executing".to_string(),
-            PlanStatus::Completed => "Completed".to_string(),
-            PlanStatus::Failed => "Failed".to_string(),
-            PlanStatus::Replanned => "Replanned".to_string(),
-            PlanStatus::Cancelled => "Cancelled".to_string(),
-        }
+impl std::fmt::Display for PlanStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let val = match self {
+            PlanStatus::Draft => "Draft",
+            PlanStatus::Generated => "Generated",
+            PlanStatus::Simulated => "Simulated",
+            PlanStatus::Approved => "Approved",
+            PlanStatus::Scheduled => "Scheduled",
+            PlanStatus::Executing => "Executing",
+            PlanStatus::Completed => "Completed",
+            PlanStatus::Failed => "Failed",
+            PlanStatus::Replanned => "Replanned",
+            PlanStatus::Cancelled => "Cancelled",
+        };
+        write!(f, "{}", val)
     }
 }
 
@@ -64,14 +65,15 @@ pub enum TaskStatus {
     Failed,
 }
 
-impl ToString for TaskStatus {
-    fn to_string(&self) -> String {
-        match self {
-            TaskStatus::Pending => "Pending".to_string(),
-            TaskStatus::InProgress => "InProgress".to_string(),
-            TaskStatus::Completed => "Completed".to_string(),
-            TaskStatus::Failed => "Failed".to_string(),
-        }
+impl std::fmt::Display for TaskStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let val = match self {
+            TaskStatus::Pending => "Pending",
+            TaskStatus::InProgress => "InProgress",
+            TaskStatus::Completed => "Completed",
+            TaskStatus::Failed => "Failed",
+        };
+        write!(f, "{}", val)
     }
 }
 
@@ -130,7 +132,7 @@ pub struct Task {
     pub description: Option<String>,
     pub status: TaskStatus,
     pub estimated_duration: Option<i32>, // in minutes
-    pub complexity: Option<String>, // "Low", "Medium", "High"
+    pub complexity: Option<String>,      // "Low", "Medium", "High"
     pub execution_order: i32,
     pub created_at: DateTime<Utc>,
 }

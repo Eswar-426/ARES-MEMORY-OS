@@ -9,12 +9,12 @@ pub mod snapshot;
 
 pub mod agents;
 pub mod knowledge;
+pub mod planner;
 pub mod reindex;
 pub mod scan;
 pub mod semantic;
 pub mod telemetry;
 pub mod workflows;
-pub mod planner;
 
 use ares_core::AresError;
 use axum::{

@@ -1,12 +1,12 @@
+use ares_app::AppState;
+use ares_core::AresError;
+use ares_planner::planner::{MockPlannerProvider, PlannerEngine};
+use ares_store::SqlitePlanRepository;
 use axum::{
     extract::{Path, State},
     response::Response,
     Json,
 };
-use ares_app::AppState;
-use ares_core::AresError;
-use ares_store::SqlitePlanRepository;
-use ares_planner::planner::{PlannerEngine, MockPlannerProvider};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, utoipa::ToSchema)]
@@ -65,9 +65,7 @@ pub async fn create_plan(
         (status = 500, description = "Internal Server Error")
     )
 )]
-pub async fn list_plans(
-    State(state): State<AppState>,
-) -> Response {
+pub async fn list_plans(State(state): State<AppState>) -> Response {
     let repo = SqlitePlanRepository::new(state.store.clone());
     let res = repo.list_plans();
     super::into_response(res)
@@ -83,14 +81,11 @@ pub async fn list_plans(
         (status = 500, description = "Internal Server Error")
     )
 )]
-pub async fn get_plan(
-    State(state): State<AppState>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn get_plan(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     let repo = SqlitePlanRepository::new(state.store.clone());
-    let res = repo.get_plan_details(&id).and_then(|opt| {
-        opt.ok_or_else(|| AresError::not_found("plan", &id))
-    });
+    let res = repo
+        .get_plan_details(&id)
+        .and_then(|opt| opt.ok_or_else(|| AresError::not_found("plan", &id)));
     super::into_response(res)
 }
 
@@ -104,30 +99,31 @@ pub async fn get_plan(
         (status = 500, description = "Internal Server Error")
     )
 )]
-pub async fn get_plan_graph(
-    State(state): State<AppState>,
-    Path(id): Path<String>,
-) -> Response {
+pub async fn get_plan_graph(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     let repo = SqlitePlanRepository::new(state.store.clone());
     let res = repo.get_plan_details(&id).and_then(|opt| {
         let details = opt.ok_or_else(|| AresError::not_found("plan", &id))?;
-        
-        let nodes = details.tasks.iter().map(|t| {
-            PlanGraphNode {
+
+        let nodes = details
+            .tasks
+            .iter()
+            .map(|t| PlanGraphNode {
                 id: t.id.clone(),
                 label: t.title.clone(),
                 status: t.status.to_string(),
                 complexity: t.complexity.clone().unwrap_or_else(|| "Medium".to_string()),
                 duration: t.estimated_duration,
-            }
-        }).collect();
+            })
+            .collect();
 
-        let edges = details.dependencies.iter().map(|d| {
-            PlanGraphEdge {
+        let edges = details
+            .dependencies
+            .iter()
+            .map(|d| PlanGraphEdge {
                 from: d.depends_on_id.clone(),
                 to: d.task_id.clone(),
-            }
-        }).collect();
+            })
+            .collect();
 
         Ok(PlanGraphResponse { nodes, edges })
     });

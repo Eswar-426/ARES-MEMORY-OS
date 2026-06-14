@@ -1,7 +1,7 @@
 use ares_core::PlanStatus;
+use ares_planner::planner::{topological_sort, MockPlannerProvider, MockTaskOutput, PlannerEngine};
 use ares_store::SqlitePlanRepository;
 use ares_store::Store;
-use ares_planner::planner::{PlannerEngine, MockPlannerProvider, topological_sort, MockTaskOutput};
 use tempfile::TempDir;
 
 fn create_test_store() -> (Store, TempDir) {

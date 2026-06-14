@@ -4,7 +4,7 @@ pub mod intelligence;
 pub mod memory;
 pub mod node;
 pub mod pagination;
+pub mod plan;
 pub mod project;
 pub mod workflow;
 pub mod workflow_api;
-pub mod plan;

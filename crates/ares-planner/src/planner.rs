@@ -1,9 +1,12 @@
-use async_trait::async_trait;
-use ares_core::{AresError, Goal, Plan, Milestone, Task, TaskDependency, PlanDetails, PlanStatus, TaskStatus, new_id};
+use ares_core::{
+    new_id, AresError, Goal, Milestone, Plan, PlanDetails, PlanStatus, Task, TaskDependency,
+    TaskStatus,
+};
 use ares_store::SqlitePlanRepository;
 use ares_store::Store;
-use serde::{Deserialize, Serialize};
+use async_trait::async_trait;
 use chrono::Utc;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 use tracing::info;
 
@@ -25,8 +28,8 @@ pub struct MockTaskOutput {
     pub title: String,
     pub description: Option<String>,
     pub estimated_duration: Option<i32>, // in minutes
-    pub complexity: Option<String>, // "Low", "Medium", "High"
-    pub dependencies: Vec<String>, // titles of other tasks this depends on
+    pub complexity: Option<String>,      // "Low", "Medium", "High"
+    pub dependencies: Vec<String>,       // titles of other tasks this depends on
 }
 
 #[async_trait]
@@ -40,7 +43,7 @@ pub struct MockPlannerProvider;
 impl PlannerProvider for MockPlannerProvider {
     async fn generate_plan(&self, goal: &str) -> Result<MockPlanOutput, AresError> {
         let goal_lower = goal.to_lowercase();
-        
+
         if goal_lower.contains("oauth") || goal_lower.contains("authentication") {
             Ok(MockPlanOutput {
                 goal: goal.to_string(),
@@ -354,7 +357,11 @@ impl PlannerEngine {
         Self { provider, store }
     }
 
-    pub async fn create_plan_from_goal(&self, goal_title: &str, priority: &str) -> Result<PlanDetails, AresError> {
+    pub async fn create_plan_from_goal(
+        &self,
+        goal_title: &str,
+        priority: &str,
+    ) -> Result<PlanDetails, AresError> {
         info!(goal = %goal_title, "Starting autonomous plan generation");
 
         let repo = SqlitePlanRepository::new(self.store.clone());
@@ -364,7 +371,10 @@ impl PlannerEngine {
         let goal = Goal {
             id: goal_id.clone(),
             title: goal_title.to_string(),
-            description: Some(format!("Automatically generated plan for goal: {}", goal_title)),
+            description: Some(format!(
+                "Automatically generated plan for goal: {}",
+                goal_title
+            )),
             priority: priority.to_string(),
             deadline: None,
             created_at: Utc::now(),
@@ -421,7 +431,10 @@ impl PlannerEngine {
         // Initialize task records with IDs
         for (milestone_id, mock_task) in &milestone_task_mappings {
             let task_id = format!("task_{}", new_id());
-            task_title_to_id.insert(mock_task.title.to_lowercase().trim().to_string(), task_id.clone());
+            task_title_to_id.insert(
+                mock_task.title.to_lowercase().trim().to_string(),
+                task_id.clone(),
+            );
             task_records.push((task_id, milestone_id.clone(), mock_task.clone()));
         }
 
@@ -480,14 +493,14 @@ impl PlannerEngine {
 pub fn topological_sort(tasks: &[MockTaskOutput]) -> Vec<usize> {
     let mut adjacency: HashMap<String, Vec<usize>> = HashMap::new();
     let mut in_degree = vec![0; tasks.len()];
-    
+
     // Map of task title (lowercase) to its index
     let title_to_index: HashMap<String, usize> = tasks
         .iter()
         .enumerate()
         .map(|(i, t)| (t.title.to_lowercase().trim().to_string(), i))
         .collect();
-        
+
     for (i, task) in tasks.iter().enumerate() {
         for dep in &task.dependencies {
             let dep_clean = dep.to_lowercase().trim().to_string();
@@ -497,14 +510,14 @@ pub fn topological_sort(tasks: &[MockTaskOutput]) -> Vec<usize> {
             }
         }
     }
-    
+
     let mut queue = VecDeque::new();
     for (i, &deg) in in_degree.iter().enumerate() {
         if deg == 0 {
             queue.push_back(i);
         }
     }
-    
+
     let mut result = Vec::new();
     while let Some(u) = queue.pop_front() {
         result.push(u);
@@ -518,7 +531,7 @@ pub fn topological_sort(tasks: &[MockTaskOutput]) -> Vec<usize> {
             }
         }
     }
-    
+
     // Fallback: If there is a cycle or disconnected component, add remaining indices
     if result.len() < tasks.len() {
         let visited: HashSet<usize> = result.iter().cloned().collect();
@@ -528,6 +541,6 @@ pub fn topological_sort(tasks: &[MockTaskOutput]) -> Vec<usize> {
             }
         }
     }
-    
+
     result
 }

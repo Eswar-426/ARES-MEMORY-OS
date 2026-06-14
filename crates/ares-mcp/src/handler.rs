@@ -3,7 +3,7 @@
 use ares_app::AppState;
 use ares_context_generator::ContextGenerator;
 use ares_core::{CreateMemoryInput, MemoryType, ProjectId};
-use ares_planner::planner::{PlannerEngine, MockPlannerProvider};
+use ares_planner::planner::{MockPlannerProvider, PlannerEngine};
 use serde_json::Value;
 use tracing::{debug, info};
 
@@ -361,21 +361,40 @@ impl ToolHandler {
     }
 
     async fn handle_create_plan_from_goal(&self, args: &Value) -> Result<Value, String> {
-        let goal = args.get("goal").and_then(|v| v.as_str()).ok_or_else(|| "Missing parameter 'goal'".to_string())?;
-        let priority = args.get("priority").and_then(|v| v.as_str()).unwrap_or("Medium");
+        let goal = args
+            .get("goal")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| "Missing parameter 'goal'".to_string())?;
+        let priority = args
+            .get("priority")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Medium");
 
         let provider = Box::new(MockPlannerProvider);
         let engine = PlannerEngine::new(self.state.store.clone(), provider);
 
         match engine.create_plan_from_goal(goal, priority).await {
             Ok(details) => {
-                let milestone_texts: Vec<String> = details.milestones.iter().map(|m| {
-                    let tasks: Vec<String> = details.tasks.iter()
-                        .filter(|t| t.milestone_id.as_deref() == Some(&m.id))
-                        .map(|t| format!("  - [{}] {} (Complexity: {})", t.status.to_string(), t.title, t.complexity.as_deref().unwrap_or("Medium")))
-                        .collect();
-                    format!("Milestone: {}\n{}", m.title, tasks.join("\n"))
-                }).collect();
+                let milestone_texts: Vec<String> = details
+                    .milestones
+                    .iter()
+                    .map(|m| {
+                        let tasks: Vec<String> = details
+                            .tasks
+                            .iter()
+                            .filter(|t| t.milestone_id.as_deref() == Some(&m.id))
+                            .map(|t| {
+                                format!(
+                                    "  - [{}] {} (Complexity: {})",
+                                    t.status,
+                                    t.title,
+                                    t.complexity.as_deref().unwrap_or("Medium")
+                                )
+                            })
+                            .collect();
+                        format!("Milestone: {}\n{}", m.title, tasks.join("\n"))
+                    })
+                    .collect();
 
                 let text = format!(
                     "Plan created successfully for goal '{}' (Priority: {})\nPlan ID: {}\n\n{}",
