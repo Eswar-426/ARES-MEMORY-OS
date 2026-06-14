@@ -81,10 +81,6 @@ pub async fn inject_context(
     let injector = ContextInjector::new(state.store.clone());
     match injector.inject(&req.project_id, &req.prompt, budget).await {
         Ok(package) => Ok(Json(package)),
-        Err(e) => Err((
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            e.to_string(),
-        )),
+        Err(e) => Err((axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
     }
 }
-

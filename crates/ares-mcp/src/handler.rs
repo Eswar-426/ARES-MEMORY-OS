@@ -209,7 +209,10 @@ impl ToolHandler {
         };
 
         let injector = ContextInjector::new(self.state.store.clone());
-        match injector.inject(project_id.as_str(), prompt, TokenBudget::Medium).await {
+        match injector
+            .inject(project_id.as_str(), prompt, TokenBudget::Medium)
+            .await
+        {
             Ok(package) => Ok(Self::text_content(&package.assembled_prompt)),
             Err(e) => Err(format!("Context injection failed: {}", e)),
         }

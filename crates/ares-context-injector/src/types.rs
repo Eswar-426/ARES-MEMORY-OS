@@ -1,18 +1,13 @@
 use ares_core::{Decision, GraphNode};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum TokenBudget {
     Small = 4000,
+    #[default]
     Medium = 8000,
     Large = 16000,
     Maximum = 32000,
-}
-
-impl Default for TokenBudget {
-    fn default() -> Self {
-        Self::Medium
-    }
 }
 
 impl TokenBudget {

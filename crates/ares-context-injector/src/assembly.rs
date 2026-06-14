@@ -57,7 +57,12 @@ impl PromptAssembler {
         final_prompt.push_str("ARCHITECTURE\n");
         final_prompt.push_str("====================\n");
         for node in &package.architecture_nodes {
-            let line = format!("- [{:?}] {} ({})\n", node.node_type, node.label, node.file_path.as_deref().unwrap_or(""));
+            let line = format!(
+                "- [{:?}] {} ({})\n",
+                node.node_type,
+                node.label,
+                node.file_path.as_deref().unwrap_or("")
+            );
             if Self::estimate_tokens(&final_prompt) + Self::estimate_tokens(&line) > budget_limit {
                 break;
             }
@@ -83,7 +88,11 @@ impl PromptAssembler {
         final_prompt.push_str("KNOWN BUGS\n");
         final_prompt.push_str("====================\n");
         for bug in &package.bugs {
-            let bug_desc = bug.properties.get("description").and_then(|v| v.as_str()).unwrap_or("");
+            let bug_desc = bug
+                .properties
+                .get("description")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             let line = format!("- {}: {}\n", bug.label, bug_desc);
             if Self::estimate_tokens(&final_prompt) + Self::estimate_tokens(&line) > budget_limit {
                 break;
@@ -97,7 +106,11 @@ impl PromptAssembler {
         final_prompt.push_str("RELEVANT FILES\n");
         final_prompt.push_str("====================\n");
         for mem in &package.memories {
-            let line = format!("- {}: {}\n", mem.label, mem.file_path.as_deref().unwrap_or(""));
+            let line = format!(
+                "- {}: {}\n",
+                mem.label,
+                mem.file_path.as_deref().unwrap_or("")
+            );
             if Self::estimate_tokens(&final_prompt) + Self::estimate_tokens(&line) > budget_limit {
                 break;
             }
