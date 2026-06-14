@@ -75,3 +75,10 @@ logs/
 *.tmp
 *.temp
 .cache/
+
+# --- Release Hygiene ---
+scratch/
+*.sqlite
+*.sqlite3
+benchmark.db
+telemetry.db
