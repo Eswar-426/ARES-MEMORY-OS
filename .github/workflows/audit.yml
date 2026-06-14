@@ -11,6 +11,8 @@ on:
 permissions:
   contents: read
   security-events: write
+  checks: write
+  issues: write
 
 jobs:
   security_audit:
