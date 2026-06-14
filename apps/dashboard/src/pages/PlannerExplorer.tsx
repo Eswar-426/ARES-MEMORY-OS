@@ -5,14 +5,12 @@ import {
   Loader2, 
   CheckCircle, 
   Clock, 
-  AlertTriangle, 
   ArrowRight,
   TrendingUp,
   ListTodo,
   Calendar,
   Layers,
-  ChevronRight,
-  Info
+  ChevronRight
 } from 'lucide-react';
 
 interface Goal {
