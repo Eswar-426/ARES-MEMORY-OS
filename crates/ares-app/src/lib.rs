@@ -17,6 +17,7 @@ use ares_store::repositories::{
     decision::SqliteDecisionRepository, graph::SqliteGraphRepository,
     intelligence::SqliteIntelligenceRepository, memory::SqliteMemoryRepository,
     project::SqliteProjectRepository, vector::SqliteVectorRepository,
+    timeline::SqliteTimelineRepository,
 };
 use std::sync::Arc;
 use tracing::info;
@@ -30,6 +31,7 @@ pub struct AppState {
     pub intelligence_repo: Arc<SqliteIntelligenceRepository>,
     pub decision_repo: Arc<SqliteDecisionRepository>,
     pub graph_repo: Arc<SqliteGraphRepository>,
+    pub timeline_repo: Arc<SqliteTimelineRepository>,
     pub ranking_engine: Arc<MemoryRankingEngine>,
     pub retrieval_layer: Arc<SemanticRetrievalLayer>,
     pub context_builder: Arc<ContextBuilder>,
@@ -71,6 +73,7 @@ impl AppState {
         let graph_repo = Arc::new(SqliteGraphRepository::new(store.clone()));
         let vector_repo = Arc::new(SqliteVectorRepository::new(store.clone()));
         let project_repo = Arc::new(SqliteProjectRepository::new(store.clone()));
+        let timeline_repo = Arc::new(SqliteTimelineRepository::new(store.clone()));
 
         // Initialize Embedding Provider
         // Defaulting to Mock for safety. Users can configure OpenAI/Ollama via env vars later.
@@ -150,6 +153,7 @@ impl AppState {
             intelligence_repo,
             decision_repo,
             graph_repo,
+            timeline_repo,
             ranking_engine,
             retrieval_layer,
             context_builder,

@@ -5,6 +5,7 @@ pub mod intelligence;
 pub mod memory;
 pub mod project;
 pub mod telemetry;
+pub mod timeline;
 pub mod traits;
 pub mod vector;
 pub mod workflow;

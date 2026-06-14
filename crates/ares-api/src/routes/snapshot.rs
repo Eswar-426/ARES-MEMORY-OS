@@ -199,3 +199,30 @@ pub async fn list_snapshots(
         Err(_) => Json(vec![]),
     }
 }
+
+/// GET /project/{id}/snapshot — Get the latest project snapshot as JSON.
+#[utoipa::path(
+    get,
+    path = "/api/v1/project/{id}/snapshot",
+    params(
+        ("id" = String, Path, description = "Project ID")
+    ),
+    responses((status = 200, description = "Snapshot JSON", body = ProjectSnapshot))
+)]
+pub async fn get_snapshot(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Json<ProjectSnapshot>, axum::http::StatusCode> {
+    let project_id = ProjectId::from(id.clone());
+
+    // Try to get latest snapshot, or build a new one
+    let snapshot = match state.snapshot_store.get_latest(&id) {
+        Ok(Some(s)) => s,
+        _ => state
+            .memory_builder
+            .build_snapshot_by_id(&project_id)
+            .map_err(|_| axum::http::StatusCode::NOT_FOUND)?,
+    };
+
+    Ok(Json(snapshot))
+}

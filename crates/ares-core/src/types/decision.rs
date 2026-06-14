@@ -190,6 +190,7 @@ pub struct DecisionFilter {
     pub status: Option<DecisionStatus>,
     pub file_path: Option<String>,
     pub since: Option<i64>,
+    pub until: Option<i64>,
     pub stale_days: Option<u32>,
 }
 

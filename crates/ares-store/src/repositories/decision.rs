@@ -136,6 +136,84 @@ impl SqliteDecisionRepository {
         Ok(decisions)
     }
 
+    pub fn list_paginated(
+        &self,
+        project_id: &ProjectId,
+        filter: DecisionFilter,
+        pagination: &ares_core::types::pagination::Pagination,
+    ) -> Result<ares_core::types::pagination::Page<Decision>, AresError> {
+        let conn = self.store.get_conn()?;
+        let mut where_clauses = vec!["project_id = ?1".to_string()];
+        let mut bind_values: Vec<Box<dyn rusqlite::ToSql>> =
+            vec![Box::new(project_id.as_str().to_string())];
+        let mut idx = 2usize;
+
+        if let Some(status) = &filter.status {
+            where_clauses.push(format!("status = ?{idx}"));
+            bind_values.push(Box::new(status.as_str().to_string()));
+            idx += 1;
+        }
+        if let Some(file) = &filter.file_path {
+            where_clauses.push(format!(
+                "EXISTS (SELECT 1 FROM json_each(files_impacted) WHERE value LIKE ?{idx})"
+            ));
+            bind_values.push(Box::new(format!("%{file}%")));
+            idx += 1;
+        }
+        if let Some(since) = &filter.since {
+            where_clauses.push(format!("created_at >= ?{idx}"));
+            bind_values.push(Box::new(*since));
+            idx += 1;
+        }
+        if let Some(until) = &filter.until {
+            where_clauses.push(format!("created_at <= ?{idx}"));
+            bind_values.push(Box::new(*until));
+        }
+
+        let _ = idx; // suppress unused warning
+
+        let where_sql = where_clauses.join(" AND ");
+
+        // Count total
+        let count_sql = format!("SELECT COUNT(*) FROM decisions WHERE {where_sql}");
+        let mut count_stmt = conn.prepare(&count_sql).map_err(AresError::db)?;
+        let refs: Vec<&dyn rusqlite::ToSql> = bind_values.iter().map(|b| b.as_ref()).collect();
+        let total: u64 = count_stmt
+            .query_row(refs.as_slice(), |row| row.get(0))
+            .map_err(AresError::db)?;
+
+        // Fetch paginated
+        let offset = pagination.offset();
+        let limit = pagination.limit();
+        let sql = format!(
+            "SELECT id, project_id, memory_id, decision_text, reason, status, confidence,
+                    alternatives, risks, context_snapshot, future_impact,
+                    files_impacted, services_impacted, supersedes, superseded_by,
+                    decided_by, discussed_in, review_due_at, last_reviewed_at,
+                    created_at, updated_at
+             FROM decisions WHERE {where_sql}
+             ORDER BY created_at DESC
+             LIMIT {limit} OFFSET {offset}"
+        );
+
+        let mut stmt = conn.prepare(&sql).map_err(AresError::db)?;
+        let rows = stmt
+            .query_map(refs.as_slice(), row_to_decision_base)
+            .map_err(AresError::db)?;
+
+        let mut decisions = vec![];
+        for row in rows {
+            let d = row.map_err(AresError::db)?;
+            let steps = self.get_reasoning_steps(&d.id)?;
+            decisions.push(Decision {
+                reasoning_steps: steps,
+                ..d
+            });
+        }
+
+        Ok(ares_core::types::pagination::Page::new(decisions, total, pagination.page, pagination.page_size))
+    }
+
     pub fn supersede(&self, old_id: &DecisionId, new_id: &DecisionId) -> Result<(), AresError> {
         let now = now_micros();
         let conn = self.store.get_conn()?;

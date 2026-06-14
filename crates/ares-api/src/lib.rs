@@ -22,6 +22,10 @@ pub mod routes;
         routes::memory::search_memory,
         routes::memory::create_memory,
         routes::memory::store_memory,
+        routes::memory::get_memory_graph,
+        routes::memory::get_memory_timeline,
+        routes::memory::get_memory_decisions,
+        routes::memory::get_memory_context,
         routes::context::get_context,
         routes::decisions::decision_history,
         routes::contradictions::detect_contradictions,
@@ -29,6 +33,7 @@ pub mod routes;
         routes::reindex::reindex,
         // Snapshots & Context
         routes::snapshot::generate_snapshot,
+        routes::snapshot::get_snapshot,
         routes::snapshot::export_snapshot,
         routes::snapshot::import_snapshot,
         routes::snapshot::get_project_context,
@@ -123,13 +128,20 @@ pub fn create_router(state: AppState) -> Router {
         .route("/memory/search", post(routes::memory::search_memory))
         .route("/memory/create", post(routes::memory::create_memory))
         .route("/memory/store", post(routes::memory::store_memory))
-        .route("/memory/context", post(routes::snapshot::generate_context))
+        .route("/memory/graph", get(routes::memory::get_memory_graph))
+        .route("/memory/timeline", get(routes::memory::get_memory_timeline))
+        .route("/memory/decisions", get(routes::memory::get_memory_decisions))
+        .route(
+            "/memory/context",
+            post(routes::snapshot::generate_context).get(routes::memory::get_memory_context),
+        )
         .route("/context", post(routes::context::get_context))
         // Snapshot routes
         .route(
             "/project/snapshot",
             post(routes::snapshot::generate_snapshot),
         )
+        .route("/project/:id/snapshot", get(routes::snapshot::get_snapshot))
         .route("/project/export", post(routes::snapshot::export_snapshot))
         .route("/project/import", post(routes::snapshot::import_snapshot))
         .route(

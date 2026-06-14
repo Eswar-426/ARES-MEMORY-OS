@@ -97,7 +97,7 @@ impl SqliteEventRepository {
     }
 }
 
-fn row_to_event(row: &rusqlite::Row<'_>) -> Result<AresEvent, rusqlite::Error> {
+pub(crate) fn row_to_event(row: &rusqlite::Row<'_>) -> Result<AresEvent, rusqlite::Error> {
     let project_id_str: Option<String> = row.get(1)?;
     let payload_str: String = row.get(3)?;
     let source_str: String = row.get(4)?;
@@ -115,7 +115,7 @@ fn row_to_event(row: &rusqlite::Row<'_>) -> Result<AresEvent, rusqlite::Error> {
     })
 }
 
-fn map_event_type(s: &str) -> EventType {
+pub fn map_event_type(s: &str) -> EventType {
     match s {
         "memory.created" => EventType::MemoryCreated,
         "memory.updated" => EventType::MemoryUpdated,

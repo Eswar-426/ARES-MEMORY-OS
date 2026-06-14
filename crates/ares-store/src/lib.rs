@@ -15,5 +15,6 @@ pub use db::Store;
 pub use repositories::{
     decision::SqliteDecisionRepository, event::SqliteEventRepository, graph::SqliteGraphRepository,
     memory::SqliteMemoryRepository, project::SqliteProjectRepository,
+    timeline::SqliteTimelineRepository,
     vector::SqliteVectorRepository, workflow::SqliteWorkflowRepository,
 };

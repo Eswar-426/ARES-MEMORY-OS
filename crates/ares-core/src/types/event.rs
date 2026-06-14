@@ -177,3 +177,10 @@ pub fn now_micros() -> i64 {
         .expect("system clock is before Unix epoch")
         .as_micros() as i64
 }
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TimelineFilter {
+    pub event_types: Option<Vec<EventType>>,
+    pub since: Option<i64>,
+    pub until: Option<i64>,
+}

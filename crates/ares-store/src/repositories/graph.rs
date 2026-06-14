@@ -131,6 +131,66 @@ impl SqliteGraphRepository {
         rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)
     }
 
+    pub fn list_nodes_paginated(
+        &self,
+        project_id: &ProjectId,
+        node_type: Option<ares_core::NodeType>,
+        search: Option<&str>,
+        pagination: &ares_core::types::pagination::Pagination,
+    ) -> Result<ares_core::types::pagination::Page<GraphNode>, AresError> {
+        let conn = self.store.get_conn()?;
+
+        let mut where_clauses = vec!["project_id = ?1".to_string(), "deleted_at IS NULL".to_string()];
+        let mut bind_values: Vec<Box<dyn rusqlite::ToSql>> = vec![Box::new(project_id.as_str().to_string())];
+        let mut idx = 2usize;
+
+        if let Some(nt) = node_type {
+            where_clauses.push(format!("node_type = ?{idx}"));
+            bind_values.push(Box::new(nt.as_str().to_string()));
+            idx += 1;
+        }
+
+        if let Some(q) = search {
+            if !q.trim().is_empty() {
+                where_clauses.push(format!("(label LIKE ?{idx} OR properties LIKE ?{idx} OR file_path LIKE ?{idx})"));
+                bind_values.push(Box::new(format!("%{}%", q)));
+            }
+        }
+        let _ = idx; // suppress unused warning
+
+        let where_sql = where_clauses.join(" AND ");
+
+        // Count total
+        let count_sql = format!("SELECT COUNT(*) FROM graph_nodes WHERE {where_sql}");
+        let mut count_stmt = conn.prepare(&count_sql).map_err(AresError::db)?;
+        let refs: Vec<&dyn rusqlite::ToSql> = bind_values.iter().map(|b| b.as_ref()).collect();
+        let total: u64 = count_stmt
+            .query_row(refs.as_slice(), |row| row.get(0))
+            .map_err(AresError::db)?;
+
+        // Fetch paginated
+        let offset = pagination.offset();
+        let limit = pagination.limit();
+        let sql = format!(
+            "SELECT id, project_id, node_type, label, properties, file_path,
+                    created_at, updated_at, deleted_at
+             FROM graph_nodes
+             WHERE {where_sql}
+             ORDER BY label ASC
+             LIMIT {limit} OFFSET {offset}"
+        );
+
+        let mut stmt = conn.prepare(&sql).map_err(AresError::db)?;
+        let rows = stmt
+            .query_map(refs.as_slice(), row_to_node)
+            .map_err(AresError::db)?;
+        
+        let items = rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)?;
+
+        Ok(ares_core::types::pagination::Page::new(items, total, pagination.page, pagination.page_size))
+    }
+
+
     // ----------------------------------------------------------------
     // Get neighbors
     // ----------------------------------------------------------------

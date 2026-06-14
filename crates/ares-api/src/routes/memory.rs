@@ -91,3 +91,174 @@ pub async fn store_memory(
         Err(_) => Err(axum::http::StatusCode::BAD_REQUEST),
     }
 }
+
+#[derive(Deserialize, ToSchema)]
+pub struct MemoryGraphQuery {
+    pub project_id: String,
+    pub node_type: Option<String>,
+    pub search: Option<String>,
+    pub page: Option<u32>,
+    pub page_size: Option<u32>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/memory/graph",
+    params(
+        ("project_id" = String, Query, description = "Project ID"),
+        ("node_type" = Option<String>, Query, description = "Filter by node type"),
+        ("search" = Option<String>, Query, description = "Search query"),
+        ("page" = Option<u32>, Query, description = "Page number"),
+        ("page_size" = Option<u32>, Query, description = "Page size")
+    ),
+    responses((status = 200, description = "Graph nodes", body = ares_core::types::pagination::Page<ares_core::GraphNode>))
+)]
+pub async fn get_memory_graph(
+    State(state): State<AppState>,
+    axum::extract::Query(query): axum::extract::Query<MemoryGraphQuery>,
+) -> Result<Json<ares_core::types::pagination::Page<ares_core::GraphNode>>, axum::http::StatusCode> {
+    let project_id = ProjectId::from(query.project_id);
+    let pagination = ares_core::types::pagination::Pagination {
+        page: query.page.unwrap_or(1),
+        page_size: query.page_size.unwrap_or(50),
+    };
+    let node_type = query.node_type.and_then(|t| t.parse().ok());
+    
+    match state.graph_repo.list_nodes_paginated(&project_id, node_type, query.search.as_deref(), &pagination) {
+        Ok(page) => Ok(Json(page)),
+        Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct MemoryTimelineQuery {
+    pub project_id: String,
+    pub event_types: Option<String>, // comma separated
+    pub since: Option<i64>,
+    pub until: Option<i64>,
+    pub page: Option<u32>,
+    pub page_size: Option<u32>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/memory/timeline",
+    params(
+        ("project_id" = String, Query, description = "Project ID"),
+        ("event_types" = Option<String>, Query, description = "Comma separated event types"),
+        ("since" = Option<i64>, Query, description = "Since timestamp"),
+        ("until" = Option<i64>, Query, description = "Until timestamp"),
+        ("page" = Option<u32>, Query, description = "Page number"),
+        ("page_size" = Option<u32>, Query, description = "Page size")
+    ),
+    responses((status = 200, description = "Timeline events", body = ares_core::types::pagination::Page<ares_core::AresEvent>))
+)]
+pub async fn get_memory_timeline(
+    State(state): State<AppState>,
+    axum::extract::Query(query): axum::extract::Query<MemoryTimelineQuery>,
+) -> Result<Json<ares_core::types::pagination::Page<ares_core::AresEvent>>, axum::http::StatusCode> {
+    let project_id = ProjectId::from(query.project_id);
+    let pagination = ares_core::types::pagination::Pagination {
+        page: query.page.unwrap_or(1),
+        page_size: query.page_size.unwrap_or(50),
+    };
+    
+    let mut event_types = None;
+    if let Some(et_str) = query.event_types {
+        let mut types = vec![];
+        for s in et_str.split(',') {
+            // Note: we can map string to EventType, wait, EventType doesn't implement FromStr directly. 
+            // map_event_type is private in event.rs? No we made it public.
+            types.push(ares_store::repositories::event::map_event_type(s));
+        }
+        event_types = Some(types);
+    }
+
+    let filter = ares_core::types::event::TimelineFilter {
+        event_types,
+        since: query.since,
+        until: query.until,
+    };
+
+    match state.timeline_repo.list_paginated(&project_id, filter, &pagination) {
+        Ok(page) => Ok(Json(page)),
+        Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct MemoryDecisionsQuery {
+    pub project_id: String,
+    pub status: Option<String>,
+    pub file_path: Option<String>,
+    pub since: Option<i64>,
+    pub until: Option<i64>,
+    pub page: Option<u32>,
+    pub page_size: Option<u32>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/memory/decisions",
+    params(
+        ("project_id" = String, Query, description = "Project ID"),
+        ("status" = Option<String>, Query, description = "Decision status"),
+        ("file_path" = Option<String>, Query, description = "File path"),
+        ("since" = Option<i64>, Query, description = "Since timestamp"),
+        ("until" = Option<i64>, Query, description = "Until timestamp"),
+        ("page" = Option<u32>, Query, description = "Page number"),
+        ("page_size" = Option<u32>, Query, description = "Page size")
+    ),
+    responses((status = 200, description = "Decisions", body = ares_core::types::pagination::Page<ares_core::Decision>))
+)]
+pub async fn get_memory_decisions(
+    State(state): State<AppState>,
+    axum::extract::Query(query): axum::extract::Query<MemoryDecisionsQuery>,
+) -> Result<Json<ares_core::types::pagination::Page<ares_core::Decision>>, axum::http::StatusCode> {
+    let project_id = ProjectId::from(query.project_id);
+    let pagination = ares_core::types::pagination::Pagination {
+        page: query.page.unwrap_or(1),
+        page_size: query.page_size.unwrap_or(50),
+    };
+    
+    let filter = ares_core::DecisionFilter {
+        status: query.status.and_then(|s| s.parse().ok()),
+        file_path: query.file_path,
+        since: query.since,
+        until: query.until,
+        stale_days: None,
+    };
+
+    match state.decision_repo.list_paginated(&project_id, filter, &pagination) {
+        Ok(page) => Ok(Json(page)),
+        Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct MemoryContextQuery {
+    pub memory_id: String,
+    pub depth: Option<u8>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/memory/context",
+    params(
+        ("memory_id" = String, Query, description = "Memory ID (or Node ID)"),
+        ("depth" = Option<u8>, Query, description = "Traversal depth")
+    ),
+    responses((status = 200, description = "Memory context graph", body = ares_core::ImpactGraph))
+)]
+pub async fn get_memory_context(
+    State(state): State<AppState>,
+    axum::extract::Query(query): axum::extract::Query<MemoryContextQuery>,
+) -> Result<Json<ares_core::ImpactGraph>, axum::http::StatusCode> {
+    let node_id = ares_core::NodeId::from(query.memory_id);
+    let depth = query.depth.unwrap_or(2);
+    
+    match state.graph_repo.traverse_impact(&node_id, depth) {
+        Ok(impact) => Ok(Json(impact)),
+        Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}

@@ -8,6 +8,7 @@ pub struct Page<T> {
     pub page: u32,
     pub page_size: u32,
     pub total_pages: u32,
+    pub has_more: bool,
 }
 
 impl<T> Page<T> {
@@ -23,6 +24,7 @@ impl<T> Page<T> {
             page,
             page_size,
             total_pages,
+            has_more: page < total_pages,
         }
     }
 
@@ -33,6 +35,7 @@ impl<T> Page<T> {
             page: 1,
             page_size: 20,
             total_pages: 0,
+            has_more: false,
         }
     }
 }
