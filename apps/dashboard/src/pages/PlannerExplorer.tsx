@@ -77,7 +77,9 @@ export const PlannerExplorer: React.FC = () => {
   const fetchPlans = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/v1/plans');
+      const res = await fetch('/api/v1/plans', {
+        headers: { 'Authorization': 'Bearer admin-token-123' }
+      });
       if (res.ok) {
         const data = await res.json();
         setPlans(data);
@@ -95,7 +97,9 @@ export const PlannerExplorer: React.FC = () => {
   // Fetch details for a specific plan
   const fetchPlanDetails = async (id: string) => {
     try {
-      const res = await fetch(`/api/v1/plans/${id}`);
+      const res = await fetch(`/api/v1/plans/${id}`, {
+        headers: { 'Authorization': 'Bearer admin-token-123' }
+      });
       if (res.ok) {
         const data = await res.json();
         setPlanDetails(data);
@@ -123,7 +127,10 @@ export const PlannerExplorer: React.FC = () => {
     try {
       const res = await fetch('/api/v1/plans/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer admin-token-123'
+        },
         body: JSON.stringify({ goal: goalText, priority }),
       });
       if (res.ok) {

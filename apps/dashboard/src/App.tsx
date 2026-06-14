@@ -6,6 +6,8 @@ import { ArchitectureExplorer } from './pages/ArchitectureExplorer';
 import { DecisionTimeline } from './pages/DecisionTimeline';
 import { ContextInjection } from './pages/ContextInjection';
 import { PlannerExplorer } from './pages/PlannerExplorer';
+import { ProviderHealth } from './pages/ProviderHealth';
+import { Settings } from './pages/Settings';
 
 function App() {
   return (
@@ -18,6 +20,8 @@ function App() {
         <Route path="/decisions" element={<DecisionTimeline />} />
         <Route path="/context" element={<ContextInjection />} />
         <Route path="/planner" element={<PlannerExplorer />} />
+        <Route path="/health" element={<ProviderHealth />} />
+        <Route path="/settings" element={<Settings />} />
       </Routes>
     </div>
   );
