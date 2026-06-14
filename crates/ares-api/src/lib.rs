@@ -52,6 +52,11 @@ pub mod routes;
         routes::agents::register_agent,
         routes::agents::list_agents,
         routes::agents::agent_heartbeat,
+        // Planner
+        routes::planner::create_plan,
+        routes::planner::list_plans,
+        routes::planner::get_plan,
+        routes::planner::get_plan_graph,
         // Orchestrator
         ares_orchestrator::control::workers::api::register_worker,
         ares_orchestrator::control::heartbeat::api::worker_heartbeat,
@@ -107,6 +112,13 @@ pub mod routes;
             ares_orchestrator::runtime::execution::models::WorkflowExecutionStep,
             ares_orchestrator::runtime::leases::models::JobLease,
             ares_orchestrator::runtime::retry::RetryPolicy,
+            // Planner
+            ares_core::Plan,
+            ares_core::PlanDetails,
+            routes::planner::CreatePlanRequest,
+            routes::planner::PlanGraphResponse,
+            routes::planner::PlanGraphNode,
+            routes::planner::PlanGraphEdge,
         )
     ),
     tags(
@@ -169,6 +181,11 @@ pub fn create_router(state: AppState) -> Router {
         )
         .route("/memory/reindex", post(routes::reindex::reindex))
         .nest("/chat", routes::import::router())
+        // Planner routes
+        .route("/plans/create", post(routes::planner::create_plan))
+        .route("/plans", get(routes::planner::list_plans))
+        .route("/plans/:id", get(routes::planner::get_plan))
+        .route("/plans/:id/graph", get(routes::planner::get_plan_graph))
         // Agent routes
         .route("/agents", get(routes::agents::list_agents))
         .route("/agents/register", post(routes::agents::register_agent))
@@ -376,5 +393,11 @@ mod tests {
         assert!(paths.paths.contains_key("/api/v1/agents"));
         assert!(paths.paths.contains_key("/api/v1/agents/register"));
         assert!(paths.paths.contains_key("/api/v1/agents/{id}/heartbeat"));
+
+        // Planner
+        assert!(paths.paths.contains_key("/api/v1/plans/create"));
+        assert!(paths.paths.contains_key("/api/v1/plans"));
+        assert!(paths.paths.contains_key("/api/v1/plans/{id}"));
+        assert!(paths.paths.contains_key("/api/v1/plans/{id}/graph"));
     }
 }

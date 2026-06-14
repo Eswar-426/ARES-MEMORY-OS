@@ -5,7 +5,8 @@ import {
   Network,
   Clock,
   Settings,
-  ShieldCheck
+  ShieldCheck,
+  Compass
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
@@ -36,6 +37,7 @@ export const Sidebar = () => (
       <NavItem icon={<Database />} label="Memory Explorer" to="/memory" />
       <NavItem icon={<Network />} label="Architecture" to="/architecture" />
       <NavItem icon={<Clock />} label="Decisions" to="/decisions" />
+      <NavItem icon={<Compass />} label="Autonomous Planner" to="/planner" />
       <div className="h-4"></div>
       <NavItem icon={<ShieldCheck />} label="Provider Health" to="/health" />
       <NavItem icon={<Settings />} label="Settings" to="/settings" />

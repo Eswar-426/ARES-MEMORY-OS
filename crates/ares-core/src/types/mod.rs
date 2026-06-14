@@ -7,3 +7,4 @@ pub mod pagination;
 pub mod project;
 pub mod workflow;
 pub mod workflow_api;
+pub mod plan;

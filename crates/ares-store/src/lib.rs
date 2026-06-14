@@ -17,4 +17,5 @@ pub use repositories::{
     memory::SqliteMemoryRepository, project::SqliteProjectRepository,
     timeline::SqliteTimelineRepository, vector::SqliteVectorRepository,
     workflow::SqliteWorkflowRepository,
+    plan::SqlitePlanRepository,
 };

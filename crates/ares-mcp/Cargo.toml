@@ -12,6 +12,7 @@ ares-agent = { path = "../ares-agent" }
 ares-store = { path = "../ares-store" }
 ares-project-memory = { path = "../ares-project-memory" }
 ares-context-generator = { path = "../ares-context-generator" }
+ares-planner = { path = "../ares-planner" }
 
 tokio      = { workspace = true, features = ["io-std", "io-util"] }
 serde      = { workspace = true }

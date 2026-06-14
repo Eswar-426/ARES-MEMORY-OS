@@ -121,6 +121,11 @@ mod tests {
         assert!(tables.contains(&"org_learning".to_string()));
         assert!(tables.contains(&"resource_reservations".to_string()));
         assert!(tables.contains(&"governor_decisions".to_string()));
+
+        // V24
+        assert!(tables.contains(&"milestones".to_string()));
+        assert!(tables.contains(&"tasks".to_string()));
+        assert!(tables.contains(&"task_dependencies".to_string()));
     }
     #[test]
     fn test_migrations_rerun_and_idempotency() {

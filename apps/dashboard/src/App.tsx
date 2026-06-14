@@ -4,6 +4,7 @@ import { Overview } from './pages/Overview';
 import { MemoryExplorer } from './pages/MemoryExplorer';
 import { ArchitectureExplorer } from './pages/ArchitectureExplorer';
 import { DecisionTimeline } from './pages/DecisionTimeline';
+import { PlannerExplorer } from './pages/PlannerExplorer';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route path="/memory" element={<MemoryExplorer />} />
         <Route path="/architecture" element={<ArchitectureExplorer />} />
         <Route path="/decisions" element={<DecisionTimeline />} />
+        <Route path="/planner" element={<PlannerExplorer />} />
       </Routes>
     </div>
   );
