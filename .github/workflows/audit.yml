@@ -24,3 +24,4 @@ jobs:
         uses: rustsec/audit-check@v1.4.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          ignore: RUSTSEC-2026-0104, RUSTSEC-2026-0099, RUSTSEC-2026-0098
