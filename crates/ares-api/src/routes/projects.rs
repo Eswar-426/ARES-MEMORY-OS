@@ -1,5 +1,5 @@
 use ares_app::AppState;
-use ares_core::Project;
+use ares_core::{Project, ProjectId, ProjectMaturity};
 use axum::{
     extract::{Path, State},
     Json,
@@ -16,6 +16,9 @@ pub struct ProjectListResponse {
 pub struct CreateProjectRequest {
     pub name: String,
     pub path: String,
+    pub description: Option<String>,
+    pub primary_language: Option<String>,
+    pub domain: Option<String>,
 }
 
 #[utoipa::path(
@@ -24,21 +27,10 @@ pub struct CreateProjectRequest {
     responses((status = 200, description = "List registered projects", body = ProjectListResponse))
 )]
 pub async fn list_projects(State(state): State<AppState>) -> Json<ProjectListResponse> {
-    // For now, return the single configured project
-    // Future: Fetch all projects from global db
-    let p = Project {
-        id: ares_core::ProjectId(ares_core::id::new_id()),
-        name: "Mock Project".into(),
-        description: "Mock Description".into(),
-        root_path: state.config.project_path.clone(),
-        primary_language: ares_core::Language::Rust.as_str().into(),
-        domain: "Mock Domain".into(),
-        maturity: ares_core::ProjectMaturity::Greenfield,
-        created_at: chrono::Utc::now().timestamp_micros(),
-        updated_at: chrono::Utc::now().timestamp_micros(),
-        deleted_at: None,
-    };
-    Json(ProjectListResponse { projects: vec![p] })
+    match state.project_repo.list_all() {
+        Ok(projects) => Json(ProjectListResponse { projects }),
+        Err(_) => Json(ProjectListResponse { projects: vec![] }),
+    }
 }
 
 #[utoipa::path(
@@ -48,23 +40,27 @@ pub async fn list_projects(State(state): State<AppState>) -> Json<ProjectListRes
     responses((status = 200, description = "Project created", body = Project))
 )]
 pub async fn create_project(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Json(payload): Json<CreateProjectRequest>,
-) -> Json<Project> {
-    let p = Project {
-        id: ares_core::ProjectId(ares_core::id::new_id()),
+) -> Result<Json<Project>, axum::http::StatusCode> {
+    let now = chrono::Utc::now().timestamp_micros();
+    let project = Project {
+        id: ProjectId::new(),
         name: payload.name,
-        description: "Mock Description".into(),
+        description: payload.description.unwrap_or_default(),
         root_path: payload.path,
-        primary_language: ares_core::Language::Rust.as_str().into(),
-        domain: "Mock Domain".into(),
-        maturity: ares_core::ProjectMaturity::Greenfield,
-        created_at: chrono::Utc::now().timestamp_micros(),
-        updated_at: chrono::Utc::now().timestamp_micros(),
+        primary_language: payload.primary_language.unwrap_or_else(|| "unknown".into()),
+        domain: payload.domain.unwrap_or_default(),
+        maturity: ProjectMaturity::Greenfield,
+        created_at: now,
+        updated_at: now,
         deleted_at: None,
     };
-    // Future: Insert project into store
-    Json(p)
+
+    match state.project_repo.create(&project) {
+        Ok(created) => Ok(Json(created)),
+        Err(_) => Err(axum::http::StatusCode::BAD_REQUEST),
+    }
 }
 
 #[utoipa::path(
@@ -75,18 +71,14 @@ pub async fn create_project(
     ),
     responses((status = 200, description = "Get project by ID", body = Project))
 )]
-pub async fn get_project(State(state): State<AppState>, Path(_id): Path<String>) -> Json<Project> {
-    let p = Project {
-        id: ares_core::ProjectId(ares_core::id::new_id()),
-        name: "Mock Project".into(),
-        description: "Mock Description".into(),
-        root_path: state.config.project_path.clone(),
-        primary_language: ares_core::Language::Rust.as_str().into(),
-        domain: "Mock Domain".into(),
-        maturity: ares_core::ProjectMaturity::Greenfield,
-        created_at: chrono::Utc::now().timestamp_micros(),
-        updated_at: chrono::Utc::now().timestamp_micros(),
-        deleted_at: None,
-    };
-    Json(p)
+pub async fn get_project(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Json<Project>, axum::http::StatusCode> {
+    let project_id = ProjectId::from(id);
+    match state.project_repo.get_by_id(&project_id) {
+        Ok(Some(project)) => Ok(Json(project)),
+        Ok(None) => Err(axum::http::StatusCode::NOT_FOUND),
+        Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }

@@ -35,11 +35,10 @@ enum Commands {
         #[command(subcommand)]
         action: DecisionAction,
     },
-    /// Retrieve context for a query
+    /// Context generator operations
     Context {
-        query: String,
-        #[arg(long, default_value = "4000")]
-        token_budget: u32,
+        #[command(subcommand)]
+        action: ContextAction,
     },
     /// Check ARES environment health
     Doctor,
@@ -62,6 +61,21 @@ enum MemoryAction {
 }
 
 #[derive(Subcommand, Debug)]
+enum ContextAction {
+    Query {
+        query: String,
+        #[arg(long, default_value = "4000")]
+        token_budget: u32,
+    },
+    Export {
+        #[arg(long)]
+        project: String,
+        #[arg(long)]
+        clipboard: bool,
+    },
+}
+
+#[derive(Subcommand, Debug)]
 enum DecisionAction {
     Create,
     List,
@@ -69,10 +83,60 @@ enum DecisionAction {
 }
 
 fn main() {
-    let _cli = Cli::parse();
-    // TODO Week 16: Implement all commands
-    println!(
-        "ARES CLI v{} — commands coming in Week 16",
-        env!("CARGO_PKG_VERSION")
-    );
+    let cli = Cli::parse();
+
+    // Use tokio for async commands
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    rt.block_on(async {
+        match cli.command {
+            Commands::Context { action } => match action {
+                ContextAction::Export { project, clipboard } => {
+                    println!("ARES: Exporting Portable Context for project {}...", project);
+
+                    let client = reqwest::Client::new();
+                    let url = format!("http://127.0.0.1:3000/api/v1/project/{}/context", project);
+
+                    match client.get(&url).send().await {
+                        Ok(res) if res.status().is_success() => {
+                            if let Ok(json) = res.json::<serde_json::Value>().await {
+                                let markdown = json["text"].as_str().unwrap_or_default();
+                                let tokens = json["estimated_tokens"].as_u64().unwrap_or(0);
+
+
+                                if clipboard {
+                                    if let Ok(mut board) = arboard::Clipboard::new() {
+                                        if let Err(e) = board.set_text(markdown) {
+                                            println!("❌ Failed to copy to clipboard: {}", e);
+                                        } else {
+                                            println!("✅ Successfully copied context to clipboard! (~{} tokens)", tokens);
+                                        }
+                                    } else {
+                                        println!("❌ Failed to access clipboard.");
+                                    }
+                                } else {
+                                    println!("\n{}\n", markdown);
+                                    println!("✅ Context generated (~{} tokens). Use --clipboard to copy it.", tokens);
+                                }
+                            }
+                        }
+                        Ok(res) => {
+                            println!("❌ API Error: {}", res.status());
+                        }
+                        Err(e) => {
+                            println!("❌ Failed to connect to ARES Memory OS daemon. Is it running? Error: {}", e);
+                        }
+                    }
+                }
+                _ => {
+                    println!("Command not fully implemented yet.");
+                }
+            },
+            _ => {
+                println!(
+                    "ARES CLI v{} — command not implemented yet",
+                    env!("CARGO_PKG_VERSION")
+                );
+            }
+        }
+    });
 }

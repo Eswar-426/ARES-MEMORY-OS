@@ -1,15 +1,18 @@
 pub mod context;
 pub mod contradictions;
 pub mod decisions;
+pub mod import;
 pub mod memory;
 pub mod observability;
 pub mod projects;
+pub mod snapshot;
 
 pub mod agents;
 pub mod knowledge;
 pub mod reindex;
 pub mod scan;
 pub mod semantic;
+pub mod telemetry;
 pub mod workflows;
 
 use ares_core::AresError;

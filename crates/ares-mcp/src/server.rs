@@ -1,78 +1,136 @@
+use crate::handler::ToolHandler;
 use crate::tools::McpServer;
-use jsonrpc_core::{IoHandler, Params, Value};
-use std::sync::Arc;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use ares_app::AppState;
+use jsonrpc_core::{IoHandler, Params};
+use serde_json::Value;
+use std::io::{self, BufRead, BufReader, Write};
 use tracing::{debug, error, info};
 
-pub async fn run_stdio_server(mcp: Arc<McpServer>) -> anyhow::Result<()> {
-    let mut io = IoHandler::new();
+pub struct StdioServer {
+    state: AppState,
+    mcp: McpServer,
+}
 
-    let mcp_clone = mcp.clone();
-    io.add_method("server/info", move |_params: Params| {
-        let info = mcp_clone.get_info();
-        async move { Ok(serde_json::to_value(info).unwrap()) }
-    });
-
-    let mcp_clone = mcp.clone();
-    io.add_method("tools/list", move |_params: Params| {
-        let tools = mcp_clone.list_tools();
-        async move { Ok(serde_json::to_value(tools).unwrap()) }
-    });
-
-    // Mock implementation for one tool to show wiring
-    let _mcp_clone = mcp.clone();
-    io.add_method("tools/call", move |params: Params| {
-        async move {
-            let map = match params {
-                Params::Map(m) => m,
-                _ => {
-                    return Err(jsonrpc_core::Error::invalid_params(
-                        "Expected named parameters",
-                    ))
-                }
-            };
-
-            let name = map.get("name").and_then(|v| v.as_str()).unwrap_or("");
-            let _args = map.get("arguments").unwrap_or(&Value::Null);
-
-            // In a real implementation, we would route to mcp_clone.state engines based on `name`
-            Ok(serde_json::json!({
-                "content": [
-                    {
-                        "type": "text",
-                        "text": format!("Tool {} executed successfully", name)
-                    }
-                ]
-            }))
-        }
-    });
-
-    let stdin = tokio::io::stdin();
-    let mut stdout = tokio::io::stdout();
-    let mut reader = BufReader::new(stdin);
-    let mut line = String::new();
-
-    info!("MCP server listening on stdio");
-
-    loop {
-        line.clear();
-        match reader.read_line(&mut line).await {
-            Ok(0) => break, // EOF
-            Ok(_) => {
-                debug!("Received: {}", line.trim());
-                if let Some(response) = io.handle_request_sync(&line) {
-                    debug!("Responding: {}", response);
-                    stdout.write_all(response.as_bytes()).await?;
-                    stdout.write_all(b"\n").await?;
-                    stdout.flush().await?;
-                }
-            }
-            Err(e) => {
-                error!("Error reading from stdin: {}", e);
-                break;
-            }
-        }
+impl StdioServer {
+    pub fn new(state: AppState) -> Self {
+        let mcp = McpServer::new(state.clone());
+        Self { state, mcp }
     }
 
-    Ok(())
+    pub async fn run(&self) -> Result<(), String> {
+        info!("Starting MCP stdio server...");
+
+        let mut io = IoHandler::new();
+
+        // Server info closure
+        let server_info = self.mcp.get_info();
+        let capabilities = self.mcp.get_capabilities();
+
+        // ─── MCP Lifecycle Methods ─────────────────────────────────
+
+        // 1. initialize
+        io.add_method("initialize", move |params: Params| {
+            debug!("Received initialize request: {:?}", params);
+            let response = serde_json::json!({
+                "protocolVersion": server_info.protocol_version,
+                "serverInfo": {
+                    "name": server_info.name,
+                    "version": server_info.version
+                },
+                "capabilities": capabilities
+            });
+            async { Ok(response) }
+        });
+
+        // 2. notifications/initialized
+        io.add_notification("notifications/initialized", |params| {
+            debug!("Received initialized notification: {:?}", params);
+        });
+
+        // ─── Tools API ─────────────────────────────────────────────
+
+        // 3. tools/list
+        let tools_list = self.mcp.list_tools();
+        io.add_method("tools/list", move |_params: Params| {
+            let tools_value: Vec<Value> = tools_list
+                .iter()
+                .map(|t| {
+                    serde_json::json!({
+                        "name": t.name,
+                        "description": t.description,
+                        "inputSchema": t.input_schema
+                    })
+                })
+                .collect();
+
+            async move {
+                Ok(serde_json::json!({
+                    "tools": tools_value
+                }))
+            }
+        });
+
+        // 4. tools/call
+        let local_state = self.state.clone();
+        io.add_method("tools/call", move |params: Params| -> jsonrpc_core::BoxFuture<Result<serde_json::Value, jsonrpc_core::Error>> {
+            let local_state = local_state.clone();
+            Box::pin(async move {
+                let local_handler = ToolHandler::new(local_state);
+
+                let args: Value = match params.parse() {
+                    Ok(v) => v,
+                    Err(e) => return Err(jsonrpc_core::Error::invalid_params(format!("{}", e))),
+                };
+
+                let tool_name = match args.get("name").and_then(|v| v.as_str()) {
+                    Some(name) => name.to_string(),
+                    None => return Err(jsonrpc_core::Error::invalid_params("Missing tool name")),
+                };
+
+                let tool_args = args.get("arguments").cloned().unwrap_or(serde_json::json!({}));
+
+                debug!(tool = %tool_name, args = ?tool_args, "Executing tool call");
+
+                match local_handler.handle(&tool_name, &tool_args).await {
+                    Ok(result) => Ok(result),
+                    Err(e) => {
+                        error!(error = %e, "Tool execution failed");
+                        let mut rpc_err = jsonrpc_core::Error::internal_error();
+                        rpc_err.message = e;
+                        Err(rpc_err)
+                    }
+                }
+            })
+        });
+
+        // ─── Stdio transport loop ─────────────────────────────────
+
+        let stdin = io::stdin();
+        let mut reader = BufReader::new(stdin.lock());
+        let mut stdout = io::stdout();
+
+        loop {
+            let mut line = String::new();
+            match reader.read_line(&mut line) {
+                Ok(0) => break, // EOF
+                Ok(_) => {
+                    let req_str = line.trim();
+                    if req_str.is_empty() {
+                        continue;
+                    }
+
+                    debug!("Received: {}", req_str);
+
+                    if let Some(response) = io.handle_request_sync(req_str) {
+                        debug!("Sending: {}", response);
+                        writeln!(stdout, "{}", response).map_err(|e| e.to_string())?;
+                        stdout.flush().map_err(|e| e.to_string())?;
+                    }
+                }
+                Err(e) => return Err(e.to_string()),
+            }
+        }
+
+        Ok(())
+    }
 }

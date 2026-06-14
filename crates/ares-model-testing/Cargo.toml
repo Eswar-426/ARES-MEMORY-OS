@@ -1,0 +1,27 @@
+[package]
+name = "ares-model-testing"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+ares-core = { path = "../ares-core" }
+ares-project-memory = { path = "../ares-project-memory" }
+ares-context-generator = { path = "../ares-context-generator" }
+ares-retrieval = { path = "../ares-retrieval" }
+ares-scanner = { path = "../ares-scanner" }
+ares-store = { path = "../ares-store" }
+tokio = { workspace = true, features = ["full"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = "0.9"
+anyhow = { workspace = true }
+reqwest = { workspace = true, features = ["json"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true }
+async-trait = { workspace = true }
+dotenvy = "0.15"
+regex = { workspace = true }

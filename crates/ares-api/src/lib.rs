@@ -21,11 +21,19 @@ pub mod routes;
         routes::scan::scan_project,
         routes::memory::search_memory,
         routes::memory::create_memory,
+        routes::memory::store_memory,
         routes::context::get_context,
         routes::decisions::decision_history,
         routes::contradictions::detect_contradictions,
         routes::semantic::semantic_search,
         routes::reindex::reindex,
+        // Snapshots & Context
+        routes::snapshot::generate_snapshot,
+        routes::snapshot::export_snapshot,
+        routes::snapshot::import_snapshot,
+        routes::snapshot::get_project_context,
+        routes::snapshot::generate_context,
+        routes::snapshot::list_snapshots,
         // Workflows
         routes::workflows::run_workflow,
         routes::workflows::pause_workflow,
@@ -114,7 +122,24 @@ pub fn create_router(state: AppState) -> Router {
         .route("/scan", post(routes::scan::scan_project))
         .route("/memory/search", post(routes::memory::search_memory))
         .route("/memory/create", post(routes::memory::create_memory))
+        .route("/memory/store", post(routes::memory::store_memory))
+        .route("/memory/context", post(routes::snapshot::generate_context))
         .route("/context", post(routes::context::get_context))
+        // Snapshot routes
+        .route(
+            "/project/snapshot",
+            post(routes::snapshot::generate_snapshot),
+        )
+        .route("/project/export", post(routes::snapshot::export_snapshot))
+        .route("/project/import", post(routes::snapshot::import_snapshot))
+        .route(
+            "/project/:id/context",
+            get(routes::snapshot::get_project_context),
+        )
+        .route(
+            "/project/:id/snapshots",
+            get(routes::snapshot::list_snapshots),
+        )
         .route(
             "/decisions/history",
             post(routes::decisions::decision_history),
@@ -128,6 +153,7 @@ pub fn create_router(state: AppState) -> Router {
             post(routes::semantic::semantic_search),
         )
         .route("/memory/reindex", post(routes::reindex::reindex))
+        .nest("/chat", routes::import::router())
         // Agent routes
         .route("/agents", get(routes::agents::list_agents))
         .route("/agents/register", post(routes::agents::register_agent))
@@ -267,10 +293,24 @@ pub fn create_router(state: AppState) -> Router {
         .route("/", get(root))
         .route("/health", get(routes::observability::health))
         .route("/metrics", get(routes::observability::metrics))
+        .route(
+            "/api/v1/telemetry/latest",
+            get(routes::telemetry::get_latest_telemetry),
+        )
         .nest("/api/v1", api_routes)
         .nest("/api/v1", admin_routes)
         .nest("/api/v1/orchestrator", combined_orchestrator_routes)
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .layer(
+            tower_http::cors::CorsLayer::new()
+                .allow_origin(tower_http::cors::Any)
+                .allow_methods(tower_http::cors::Any)
+                .allow_headers(tower_http::cors::Any),
+        )
+        .layer(tower_http::timeout::TimeoutLayer::new(
+            std::time::Duration::from_secs(30),
+        ))
+        .layer(axum::extract::DefaultBodyLimit::max(10 * 1024 * 1024))
         .layer(TraceLayer::new_for_http())
         .with_state(state)
 }

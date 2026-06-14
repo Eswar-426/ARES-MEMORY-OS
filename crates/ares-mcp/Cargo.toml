@@ -9,6 +9,9 @@ license.workspace = true
 ares-core  = { path = "../ares-core" }
 ares-app   = { path = "../ares-app" }
 ares-agent = { path = "../ares-agent" }
+ares-store = { path = "../ares-store" }
+ares-project-memory = { path = "../ares-project-memory" }
+ares-context-generator = { path = "../ares-context-generator" }
 
 tokio      = { workspace = true, features = ["io-std", "io-util"] }
 serde      = { workspace = true }
@@ -17,6 +20,7 @@ tracing    = { workspace = true }
 tracing-subscriber = { workspace = true }
 jsonrpc-core = "18.0"
 anyhow     = { workspace = true }
+chrono     = { workspace = true }
 
 [dev-dependencies]
 tempfile   = { workspace = true }

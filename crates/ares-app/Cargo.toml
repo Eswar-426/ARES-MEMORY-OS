@@ -11,6 +11,8 @@ ares-store   = { path = "../ares-store" }
 ares-agent   = { path = "../ares-agent" }
 ares-scanner = { path = "../ares-scanner" }
 ares-embeddings = { path = "../ares-embeddings" }
+ares-project-memory = { path = "../ares-project-memory" }
+ares-context-generator = { path = "../ares-context-generator" }
 
 tokio        = { workspace = true }
 tracing      = { workspace = true }

@@ -34,7 +34,16 @@ async fn main() -> anyhow::Result<()> {
     info!("API listening on http://127.0.0.1:3000");
     info!("Swagger UI available at http://127.0.0.1:3000/swagger-ui");
 
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await?;
 
     Ok(())
+}
+
+async fn shutdown_signal() {
+    tokio::signal::ctrl_c()
+        .await
+        .expect("Failed to install CTRL+C signal handler");
+    info!("Shutting down ARES API gracefully...");
 }

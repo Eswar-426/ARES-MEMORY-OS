@@ -8,10 +8,13 @@ license.workspace = true
 [dependencies]
 ares-core  = { path = "../ares-core", features = ["utoipa"] }
 ares-app   = { path = "../ares-app" }
+ares-chat-import = { path = "../ares-chat-import" }
 ares-store = { path = "../ares-store" }
 ares-agent = { path = "../ares-agent" }
 ares-orchestrator = { path = "../ares-orchestrator", features = [] }
 ares-knowledge = { path = "../ares-knowledge" }
+ares-project-memory = { path = "../ares-project-memory" }
+ares-context-generator = { path = "../ares-context-generator" }
 tokio      = { workspace = true }
 axum       = { workspace = true }
 tower      = { workspace = true }

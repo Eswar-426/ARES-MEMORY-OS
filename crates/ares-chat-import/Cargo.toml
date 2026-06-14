@@ -1,0 +1,17 @@
+[package]
+name = "ares-chat-import"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ares-core = { path = "../ares-core" }
+ares-store = { path = "../ares-store" }
+ares-knowledge = { path = "../ares-knowledge" }
+
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+regex = "1.11"
+thiserror = "2.0"
+tokio = { version = "1.41", features = ["full"] }
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1.0"

@@ -1,8 +1,6 @@
 use ares_agent::config::AgentConfig;
 use ares_app::AppState;
-use ares_mcp::server::run_stdio_server;
-use ares_mcp::McpServer;
-use std::sync::Arc;
+use ares_mcp::server::StdioServer;
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -32,9 +30,9 @@ async fn main() -> anyhow::Result<()> {
     let config = AgentConfig::load(&project_path)?;
     let app_state = AppState::new(config).await?;
 
-    let mcp_server = Arc::new(McpServer::new(app_state));
+    let mcp_server = StdioServer::new(app_state);
 
-    run_stdio_server(mcp_server).await?;
+    mcp_server.run().await.map_err(|e| anyhow::anyhow!(e))?;
 
     Ok(())
 }

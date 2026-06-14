@@ -4,6 +4,7 @@ pub mod graph;
 pub mod intelligence;
 pub mod memory;
 pub mod project;
+pub mod telemetry;
 pub mod traits;
 pub mod vector;
 pub mod workflow;

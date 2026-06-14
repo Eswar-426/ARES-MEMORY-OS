@@ -1,0 +1,30 @@
+chains:
+  free:
+    architecture:
+      - provider: openrouter
+        id: meta-llama/llama-3.3-70b-instruct:free
+        priority: 1
+    feature:
+      - provider: openrouter
+        id: meta-llama/llama-3.3-70b-instruct:free
+        priority: 1
+    debug:
+      - provider: openrouter
+        id: meta-llama/llama-3.3-70b-instruct:free
+        priority: 1
+  test_fallback:
+    architecture:
+      - provider: openrouter
+        id: broken-model-123
+        priority: 1
+      - provider: openrouter
+        id: meta-llama/llama-3.3-70b-instruct:free
+        priority: 2
+    feature:
+      - provider: openrouter
+        id: meta-llama/llama-3.3-70b-instruct:free
+        priority: 1
+    debug:
+      - provider: openrouter
+        id: meta-llama/llama-3.3-70b-instruct:free
+        priority: 1

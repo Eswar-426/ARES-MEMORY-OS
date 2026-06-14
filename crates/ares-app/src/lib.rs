@@ -10,11 +10,13 @@ use ares_agent::services::{
 use ares_core::vector::traits::EmbeddingProvider;
 use ares_core::AresError;
 use ares_embeddings::MockEmbeddingProvider;
+use ares_project_memory::MemoryBuilder;
+use ares_project_memory::SnapshotStore;
 use ares_store::db::Store;
 use ares_store::repositories::{
     decision::SqliteDecisionRepository, graph::SqliteGraphRepository,
     intelligence::SqliteIntelligenceRepository, memory::SqliteMemoryRepository,
-    vector::SqliteVectorRepository,
+    project::SqliteProjectRepository, vector::SqliteVectorRepository,
 };
 use std::sync::Arc;
 use tracing::info;
@@ -45,6 +47,10 @@ pub struct AppState {
     pub replay_service: Arc<ares_agent::services::replay_service::ReplayService>,
     pub workflow_analytics: Arc<ares_agent::services::workflow_analytics::WorkflowAnalytics>,
     pub workflow_visualizer: Arc<ares_agent::services::workflow_visualizer::WorkflowVisualizer>,
+    // Week 20 - Productization
+    pub project_repo: Arc<SqliteProjectRepository>,
+    pub memory_builder: Arc<MemoryBuilder>,
+    pub snapshot_store: Arc<SnapshotStore>,
 }
 
 impl AppState {
@@ -64,6 +70,7 @@ impl AppState {
         let decision_repo = Arc::new(SqliteDecisionRepository::new(store.clone()));
         let graph_repo = Arc::new(SqliteGraphRepository::new(store.clone()));
         let vector_repo = Arc::new(SqliteVectorRepository::new(store.clone()));
+        let project_repo = Arc::new(SqliteProjectRepository::new(store.clone()));
 
         // Initialize Embedding Provider
         // Defaulting to Mock for safety. Users can configure OpenAI/Ollama via env vars later.
@@ -127,6 +134,15 @@ impl AppState {
             ),
         );
 
+        // Week 20 — Productization engines
+        let memory_builder = Arc::new(MemoryBuilder::new(
+            project_repo.clone(),
+            memory_repo.clone(),
+            decision_repo.clone(),
+            graph_repo.clone(),
+        ));
+        let snapshot_store = Arc::new(SnapshotStore::new(store.clone()));
+
         Ok(Self {
             config,
             store,
@@ -149,6 +165,9 @@ impl AppState {
             replay_service,
             workflow_analytics,
             workflow_visualizer,
+            project_repo,
+            memory_builder,
+            snapshot_store,
         })
     }
 }
