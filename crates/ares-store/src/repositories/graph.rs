@@ -140,8 +140,12 @@ impl SqliteGraphRepository {
     ) -> Result<ares_core::types::pagination::Page<GraphNode>, AresError> {
         let conn = self.store.get_conn()?;
 
-        let mut where_clauses = vec!["project_id = ?1".to_string(), "deleted_at IS NULL".to_string()];
-        let mut bind_values: Vec<Box<dyn rusqlite::ToSql>> = vec![Box::new(project_id.as_str().to_string())];
+        let mut where_clauses = vec![
+            "project_id = ?1".to_string(),
+            "deleted_at IS NULL".to_string(),
+        ];
+        let mut bind_values: Vec<Box<dyn rusqlite::ToSql>> =
+            vec![Box::new(project_id.as_str().to_string())];
         let mut idx = 2usize;
 
         if let Some(nt) = node_type {
@@ -152,7 +156,9 @@ impl SqliteGraphRepository {
 
         if let Some(q) = search {
             if !q.trim().is_empty() {
-                where_clauses.push(format!("(label LIKE ?{idx} OR properties LIKE ?{idx} OR file_path LIKE ?{idx})"));
+                where_clauses.push(format!(
+                    "(label LIKE ?{idx} OR properties LIKE ?{idx} OR file_path LIKE ?{idx})"
+                ));
                 bind_values.push(Box::new(format!("%{}%", q)));
             }
         }
@@ -184,12 +190,16 @@ impl SqliteGraphRepository {
         let rows = stmt
             .query_map(refs.as_slice(), row_to_node)
             .map_err(AresError::db)?;
-        
+
         let items = rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)?;
 
-        Ok(ares_core::types::pagination::Page::new(items, total, pagination.page, pagination.page_size))
+        Ok(ares_core::types::pagination::Page::new(
+            items,
+            total,
+            pagination.page,
+            pagination.page_size,
+        ))
     }
-
 
     // ----------------------------------------------------------------
     // Get neighbors

@@ -16,8 +16,8 @@ use ares_store::db::Store;
 use ares_store::repositories::{
     decision::SqliteDecisionRepository, graph::SqliteGraphRepository,
     intelligence::SqliteIntelligenceRepository, memory::SqliteMemoryRepository,
-    project::SqliteProjectRepository, vector::SqliteVectorRepository,
-    timeline::SqliteTimelineRepository,
+    project::SqliteProjectRepository, timeline::SqliteTimelineRepository,
+    vector::SqliteVectorRepository,
 };
 use std::sync::Arc;
 use tracing::info;

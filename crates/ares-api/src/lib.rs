@@ -130,7 +130,10 @@ pub fn create_router(state: AppState) -> Router {
         .route("/memory/store", post(routes::memory::store_memory))
         .route("/memory/graph", get(routes::memory::get_memory_graph))
         .route("/memory/timeline", get(routes::memory::get_memory_timeline))
-        .route("/memory/decisions", get(routes::memory::get_memory_decisions))
+        .route(
+            "/memory/decisions",
+            get(routes::memory::get_memory_decisions),
+        )
         .route(
             "/memory/context",
             post(routes::snapshot::generate_context).get(routes::memory::get_memory_context),

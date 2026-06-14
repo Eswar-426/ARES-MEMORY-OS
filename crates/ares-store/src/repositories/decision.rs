@@ -211,7 +211,12 @@ impl SqliteDecisionRepository {
             });
         }
 
-        Ok(ares_core::types::pagination::Page::new(decisions, total, pagination.page, pagination.page_size))
+        Ok(ares_core::types::pagination::Page::new(
+            decisions,
+            total,
+            pagination.page,
+            pagination.page_size,
+        ))
     }
 
     pub fn supersede(&self, old_id: &DecisionId, new_id: &DecisionId) -> Result<(), AresError> {

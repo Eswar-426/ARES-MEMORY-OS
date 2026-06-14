@@ -1,6 +1,6 @@
 use crate::db::Store;
-use ares_core::{AresError, AresEvent, ProjectId, types::event::TimelineFilter};
 use ares_core::types::pagination::{Page, Pagination};
+use ares_core::{types::event::TimelineFilter, AresError, AresEvent, ProjectId};
 
 pub struct SqliteTimelineRepository {
     store: Store,
@@ -25,7 +25,8 @@ impl SqliteTimelineRepository {
 
         if let Some(event_types) = &filter.event_types {
             if !event_types.is_empty() {
-                let placeholders: Vec<String> = (0..event_types.len()).map(|_| format!("?{idx}")).collect();
+                let placeholders: Vec<String> =
+                    (0..event_types.len()).map(|_| format!("?{idx}")).collect();
                 where_clauses.push(format!("event_type IN ({})", placeholders.join(", ")));
                 for et in event_types {
                     bind_values.push(Box::new(et.as_str().to_string()));
@@ -72,6 +73,11 @@ impl SqliteTimelineRepository {
 
         let items = rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)?;
 
-        Ok(Page::new(items, total, pagination.page, pagination.page_size))
+        Ok(Page::new(
+            items,
+            total,
+            pagination.page,
+            pagination.page_size,
+        ))
     }
 }

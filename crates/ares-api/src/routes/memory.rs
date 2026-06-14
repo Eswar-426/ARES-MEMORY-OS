@@ -116,15 +116,21 @@ pub struct MemoryGraphQuery {
 pub async fn get_memory_graph(
     State(state): State<AppState>,
     axum::extract::Query(query): axum::extract::Query<MemoryGraphQuery>,
-) -> Result<Json<ares_core::types::pagination::Page<ares_core::GraphNode>>, axum::http::StatusCode> {
+) -> Result<Json<ares_core::types::pagination::Page<ares_core::GraphNode>>, axum::http::StatusCode>
+{
     let project_id = ProjectId::from(query.project_id);
     let pagination = ares_core::types::pagination::Pagination {
         page: query.page.unwrap_or(1),
         page_size: query.page_size.unwrap_or(50),
     };
     let node_type = query.node_type.and_then(|t| t.parse().ok());
-    
-    match state.graph_repo.list_nodes_paginated(&project_id, node_type, query.search.as_deref(), &pagination) {
+
+    match state.graph_repo.list_nodes_paginated(
+        &project_id,
+        node_type,
+        query.search.as_deref(),
+        &pagination,
+    ) {
         Ok(page) => Ok(Json(page)),
         Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
     }
@@ -156,18 +162,19 @@ pub struct MemoryTimelineQuery {
 pub async fn get_memory_timeline(
     State(state): State<AppState>,
     axum::extract::Query(query): axum::extract::Query<MemoryTimelineQuery>,
-) -> Result<Json<ares_core::types::pagination::Page<ares_core::AresEvent>>, axum::http::StatusCode> {
+) -> Result<Json<ares_core::types::pagination::Page<ares_core::AresEvent>>, axum::http::StatusCode>
+{
     let project_id = ProjectId::from(query.project_id);
     let pagination = ares_core::types::pagination::Pagination {
         page: query.page.unwrap_or(1),
         page_size: query.page_size.unwrap_or(50),
     };
-    
+
     let mut event_types = None;
     if let Some(et_str) = query.event_types {
         let mut types = vec![];
         for s in et_str.split(',') {
-            // Note: we can map string to EventType, wait, EventType doesn't implement FromStr directly. 
+            // Note: we can map string to EventType, wait, EventType doesn't implement FromStr directly.
             // map_event_type is private in event.rs? No we made it public.
             types.push(ares_store::repositories::event::map_event_type(s));
         }
@@ -180,7 +187,10 @@ pub async fn get_memory_timeline(
         until: query.until,
     };
 
-    match state.timeline_repo.list_paginated(&project_id, filter, &pagination) {
+    match state
+        .timeline_repo
+        .list_paginated(&project_id, filter, &pagination)
+    {
         Ok(page) => Ok(Json(page)),
         Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
     }
@@ -220,7 +230,7 @@ pub async fn get_memory_decisions(
         page: query.page.unwrap_or(1),
         page_size: query.page_size.unwrap_or(50),
     };
-    
+
     let filter = ares_core::DecisionFilter {
         status: query.status.and_then(|s| s.parse().ok()),
         file_path: query.file_path,
@@ -229,7 +239,10 @@ pub async fn get_memory_decisions(
         stale_days: None,
     };
 
-    match state.decision_repo.list_paginated(&project_id, filter, &pagination) {
+    match state
+        .decision_repo
+        .list_paginated(&project_id, filter, &pagination)
+    {
         Ok(page) => Ok(Json(page)),
         Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
     }
@@ -256,7 +269,7 @@ pub async fn get_memory_context(
 ) -> Result<Json<ares_core::ImpactGraph>, axum::http::StatusCode> {
     let node_id = ares_core::NodeId::from(query.memory_id);
     let depth = query.depth.unwrap_or(2);
-    
+
     match state.graph_repo.traverse_impact(&node_id, depth) {
         Ok(impact) => Ok(Json(impact)),
         Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
