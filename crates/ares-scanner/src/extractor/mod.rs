@@ -26,6 +26,7 @@ impl ExtractorRouter {
     pub fn extract(
         &self,
         project_id: &ProjectId,
+        file_node_id: &ares_core::NodeId,
         file_path: &str,
         source_code: &str,
     ) -> Result<Option<ExtractionResult>, Box<dyn std::error::Error + Send + Sync>> {
@@ -45,6 +46,7 @@ impl ExtractorRouter {
 
         Ok(Some(extractor.extract(
             project_id,
+            file_node_id,
             file_path,
             source_code,
         )?))

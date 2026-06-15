@@ -17,6 +17,7 @@ pub enum MemoryType {
     Team,
     Workflow,
     Experiment,
+    RepositorySummary,
 }
 
 impl MemoryType {
@@ -31,6 +32,7 @@ impl MemoryType {
             Self::Team => "team",
             Self::Workflow => "workflow",
             Self::Experiment => "experiment",
+            Self::RepositorySummary => "repository_summary",
         }
     }
 }
@@ -54,6 +56,7 @@ impl std::str::FromStr for MemoryType {
             "team" => Ok(Self::Team),
             "workflow" => Ok(Self::Workflow),
             "experiment" => Ok(Self::Experiment),
+            "repository_summary" => Ok(Self::RepositorySummary),
             other => Err(format!("Unknown memory type: {other}")),
         }
     }

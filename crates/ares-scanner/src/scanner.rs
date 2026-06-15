@@ -61,24 +61,86 @@ impl Scanner {
         let run_type = if force_full { "full" } else { "incremental" };
         let run_id = self.graph_repo.start_scan_run(project_id, run_type)?;
 
+        let mut paths = Vec::new();
+        let mut dir_nodes: std::collections::HashMap<PathBuf, ares_core::NodeId> = std::collections::HashMap::new();
+
+        if specific_files.is_none() {
+            // Upsert Project node
+            let project_node = ares_core::GraphNode {
+                id: ares_core::NodeId::from(project_id.as_str()),
+                project_id: project_id.clone(),
+                node_type: ares_core::NodeType::Project,
+                label: project_id.as_str().to_string(),
+                properties: serde_json::json!({}),
+                file_path: None,
+                created_at: ares_core::types::event::now_micros(),
+                updated_at: ares_core::types::event::now_micros(),
+                deleted_at: None,
+            };
+            let _ = self.graph_repo.upsert_node(project_node);
+            
+            // The root directory gets mapped to the Project node ID
+            dir_nodes.insert(root_path.to_path_buf(), ares_core::NodeId::from(project_id.as_str()));
+
+            for result in WalkBuilder::new(root_path).hidden(false).build() {
+                match result {
+                    Ok(entry) => {
+                        let path = entry.path().to_path_buf();
+                        if entry.file_type().is_some_and(|ft| ft.is_dir()) {
+                            if path == root_path {
+                                continue;
+                            }
+                            
+                            let dir_node_id = ares_core::NodeId::new();
+                            let dir_node = ares_core::GraphNode {
+                                id: dir_node_id.clone(),
+                                project_id: project_id.clone(),
+                                node_type: ares_core::NodeType::Folder,
+                                label: path.file_name().unwrap_or_default().to_string_lossy().to_string(),
+                                properties: serde_json::json!({}),
+                                file_path: Some(path.to_string_lossy().to_string()),
+                                created_at: ares_core::types::event::now_micros(),
+                                updated_at: ares_core::types::event::now_micros(),
+                                deleted_at: None,
+                            };
+                            let _ = self.graph_repo.upsert_node(dir_node);
+                            
+                            // Link to parent
+                            if let Some(parent) = path.parent() {
+                                if let Some(parent_id) = dir_nodes.get(parent) {
+                                    let edge = ares_core::GraphEdge {
+                                        id: format!("edge_contains_{}_{}", parent_id.as_str(), dir_node_id.as_str()),
+                                        project_id: project_id.clone(),
+                                        from_node_id: parent_id.clone(),
+                                        to_node_id: dir_node_id.clone(),
+                                        edge_type: ares_core::EdgeType::Contains,
+                                        weight: 1.0,
+                                        confidence: 1.0,
+                                        source: "scanner".to_string(),
+                                        valid_from: ares_core::types::event::now_micros(),
+                                        valid_until: None,
+                                        created_at: ares_core::types::event::now_micros(),
+                                    };
+                                    let _ = self.graph_repo.upsert_edge(edge);
+                                }
+                            }
+                            
+                            dir_nodes.insert(path, dir_node_id);
+                        } else if entry.file_type().is_some_and(|ft| ft.is_file()) {
+                            paths.push(path);
+                        }
+                    }
+                    Err(_) => continue,
+                }
+            }
+        }
+        
         let files: Vec<PathBuf> = match specific_files {
             Some(f) => f,
-            None => {
-                let mut paths = Vec::new();
-                for result in WalkBuilder::new(root_path).hidden(false).build() {
-                    match result {
-                        Ok(entry) => {
-                            if entry.file_type().is_some_and(|ft| ft.is_file()) {
-                                paths.push(entry.into_path());
-                            }
-                        }
-                        Err(_) => continue,
-                    }
-                }
-                paths
-            }
+            None => paths,
         };
 
+        let dir_nodes_arc = Arc::new(dir_nodes);
         let total = files.len() as u32;
         let parsed = AtomicU32::new(0);
         let failed = AtomicU32::new(0);
@@ -110,9 +172,53 @@ impl Scanner {
                 }
             };
 
-            match self.extractor.extract(project_id, &path_str, &source_code) {
+            let file_node_id = ares_core::NodeId::new();
+            let now = ares_core::types::event::now_micros();
+            let file_node = ares_core::GraphNode {
+                id: file_node_id.clone(),
+                project_id: project_id.clone(),
+                node_type: ares_core::NodeType::File,
+                label: path.file_name().unwrap_or_default().to_string_lossy().to_string(),
+                properties: serde_json::json!({ "hash": current_hash }),
+                file_path: Some(path_str.clone()),
+                created_at: now,
+                updated_at: now,
+                deleted_at: None,
+            };
+
+            let mut edges_to_insert = Vec::new();
+
+            if let Some(parent) = path.parent() {
+                if let Some(parent_id) = dir_nodes_arc.get(parent) {
+                    let edge = ares_core::GraphEdge {
+                        id: format!("edge_contains_{}_{}", parent_id.as_str(), file_node_id.as_str()),
+                        project_id: project_id.clone(),
+                        from_node_id: parent_id.clone(),
+                        to_node_id: file_node_id.clone(),
+                        edge_type: ares_core::EdgeType::Contains,
+                        weight: 1.0,
+                        confidence: 1.0,
+                        source: "scanner".to_string(),
+                        valid_from: now,
+                        valid_until: None,
+                        created_at: now,
+                    };
+                    edges_to_insert.push(edge);
+                }
+            }
+
+            match self.extractor.extract(project_id, &file_node_id, &path_str, &source_code) {
                 Ok(Some(result)) => {
                     let mut node_ids = Vec::new();
+                    
+                    // Upsert the file node
+                    node_ids.push(file_node_id.clone());
+                    let _ = self.graph_repo.upsert_node(file_node);
+
+                    for edge in edges_to_insert {
+                        let _ = self.graph_repo.upsert_edge(edge);
+                    }
+
                     for node in result.nodes {
                         node_ids.push(node.id.clone());
                         let _ = self.graph_repo.upsert_node(node);
@@ -130,7 +236,21 @@ impl Scanner {
                     parsed.fetch_add(1, Ordering::Relaxed);
                 }
                 Ok(None) => {
-                    // Not a supported language file
+                    // Not a supported language file, but still save the file node
+                    let node_ids = vec![file_node_id.clone()];
+                    let _ = self.graph_repo.upsert_node(file_node);
+                    
+                    for edge in edges_to_insert {
+                        let _ = self.graph_repo.upsert_edge(edge);
+                    }
+
+                    let _ = self.graph_repo.update_scan_state(
+                        project_id,
+                        &path_str,
+                        &current_hash,
+                        &node_ids,
+                    );
+                    parsed.fetch_add(1, Ordering::Relaxed);
                 }
                 Err(_) => {
                     failed.fetch_add(1, Ordering::Relaxed);

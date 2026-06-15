@@ -526,7 +526,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "ares-core",
+ "ares-extractor",
  "ares-store",
+ "blake3",
  "chrono",
  "regex",
  "rusqlite",

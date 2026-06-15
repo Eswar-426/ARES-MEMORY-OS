@@ -159,4 +159,72 @@ impl MemoryBuilder {
 
         frameworks
     }
+
+    /// Generates and persists the repository summary and fingerprint.
+    pub async fn update_summary(
+        &self,
+        project: &Project,
+        snapshot: &ProjectSnapshot,
+        provider: &dyn ares_extractor::provider::ExtractorProvider,
+    ) -> Result<(), AresError> {
+        let summarizer = crate::summarizer::RepositorySummarizer::new();
+        let new_fingerprint = crate::summarizer::RepositorySummarizer::compute_fingerprint(snapshot);
+        
+        // Read previous fingerprint from project properties (if any)
+        // For now we just assume InitialScan if not found
+        let mut prev_fingerprint: Option<ares_core::types::project::ProjectFingerprint> = None;
+        // Check graph repo for Project node
+        if let Ok(Some(project_node)) = self._graph_repo.get_node(&ares_core::NodeId::from(project.id.as_str())) {
+            if let Some(fp_val) = project_node.properties.get("fingerprint") {
+                prev_fingerprint = serde_json::from_value(fp_val.clone()).ok();
+            }
+        }
+
+        let trigger = crate::summarizer::RepositorySummarizer::should_regenerate(prev_fingerprint.as_ref(), &new_fingerprint);
+
+        if let Some(t) = trigger {
+            info!("Triggering summary regeneration for project {}", project.name);
+            let summary_markdown = summarizer.generate_summary(project, snapshot, t, provider).await?;
+
+            // Store summary as MemoryType::RepositorySummary
+            let input = ares_core::CreateMemoryInput {
+                project_id: snapshot.project_id.clone().into(),
+                memory_type: ares_core::MemoryType::RepositorySummary,
+                title: format!("Repository Summary for {}", snapshot.name),
+                content: serde_json::Value::String(summary_markdown.clone()),
+                confidence: Some(1.0),
+                importance: Some(ares_core::types::memory::ImportanceLevel::Critical),
+                source: Some(ares_core::types::memory::MemorySource::Agent),
+                ai_assisted: Some(true),
+            };
+
+            let _ = self.memory_repo.create(input);
+
+            // Also store as a property on the NodeType::Project
+            if let Ok(Some(mut project_node)) = self._graph_repo.get_node(&ares_core::NodeId::from(project.id.as_str())) {
+                project_node.properties["repository_summary"] = serde_json::Value::String(summary_markdown);
+                project_node.properties["fingerprint"] = serde_json::to_value(&new_fingerprint).unwrap_or(serde_json::Value::Null);
+                let _ = self._graph_repo.upsert_node(project_node);
+            } else {
+                // If Project Node doesn't exist, create it
+                let project_node = ares_core::GraphNode {
+                    id: ares_core::NodeId::from(project.id.as_str()),
+                    project_id: project.id.clone(),
+                    node_type: ares_core::NodeType::Project,
+                    label: project.id.as_str().to_string(),
+                    properties: serde_json::json!({
+                        "repository_summary": summary_markdown,
+                        "fingerprint": new_fingerprint
+                    }),
+                    file_path: None,
+                    created_at: ares_core::types::event::now_micros(),
+                    updated_at: ares_core::types::event::now_micros(),
+                    deleted_at: None,
+                };
+                let _ = self._graph_repo.upsert_node(project_node);
+            }
+        }
+
+        Ok(())
+    }
 }

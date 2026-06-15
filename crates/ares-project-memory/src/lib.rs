@@ -15,6 +15,7 @@
 pub mod analyzer;
 pub mod builder;
 pub mod snapshot;
+pub mod summarizer;
 pub mod tracker;
 pub mod types;
 

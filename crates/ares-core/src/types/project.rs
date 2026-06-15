@@ -117,3 +117,12 @@ pub struct ProjectStatus {
     pub last_scan_status: Option<String>,
     pub stale_decisions: u32,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectFingerprint {
+    pub total_files: usize,
+    pub languages: Vec<String>,
+    pub crates: usize,
+    pub modules: usize,
+    pub hash: String,
+}

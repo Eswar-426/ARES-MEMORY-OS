@@ -24,6 +24,7 @@ pub enum NodeType {
     Bug,
     Concept,
     Tag,
+    Folder,
 }
 
 impl NodeType {
@@ -45,6 +46,7 @@ impl NodeType {
             Self::Bug => "bug",
             Self::Concept => "concept",
             Self::Tag => "tag",
+            Self::Folder => "folder",
         }
     }
 }
@@ -69,6 +71,7 @@ impl std::str::FromStr for NodeType {
             "bug" => Ok(Self::Bug),
             "concept" => Ok(Self::Concept),
             "tag" => Ok(Self::Tag),
+            "folder" => Ok(Self::Folder),
             other => Err(format!("Unknown node type: {other}")),
         }
     }
@@ -95,6 +98,7 @@ pub enum EdgeType {
     Contradicts,
     Uses,
     DerivedFrom,
+    Contains,
 }
 
 impl EdgeType {
@@ -118,6 +122,7 @@ impl EdgeType {
             Self::Contradicts => "contradicts",
             Self::Uses => "uses",
             Self::DerivedFrom => "derived_from",
+            Self::Contains => "contains",
         }
     }
 }
@@ -144,6 +149,7 @@ impl std::str::FromStr for EdgeType {
             "contradicts" => Ok(Self::Contradicts),
             "uses" => Ok(Self::Uses),
             "derived_from" => Ok(Self::DerivedFrom),
+            "contains" => Ok(Self::Contains),
             other => Err(format!("Unknown edge type: {other}")),
         }
     }

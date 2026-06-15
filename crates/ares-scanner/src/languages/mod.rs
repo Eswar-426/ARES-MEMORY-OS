@@ -1,4 +1,4 @@
-use ares_core::{GraphEdge, GraphNode, ProjectId};
+use ares_core::{GraphEdge, GraphNode, NodeId, ProjectId};
 
 pub mod go;
 pub mod javascript;
@@ -16,6 +16,7 @@ pub trait LanguageExtractor: Send + Sync {
     fn extract(
         &self,
         project_id: &ProjectId,
+        file_node_id: &NodeId,
         file_path: &str,
         source_code: &str,
     ) -> Result<ExtractionResult, Box<dyn std::error::Error + Send + Sync>>;

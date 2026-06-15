@@ -14,7 +14,8 @@ fn test_rust_extractor() {
         fn main() {}
     "#;
     let project_id = ProjectId::new();
-    let result = extractor.extract(&project_id, "main.rs", code).unwrap();
+    let file_node_id = ares_core::NodeId::new();
+    let result = extractor.extract(&project_id, &file_node_id, "main.rs", code).unwrap();
 
     // We should find MyStruct (Struct), my_method (Method/Function double capture), main (Function)
     assert_eq!(result.nodes.len(), 4);
