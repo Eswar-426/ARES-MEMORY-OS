@@ -82,7 +82,16 @@ impl Scanner {
             // The root directory gets mapped to the Project node ID
             dir_nodes.insert(root_path.to_path_buf(), ares_core::NodeId::from(project_id.as_str()));
 
-            for result in WalkBuilder::new(root_path).hidden(false).build() {
+            let walker = WalkBuilder::new(root_path)
+                .hidden(false)
+                .filter_entry(|e| {
+                    let name = e.file_name().to_string_lossy();
+                    !matches!(name.as_ref(), ".git" | "target" | ".gemini" | "artifacts"
+                        | "node_modules" | "dist" | ".turbo" | ".ares" | "scratch")
+                })
+                .build();
+
+            for result in walker {
                 match result {
                     Ok(entry) => {
                         let path = entry.path().to_path_buf();
@@ -142,10 +151,15 @@ impl Scanner {
 
         let dir_nodes_arc = Arc::new(dir_nodes);
         let total = files.len() as u32;
+        eprintln!("[scanner] Total files to process: {}", total);
         let parsed = AtomicU32::new(0);
         let failed = AtomicU32::new(0);
 
-        files.par_iter().for_each(|path| {
+        files.iter().for_each(|path| {
+            let done = parsed.load(Ordering::Relaxed) + failed.load(Ordering::Relaxed);
+            if done % 50 == 0 {
+                eprintln!("[scanner] Progress: {}/{}", done, total);
+            }
             let path_str = path.to_string_lossy().to_string();
 
             let current_hash = match hash_file(path) {

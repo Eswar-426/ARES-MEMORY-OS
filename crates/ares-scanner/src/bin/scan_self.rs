@@ -9,8 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let root_path = std::env::current_dir()?;
     println!("Scanning repository at: {}", root_path.display());
 
-    let dir = std::env::temp_dir().join(format!("ares_test_{}", project_id.as_str()));
-    let db_path = dir.join("test.db");
+    let db_path = root_path.join("ares_memory.db");
     let store = Store::open(&db_path)?;
     
     // Insert the project to satisfy foreign key constraints

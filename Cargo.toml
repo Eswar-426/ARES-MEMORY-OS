@@ -24,6 +24,7 @@ members = [
     "crates/ares-model-testing",
     "crates/ares-extractor",
     "crates/ares-benchmark", "crates/ares-context",
+    "crates/ares-agent-arena"
 ]
 resolver = "2"
 
