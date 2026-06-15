@@ -8,6 +8,7 @@ pub mod report;
 pub mod runner;
 pub mod scoring;
 pub mod tools;
+pub mod context;
 
 pub use agent::{AgentProvider, AgentType, BenchmarkMetrics};
 pub use report::BenchmarkReport;

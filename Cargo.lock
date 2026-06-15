@@ -236,6 +236,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "ares-app",
+ "ares-context",
  "ares-context-generator",
  "ares-core",
  "ares-mcp",
@@ -268,6 +269,21 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
+]
+
+[[package]]
+name = "ares-context"
+version = "0.1.0"
+dependencies = [
+ "ares-core",
+ "ares-project-memory",
+ "ares-store",
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

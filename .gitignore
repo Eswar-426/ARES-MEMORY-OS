@@ -82,3 +82,5 @@ scratch/
 *.sqlite3
 benchmark.db
 telemetry.db
+ares_memory.db
+artifacts/

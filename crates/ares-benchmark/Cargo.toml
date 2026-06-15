@@ -10,6 +10,7 @@ repository.workspace = true
 ares-core = { path = "../ares-core" }
 ares-mcp = { path = "../ares-mcp" }
 ares-store = { path = "../ares-store" }
+ares-context = { path = "../ares-context" }
 ares-context-generator = { path = "../ares-context-generator" }
 ares-project-memory = { path = "../ares-project-memory" }
 ares-app = { path = "../ares-app" }

@@ -1,0 +1,33 @@
+[
+  {
+    "query": "explain crates/ares-scanner/src/scanner.rs",
+    "intent": "FileExplanation",
+    "expected_files": [
+      "crates/ares-scanner/src/scanner.rs"
+    ],
+    "expected_min_nodes": 1
+  },
+  {
+    "query": "trace parser dependencies",
+    "intent": "DependencyTrace",
+    "expected_files": [
+      "crates/ares-context/src/query/parser.rs"
+    ],
+    "expected_min_nodes": 1
+  },
+  {
+    "query": "what is the impact of changing crates/ares-store/src/repositories/graph.rs",
+    "intent": "ChangeImpact",
+    "expected_files": [
+      "crates/ares-store/src/repositories/graph.rs",
+      "crates/ares-context/src/context_engine.rs"
+    ],
+    "expected_min_nodes": 2
+  },
+  {
+    "query": "summarize repository architecture",
+    "intent": "RepositoryOverview",
+    "expected_files": [],
+    "expected_min_nodes": 0
+  }
+]
