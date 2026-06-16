@@ -135,6 +135,40 @@ impl SqliteGraphRepository {
         rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)
     }
 
+    pub fn get_all_nodes(&self, project_id: &ProjectId) -> Result<Vec<GraphNode>, AresError> {
+        let conn = self.store.get_conn()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, project_id, node_type, label, properties, file_path,
+                    created_at, updated_at, deleted_at
+                 FROM graph_nodes
+                 WHERE project_id = ?1 AND deleted_at IS NULL",
+            )
+            .map_err(AresError::db)?;
+
+        let rows = stmt
+            .query_map(params![project_id.as_str()], row_to_node)
+            .map_err(AresError::db)?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)
+    }
+
+    pub fn get_all_edges(&self, project_id: &ProjectId) -> Result<Vec<GraphEdge>, AresError> {
+        let conn = self.store.get_conn()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, project_id, from_node_id, to_node_id, edge_type, weight,
+                    confidence, source, valid_from, valid_until, created_at
+                 FROM graph_edges
+                 WHERE project_id = ?1 AND valid_until IS NULL",
+            )
+            .map_err(AresError::db)?;
+
+        let rows = stmt
+            .query_map(params![project_id.as_str()], row_to_edge)
+            .map_err(AresError::db)?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)
+    }
+
     pub fn redirect_edges(&self, old_target: &NodeId, new_target: &NodeId) -> Result<usize, AresError> {
         let conn = self.store.get_conn()?;
         let rows = conn.execute(

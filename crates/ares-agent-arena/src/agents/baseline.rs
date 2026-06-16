@@ -94,6 +94,9 @@ impl AgentRunner for BaselineAgent {
             overall_score: 0.0,
             graph_coverage: 0.1, // Baseline uses keyword search, poor coverage
             context_efficiency: 0.1, // Keyword search efficiency is low
+            reasoning_accuracy: 0.5,
+            reasoning_coverage: 0.5,
+            reasoning_precision: 0.5,
         })
     }
 }

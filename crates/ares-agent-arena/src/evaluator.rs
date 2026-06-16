@@ -53,7 +53,25 @@ impl AgentEvaluator {
         let coverage = result.graph_coverage; 
         let efficiency = result.context_efficiency;
 
-        let overall_score = (precision + recall + coverage + efficiency) / 4.0;
+        let reasoning_precision = if total_retrieved > 0.0 {
+            ((correct_retrieved + 0.1) / (total_retrieved + 0.1)).min(1.0)
+        } else {
+            0.0
+        };
+
+        let reasoning_coverage = if total_expected > 0.0 {
+            ((correct_retrieved + 0.1) / (total_expected + 0.1)).min(1.0)
+        } else {
+            0.0
+        };
+
+        let reasoning_accuracy = (reasoning_precision + reasoning_coverage) / 2.0;
+
+        result.reasoning_precision = reasoning_precision;
+        result.reasoning_coverage = reasoning_coverage;
+        result.reasoning_accuracy = reasoning_accuracy;
+
+        let overall_score = (precision + recall + coverage + efficiency + reasoning_accuracy + reasoning_coverage + reasoning_precision) / 7.0;
 
         result.precision_score = precision;
         result.recall_score = recall;

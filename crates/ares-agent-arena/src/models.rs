@@ -51,4 +51,7 @@ pub struct AgentRunResult {
     pub overall_score: f32,
     pub graph_coverage: f32,
     pub context_efficiency: f32,
+    pub reasoning_accuracy: f32,
+    pub reasoning_coverage: f32,
+    pub reasoning_precision: f32,
 }

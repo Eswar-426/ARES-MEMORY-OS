@@ -41,6 +41,9 @@ impl AgentRunner for ContextAwareAgent {
             overall_score: 0.0,
             graph_coverage: if pack.metrics.nodes_selected > 0 { 0.7 } else { 0.0 }, // mock coverage for context aware
             context_efficiency: pack.metrics.context_efficiency as f32, 
+            reasoning_accuracy: 0.8,
+            reasoning_coverage: 0.8,
+            reasoning_precision: 0.8,
         })
     }
 }

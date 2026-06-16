@@ -35,6 +35,9 @@ impl AgentRunner for PlannerAgentStub {
             overall_score: 0.0,
             graph_coverage: 1.0, 
             context_efficiency: 1.0, 
+            reasoning_accuracy: 1.0,
+            reasoning_coverage: 1.0,
+            reasoning_precision: 1.0,
         })
     }
 }

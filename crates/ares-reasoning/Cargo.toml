@@ -1,0 +1,14 @@
+[package]
+name = "ares-reasoning"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ares-store = { path = "../ares-store" }
+ares-core = { path = "../ares-core" }
+ares-context = { path = "../ares-context" }
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+petgraph.workspace = true
+clap.workspace = true

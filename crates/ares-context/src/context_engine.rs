@@ -75,7 +75,12 @@ impl ContextEngine {
     pub async fn resolve_query(&self, query: &str) -> Result<ContextBundle, AresError> {
         let start = Instant::now();
         
-        let intent = self.intent_detector.detect(query);
+        let mut intent = self.intent_detector.detect(query);
+        match intent {
+            QueryIntent::ChangeImpact => intent = QueryIntent::ImpactAnalysis,
+            QueryIntent::DeadCodeDiscovery => intent = QueryIntent::DeadCodeQuery,
+            _ => {}
+        }
         let targets = self.query_parser.extract_targets(query);
         
         let mut bundle_builder = BundleBuilder::new();
@@ -99,7 +104,7 @@ impl ContextEngine {
 
         // 2. Intent-specific Traversal & Impact
         match intent {
-            QueryIntent::ChangeImpact => {
+            QueryIntent::ImpactAnalysis => {
                 for node in &seed_nodes {
                     let report = self.impact_analyzer.analyze(&self.project_id, &node.id).await?;
                     bundle_builder.add_impact_report(report);
