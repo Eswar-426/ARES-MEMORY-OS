@@ -364,6 +364,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "ares-decision-dna"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ares-core",
+ "ares-store",
+ "async-trait",
+ "chrono",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "uuid",
+]
+
+[[package]]
 name = "ares-embeddings"
 version = "0.1.0"
 dependencies = [

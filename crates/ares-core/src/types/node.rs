@@ -25,6 +25,10 @@ pub enum NodeType {
     Concept,
     Tag,
     Folder,
+    Alternative,
+    Assumption,
+    Risk,
+    Requirement,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -55,6 +59,10 @@ impl NodeType {
             Self::Concept => "concept",
             Self::Tag => "tag",
             Self::Folder => "folder",
+            Self::Alternative => "alternative",
+            Self::Assumption => "assumption",
+            Self::Risk => "risk",
+            Self::Requirement => "requirement",
         }
     }
 }
@@ -80,6 +88,10 @@ impl std::str::FromStr for NodeType {
             "concept" => Ok(Self::Concept),
             "tag" => Ok(Self::Tag),
             "folder" => Ok(Self::Folder),
+            "alternative" => Ok(Self::Alternative),
+            "assumption" => Ok(Self::Assumption),
+            "risk" => Ok(Self::Risk),
+            "requirement" => Ok(Self::Requirement),
             other => Err(format!("Unknown node type: {other}")),
         }
     }
@@ -115,6 +127,8 @@ pub enum EdgeType {
     UsesModule,
     UsesTrait,
     Constrains,
+    HasRisk,
+    HasAssumption,
 }
 
 impl EdgeType {
@@ -147,6 +161,8 @@ impl EdgeType {
             Self::UsesModule => "uses_module",
             Self::UsesTrait => "uses_trait",
             Self::Constrains => "constrains",
+            Self::HasRisk => "has_risk",
+            Self::HasAssumption => "has_assumption",
         }
     }
 }
@@ -182,7 +198,9 @@ impl std::str::FromStr for EdgeType {
             "uses_module" => Ok(Self::UsesModule),
             "uses_trait" => Ok(Self::UsesTrait),
             "constrains" => Ok(Self::Constrains),
-            _ => Err(format!("Unknown edge type: {}", s)),
+            "has_risk" => Ok(Self::HasRisk),
+            "has_assumption" => Ok(Self::HasAssumption),
+            other => Err(format!("Unknown edge type: {other}")),
         }
     }
 }
