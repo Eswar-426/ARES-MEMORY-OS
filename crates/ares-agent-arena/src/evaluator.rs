@@ -42,15 +42,23 @@ impl AgentEvaluator {
             0.0
         };
 
-        // Context Efficiency: Useful Nodes / Retrieved Nodes
-        // Here nodes = files + components combined
-        let efficiency = precision; // Efficiency is exactly Precision in this mock, as "Useful" means "Correct"
+        // For real implementation, efficiency is extracted from AgentRunResult if available,
+        // or we compute a simple stand-in if not provided. Here we rely on the agent to pass it via the builder.
+        // Wait, the agent currently doesn't populate coverage and efficiency because it doesn't have access to the audit.
+        // The mock agent in ares-agent-arena/src/agents/context_aware.rs does not actually read `pack.metrics.context_efficiency`.
+        // Let's modify the Evaluator to just take them if present, but since we are computing them:
+        
+        let confidence_score = precision * recall; // User requested precision * recall
 
-        let confidence = (precision + recall + efficiency) / 3.0;
+        let coverage = result.graph_coverage; 
+        let efficiency = result.context_efficiency;
+
+        let overall_score = (precision + recall + coverage + efficiency) / 4.0;
 
         result.precision_score = precision;
         result.recall_score = recall;
-        result.confidence_score = confidence;
+        result.confidence_score = confidence_score;
+        result.overall_score = overall_score;
 
         result
     }

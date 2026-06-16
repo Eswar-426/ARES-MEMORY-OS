@@ -2,7 +2,7 @@ use crate::models::{ContextBundle, DependencyTrace, FileExplanation, ImpactRepor
 use ares_core::GraphNode;
 
 pub struct BundleBuilder {
-    bundle: ContextBundle,
+    pub bundle: ContextBundle,
 }
 
 impl BundleBuilder {
@@ -54,6 +54,11 @@ impl BundleBuilder {
 
     pub fn set_metrics(&mut self, metrics: crate::models::metrics::ContextMetrics) -> &mut Self {
         self.bundle.metrics = metrics;
+        self
+    }
+
+    pub fn set_reachable_nodes(&mut self, count: usize) -> &mut Self {
+        self.bundle.reachable_nodes = count;
         self
     }
 

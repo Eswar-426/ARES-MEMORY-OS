@@ -14,6 +14,10 @@ impl SqliteGraphRepository {
         Self { store }
     }
 
+    pub fn store(&self) -> &Store {
+        &self.store
+    }
+
     // ----------------------------------------------------------------
     // Upsert node — insert or update based on (project_id, node_type, label, file_path)
     // ----------------------------------------------------------------
@@ -127,6 +131,60 @@ impl SqliteGraphRepository {
 
         let rows = stmt
             .query_map(params![project_id.as_str(), path], row_to_node)
+            .map_err(AresError::db)?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)
+    }
+
+    pub fn redirect_edges(&self, old_target: &NodeId, new_target: &NodeId) -> Result<usize, AresError> {
+        let conn = self.store.get_conn()?;
+        let rows = conn.execute(
+            "UPDATE graph_edges
+             SET to_node_id = ?2
+             WHERE to_node_id = ?1 AND valid_until IS NULL",
+            params![old_target.as_str(), new_target.as_str()],
+        ).map_err(AresError::db)?;
+        Ok(rows)
+    }
+
+    pub fn delete_node_permanently(&self, id: &NodeId) -> Result<(), AresError> {
+        let conn = self.store.get_conn()?;
+        conn.execute(
+            "DELETE FROM graph_nodes WHERE id = ?1",
+            params![id.as_str()],
+        ).map_err(AresError::db)?;
+        Ok(())
+    }
+
+    pub fn get_unresolved_nodes(&self, project_id: &ProjectId) -> Result<Vec<GraphNode>, AresError> {
+        let conn = self.store.get_conn()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, project_id, node_type, label, properties, file_path,
+                    created_at, updated_at, deleted_at
+                 FROM graph_nodes
+                 WHERE project_id = ?1 AND properties LIKE '%\"unresolved\":true%' AND deleted_at IS NULL",
+            )
+            .map_err(AresError::db)?;
+
+        let rows = stmt
+            .query_map(params![project_id.as_str()], row_to_node)
+            .map_err(AresError::db)?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)
+    }
+
+    pub fn get_nodes_by_name(&self, project_id: &ProjectId, name: &str) -> Result<Vec<GraphNode>, AresError> {
+        let conn = self.store.get_conn()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, project_id, node_type, label, properties, file_path,
+                    created_at, updated_at, deleted_at
+                 FROM graph_nodes
+                 WHERE project_id = ?1 AND label = ?2 AND deleted_at IS NULL",
+            )
+            .map_err(AresError::db)?;
+
+        let rows = stmt
+            .query_map(params![project_id.as_str(), name], row_to_node)
             .map_err(AresError::db)?;
         rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)
     }

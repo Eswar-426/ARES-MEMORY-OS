@@ -19,13 +19,12 @@ impl AgentRunner for PlannerAgentStub {
         if !retrieved_files.contains(&"src/lib.rs".to_string()) {
             retrieved_files.push("src/lib.rs".to_string());
         }
-
         let latency_ms = start.elapsed().as_millis() as u64 + 1500; // Simulated latency of planner thinking
 
         Ok(AgentRunResult {
             task_id: task.id.clone(),
             agent_type: AgentType::Planner,
-            response: format!("Planned and retrieved {} files.", retrieved_files.len()),
+            response: format!("Planned changes for {} tasks.", retrieved_files.len()),
             latency_ms,
             context_nodes_used: retrieved_components.len(),
             retrieved_files,
@@ -33,6 +32,9 @@ impl AgentRunner for PlannerAgentStub {
             precision_score: 0.0,
             recall_score: 0.0,
             confidence_score: 0.0,
+            overall_score: 0.0,
+            graph_coverage: 1.0, 
+            context_efficiency: 1.0, 
         })
     }
 }

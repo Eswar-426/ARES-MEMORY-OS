@@ -7,6 +7,7 @@
 //! - Full-text search (FTS5)
 
 pub mod db;
+pub mod metrics;
 pub mod migrations;
 pub mod query;
 pub mod repositories;

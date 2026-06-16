@@ -59,6 +59,174 @@ impl Store {
             .map_err(|e| AresError::db(format!("Failed to get connection: {e}")))
     }
 
+    /// Computes full graph metrics (Phase 1 Validation).
+    pub fn graph_metrics(&self) -> Result<crate::metrics::GraphMetrics, AresError> {
+        let conn = self.get_conn()?;
+
+        let total_nodes: usize = conn.query_row(
+            "SELECT COUNT(*) FROM graph_nodes WHERE deleted_at IS NULL",
+            (),
+            |row| row.get(0),
+        ).map_err(|e| AresError::db(e.to_string()))?;
+
+        let total_edges: usize = conn.query_row(
+            "SELECT COUNT(*) FROM graph_edges WHERE valid_until IS NULL",
+            (),
+            |row| row.get(0),
+        ).map_err(|e| AresError::db(e.to_string()))?;
+
+        // Calculate orphans efficiently in Rust instead of a nested loop in SQL without index
+        let mut all_nodes = std::collections::HashSet::new();
+        let mut stmt = conn.prepare("SELECT id FROM graph_nodes WHERE deleted_at IS NULL").unwrap();
+        let mut rows = stmt.query(()).unwrap();
+        while let Some(row) = rows.next().unwrap() {
+            let id: String = row.get(0).unwrap();
+            all_nodes.insert(id);
+        }
+
+        let mut connected_nodes = std::collections::HashSet::new();
+        let mut stmt = conn.prepare("SELECT from_node_id, to_node_id FROM graph_edges WHERE valid_until IS NULL").unwrap();
+        let mut rows = stmt.query(()).unwrap();
+        while let Some(row) = rows.next().unwrap() {
+            let from: String = row.get(0).unwrap();
+            let to: String = row.get(1).unwrap();
+            connected_nodes.insert(from);
+            connected_nodes.insert(to);
+        }
+
+        let orphan_nodes = all_nodes.difference(&connected_nodes).count();
+
+        let mut node_type_counts = std::collections::HashMap::new();
+        let mut stmt = conn.prepare("SELECT node_type, COUNT(*) FROM graph_nodes WHERE deleted_at IS NULL GROUP BY node_type").map_err(|e| AresError::db(e.to_string()))?;
+        let mut rows = stmt.query(()).map_err(|e| AresError::db(e.to_string()))?;
+        while let Some(row) = rows.next().map_err(|e| AresError::db(e.to_string()))? {
+            let t: String = row.get(0).unwrap_or_default();
+            let c: usize = row.get(1).unwrap_or_default();
+            node_type_counts.insert(t, c);
+        }
+
+        let mut relationship_type_counts = std::collections::HashMap::new();
+        let mut stmt = conn.prepare("SELECT edge_type, COUNT(*) FROM graph_edges WHERE valid_until IS NULL GROUP BY edge_type").map_err(|e| AresError::db(e.to_string()))?;
+        let mut rows = stmt.query(()).map_err(|e| AresError::db(e.to_string()))?;
+        while let Some(row) = rows.next().map_err(|e| AresError::db(e.to_string()))? {
+            let t: String = row.get(0).unwrap_or_default();
+            let c: usize = row.get(1).unwrap_or_default();
+            relationship_type_counts.insert(t, c);
+        }
+
+        // Compute largest connected component in memory using BFS/Union-Find
+        let mut parent: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        let mut size: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        
+        let mut stmt = conn.prepare("SELECT id FROM graph_nodes WHERE deleted_at IS NULL").map_err(|e| AresError::db(e.to_string()))?;
+        let mut rows = stmt.query(()).map_err(|e| AresError::db(e.to_string()))?;
+        while let Some(row) = rows.next().map_err(|e| AresError::db(e.to_string()))? {
+            let id: String = row.get(0).unwrap();
+            parent.insert(id.clone(), id.clone());
+            size.insert(id, 1);
+        }
+
+        fn find(parent: &mut std::collections::HashMap<String, String>, i: String) -> String {
+            let mut curr = i;
+            while parent[&curr] != curr {
+                let p = parent[&curr].clone();
+                let gp = parent[&p].clone();
+                parent.insert(curr.clone(), gp);
+                curr = p;
+            }
+            curr
+        }
+
+        let mut stmt = conn.prepare("SELECT from_node_id, to_node_id FROM graph_edges WHERE valid_until IS NULL").map_err(|e| AresError::db(e.to_string()))?;
+        let mut rows = stmt.query(()).map_err(|e| AresError::db(e.to_string()))?;
+        while let Some(row) = rows.next().map_err(|e| AresError::db(e.to_string()))? {
+            let s: String = row.get(0).unwrap();
+            let t: String = row.get(1).unwrap();
+            if parent.contains_key(&s) && parent.contains_key(&t) {
+                let root_s = find(&mut parent, s);
+                let root_t = find(&mut parent, t);
+                if root_s != root_t {
+                    let size_s = size[&root_s];
+                    let size_t = size[&root_t];
+                    if size_s < size_t {
+                        parent.insert(root_s.clone(), root_t.clone());
+                        size.insert(root_t, size_s + size_t);
+                    } else {
+                        parent.insert(root_t.clone(), root_s.clone());
+                        size.insert(root_s, size_s + size_t);
+                    }
+                }
+            }
+        }
+
+        let largest_connected_component = size.values().copied().max().unwrap_or(0);
+        
+        let average_degree = if total_nodes > 0 {
+            (total_edges as f64 * 2.0) / (total_nodes as f64)
+        } else {
+            0.0
+        };
+
+        let graph_density = if total_nodes > 1 {
+            (total_edges as f64 * 2.0) / ((total_nodes as f64) * (total_nodes as f64 - 1.0))
+        } else {
+            0.0
+        };
+
+        Ok(crate::metrics::GraphMetrics {
+            total_nodes,
+            total_edges,
+            node_type_counts,
+            relationship_type_counts,
+            orphan_nodes,
+            largest_connected_component,
+            average_degree,
+            graph_density,
+        })
+    }
+
+    pub fn call_graph_metrics(&self) -> Result<crate::metrics::CallGraphMetrics, AresError> {
+        let conn = self.get_conn()?;
+
+        let call_edges: usize = conn.query_row(
+            "SELECT COUNT(*) FROM graph_edges WHERE edge_type = 'calls' AND valid_until IS NULL",
+            (),
+            |row| row.get(0),
+        ).unwrap_or(0);
+
+        let dependency_edges: usize = conn.query_row(
+            "SELECT COUNT(*) FROM graph_edges WHERE edge_type IN ('depends_on', 'imports', 'uses_module', 'uses_trait', 'contained_in') AND valid_until IS NULL",
+            (),
+            |row| row.get(0),
+        ).unwrap_or(0);
+
+        let implementation_edges: usize = conn.query_row(
+            "SELECT COUNT(*) FROM graph_edges WHERE edge_type = 'implements' AND valid_until IS NULL",
+            (),
+            |row| row.get(0),
+        ).unwrap_or(0);
+
+        let resolved_symbols: usize = conn.query_row(
+            "SELECT COUNT(*) FROM graph_nodes WHERE properties NOT LIKE '%\"unresolved\":true%' AND deleted_at IS NULL",
+            (),
+            |row| row.get(0),
+        ).unwrap_or(0);
+
+        let unresolved_symbols: usize = conn.query_row(
+            "SELECT COUNT(*) FROM graph_nodes WHERE properties LIKE '%\"unresolved\":true%' AND deleted_at IS NULL",
+            (),
+            |row| row.get(0),
+        ).unwrap_or(0);
+
+        Ok(crate::metrics::CallGraphMetrics {
+            call_edges,
+            dependency_edges,
+            implementation_edges,
+            resolved_symbols,
+            unresolved_symbols,
+        })
+    }
+
     /// Execute a closure within a transaction.
     /// Rolls back automatically if the closure returns Err.
     pub fn with_transaction<F, T>(&self, f: F) -> Result<T, AresError>

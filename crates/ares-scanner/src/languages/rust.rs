@@ -17,6 +17,14 @@ impl RustExtractor {
             (impl_item body: (declaration_list (function_item name: (identifier) @name) @method))
             (mod_item name: (identifier) @name) @module
             (use_declaration) @import
+            
+            (call_expression function: (identifier) @name) @call
+            (call_expression function: (scoped_identifier name: (identifier) @name)) @call
+            (call_expression function: (field_expression field: (field_identifier) @name)) @method_call
+            (struct_expression name: (type_identifier) @name) @construct
+            (struct_expression name: (scoped_type_identifier name: (type_identifier) @name)) @construct
+            (impl_item trait: (type_identifier) @name) @impl_trait
+            (impl_item trait: (scoped_type_identifier name: (type_identifier) @name)) @impl_trait
         "#;
         let query = Query::new(&language, query_str).expect("Invalid Rust Tree-sitter query");
         Self { query }
@@ -27,6 +35,25 @@ impl Default for RustExtractor {
     fn default() -> Self {
         Self::new()
     }
+}
+
+struct ScopeDef {
+    id: NodeId,
+    start_line: usize,
+    end_line: usize,
+}
+
+enum RefType {
+    Call,
+    MethodCall,
+    Construct,
+    ImplTrait,
+}
+
+struct RefUse {
+    name: String,
+    ref_type: RefType,
+    line: usize,
 }
 
 impl LanguageExtractor for RustExtractor {
@@ -46,7 +73,10 @@ impl LanguageExtractor for RustExtractor {
         };
 
         let mut nodes = Vec::new();
-        let mut edges = Vec::new(); // Edges (e.g., calls) can be added later
+        let mut edges = Vec::new();
+
+        let mut scopes = Vec::new();
+        let mut references = Vec::new();
 
         let mut cursor = QueryCursor::new();
         let matches = cursor.matches(&self.query, tree.root_node(), source_code.as_bytes());
@@ -55,6 +85,7 @@ impl LanguageExtractor for RustExtractor {
 
         for m in matches {
             let mut node_type_opt = None;
+            let mut ref_type_opt = None;
             let mut name = String::new();
             let mut start_line = 0;
             let mut end_line = 0;
@@ -66,7 +97,7 @@ impl LanguageExtractor for RustExtractor {
                 if capture_name == "name" {
                     name = text.to_string();
                 } else if capture_name == "import" {
-                    node_type_opt = Some(NodeType::Tag); // Dummy to differentiate logic below
+                    node_type_opt = Some(NodeType::Tag);
                     name = text.to_string();
                 } else {
                     node_type_opt = match capture_name {
@@ -78,23 +109,41 @@ impl LanguageExtractor for RustExtractor {
                         "module" => Some(NodeType::Module),
                         _ => None,
                     };
+                    
+                    if node_type_opt.is_none() {
+                        ref_type_opt = match capture_name {
+                            "call" => Some(RefType::Call),
+                            "method_call" => Some(RefType::MethodCall),
+                            "construct" => Some(RefType::Construct),
+                            "impl_trait" => Some(RefType::ImplTrait),
+                            _ => None,
+                        };
+                    }
                     start_line = capture.node.start_position().row + 1;
                     end_line = capture.node.end_position().row + 1;
                 }
             }
 
-            if let Some(node_type) = node_type_opt {
-                if !name.is_empty() {
+            if !name.is_empty() {
+                if let Some(node_type) = node_type_opt {
                     if node_type == NodeType::Tag && capture_names_contains_import(&m, &self.query) {
-                        // This is an import
                         let import_path = name.replace("use ", "").replace(";", "").trim().to_string();
                         let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}", import_path));
+                        let signature = ares_core::types::node::SymbolSignature {
+                            name: import_path.clone(),
+                            file_path: None,
+                            module_path: None,
+                            symbol_type: NodeType::Module,
+                        };
                         let unresolved_node = GraphNode {
                             id: unresolved_node_id.clone(),
                             project_id: project_id.clone(),
                             node_type: NodeType::Module,
                             label: import_path.clone(),
-                            properties: serde_json::json!({"unresolved": true}),
+                            properties: serde_json::json!({
+                                "unresolved": true,
+                                "signature": signature
+                            }),
                             file_path: None,
                             created_at: now,
                             updated_at: now,
@@ -151,10 +200,109 @@ impl LanguageExtractor for RustExtractor {
                         created_at: now,
                     };
 
+                    let reverse_edge = ares_core::GraphEdge {
+                        id: format!("edge_containedin_{}_{}", graph_node.id.as_str(), file_node_id.as_str()),
+                        project_id: project_id.clone(),
+                        from_node_id: graph_node.id.clone(),
+                        to_node_id: file_node_id.clone(),
+                        edge_type: ares_core::EdgeType::ContainedIn,
+                        weight: 1.0,
+                        confidence: 1.0,
+                        source: "scanner".to_string(),
+                        valid_from: now,
+                        valid_until: None,
+                        created_at: now,
+                    };
+
+                    scopes.push(ScopeDef {
+                        id: graph_node.id.clone(),
+                        start_line,
+                        end_line,
+                    });
+                    
                     nodes.push(graph_node);
                     edges.push(edge);
+                    edges.push(reverse_edge);
+                } else if let Some(ref_type) = ref_type_opt {
+                    references.push(RefUse {
+                        name,
+                        ref_type,
+                        line: start_line,
+                    });
                 }
             }
+        }
+
+        // Process references to link them to the most specific enclosing scope
+        for r in references {
+            let mut best_scope_id = None;
+            let mut min_size = usize::MAX;
+
+            for scope in &scopes {
+                if r.line >= scope.start_line && r.line <= scope.end_line {
+                    let size = scope.end_line - scope.start_line;
+                    if size < min_size {
+                        min_size = size;
+                        best_scope_id = Some(scope.id.clone());
+                    }
+                }
+            }
+
+            let source_node_id = best_scope_id.unwrap_or(file_node_id.clone());
+
+            let edge_type = match r.ref_type {
+                RefType::Call => ares_core::EdgeType::Calls,
+                RefType::MethodCall => ares_core::EdgeType::Invokes,
+                RefType::Construct => ares_core::EdgeType::Constructs,
+                RefType::ImplTrait => ares_core::EdgeType::Implements,
+            };
+
+            let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}", r.name));
+            let expected_type = match r.ref_type {
+                RefType::Call => NodeType::Function,
+                RefType::MethodCall => NodeType::Method,
+                RefType::Construct => NodeType::Struct,
+                RefType::ImplTrait => NodeType::Trait,
+            };
+            
+            let signature = ares_core::types::node::SymbolSignature {
+                name: r.name.clone(),
+                file_path: None,
+                module_path: None,
+                symbol_type: expected_type.clone(),
+            };
+            
+            let unresolved_node = GraphNode {
+                id: unresolved_node_id.clone(),
+                project_id: project_id.clone(),
+                node_type: expected_type,
+                label: r.name.clone(),
+                properties: serde_json::json!({
+                    "unresolved": true,
+                    "signature": signature
+                }),
+                file_path: None,
+                created_at: now,
+                updated_at: now,
+                deleted_at: None,
+            };
+            // Add if not already pushed to prevent dupes (though DB upsert handles dupes mostly, let's just push it)
+            nodes.push(unresolved_node);
+
+            let ref_edge = ares_core::GraphEdge {
+                id: format!("edge_{}_{}_{}", edge_type.as_str(), source_node_id.as_str(), unresolved_node_id.as_str()),
+                project_id: project_id.clone(),
+                from_node_id: source_node_id.clone(),
+                to_node_id: unresolved_node_id.clone(),
+                edge_type,
+                weight: 1.0,
+                confidence: 0.5,
+                source: "scanner".to_string(),
+                valid_from: now,
+                valid_until: None,
+                created_at: now,
+            };
+            edges.push(ref_edge);
         }
 
         Ok(ExtractionResult { nodes, edges })
@@ -193,8 +341,8 @@ mod tests {
         // Should have 1 function node and 2 unresolved module nodes
         assert_eq!(result.nodes.len(), 3);
         
-        // Should have 1 Defines edge and 2 Imports edges
-        assert_eq!(result.edges.len(), 3);
+        // Should have 1 Defines edge, 1 ContainedIn edge, and 2 Imports edges
+        assert_eq!(result.edges.len(), 4);
         
         let mut import_paths = Vec::new();
         for edge in result.edges {

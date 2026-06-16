@@ -48,4 +48,7 @@ pub struct AgentRunResult {
     pub precision_score: f32,
     pub recall_score: f32,
     pub confidence_score: f32,
+    pub overall_score: f32,
+    pub graph_coverage: f32,
+    pub context_efficiency: f32,
 }

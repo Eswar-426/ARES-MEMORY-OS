@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum NodeType {
     Project,
+    Module,
     File,
     Function,
     Method,
@@ -17,7 +18,6 @@ pub enum NodeType {
     Enum,
     Trait,
     Interface,
-    Module,
     Service,
     Decision,
     Feature,
@@ -25,6 +25,14 @@ pub enum NodeType {
     Concept,
     Tag,
     Folder,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SymbolSignature {
+    pub name: String,
+    pub file_path: Option<String>,
+    pub module_path: Option<String>,
+    pub symbol_type: NodeType,
 }
 
 impl NodeType {
@@ -99,6 +107,14 @@ pub enum EdgeType {
     Uses,
     DerivedFrom,
     Contains,
+    ContainedIn,
+    Invokes,
+    Constructs,
+    References,
+    ResolvedTo,
+    UsesModule,
+    UsesTrait,
+    Constrains,
 }
 
 impl EdgeType {
@@ -123,6 +139,14 @@ impl EdgeType {
             Self::Uses => "uses",
             Self::DerivedFrom => "derived_from",
             Self::Contains => "contains",
+            Self::ContainedIn => "contained_in",
+            Self::Invokes => "invokes",
+            Self::Constructs => "constructs",
+            Self::References => "references",
+            Self::ResolvedTo => "resolved_to",
+            Self::UsesModule => "uses_module",
+            Self::UsesTrait => "uses_trait",
+            Self::Constrains => "constrains",
         }
     }
 }
@@ -150,7 +174,15 @@ impl std::str::FromStr for EdgeType {
             "uses" => Ok(Self::Uses),
             "derived_from" => Ok(Self::DerivedFrom),
             "contains" => Ok(Self::Contains),
-            other => Err(format!("Unknown edge type: {other}")),
+            "contained_in" => Ok(Self::ContainedIn),
+            "invokes" => Ok(Self::Invokes),
+            "constructs" => Ok(Self::Constructs),
+            "references" => Ok(Self::References),
+            "resolved_to" => Ok(Self::ResolvedTo),
+            "uses_module" => Ok(Self::UsesModule),
+            "uses_trait" => Ok(Self::UsesTrait),
+            "constrains" => Ok(Self::Constrains),
+            _ => Err(format!("Unknown edge type: {}", s)),
         }
     }
 }

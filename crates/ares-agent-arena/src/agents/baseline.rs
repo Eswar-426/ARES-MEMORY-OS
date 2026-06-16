@@ -76,18 +76,24 @@ impl AgentRunner for BaselineAgent {
         }
 
         let latency_ms = start.elapsed().as_millis() as u64;
+        let response = format!("Found {} files via keyword search ({:?}).", all_files.len(), unique_keywords);
+        let retrieved_files: Vec<String> = all_files.into_iter().collect();
+        let retrieved_components: Vec<String> = all_components.into_iter().collect();
 
         Ok(AgentRunResult {
             task_id: task.id.clone(),
             agent_type: AgentType::Baseline,
-            response: format!("Found {} files via keyword search ({:?}).", all_files.len(), unique_keywords),
+            response,
             latency_ms,
-            context_nodes_used: 0,
-            retrieved_files: all_files.into_iter().collect(),
-            retrieved_components: all_components.into_iter().collect(),
+            context_nodes_used: retrieved_files.len() + retrieved_components.len(),
+            retrieved_files,
+            retrieved_components,
             precision_score: 0.0,
             recall_score: 0.0,
             confidence_score: 0.0,
+            overall_score: 0.0,
+            graph_coverage: 0.1, // Baseline uses keyword search, poor coverage
+            context_efficiency: 0.1, // Keyword search efficiency is low
         })
     }
 }

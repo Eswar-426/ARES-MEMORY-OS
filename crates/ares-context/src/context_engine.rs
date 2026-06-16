@@ -141,31 +141,65 @@ impl ContextEngine {
         
         let traversal_time = t_start.elapsed().as_millis() as u64;
 
-        // Ranking Time Start
         let rank_start = Instant::now();
+        
+        // Compute seed_ids before moving seed_nodes
+        let seed_ids: Vec<_> = seed_nodes.iter().map(|n| n.id.clone()).collect();
         
         // For demonstration, rank all seeds. A full impl would rank all traversed nodes.
         let nodes_to_rank: Vec<_> = seed_nodes.into_iter().map(|n| (n, 0)).collect();
         let ranked_nodes = self.ranker.rank(nodes_to_rank);
         
         let ranking_time = rank_start.elapsed().as_millis() as u64;
-        let _total_time = start.elapsed().as_millis() as u64;
+        let total_time = start.elapsed().as_millis() as u64;
+        
+        let reachable_nodes = self.graph_retriever.count_reachable_nodes(&seed_ids, 3).await.unwrap_or(seed_ids.len());
 
         let metrics = ContextMetrics {
             retrieval_time_ms: retrieval_time,
             traversal_time_ms: traversal_time,
             ranking_time_ms: ranking_time,
-            nodes_examined: 0, // Track properly during traversal later
+            nodes_examined: reachable_nodes, 
             nodes_returned: ranked_nodes.len(),
+            ..Default::default()
         };
 
         bundle_builder.set_ranked_nodes(ranked_nodes.into_iter().map(|rn| rn.node).collect());
         bundle_builder.set_metrics(metrics);
+        bundle_builder.set_reachable_nodes(reachable_nodes);
+
+        let retrieved_nodes_count = bundle_builder.bundle.ranked_nodes.len();
+        let graph_coverage_score = if reachable_nodes > 0 {
+            retrieved_nodes_count as f64 / reachable_nodes as f64
+        } else {
+            1.0
+        };
+
+        let audit = crate::models::metrics::RetrievalAudit {
+            query: query.to_string(),
+            seed_nodes: seed_ids.len(),
+            retrieved_nodes: retrieved_nodes_count,
+            reachable_nodes,
+            retrieval_depth: 3,
+            graph_coverage_score,
+            retrieval_latency_ms: total_time,
+        };
+
+        let mut out_dir = std::path::PathBuf::from("artifacts");
+        out_dir.push("telemetry");
+        out_dir.push("retrieval_audit");
+        let _ = std::fs::create_dir_all(&out_dir);
+        let hash = std::collections::hash_map::DefaultHasher::new();
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        query.hash(&mut hasher);
+        let query_hash = hasher.finish();
+        
+        let out_file = out_dir.join(format!("{}.json", query_hash));
+        let _ = std::fs::write(&out_file, serde_json::to_string_pretty(&audit).unwrap_or_default());
 
         Ok(bundle_builder.build())
     }
-
-    // Direct API hooks
     
     pub async fn explain_file(&self, file_path: &str) -> Result<ContextBundle, AresError> {
         self.resolve_query(&format!("explain {}", file_path)).await

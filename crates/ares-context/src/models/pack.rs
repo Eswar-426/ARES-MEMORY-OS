@@ -21,6 +21,7 @@ pub struct ContextBudget {
     pub max_impact_entries: usize,
     pub max_snippets: usize,
     pub max_characters: usize,
+    pub max_depth: usize,
 }
 
 impl Default for ContextBudget {
@@ -32,6 +33,7 @@ impl Default for ContextBudget {
             max_impact_entries: 50,
             max_snippets: 20,
             max_characters: 100_000,
+            max_depth: 3,
         }
     }
 }

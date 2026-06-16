@@ -78,4 +78,53 @@ impl GraphRetriever {
         definition_nodes.extend(other_nodes);
         Ok(definition_nodes)
     }
+
+    /// Computes the number of unique nodes reachable from the seeds within a given depth
+    pub async fn count_reachable_nodes(&self, seed_ids: &[NodeId], depth: usize) -> Result<usize, AresError> {
+        if depth == 0 || seed_ids.is_empty() {
+            return Ok(seed_ids.len());
+        }
+
+        let mut current_layer = seed_ids.iter().map(|id| id.as_str().to_string()).collect::<Vec<_>>();
+        let mut visited = std::collections::HashSet::new();
+        for id in &current_layer {
+            visited.insert(id.clone());
+        }
+
+        for _ in 0..depth {
+            if current_layer.is_empty() {
+                break;
+            }
+
+            // Fetch neighbors for current layer (all directions)
+            // Note: Since this is telemetry, we can do a simple batched query
+            let mut next_layer = Vec::new();
+            for chunk in current_layer.chunks(50) {
+                let in_clause = chunk.iter().map(|id| format!("'{}'", id)).collect::<Vec<_>>().join(",");
+                let query = format!(
+                    "SELECT from_node_id, to_node_id FROM graph_edges WHERE (from_node_id IN ({}) OR to_node_id IN ({})) AND valid_until IS NULL",
+                    in_clause, in_clause
+                );
+                
+                let mut conn = self.repo.store().get_conn()?;
+                let mut stmt = conn.prepare(&query).map_err(|e| AresError::db(e.to_string()))?;
+                let mut rows = stmt.query(()).map_err(|e| AresError::db(e.to_string()))?;
+                while let Some(row) = rows.next().map_err(|e| AresError::db(e.to_string()))? {
+                    let from: String = row.get(0).unwrap();
+                    let to: String = row.get(1).unwrap();
+                    if !visited.contains(&from) {
+                        visited.insert(from.clone());
+                        next_layer.push(from);
+                    }
+                    if !visited.contains(&to) {
+                        visited.insert(to.clone());
+                        next_layer.push(to);
+                    }
+                }
+            }
+            current_layer = next_layer;
+        }
+
+        Ok(visited.len())
+    }
 }

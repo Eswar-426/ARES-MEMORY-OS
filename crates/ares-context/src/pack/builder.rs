@@ -54,6 +54,29 @@ impl ContextPackBuilder {
             ranking_reasons,
         };
 
+        let token_estimate: usize = ranked_nodes.iter().map(|n| n.properties.to_string().len()).sum::<usize>() / 4;
+        let nodes_selected = ranked_nodes.len();
+        let context_efficiency = if token_estimate > 0 {
+            nodes_selected as f64 / token_estimate as f64
+        } else {
+            0.0
+        };
+
+        let mut final_metrics = bundle.metrics;
+        final_metrics.nodes_selected = nodes_selected;
+        final_metrics.files_selected = relevant_files.len();
+        final_metrics.token_estimate = token_estimate;
+        final_metrics.avg_depth = 1.0; 
+        final_metrics.max_depth = self.budget.max_depth;
+        final_metrics.context_efficiency = context_efficiency;
+
+        if let Ok(root) = std::env::current_dir() {
+            let out_dir = root.join("artifacts").join("validation");
+            let _ = std::fs::create_dir_all(&out_dir);
+            let out_file = out_dir.join("context_metrics.json");
+            let _ = std::fs::write(&out_file, serde_json::to_string_pretty(&final_metrics).unwrap_or_default());
+        }
+
         ContextPack {
             query: bundle.query,
             intent: bundle.intent,
@@ -66,9 +89,9 @@ impl ContextPackBuilder {
             memory_snippets: vec![], // TODO
             confidence_score: 0.9,   // In a real system, calculated from metrics
             generated_at: Utc::now(),
-            retrieval_time_ms: bundle.metrics.retrieval_time_ms,
+            retrieval_time_ms: final_metrics.retrieval_time_ms,
             retrieval_explanation: explanation,
-            metrics: bundle.metrics,
+            metrics: final_metrics,
         }
     }
 }

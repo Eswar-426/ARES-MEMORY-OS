@@ -14,4 +14,5 @@ pub struct ContextBundle {
     pub explanations: Vec<FileExplanation>,
     pub repository_insights: Vec<RepositoryInsight>,
     pub metrics: crate::models::metrics::ContextMetrics,
+    pub reachable_nodes: usize,
 }

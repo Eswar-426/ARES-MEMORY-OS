@@ -21,11 +21,11 @@ impl Scanner {
         }
     }
 
-    pub fn full_scan(&self, project_id: &ProjectId, root_path: &Path) -> Result<(), AresError> {
+    pub fn full_scan(&self, project_id: &ProjectId, root_path: &Path) -> Result<crate::models::ScannerReport, AresError> {
         self.scan_internal(project_id, root_path, true, None)
     }
 
-    pub fn scan_project(&self, project_id: &ProjectId, root_path: &Path) -> Result<(), AresError> {
+    pub fn scan_project(&self, project_id: &ProjectId, root_path: &Path) -> Result<crate::models::ScannerReport, AresError> {
         self.scan_internal(project_id, root_path, false, None)
     }
 
@@ -33,7 +33,7 @@ impl Scanner {
         &self,
         project_id: &ProjectId,
         changed_files: &[PathBuf],
-    ) -> Result<(), AresError> {
+    ) -> Result<crate::models::ScannerReport, AresError> {
         self.scan_internal(
             project_id,
             Path::new(""),
@@ -42,7 +42,7 @@ impl Scanner {
         )
     }
 
-    pub fn scan_file(&self, project_id: &ProjectId, file_path: &Path) -> Result<(), AresError> {
+    pub fn scan_file(&self, project_id: &ProjectId, file_path: &Path) -> Result<crate::models::ScannerReport, AresError> {
         self.scan_internal(
             project_id,
             Path::new(""),
@@ -57,7 +57,7 @@ impl Scanner {
         root_path: &Path,
         force_full: bool,
         specific_files: Option<Vec<PathBuf>>,
-    ) -> Result<(), AresError> {
+    ) -> Result<crate::models::ScannerReport, AresError> {
         let run_type = if force_full { "full" } else { "incremental" };
         let run_id = self.graph_repo.start_scan_run(project_id, run_type)?;
 
@@ -154,6 +154,9 @@ impl Scanner {
         eprintln!("[scanner] Total files to process: {}", total);
         let parsed = AtomicU32::new(0);
         let failed = AtomicU32::new(0);
+        let symbols_extracted = AtomicU32::new(0);
+        let imports_found = AtomicU32::new(0);
+        let relationships_created = AtomicU32::new(0);
 
         files.iter().for_each(|path| {
             let done = parsed.load(Ordering::Relaxed) + failed.load(Ordering::Relaxed);
@@ -218,6 +221,21 @@ impl Scanner {
                         created_at: now,
                     };
                     edges_to_insert.push(edge);
+
+                    let reverse_edge = ares_core::GraphEdge {
+                        id: format!("edge_containedin_{}_{}", file_node_id.as_str(), parent_id.as_str()),
+                        project_id: project_id.clone(),
+                        from_node_id: file_node_id.clone(),
+                        to_node_id: parent_id.clone(),
+                        edge_type: ares_core::EdgeType::ContainedIn,
+                        weight: 1.0,
+                        confidence: 1.0,
+                        source: "scanner".to_string(),
+                        valid_from: now,
+                        valid_until: None,
+                        created_at: now,
+                    };
+                    edges_to_insert.push(reverse_edge);
                 }
             }
 
@@ -229,14 +247,21 @@ impl Scanner {
                     node_ids.push(file_node_id.clone());
                     let _ = self.graph_repo.upsert_node(file_node);
 
+                    relationships_created.fetch_add(edges_to_insert.len() as u32, Ordering::Relaxed);
                     for edge in edges_to_insert {
                         let _ = self.graph_repo.upsert_edge(edge);
                     }
 
+                    symbols_extracted.fetch_add(result.nodes.len() as u32, Ordering::Relaxed);
                     for node in result.nodes {
                         node_ids.push(node.id.clone());
                         let _ = self.graph_repo.upsert_node(node);
                     }
+                    
+                    relationships_created.fetch_add(result.edges.len() as u32, Ordering::Relaxed);
+                    let imports = result.edges.iter().filter(|e| e.edge_type == ares_core::EdgeType::Imports).count();
+                    imports_found.fetch_add(imports as u32, Ordering::Relaxed);
+                    
                     for edge in result.edges {
                         let _ = self.graph_repo.upsert_edge(edge);
                     }
@@ -254,6 +279,7 @@ impl Scanner {
                     let node_ids = vec![file_node_id.clone()];
                     let _ = self.graph_repo.upsert_node(file_node);
                     
+                    relationships_created.fetch_add(edges_to_insert.len() as u32, Ordering::Relaxed);
                     for edge in edges_to_insert {
                         let _ = self.graph_repo.upsert_edge(edge);
                     }
@@ -272,14 +298,35 @@ impl Scanner {
             }
         });
 
+        let p_count = parsed.load(Ordering::Relaxed);
         self.graph_repo.complete_scan_run(
             &run_id,
             "completed",
             total,
-            parsed.load(Ordering::Relaxed),
+            p_count,
             failed.load(Ordering::Relaxed),
         )?;
 
-        Ok(())
+        let extraction_success_rate = if total > 0 {
+            p_count as f64 / total as f64
+        } else {
+            1.0
+        };
+
+        // Run the SymbolResolver post-extraction
+        let resolver = crate::resolver::SymbolResolver::new(self.graph_repo.store().clone());
+        if let Ok(resolved) = resolver.resolve_all(project_id) {
+            println!("Resolved {} symbols", resolved);
+        }
+
+        Ok(crate::models::ScannerReport {
+            files_scanned: total as usize,
+            parsed_files: p_count as usize,
+            modules_scanned: dir_nodes_arc.len(),
+            symbols_extracted: symbols_extracted.load(Ordering::Relaxed) as usize,
+            imports_found: imports_found.load(Ordering::Relaxed) as usize,
+            relationships_created: relationships_created.load(Ordering::Relaxed) as usize,
+            extraction_success_rate,
+        })
     }
 }
