@@ -30,7 +30,7 @@ members = [
     "crates/ares-requirements",
     "crates/ares-traceability",
     "crates/ares-decision-intelligence"
-, "crates/ares-gap-engine", "crates/ares-resolution-engine"]
+, "crates/ares-gap-engine", "crates/ares-resolution-engine", "crates/ares-knowledge-graph"]
 resolver = "2"
 
 [workspace.package]

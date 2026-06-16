@@ -483,6 +483,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "ares-knowledge-graph"
+version = "0.1.0"
+dependencies = [
+ "ares-core",
+ "ares-store",
+ "async-trait",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "ares-mcp"
 version = "0.1.0"
 dependencies = [
