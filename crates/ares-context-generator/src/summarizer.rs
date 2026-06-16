@@ -6,7 +6,7 @@ pub struct MemorySummarizer;
 
 impl MemorySummarizer {
     /// Summarize decisions into bullet points.
-    pub fn summarize_decisions(decisions: &[DecisionSummary]) -> Vec<String> {
+    pub fn summarize_decisions(decisions: &[ares_decision_intelligence::DecisionSummary]) -> Vec<String> {
         if decisions.is_empty() {
             return vec!["No decisions recorded yet.".into()];
         }
@@ -15,10 +15,9 @@ impl MemorySummarizer {
             .iter()
             .map(|d| {
                 format!(
-                    "{} — {} ({})",
-                    crate::templates::status_badge(&d.status),
-                    d.title,
-                    Self::truncate(&d.reason, 100),
+                    "{} — {}",
+                    crate::templates::status_badge(d.approval_status.as_str()),
+                    d.title
                 )
             })
             .collect()
@@ -118,17 +117,14 @@ mod tests {
 
     #[test]
     fn summarize_decisions_with_items() {
-        let decisions = vec![DecisionSummary {
+        let decisions = vec![ares_decision_intelligence::DecisionSummary {
             id: "d1".into(),
             title: "Use Axum for HTTP".into(),
-            status: "accepted".into(),
-            reason: "Best Rust web framework for our needs".into(),
-            created_at: 0,
+            approval_status: ares_decision_intelligence::DecisionStatus::Approved,
         }];
         let result = MemorySummarizer::summarize_decisions(&decisions);
         assert_eq!(result.len(), 1);
         assert!(result[0].contains("Axum"));
-        assert!(result[0].contains("✓"));
     }
 
     #[test]

@@ -25,3 +25,7 @@ clap = { workspace = true }
 async-trait = { workspace = true }
 dotenvy = "0.15"
 regex = { workspace = true }
+
+[dev-dependencies]
+ares-requirements = { path = "../ares-requirements" }
+ares-decision-intelligence = { path = "../ares-decision-intelligence" }

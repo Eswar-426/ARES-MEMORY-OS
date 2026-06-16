@@ -85,6 +85,14 @@ define_id!(NodeId, "node");
 define_id!(EventId, "event");
 define_id!(ScanRunId, "scan_run");
 
+// Week 27 — Requirement Intelligence IDs
+define_id!(RequirementId, "requirement");
+define_id!(ArchComponentId, "arch_component");
+define_id!(CodeArtifactId, "code_artifact");
+define_id!(RequirementLinkId, "requirement_link");
+define_id!(RequirementRevisionId, "requirement_revision");
+define_id!(EvidenceId, "evidence");
+
 // Week 8 — Workflow orchestration IDs
 define_id!(WorkflowId, "workflow");
 define_id!(ExecutionId, "execution");

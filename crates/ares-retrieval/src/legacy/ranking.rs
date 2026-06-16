@@ -1,5 +1,5 @@
-use crate::modes::RetrievalMode;
-use crate::types::RankedResult;
+use crate::legacy::modes::RetrievalMode;
+use crate::legacy::types::RankedResult;
 use ares_core::types::memory::{ImportanceLevel, Memory};
 use chrono::Utc;
 

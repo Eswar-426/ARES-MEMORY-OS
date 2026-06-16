@@ -1,6 +1,6 @@
-use crate::modes::RetrievalMode;
-use crate::ranking::RetrievalRanker;
-use crate::types::RankedResult;
+use crate::legacy::modes::RetrievalMode;
+use crate::legacy::ranking::RetrievalRanker;
+use crate::legacy::types::RankedResult;
 use ares_agent::services::semantic_retrieval::SemanticSearchService;
 use ares_core::id::ProjectId;
 use ares_core::types::memory::{Memory, MemoryFilter};

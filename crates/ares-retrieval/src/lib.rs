@@ -1,9 +1,4 @@
-pub mod engine;
-pub mod modes;
-pub mod ranking;
-pub mod types;
+#[deprecated(since = "0.1.0", note = "Legacy retrieval layer. Use `memory` instead.")]
+pub mod legacy;
 
-pub use engine::RetrievalEngine;
-pub use modes::RetrievalMode;
-pub use ranking::RetrievalRanker;
-pub use types::RankedResult;
+pub mod memory;

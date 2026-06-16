@@ -25,8 +25,12 @@ members = [
     "crates/ares-extractor",
     "crates/ares-context",
     "crates/ares-agent-arena",
-    "crates/ares-reasoning"
-, "crates/ares-decision-dna"]
+    "crates/ares-reasoning",
+    "crates/ares-decision-dna",
+    "crates/ares-requirements",
+    "crates/ares-traceability",
+    "crates/ares-decision-intelligence"
+, "crates/ares-gap-engine", "crates/ares-resolution-engine"]
 resolver = "2"
 
 [workspace.package]

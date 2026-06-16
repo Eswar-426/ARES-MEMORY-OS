@@ -129,6 +129,23 @@ mod tests {
 
         // V25 — Knowledge Extraction Engine
         assert!(tables.contains(&"knowledge_candidates".to_string()));
+
+        // V27 — Requirement Intelligence Engine
+        assert!(tables.contains(&"requirement_links".to_string()));
+        assert!(tables.contains(&"requirement_revisions".to_string()));
+        assert!(tables.contains(&"requirement_health_snapshots".to_string()));
+        assert!(tables.contains(&"requirement_evidence".to_string()));
+
+        // V28 — Decision Intelligence Engine
+        assert!(tables.contains(&"decision_records".to_string()));
+        assert!(tables.contains(&"decision_links".to_string()));
+        assert!(tables.contains(&"decision_revisions".to_string()));
+        assert!(tables.contains(&"decision_evidence".to_string()));
+        assert!(tables.contains(&"decision_outcomes".to_string()));
+        assert!(tables.contains(&"decision_health_snapshots".to_string()));
+
+        // V29 — Gap Intelligence Engine
+        assert!(tables.contains(&"repository_health_trends".to_string()));
     }
     #[test]
     fn test_migrations_rerun_and_idempotency() {

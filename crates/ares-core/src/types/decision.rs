@@ -101,6 +101,10 @@ pub struct ReasoningStep {
 // Decision DNA — core struct
 // ─────────────────────────────────────────────────────────────────
 
+#[deprecated(
+    since = "0.1.0",
+    note = "Legacy decision layer. Use `ares_decision_intelligence::models::Decision` instead."
+)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Decision {
     pub id: DecisionId,

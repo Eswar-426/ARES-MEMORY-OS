@@ -252,7 +252,7 @@ impl DecisionStorage {
     pub fn save_outcome(&self, outcome: &DecisionOutcome) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "INSERT INTO decision_outcomes (decision_id, success_score, lessons_learned, measured_at)
+            "INSERT INTO decision_dna_outcomes (decision_id, success_score, lessons_learned, measured_at)
              VALUES (?1, ?2, ?3, ?4)
              ON CONFLICT(decision_id) DO UPDATE SET
                 success_score = excluded.success_score,

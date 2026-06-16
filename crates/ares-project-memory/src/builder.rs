@@ -67,6 +67,13 @@ impl MemoryBuilder {
         let stats = ProjectStats {
             total_files,
             total_lines,
+            open_features: 0,
+            open_bugs: 0,
+            total_requirements: 0,
+            approved_requirements: 0,
+            implemented_requirements: 0,
+            unlinked_requirements: 0,
+            orphan_requirements: 0,
             total_memories,
             total_decisions,
             total_graph_nodes: 0, // TODO: add graph_repo.count_nodes()
@@ -86,8 +93,11 @@ impl MemoryBuilder {
             folder_structure,
             api_endpoints: vec![], // Populated from graph nodes in future
             decisions,
+            decision_coverage: None,
             features,
             bugs,
+            requirements: vec![],
+            requirement_coverage: None,
             recent_changes,
             stats,
             created_at: chrono::Utc::now().timestamp_micros(),

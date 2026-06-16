@@ -21,9 +21,12 @@ pub struct ProjectSnapshot {
     pub dependencies: Vec<DependencyInfo>,
     pub folder_structure: FolderTree,
     pub api_endpoints: Vec<ApiEndpoint>,
-    pub decisions: Vec<DecisionSummary>,
+    pub decisions: Vec<ares_decision_intelligence::DecisionSummary>,
+    pub decision_coverage: Option<ares_decision_intelligence::DecisionCoverage>,
     pub features: Vec<FeatureSummary>,
     pub bugs: Vec<BugSummary>,
+    pub requirements: Vec<ares_requirements::RequirementSummary>,
+    pub requirement_coverage: Option<ares_requirements::RequirementCoverage>,
     pub recent_changes: Vec<ChangeRecord>,
     pub stats: ProjectStats,
     pub created_at: i64,
@@ -137,17 +140,8 @@ pub struct ApiEndpoint {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Memory summaries (decisions, features, bugs)
+// Memory summaries (features, bugs)
 // ─────────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DecisionSummary {
-    pub id: String,
-    pub title: String,
-    pub status: String,
-    pub reason: String,
-    pub created_at: i64,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeatureSummary {
@@ -202,4 +196,11 @@ pub struct ProjectStats {
     pub total_graph_nodes: u64,
     pub total_graph_edges: u64,
     pub memory_counts_by_type: HashMap<String, u64>,
+    pub open_features: u32,
+    pub open_bugs: u32,
+    pub total_requirements: u32,
+    pub approved_requirements: u32,
+    pub implemented_requirements: u32,
+    pub unlinked_requirements: u32,
+    pub orphan_requirements: u32,
 }

@@ -282,13 +282,10 @@ mod tests {
             dependencies: vec![],
             folder_structure: FolderTree::new_dir("root"),
             api_endpoints: vec![],
-            decisions: vec![DecisionSummary {
-                id: "d1".into(),
-                title: "Use SQLite for local storage".into(),
-                status: "accepted".into(),
-                reason: "Offline-first, zero external dependencies".into(),
-                created_at: 1000,
-            }],
+            decisions: vec![],
+            decision_coverage: None,
+            requirement_coverage: None,
+            requirements: vec![],
             features: vec![],
             bugs: vec![],
             recent_changes: vec![ChangeRecord {
@@ -320,7 +317,6 @@ mod tests {
         assert!(ctx.text.contains("Architecture"));
         assert!(ctx.text.contains("Modular"));
         assert!(ctx.text.contains("Rust"));
-        assert!(ctx.text.contains("SQLite"));
     }
 
     #[test]

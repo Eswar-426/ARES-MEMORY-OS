@@ -308,6 +308,7 @@ name = "ares-context-generator"
 version = "0.1.0"
 dependencies = [
  "ares-core",
+ "ares-decision-intelligence",
  "ares-project-memory",
  "chrono",
  "serde",
@@ -379,6 +380,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "ares-decision-intelligence"
+version = "0.1.0"
+dependencies = [
+ "ares-core",
+ "ares-store",
+ "ares-traceability",
+ "chrono",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "uuid",
+]
+
+[[package]]
 name = "ares-embeddings"
 version = "0.1.0"
 dependencies = [
@@ -405,6 +421,23 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "ares-gap-engine"
+version = "0.1.0"
+dependencies = [
+ "ares-core",
+ "ares-decision-intelligence",
+ "ares-requirements",
+ "ares-store",
+ "ares-traceability",
+ "async-trait",
+ "chrono",
+ "serde",
+ "serde_json",
  "tracing",
  "uuid",
 ]
@@ -497,7 +530,9 @@ dependencies = [
  "anyhow",
  "ares-context-generator",
  "ares-core",
+ "ares-decision-intelligence",
  "ares-project-memory",
+ "ares-requirements",
  "ares-retrieval",
  "ares-scanner",
  "ares-store",
@@ -574,7 +609,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "ares-core",
+ "ares-decision-intelligence",
  "ares-extractor",
+ "ares-requirements",
+ "ares-scanner",
  "ares-store",
  "blake3",
  "chrono",
@@ -605,19 +643,58 @@ dependencies = [
 ]
 
 [[package]]
+name = "ares-requirements"
+version = "0.1.0"
+dependencies = [
+ "ares-core",
+ "ares-store",
+ "ares-traceability",
+ "chrono",
+ "petgraph",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "ares-resolution-engine"
+version = "0.1.0"
+dependencies = [
+ "ares-core",
+ "ares-gap-engine",
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "ares-retrieval"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "ares-agent",
  "ares-core",
+ "ares-decision-intelligence",
  "ares-embeddings",
+ "ares-gap-engine",
  "ares-knowledge",
  "ares-memory-intelligence",
+ "ares-project-memory",
+ "ares-requirements",
+ "ares-resolution-engine",
  "ares-store",
+ "ares-traceability",
  "chrono",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "uuid",
@@ -669,6 +746,20 @@ dependencies = [
  "thiserror 1.0.69",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "ares-traceability"
+version = "0.1.0"
+dependencies = [
+ "ares-core",
+ "ares-store",
+ "chrono",
+ "petgraph",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
 ]
 
 [[package]]

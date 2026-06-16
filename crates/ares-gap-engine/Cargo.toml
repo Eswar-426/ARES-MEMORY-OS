@@ -1,0 +1,21 @@
+[package]
+name = "ares-gap-engine"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+ares-core = { path = "../ares-core" }
+ares-store = { path = "../ares-store" }
+ares-requirements = { path = "../ares-requirements" }
+ares-decision-intelligence = { path = "../ares-decision-intelligence" }
+ares-traceability = { path = "../ares-traceability" }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true, features = ["v4", "serde"] }
+tracing = { workspace = true }
+async-trait = { workspace = true }

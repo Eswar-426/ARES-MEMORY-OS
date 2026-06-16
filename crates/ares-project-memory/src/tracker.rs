@@ -88,19 +88,27 @@ impl ChangeTracker {
     }
 
     /// Get decision summaries for a project.
-    pub fn get_decisions(&self, project_id: &ProjectId) -> Result<Vec<DecisionSummary>, AresError> {
+    pub fn get_decisions(&self, project_id: &ProjectId) -> Result<Vec<ares_decision_intelligence::DecisionSummary>, AresError> {
         let decisions = self
             .decision_repo
             .list(project_id, ares_core::DecisionFilter::default())?;
 
         Ok(decisions
             .into_iter()
-            .map(|d| DecisionSummary {
-                id: d.id.as_str().to_string(),
-                title: d.title,
-                status: d.status.as_str().to_string(),
-                reason: d.reason,
-                created_at: d.created_at,
+            .map(|d| {
+                let status_str = d.status.as_str().to_lowercase();
+                let approval_status = match status_str.as_str() {
+                    "accepted" | "approved" => ares_decision_intelligence::DecisionStatus::Approved,
+                    "rejected" => ares_decision_intelligence::DecisionStatus::Rejected,
+                    "deprecated" | "superseded" => ares_decision_intelligence::DecisionStatus::Deprecated,
+                    _ => ares_decision_intelligence::DecisionStatus::Proposed,
+                };
+                
+                ares_decision_intelligence::DecisionSummary {
+                    id: d.id.as_str().to_string(),
+                    title: d.title,
+                    approval_status,
+                }
             })
             .collect())
     }

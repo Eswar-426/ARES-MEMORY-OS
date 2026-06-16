@@ -10,6 +10,13 @@ ares-knowledge = { path = "../ares-knowledge" }
 ares-memory-intelligence = { path = "../ares-memory-intelligence" }
 ares-embeddings = { path = "../ares-embeddings" }
 ares-agent = { path = "../ares-agent" }
+ares-project-memory = { path = "../ares-project-memory" }
+ares-requirements = { path = "../ares-requirements" }
+ares-decision-intelligence = { path = "../ares-decision-intelligence" }
+ares-gap-engine = { path = "../ares-gap-engine" }
+ares-resolution-engine = { path = "../ares-resolution-engine" }
+ares-traceability = { path = "../ares-traceability" }
+
 
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -18,3 +25,6 @@ tokio = { version = "1.41", features = ["full"] }
 uuid = { version = "1.11", features = ["v7", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 anyhow = "1.0"
+
+[dev-dependencies]
+tempfile = "3.10"
