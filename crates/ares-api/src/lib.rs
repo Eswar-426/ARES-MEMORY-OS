@@ -9,6 +9,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 pub mod auth;
 pub mod routes;
+pub mod models;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -26,6 +27,12 @@ pub mod routes;
         routes::memory::get_memory_timeline,
         routes::memory::get_memory_decisions,
         routes::memory::get_memory_context,
+        routes::facade_memory::why,
+        routes::facade_memory::who,
+        routes::facade_memory::impact,
+        routes::facade_memory::evolution,
+        routes::facade_memory::context,
+        routes::facade_health::certification,
         routes::context::get_context,
         routes::context::inject_context,
         routes::decisions::decision_history,
@@ -73,6 +80,11 @@ pub mod routes;
     ),
     components(
         schemas(
+            crate::models::ApiErrorDetail,
+            crate::models::ApiErrorEnvelope,
+            crate::models::HealthStatus,
+            crate::models::EvolutionResult,
+            crate::models::MemoryContextPackage,
             ares_core::types::workflow_api::PageRequest,
             ares_core::types::workflow_api::PageResponseExecutionSummary,
             ares_core::types::workflow_api::WorkflowRunRequest,
@@ -134,6 +146,25 @@ pub struct ApiDoc;
 
 pub fn create_router(state: AppState) -> Router {
     routes::observability::init_metrics();
+
+    let assembler = ares_memory_intelligence::assembler::MemoryContextAssembler::default_from_store(state.store.clone());
+    let memory_facade = std::sync::Arc::new(ares_memory_intelligence::facade::MemoryFacade::new(std::sync::Arc::new(assembler)));
+    let validation_runner = std::sync::Arc::new(ares_validation::validation_runner::ValidationRunner::new(
+        std::sync::Arc::new(state.store.clone()),
+        std::sync::Arc::new(ares_memory_intelligence::assembler::MemoryContextAssembler::default_from_store(state.store.clone()))
+    ));
+
+    let facade_router = Router::new()
+        .route("/memory/why/:id", get(routes::facade_memory::why))
+        .route("/memory/who/:id", get(routes::facade_memory::who))
+        .route("/memory/impact/:id", get(routes::facade_memory::impact))
+        .route("/memory/evolution/:id", get(routes::facade_memory::evolution))
+        .route("/memory/facade_context/:id", get(routes::facade_memory::context))
+        .with_state(memory_facade);
+
+    let cert_router = Router::new()
+        .route("/memory/certification", get(routes::facade_health::certification))
+        .with_state(validation_runner);
 
     let api_routes = Router::new()
         .route(
@@ -332,7 +363,9 @@ pub fn create_router(state: AppState) -> Router {
     Router::new()
         .route("/", get(root))
         .route("/health", get(routes::observability::health))
+        .route("/api/v1/health", get(routes::observability::health))
         .route("/metrics", get(routes::observability::metrics))
+        .route("/api/v1/metrics", get(routes::observability::metrics))
         .route(
             "/api/v1/telemetry/latest",
             get(routes::telemetry::get_latest_telemetry),
@@ -340,6 +373,8 @@ pub fn create_router(state: AppState) -> Router {
         .nest("/api/v1", api_routes)
         .nest("/api/v1", admin_routes)
         .nest("/api/v1/orchestrator", combined_orchestrator_routes)
+        .nest("/api/v1", facade_router)
+        .nest("/api/v1", cert_router)
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .layer(
             tower_http::cors::CorsLayer::new()

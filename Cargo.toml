@@ -29,8 +29,14 @@ members = [
     "crates/ares-decision-dna",
     "crates/ares-requirements",
     "crates/ares-traceability",
-    "crates/ares-decision-intelligence"
-, "crates/ares-gap-engine", "crates/ares-resolution-engine", "crates/ares-knowledge-graph"]
+    "crates/ares-decision-intelligence",
+    "crates/ares-gap-engine", 
+    "crates/ares-resolution-engine", 
+    "crates/ares-knowledge-graph",
+    "crates/ares-memory-evolution",
+    "crates/ares-validation",
+    "crates/ares-cli"
+]
 resolver = "2"
 
 [workspace.package]
@@ -105,9 +111,6 @@ hex            = { version = "0.4" }
 
 # Time
 chrono         = { version = "0.4", features = ["serde"] }
-
-# IPC
-interprocess   = { version = "2.2" }
 
 # Testing
 tempfile       = { version = "3.12" }

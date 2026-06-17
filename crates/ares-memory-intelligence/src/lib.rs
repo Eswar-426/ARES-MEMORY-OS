@@ -20,6 +20,8 @@ pub mod experience;
 pub mod retrieval;
 pub mod semantic;
 pub mod test_utils;
+pub mod assembler;
+pub mod facade;
 
 #[cfg(test)]
 mod tests;

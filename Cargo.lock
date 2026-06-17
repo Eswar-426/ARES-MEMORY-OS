@@ -205,10 +205,14 @@ dependencies = [
  "ares-core",
  "ares-extractor",
  "ares-knowledge",
+ "ares-knowledge-graph",
+ "ares-memory-evolution",
+ "ares-memory-intelligence",
  "ares-orchestrator",
  "ares-planner",
  "ares-project-memory",
  "ares-store",
+ "ares-validation",
  "async-stream",
  "axum",
  "chrono",
@@ -228,6 +232,7 @@ dependencies = [
  "tracing-subscriber",
  "utoipa",
  "utoipa-swagger-ui",
+ "uuid",
 ]
 
 [[package]]
@@ -286,6 +291,21 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
+]
+
+[[package]]
+name = "ares-cli"
+version = "0.1.0"
+dependencies = [
+ "ares-core",
+ "ares-memory-intelligence",
+ "ares-store",
+ "ares-validation",
+ "clap",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -522,10 +542,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "ares-memory-evolution"
+version = "0.1.0"
+dependencies = [
+ "ares-core",
+ "ares-knowledge-graph",
+ "ares-store",
+ "chrono",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "ares-memory-intelligence"
 version = "0.1.0"
 dependencies = [
  "ares-core",
+ "ares-gap-engine",
+ "ares-knowledge-graph",
+ "ares-memory-evolution",
+ "ares-resolution-engine",
  "ares-store",
  "chrono",
  "rusqlite",
@@ -775,6 +817,26 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "ares-validation"
+version = "0.1.0"
+dependencies = [
+ "ares-core",
+ "ares-gap-engine",
+ "ares-knowledge-graph",
+ "ares-memory-evolution",
+ "ares-memory-intelligence",
+ "ares-resolution-engine",
+ "ares-store",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]

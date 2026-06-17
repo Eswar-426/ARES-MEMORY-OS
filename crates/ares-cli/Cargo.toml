@@ -1,0 +1,23 @@
+[package]
+name = "ares-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+default-run = "ares"
+
+[dependencies]
+ares-core = { path = "../ares-core" }
+ares-store = { path = "../ares-store" }
+ares-memory-intelligence = { path = "../ares-memory-intelligence" }
+ares-validation = { path = "../ares-validation" }
+
+clap = { version = "4.4", features = ["derive"] }
+tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+thiserror = { workspace = true }
+
+[[bin]]
+name = "ares"
+path = "src/main.rs"

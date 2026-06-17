@@ -146,6 +146,9 @@ mod tests {
 
         // V29 — Gap Intelligence Engine
         assert!(tables.contains(&"repository_health_trends".to_string()));
+
+        // V31 — Memory Evolution Engine
+        assert!(tables.contains(&"memory_revisions".to_string()));
     }
     #[test]
     fn test_migrations_rerun_and_idempotency() {

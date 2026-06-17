@@ -8,6 +8,9 @@ pub mod observability;
 pub mod projects;
 pub mod snapshot;
 
+pub mod facade_memory;
+pub mod facade_health;
+
 pub mod agents;
 pub mod knowledge;
 pub mod planner;

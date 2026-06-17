@@ -30,9 +30,9 @@ async fn main() -> anyhow::Result<()> {
 
     let app = create_router(app_state);
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
-    info!("API listening on http://127.0.0.1:3000");
-    info!("Swagger UI available at http://127.0.0.1:3000/swagger-ui");
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:8080").await?;
+    info!("API listening on http://127.0.0.1:8080");
+    info!("Swagger UI available at http://127.0.0.1:8080/swagger-ui");
 
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())

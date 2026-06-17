@@ -1,0 +1,26 @@
+[package]
+name = "ares-validation"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+ares-core = { path = "../ares-core" }
+ares-store = { path = "../ares-store" }
+ares-knowledge-graph = { path = "../ares-knowledge-graph" }
+ares-memory-evolution = { path = "../ares-memory-evolution" }
+ares-gap-engine = { path = "../ares-gap-engine" }
+ares-resolution-engine = { path = "../ares-resolution-engine" }
+ares-memory-intelligence = { path = "../ares-memory-intelligence" }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["full", "test-util"] }
