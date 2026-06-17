@@ -3,6 +3,7 @@ use crate::gaps::GapSummary;
 use crate::models::{RequirementPriority, RequirementStatus, RequirementType};
 use serde::{Deserialize, Serialize};
 
+#[derive(utoipa::ToSchema)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RequirementSummary {
     pub id: String,
@@ -15,6 +16,7 @@ pub struct RequirementSummary {
     pub created_at: i64,
 }
 
+#[derive(utoipa::ToSchema)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RequirementCoverage {
     pub total_requirements: u64,

@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 // Enumerations
 // ─────────────────────────────────────────────────────────────────
 
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum NodeType {
@@ -97,6 +98,7 @@ impl std::str::FromStr for NodeType {
     }
 }
 
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EdgeType {
@@ -217,6 +219,7 @@ pub enum EdgeDirection {
 // Graph node and edge structs
 // ─────────────────────────────────────────────────────────────────
 
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GraphNode {
     pub id: NodeId,
@@ -231,6 +234,7 @@ pub struct GraphNode {
     pub deleted_at: Option<i64>,
 }
 
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GraphEdge {
     pub id: String,
@@ -250,6 +254,7 @@ pub struct GraphEdge {
 // Impact analysis output types
 // ─────────────────────────────────────────────────────────────────
 
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImpactEntry {
     pub node: GraphNode,
@@ -260,6 +265,7 @@ pub struct ImpactEntry {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct ImpactGraph {
     pub target: GraphNode,
     pub impacts: Vec<ImpactEntry>,

@@ -52,6 +52,7 @@ pub struct RankingCache {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct ContradictionRecord {
     pub id: String,
     pub project_id: ProjectId,

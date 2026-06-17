@@ -17,6 +17,7 @@ impl TokenBudget {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(utoipa::ToSchema)]
 pub struct ContextPackage {
     pub project_id: String,
     pub original_prompt: String,

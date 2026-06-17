@@ -8,6 +8,7 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+utoipa = { workspace = true }
 # Workspace crates
 ares-core = { path = "../ares-core" }
 ares-agent-runtime = { path = "../ares-agent-runtime" }

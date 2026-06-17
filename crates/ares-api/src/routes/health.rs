@@ -1,8 +1,9 @@
 use axum::{extract::State, Json};
 use std::sync::Arc;
-use crate::models::{ApiResponse, ApiErrorEnvelope, HealthStatus};
+use crate::models::{ApiResponse, ApiErrorEnvelope, HealthStatus, ApiResponseHealthStatus, ApiResponseValue};
 use ares_validation::validation_runner::ValidationRunner;
 
+#[utoipa::path(get, path = "/health", responses((status = 200, description = "System health status", body = ApiResponseHealthStatus)))]
 pub async fn health() -> Result<Json<ApiResponse<HealthStatus>>, Json<ApiErrorEnvelope>> {
     Ok(Json(ApiResponse::success(HealthStatus {
         status: "UP".to_string(),
@@ -10,6 +11,7 @@ pub async fn health() -> Result<Json<ApiResponse<HealthStatus>>, Json<ApiErrorEn
     })))
 }
 
+#[utoipa::path(get, path = "/certification", responses((status = 200, description = "Certification report", body = ApiResponseValue)))]
 pub async fn certification(
     State(validation_runner): State<Arc<ValidationRunner>>,
 ) -> Result<Json<ApiResponse<serde_json::Value>>, Json<ApiErrorEnvelope>> {

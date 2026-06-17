@@ -23,6 +23,7 @@ impl Default for ContextBudget {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(utoipa::ToSchema)]
 pub struct ContextSnapshot {
     pub memories: Vec<Memory>,
     pub decisions: Vec<Decision>,

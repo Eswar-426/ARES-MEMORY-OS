@@ -21,6 +21,7 @@ pub struct Requirement {
     pub tags: Vec<String>,
 }
 
+#[derive(utoipa::ToSchema)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RequirementType {
@@ -44,6 +45,7 @@ pub enum RequirementStatus {
     Rejected,
 }
 
+#[derive(utoipa::ToSchema)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RequirementPriority {

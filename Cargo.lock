@@ -151,6 +151,7 @@ dependencies = [
  "toml 1.1.2+spec-1.1.0",
  "tracing",
  "tracing-subscriber",
+ "utoipa",
  "uuid",
 ]
 
@@ -202,7 +203,10 @@ dependencies = [
  "ares-chat-import",
  "ares-context-generator",
  "ares-context-injector",
+ "ares-coordination",
  "ares-core",
+ "ares-decision-dna",
+ "ares-decision-intelligence",
  "ares-extractor",
  "ares-knowledge",
  "ares-knowledge-graph",
@@ -211,6 +215,7 @@ dependencies = [
  "ares-orchestrator",
  "ares-planner",
  "ares-project-memory",
+ "ares-requirements",
  "ares-store",
  "ares-validation",
  "async-stream",
@@ -261,7 +266,6 @@ dependencies = [
  "ares-context",
  "ares-context-generator",
  "ares-core",
- "ares-mcp",
  "ares-project-memory",
  "ares-store",
  "async-trait",
@@ -336,6 +340,7 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "tracing",
+ "utoipa",
 ]
 
 [[package]]
@@ -351,6 +356,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "utoipa",
 ]
 
 [[package]]
@@ -368,6 +374,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "utoipa",
  "uuid",
 ]
 
@@ -396,6 +403,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "utoipa",
  "uuid",
 ]
 
@@ -411,6 +419,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 1.0.69",
+ "utoipa",
  "uuid",
 ]
 
@@ -528,15 +537,18 @@ dependencies = [
  "ares-context-injector",
  "ares-core",
  "ares-extractor",
+ "ares-memory-intelligence",
  "ares-planner",
  "ares-project-memory",
  "ares-store",
+ "ares-validation",
  "chrono",
- "jsonrpc-core",
+ "schemars",
  "serde",
  "serde_json",
  "tempfile",
  "tokio",
+ "tower-mcp",
  "tracing",
  "tracing-subscriber",
 ]
@@ -556,6 +568,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "utoipa",
  "uuid",
 ]
 
@@ -681,6 +694,7 @@ dependencies = [
  "thiserror 1.0.69",
  "toml 1.1.2+spec-1.1.0",
  "tracing",
+ "utoipa",
  "uuid",
  "walkdir",
 ]
@@ -714,6 +728,7 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "tracing",
+ "utoipa",
  "uuid",
 ]
 
@@ -1485,6 +1500,12 @@ name = "dotenvy"
 version = "0.15.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
+
+[[package]]
+name = "dyn-clone"
+version = "1.0.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
 name = "ed25519"
@@ -2338,21 +2359,6 @@ dependencies = [
  "cfg-if",
  "futures-util",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "jsonrpc-core"
-version = "18.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14f7f76aef2d054868398427f6c54943cf3d1caa9a7ec7d0c38d69df97a965eb"
-dependencies = [
- "futures",
- "futures-executor",
- "futures-util",
- "log",
- "serde",
- "serde_derive",
- "serde_json",
 ]
 
 [[package]]
@@ -3299,6 +3305,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "ref-cast"
+version = "1.0.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f354300ae66f76f1c85c5f84693f0ce81d747e2c3f21a45fef496d89c960bf7d"
+dependencies = [
+ "ref-cast-impl",
+]
+
+[[package]]
+name = "ref-cast-impl"
+version = "1.0.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b7186006dcb21920990093f30e3dea63b7d6e977bf1256be20c3563a5db070da"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
 name = "refinery"
 version = "0.8.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3637,6 +3663,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "schemars"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2b42f36aa1cd011945615b92222f6bf73c599a102a300334cd7f8dbeec726cc"
+dependencies = [
+ "dyn-clone",
+ "ref-cast",
+ "schemars_derive",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "schemars_derive"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d115b50f4aaeea07e79c1912f645c7513d81715d0420f8bc77a18c6260b307f"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde_derive_internals",
+ "syn 2.0.117",
+]
+
+[[package]]
 name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3718,6 +3769,17 @@ name = "serde_derive"
 version = "1.0.228"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d540f220d3187173da220f885ab66608367b6574e925011a9353e4badda91d79"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "serde_derive_internals"
+version = "0.29.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "18d26a20a969b9e3fdf2fc2d9f21eda6c40e2de84c9408bb5d3b05d499aae711"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4435,6 +4497,40 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "121c2a6cda46980bb0fcd1647ffaf6cd3fc79a013de288782836f6df9c48780e"
 
 [[package]]
+name = "tower-mcp"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96dd7df8b3c0f729ce9f294059f501fd8b1c53760bf61079c1433380fe66d76b"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "futures",
+ "pin-project-lite",
+ "regex",
+ "schemars",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tower 0.5.3",
+ "tower-mcp-types",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
+name = "tower-mcp-types"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6511f1f32c7cb7fd4525edc0eb4dcf307db8f7eceb2833ab24a37b4cc10cda61"
+dependencies = [
+ "base64 0.22.1",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "tower-service"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4708,6 +4804,7 @@ dependencies = [
  "quote",
  "regex",
  "syn 2.0.117",
+ "uuid",
 ]
 
 [[package]]

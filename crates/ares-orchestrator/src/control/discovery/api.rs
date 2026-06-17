@@ -1,3 +1,4 @@
+use crate::control::workers::models::Worker;
 use super::routing::DiscoveryService;
 use ares_core::AresError;
 use axum::{
@@ -26,7 +27,7 @@ pub struct DiscoveryApiState {
         ("capability_name" = String, Path, description = "Capability Name")
     ),
     responses(
-        (status = 200, description = "List matching workers", body = Vec<crate::control::workers::models::Worker>)
+        (status = 200, description = "List matching workers", body = Vec<Worker>)
     )
 )]
 pub async fn discover_by_capability(
@@ -48,7 +49,7 @@ pub async fn discover_by_capability(
         ("capability_version" = String, Path, description = "Capability Version")
     ),
     responses(
-        (status = 200, description = "List matching workers", body = Vec<crate::control::workers::models::Worker>)
+        (status = 200, description = "List matching workers", body = Vec<Worker>)
     )
 )]
 pub async fn discover_by_capability_and_version(

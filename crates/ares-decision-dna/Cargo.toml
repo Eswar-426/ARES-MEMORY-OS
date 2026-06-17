@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+utoipa = { workspace = true }
 ares-core = { path = "../ares-core" }
 ares-store = { path = "../ares-store" }
 

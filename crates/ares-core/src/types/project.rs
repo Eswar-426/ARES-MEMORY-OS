@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 // ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum ProjectMaturity {
     #[default]
@@ -94,6 +95,7 @@ impl Language {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct Project {
     pub id: ProjectId,
     pub name: String,

@@ -1,3 +1,4 @@
+use super::models::WorkflowQueueItem;
 use super::{dto::EnqueueRequest, service::QueueService};
 use ares_core::AresError;
 use axum::{extract::State, response::IntoResponse, Json};
@@ -20,7 +21,7 @@ pub struct QueueApiState {
     path = "/api/v1/orchestrator/queue",
     request_body = EnqueueRequest,
     responses(
-        (status = 200, description = "Item enqueued", body = super::models::WorkflowQueueItem),
+        (status = 200, description = "Item enqueued", body = WorkflowQueueItem),
         (status = 409, description = "Conflict - Duplicate execution_key")
     )
 )]

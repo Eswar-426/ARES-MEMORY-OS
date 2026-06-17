@@ -1,3 +1,4 @@
+use super::models::DeadLetterItem;
 use super::service::DlqService;
 use ares_core::AresError;
 use axum::{extract::State, response::IntoResponse, Json};
@@ -19,7 +20,7 @@ pub struct DlqApiState {
     get,
     path = "/api/v1/orchestrator/dlq",
     responses(
-        (status = 200, description = "List dead letter queue", body = Vec<super::models::DeadLetterItem>)
+        (status = 200, description = "List dead letter queue", body = Vec<DeadLetterItem>)
     )
 )]
 pub async fn list_dlq(

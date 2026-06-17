@@ -1,3 +1,11 @@
+use crate::models::TimelinePageResponse;
+use crate::models::GraphNodePageResponse;
+use ares_decision_intelligence::integration::DecisionCoverage;
+use ares_decision_intelligence::integration::DecisionSummary;
+use crate::models::DecisionPageResponse;
+use ares_requirements::integration::RequirementSummary;
+use ares_core::types::node::ImpactGraph;
+use ares_requirements::integration::RequirementCoverage;
 use ares_app::AppState;
 use axum::{
     routing::{get, post},
@@ -80,11 +88,112 @@ pub mod models;
     ),
     components(
         schemas(
+            ares_project_memory::types::ArchitectureStyle,
+            ares_memory_evolution::models::ChangeType,
+            ares_project_memory::types::ComponentInfo,
+            ares_project_memory::types::DependencyType,
+            ares_core::types::node::EdgeType,
+            ares_core::types::node::NodeType,
+            ares_requirements::models::RequirementPriority,
+            ares_decision_dna::models::requirement::RequirementStatus,
+            ares_requirements::models::RequirementType,
+            ares_context_generator::types::SectionPriority,
+
+            ares_core::id::DecisionId,
+            ares_core::id::EventId,
+            ares_core::id::MemoryId,
+            ares_core::id::NodeId,
+            ares_core::id::ProjectId,
+            ares_core::id::WorkflowId,
+
+            ares_core::types::decision::Alternative,
+            ares_project_memory::types::ApiEndpoint,
+            ares_project_memory::types::ArchitectureProfile,
+            ares_project_memory::types::BugSummary,
+            ares_project_memory::types::ChangeRecord,
+            ares_context_generator::types::ContextSection,
+            ares_core::types::decision::DecisionStatus,
+            ares_project_memory::types::DependencyInfo,
+            ares_project_memory::types::FeatureSummary,
+            ares_project_memory::types::FolderTree,
+            ares_core::types::decision::FutureImpact,
+            ares_core::types::node::GraphEdge,
+            ares_core::types::node::GraphNode,
+            ares_core::types::node::ImpactEntry,
+            ares_core::types::memory::ImportanceLevel,
+            ares_project_memory::types::LanguageProfile,
+            ares_core::types::memory::MemorySource,
+            ares_core::types::memory::MemoryStatus,
+            ares_coordination::distributed::node::NodeId,
+            ares_project_memory::types::ProjectStats,
+            ares_core::types::decision::ReasoningStep,
+            ares_core::types::decision::Risk,
+            crate::routes::semantic::SemanticSearchResultDto,
+            ares_core::types::plan::TaskStatus,
+            DecisionCoverage,
+            DecisionSummary,
+            RequirementCoverage,
+            RequirementSummary,
+            ares_orchestrator::runtime::dlq::models::DeadLetterItem,
+            ares_orchestrator::runtime::execution::models::DistributedExecution,
+            ares_orchestrator::runtime::queue::models::WorkflowQueueItem,
+            DecisionPageResponse,
+            GraphNodePageResponse,
+            TimelinePageResponse,
+
+            ares_context_injector::types::ContextPackage,
+            ares_agent::services::context_builder::ContextSnapshot,
+            ares_core::types::intelligence::ContradictionRecord,
+            ares_core::types::memory::CreateMemoryInput,
+            crate::routes::projects::CreateProjectRequest,
+            ares_core::types::decision::Decision,
+            crate::routes::decisions::DecisionHistoryRequest,
+            crate::routes::contradictions::DetectContradictionsRequest,
+            crate::routes::snapshot::GenerateContextRequest,
+            crate::routes::snapshot::GenerateSnapshotRequest,
+            crate::routes::context::GetContextRequest,
+            ares_core::types::plan::Goal,
+            crate::routes::snapshot::ImportSnapshotRequest,
+            crate::routes::context::InjectContextRequest,
+            ares_core::types::memory::Memory,
+            ares_core::types::memory::MemorySearchResult,
+            ares_core::types::plan::Milestone,
+            ares_core::types::plan::PlanStatus,
+            ares_context_generator::types::PortableContext,
+            ares_core::types::project::Project,
+            crate::routes::projects::ProjectListResponse,
+            ares_project_memory::types::ProjectSnapshot,
+            crate::routes::reindex::ReindexRequest,
+            crate::routes::reindex::ReindexResponse,
+            crate::routes::scan::ScanResult,
+            crate::routes::memory::SearchMemoryRequest,
+            crate::routes::semantic::SemanticSearchRequest,
+            crate::routes::semantic::SemanticSearchResponseDto,
+            ares_project_memory::snapshot::SnapshotMeta,
+            crate::routes::snapshot::SnapshotResponse,
+            crate::routes::memory::StoreMemoryRequest,
+            ares_core::types::plan::Task,
+            ares_core::types::plan::TaskDependency,
+            ImpactGraph,
+            ares_core::types::project::ProjectMaturity,
+            ares_core::types::memory::MemoryType,
+
             crate::models::ApiErrorDetail,
             crate::models::ApiErrorEnvelope,
             crate::models::HealthStatus,
             crate::models::EvolutionResult,
             crate::models::MemoryContextPackage,
+            // ApiResponse Concrete Aliases
+            crate::models::ApiResponseHealthStatus,
+            crate::models::ApiResponseValue,
+            crate::models::ApiResponseEvolutionResult,
+            crate::models::ApiResponseMemoryContextPackage,
+            crate::models::ApiResponseCertification,
+            // Pagination Concrete DTOs
+            GraphNodePageResponse,
+            TimelinePageResponse,
+            DecisionPageResponse,
+            // Workflow API Models
             ares_core::types::workflow_api::PageRequest,
             ares_core::types::workflow_api::PageResponseExecutionSummary,
             ares_core::types::workflow_api::WorkflowRunRequest,
@@ -140,9 +249,40 @@ pub mod models;
     ),
     tags(
         (name = "ares", description = "ARES MemoryOS API")
+    ),
+    modifiers(&SecurityAddon),
+    security(
+        ("BearerAuth" = []),
+        ("ApiKeyAuth" = [])
     )
 )]
 pub struct ApiDoc;
+
+pub struct SecurityAddon;
+
+impl utoipa::Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        if let Some(components) = openapi.components.as_mut() {
+            components.add_security_scheme(
+                "BearerAuth",
+                utoipa::openapi::security::SecurityScheme::Http(
+                    utoipa::openapi::security::HttpBuilder::new()
+                        .scheme(utoipa::openapi::security::HttpAuthScheme::Bearer)
+                        .bearer_format("JWT")
+                        .build(),
+                ),
+            );
+            components.add_security_scheme(
+                "ApiKeyAuth",
+                utoipa::openapi::security::SecurityScheme::ApiKey(
+                    utoipa::openapi::security::ApiKey::Header(
+                        utoipa::openapi::security::ApiKeyValue::new("X-API-Key"),
+                    ),
+                ),
+            );
+        }
+    }
+}
 
 pub fn create_router(state: AppState) -> Router {
     routes::observability::init_metrics();

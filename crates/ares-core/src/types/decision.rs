@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 // Enumerations
 // ─────────────────────────────────────────────────────────────────
 
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum DecisionStatus {
@@ -47,6 +48,7 @@ impl std::str::FromStr for DecisionStatus {
 // ─────────────────────────────────────────────────────────────────
 
 /// An alternative that was considered but not chosen.
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Alternative {
     pub option: String,
@@ -58,6 +60,7 @@ pub struct Alternative {
 }
 
 /// A risk associated with the decision.
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Risk {
     pub risk: String,
@@ -77,6 +80,7 @@ pub struct ContextSnapshot {
 }
 
 /// Predictions about future impact.
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct FutureImpact {
     pub if_technology_changes: Option<String>,
@@ -86,6 +90,7 @@ pub struct FutureImpact {
 }
 
 /// A single reasoning step in the chain that led to the decision.
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReasoningStep {
     pub id: String,
@@ -106,6 +111,7 @@ pub struct ReasoningStep {
     note = "Legacy decision layer. Use `ares_decision_intelligence::models::Decision` instead."
 )]
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct Decision {
     pub id: DecisionId,
     pub project_id: ProjectId,

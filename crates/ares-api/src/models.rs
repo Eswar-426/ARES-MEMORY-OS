@@ -3,6 +3,13 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+#[aliases(
+    ApiResponseHealthStatus = ApiResponse<HealthStatus>,
+    ApiResponseValue = ApiResponse<serde_json::Value>,
+    ApiResponseEvolutionResult = ApiResponse<EvolutionResult>,
+    ApiResponseMemoryContextPackage = ApiResponse<MemoryContextPackage>,
+    ApiResponseCertification = ApiResponse<serde_json::Value>
+)]
 pub struct ApiResponse<T> {
     pub status: String,
     pub request_id: String,
@@ -60,4 +67,35 @@ pub struct EvolutionResult {
 pub struct MemoryContextPackage {
     pub entity: String,
     pub context: String,
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Concrete DTOs to replace ares_core::types::pagination::Page<T>
+// ─────────────────────────────────────────────────────────────────
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+pub struct GraphNodePageResponse {
+    #[schema(value_type = Vec<Object>)]
+    pub items: Vec<ares_core::GraphNode>,
+    pub page: u32,
+    pub page_size: u32,
+    pub total: u64,
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+pub struct TimelinePageResponse {
+    #[schema(value_type = Vec<Object>)]
+    pub items: Vec<ares_core::AresEvent>,
+    pub page: u32,
+    pub page_size: u32,
+    pub total: u64,
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+pub struct DecisionPageResponse {
+    #[schema(value_type = Vec<Object>)]
+    pub items: Vec<ares_core::Decision>,
+    pub page: u32,
+    pub page_size: u32,
+    pub total: u64,
 }

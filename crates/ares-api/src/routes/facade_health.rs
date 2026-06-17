@@ -6,7 +6,7 @@ use ares_validation::validation_runner::ValidationRunner;
 #[utoipa::path(
     get,
     path = "/api/v1/memory/certification",
-    responses((status = 200, description = "Memory Certification", body = ApiResponse<serde_json::Value>))
+    responses((status = 200, description = "Memory Certification", body = ApiResponseCertification))
 )]
 pub async fn certification(
     State(validation_runner): State<Arc<ValidationRunner>>,

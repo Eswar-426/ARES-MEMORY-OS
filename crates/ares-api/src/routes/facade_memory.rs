@@ -6,7 +6,7 @@ use ares_memory_intelligence::facade::MemoryFacade;
 #[utoipa::path(
     get,
     path = "/api/v1/memory/why/{id}",
-    responses((status = 200, description = "Why entity exists", body = ApiResponse<serde_json::Value>))
+    responses((status = 200, description = "Why entity exists", body = ApiResponseValue))
 )]
 pub async fn why(
     State(facade): State<Arc<MemoryFacade>>,
@@ -21,7 +21,7 @@ pub async fn why(
 #[utoipa::path(
     get,
     path = "/api/v1/memory/who/{id}",
-    responses((status = 200, description = "Who owns entity", body = ApiResponse<serde_json::Value>))
+    responses((status = 200, description = "Who owns entity", body = ApiResponseValue))
 )]
 pub async fn who(
     State(facade): State<Arc<MemoryFacade>>,
@@ -36,7 +36,7 @@ pub async fn who(
 #[utoipa::path(
     get,
     path = "/api/v1/memory/impact/{id}",
-    responses((status = 200, description = "Impact analysis", body = ApiResponse<serde_json::Value>))
+    responses((status = 200, description = "Impact analysis", body = ApiResponseValue))
 )]
 pub async fn impact(
     State(facade): State<Arc<MemoryFacade>>,
@@ -54,7 +54,7 @@ pub async fn impact(
 #[utoipa::path(
     get,
     path = "/api/v1/memory/evolution/{id}",
-    responses((status = 200, description = "Evolution timeline", body = ApiResponse<serde_json::Value>))
+    responses((status = 200, description = "Evolution timeline", body = ApiResponseValue))
 )]
 pub async fn evolution(
     State(facade): State<Arc<MemoryFacade>>,
@@ -72,7 +72,7 @@ pub async fn evolution(
 #[utoipa::path(
     get,
     path = "/api/v1/memory/facade_context/{id}",
-    responses((status = 200, description = "Memory context package", body = ApiResponse<serde_json::Value>))
+    responses((status = 200, description = "Memory context package", body = ApiResponseMemoryContextPackage))
 )]
 pub async fn context(
     State(facade): State<Arc<MemoryFacade>>,

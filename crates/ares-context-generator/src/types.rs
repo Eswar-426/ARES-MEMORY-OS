@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// A portable context payload that can be sent to any AI model.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(utoipa::ToSchema)]
 pub struct PortableContext {
     /// The full rendered text, ready to paste into an AI context window.
     pub text: String,
@@ -17,6 +18,7 @@ pub struct PortableContext {
     pub generated_at: i64,
 }
 
+#[derive(utoipa::ToSchema)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextSection {
     pub title: String,
@@ -25,6 +27,7 @@ pub struct ContextSection {
     pub estimated_tokens: usize,
 }
 
+#[derive(utoipa::ToSchema)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SectionPriority {

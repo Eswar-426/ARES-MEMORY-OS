@@ -7,6 +7,7 @@ license.workspace = true
 description = "Decision Intelligence Engine for ARES MemoryOS"
 
 [dependencies]
+utoipa = { workspace = true }
 ares-core         = { path = "../ares-core" }
 ares-store        = { path = "../ares-store" }
 ares-traceability = { path = "../ares-traceability" }

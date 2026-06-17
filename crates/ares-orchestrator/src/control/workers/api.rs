@@ -1,3 +1,4 @@
+use super::models::Worker;
 use super::{dto::*, service::WorkerService};
 use ares_core::AresError;
 use axum::{
@@ -24,7 +25,7 @@ pub struct WorkersApiState {
     path = "/api/v1/orchestrator/workers",
     request_body = WorkerRegistrationRequest,
     responses(
-        (status = 200, description = "Worker registered", body = super::models::Worker)
+        (status = 200, description = "Worker registered", body = Worker)
     )
 )]
 pub async fn register_worker(
@@ -39,7 +40,7 @@ pub async fn register_worker(
     get,
     path = "/api/v1/orchestrator/workers",
     responses(
-        (status = 200, description = "List workers", body = Vec<super::models::Worker>)
+        (status = 200, description = "List workers", body = Vec<Worker>)
     )
 )]
 pub async fn list_workers(
@@ -56,7 +57,7 @@ pub async fn list_workers(
         ("id" = String, Path, description = "Worker ID")
     ),
     responses(
-        (status = 200, description = "Get worker", body = super::models::Worker)
+        (status = 200, description = "Get worker", body = Worker)
     )
 )]
 pub async fn get_worker(

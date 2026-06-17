@@ -1,3 +1,7 @@
+use crate::models::DecisionPageResponse;
+use crate::models::GraphNodePageResponse;
+use crate::models::TimelinePageResponse;
+use ares_core::ImpactGraph;
 use ares_app::AppState;
 use ares_core::{CreateMemoryInput, Memory, MemorySearchResult, ProjectId};
 use axum::extract::State;
@@ -111,12 +115,12 @@ pub struct MemoryGraphQuery {
         ("page" = Option<u32>, Query, description = "Page number"),
         ("page_size" = Option<u32>, Query, description = "Page size")
     ),
-    responses((status = 200, description = "Graph nodes", body = ares_core::types::pagination::Page<ares_core::GraphNode>))
+    responses((status = 200, description = "Graph nodes", body = GraphNodePageResponse))
 )]
 pub async fn get_memory_graph(
     State(state): State<AppState>,
     axum::extract::Query(query): axum::extract::Query<MemoryGraphQuery>,
-) -> Result<Json<ares_core::types::pagination::Page<ares_core::GraphNode>>, axum::http::StatusCode>
+) -> Result<Json<GraphNodePageResponse>, axum::http::StatusCode>
 {
     let project_id = ProjectId::from(query.project_id);
     let pagination = ares_core::types::pagination::Pagination {
@@ -131,7 +135,12 @@ pub async fn get_memory_graph(
         query.search.as_deref(),
         &pagination,
     ) {
-        Ok(page) => Ok(Json(page)),
+        Ok(page) => Ok(Json(GraphNodePageResponse {
+            items: page.items,
+            page: page.page,
+            page_size: page.page_size,
+            total: page.total,
+        })),
         Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
@@ -157,13 +166,12 @@ pub struct MemoryTimelineQuery {
         ("page" = Option<u32>, Query, description = "Page number"),
         ("page_size" = Option<u32>, Query, description = "Page size")
     ),
-    responses((status = 200, description = "Timeline events", body = ares_core::types::pagination::Page<ares_core::AresEvent>))
+    responses((status = 200, description = "Timeline events", body = TimelinePageResponse))
 )]
 pub async fn get_memory_timeline(
     State(state): State<AppState>,
     axum::extract::Query(query): axum::extract::Query<MemoryTimelineQuery>,
-) -> Result<Json<ares_core::types::pagination::Page<ares_core::AresEvent>>, axum::http::StatusCode>
-{
+) -> Result<Json<TimelinePageResponse>, axum::http::StatusCode> {
     let project_id = ProjectId::from(query.project_id);
     let pagination = ares_core::types::pagination::Pagination {
         page: query.page.unwrap_or(1),
@@ -191,7 +199,12 @@ pub async fn get_memory_timeline(
         .timeline_repo
         .list_paginated(&project_id, filter, &pagination)
     {
-        Ok(page) => Ok(Json(page)),
+        Ok(page) => Ok(Json(TimelinePageResponse {
+            items: page.items,
+            page: page.page,
+            page_size: page.page_size,
+            total: page.total,
+        })),
         Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
@@ -219,12 +232,12 @@ pub struct MemoryDecisionsQuery {
         ("page" = Option<u32>, Query, description = "Page number"),
         ("page_size" = Option<u32>, Query, description = "Page size")
     ),
-    responses((status = 200, description = "Decisions", body = ares_core::types::pagination::Page<ares_core::Decision>))
+    responses((status = 200, description = "Decisions", body = DecisionPageResponse))
 )]
 pub async fn get_memory_decisions(
     State(state): State<AppState>,
     axum::extract::Query(query): axum::extract::Query<MemoryDecisionsQuery>,
-) -> Result<Json<ares_core::types::pagination::Page<ares_core::Decision>>, axum::http::StatusCode> {
+) -> Result<Json<DecisionPageResponse>, axum::http::StatusCode> {
     let project_id = ProjectId::from(query.project_id);
     let pagination = ares_core::types::pagination::Pagination {
         page: query.page.unwrap_or(1),
@@ -243,7 +256,12 @@ pub async fn get_memory_decisions(
         .decision_repo
         .list_paginated(&project_id, filter, &pagination)
     {
-        Ok(page) => Ok(Json(page)),
+        Ok(page) => Ok(Json(DecisionPageResponse {
+            items: page.items,
+            page: page.page,
+            page_size: page.page_size,
+            total: page.total,
+        })),
         Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
@@ -261,12 +279,12 @@ pub struct MemoryContextQuery {
         ("memory_id" = String, Query, description = "Memory ID (or Node ID)"),
         ("depth" = Option<u8>, Query, description = "Traversal depth")
     ),
-    responses((status = 200, description = "Memory context graph", body = ares_core::ImpactGraph))
+    responses((status = 200, description = "Memory context graph", body = ImpactGraph))
 )]
 pub async fn get_memory_context(
     State(state): State<AppState>,
     axum::extract::Query(query): axum::extract::Query<MemoryContextQuery>,
-) -> Result<Json<ares_core::ImpactGraph>, axum::http::StatusCode> {
+) -> Result<Json<ImpactGraph>, axum::http::StatusCode> {
     let node_id = ares_core::NodeId::from(query.memory_id);
     let depth = query.depth.unwrap_or(2);
 

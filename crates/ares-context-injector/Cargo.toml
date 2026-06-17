@@ -7,6 +7,7 @@ license.workspace = true
 description = "Context Injector — selects, ranks, budgets, and injects context into AI prompts"
 
 [dependencies]
+utoipa = { workspace = true }
 ares-core = { path = "../ares-core" }
 ares-store = { path = "../ares-store" }
 ares-context-generator = { path = "../ares-context-generator" }

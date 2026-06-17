@@ -2,7 +2,6 @@ use crate::agent::{AgentProvider, AgentType, BenchmarkMetrics};
 use crate::scoring::HybridScorer;
 use crate::tools::BenchmarkTools;
 use ares_app::AppState;
-use ares_mcp::handler::ToolHandler;
 use std::path::PathBuf;
 use std::time::Instant;
 use tracing::{debug, info};
@@ -53,8 +52,7 @@ impl BenchmarkRunner {
         let start = Instant::now();
 
         // 1. Prepare Tools
-        let ares_handler = self.app_state.clone().map(ToolHandler::new);
-        let tools = BenchmarkTools::new(ares_handler);
+        let tools = BenchmarkTools::new();
         let schemas = tools.get_schemas(agent_type);
 
         // 2. Prepare Context Prefix

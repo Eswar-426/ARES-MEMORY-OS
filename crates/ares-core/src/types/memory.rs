@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 // ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum MemoryType {
     Project,
@@ -63,6 +64,7 @@ impl std::str::FromStr for MemoryType {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum MemoryStatus {
     #[default]
@@ -94,6 +96,7 @@ impl std::str::FromStr for MemoryStatus {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum MemorySource {
     #[default]
@@ -132,6 +135,7 @@ impl std::str::FromStr for MemorySource {
 // ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum ImportanceLevel {
     Critical,
@@ -170,6 +174,7 @@ impl std::str::FromStr for ImportanceLevel {
 // ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct Memory {
     pub id: MemoryId,
     pub project_id: ProjectId,
@@ -197,6 +202,7 @@ pub struct Memory {
 // ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct CreateMemoryInput {
     pub project_id: ProjectId,
     pub memory_type: MemoryType,
@@ -227,6 +233,7 @@ pub struct MemoryFilter {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct MemorySearchResult {
     pub memory: Memory,
     /// BM25 rank score from FTS5

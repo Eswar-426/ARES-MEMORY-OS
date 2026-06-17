@@ -1,3 +1,4 @@
+use super::models::DistributedExecution;
 use super::service::ExecutionService;
 use ares_core::AresError;
 use axum::{extract::State, response::IntoResponse, Json};
@@ -19,7 +20,7 @@ pub struct ExecutionApiState {
     get,
     path = "/api/v1/orchestrator/executions/distributed",
     responses(
-        (status = 200, description = "List executions", body = Vec<super::models::DistributedExecution>)
+        (status = 200, description = "List executions", body = Vec<DistributedExecution>)
     )
 )]
 pub async fn list_distributed_executions(

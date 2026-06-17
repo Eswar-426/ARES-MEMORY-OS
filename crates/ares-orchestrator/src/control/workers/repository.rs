@@ -1,4 +1,4 @@
-use super::models::{Worker, WorkerStatus};
+use super::models::{Worker, WorkerStatus, WorkerResources};
 use ares_core::AresError;
 use ares_store::db::Store;
 use rusqlite::params;
@@ -55,7 +55,7 @@ impl WorkerRepository {
             let status = serde_json::from_str(&format!("\"{}\"", status_str))
                 .unwrap_or(WorkerStatus::Offline);
             let resources =
-                serde_json::from_str(&resources_json).unwrap_or(super::models::WorkerResources {
+                serde_json::from_str(&resources_json).unwrap_or(WorkerResources {
                     cpu: 0.0,
                     memory: 0,
                     disk: 0,
@@ -114,7 +114,7 @@ impl WorkerRepository {
                 let status = serde_json::from_str(&format!("\"{}\"", status_str))
                     .unwrap_or(WorkerStatus::Offline);
                 let resources = serde_json::from_str(&resources_json).unwrap_or(
-                    super::models::WorkerResources {
+                    WorkerResources {
                         cpu: 0.0,
                         memory: 0,
                         disk: 0,

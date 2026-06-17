@@ -1,14 +1,11 @@
 use crate::agent::{AgentType, ToolResult};
-use ares_mcp::handler::ToolHandler;
 use serde_json::Value;
 
-pub struct BenchmarkTools {
-    pub ares_handler: Option<ToolHandler>,
-}
+pub struct BenchmarkTools {}
 
 impl BenchmarkTools {
-    pub fn new(ares_handler: Option<ToolHandler>) -> Self {
-        Self { ares_handler }
+    pub fn new() -> Self {
+        Self {}
     }
 
     /// Return the list of tools available for a given AgentType.
@@ -104,22 +101,9 @@ impl BenchmarkTools {
                 }
             }
             "get_context_for_prompt" | "search_memory" => {
-                if let Some(handler) = &self.ares_handler {
-                    match handler.handle(name, args).await {
-                        Ok(res) => ToolResult {
-                            output: res.to_string(),
-                            is_error: false,
-                        },
-                        Err(e) => ToolResult {
-                            output: format!("ARES Error: {e}"),
-                            is_error: true,
-                        },
-                    }
-                } else {
-                    ToolResult {
-                        output: "ARES not initialized.".into(),
-                        is_error: true,
-                    }
+                ToolResult {
+                    output: "ARES tools not supported in benchmark anymore.".into(),
+                    is_error: true,
                 }
             }
             _ => ToolResult {

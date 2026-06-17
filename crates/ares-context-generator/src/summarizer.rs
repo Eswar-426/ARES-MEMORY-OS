@@ -1,12 +1,13 @@
 //! MemorySummarizer — condenses lists of decisions, features, bugs into concise summaries.
 
+use ares_decision_intelligence::DecisionSummary;
 use ares_project_memory::types::*;
 
 pub struct MemorySummarizer;
 
 impl MemorySummarizer {
     /// Summarize decisions into bullet points.
-    pub fn summarize_decisions(decisions: &[ares_decision_intelligence::DecisionSummary]) -> Vec<String> {
+    pub fn summarize_decisions(decisions: &[DecisionSummary]) -> Vec<String> {
         if decisions.is_empty() {
             return vec!["No decisions recorded yet.".into()];
         }
@@ -117,7 +118,7 @@ mod tests {
 
     #[test]
     fn summarize_decisions_with_items() {
-        let decisions = vec![ares_decision_intelligence::DecisionSummary {
+        let decisions = vec![DecisionSummary {
             id: "d1".into(),
             title: "Use Axum for HTTP".into(),
             approval_status: ares_decision_intelligence::DecisionStatus::Approved,
