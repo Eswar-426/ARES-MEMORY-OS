@@ -3,7 +3,7 @@
 use ares_decision_intelligence::DecisionSummary;
 use ares_requirements::RequirementSummary;
 use ares_decision_intelligence::DecisionCoverage;
-use ares_requirements::RequirementCoverage;
+use ares_requirements::RequirementCoverageSummary;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -31,7 +31,7 @@ pub struct ProjectSnapshot {
     pub features: Vec<FeatureSummary>,
     pub bugs: Vec<BugSummary>,
     pub requirements: Vec<RequirementSummary>,
-    pub requirement_coverage: Option<RequirementCoverage>,
+    pub requirement_coverage: Option<RequirementCoverageSummary>,
     pub recent_changes: Vec<ChangeRecord>,
     pub stats: ProjectStats,
     pub created_at: i64,

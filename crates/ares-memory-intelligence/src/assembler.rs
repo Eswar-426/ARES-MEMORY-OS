@@ -15,6 +15,7 @@ pub struct MemoryContextAssembler {
     pub gap_engine: Arc<GapEngine>,
     pub resolution_engine: Arc<ResolutionEngine>,
     pub retrieval_engine: Arc<RetrievalEngine>,
+    pub store: ares_store::Store,
 }
 
 impl MemoryContextAssembler {
@@ -24,6 +25,7 @@ impl MemoryContextAssembler {
         gap_engine: Arc<GapEngine>,
         resolution_engine: Arc<ResolutionEngine>,
         retrieval_engine: Arc<RetrievalEngine>,
+        store: ares_store::Store,
     ) -> Self {
         Self {
             graph,
@@ -31,6 +33,7 @@ impl MemoryContextAssembler {
             gap_engine,
             resolution_engine,
             retrieval_engine,
+            store,
         }
     }
 
@@ -51,7 +54,7 @@ impl MemoryContextAssembler {
         let resolution_engine = Arc::new(ResolutionEngine::new());
         let retrieval_engine = Arc::new(RetrievalEngine::new(store.clone()));
 
-        Self::new(graph, evolution, gap_engine, resolution_engine, retrieval_engine)
+        Self::new(graph, evolution, gap_engine, resolution_engine, retrieval_engine, store)
     }
 
     /// Example: Unified query to get the full story of an entity.

@@ -11,12 +11,16 @@ ares-core = { path = "../ares-core" }
 ares-store = { path = "../ares-store" }
 ares-memory-intelligence = { path = "../ares-memory-intelligence" }
 ares-validation = { path = "../ares-validation" }
+ares-governance = { version = "0.1.0", path = "../ares-governance" }
+ares-knowledge-graph = { path = "../ares-knowledge-graph" }
+ares-pr-engine = { path = "../ares-pr-engine" }
 
 clap = { version = "4.4", features = ["derive"] }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 thiserror = { workspace = true }
+serde_json.workspace = true
 
 [[bin]]
 name = "ares"

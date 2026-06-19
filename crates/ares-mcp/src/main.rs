@@ -14,6 +14,17 @@ struct MemoryQueryInput {
     id: String,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+struct GovernanceQueryInput {
+    project_id: String,
+    node_id: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct ProjectQueryInput {
+    project_id: String,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), BoxError> {
     // Basic tracing setup for MCP (use stderr for logs so stdio stdout is free for JSON-RPC)
@@ -33,7 +44,11 @@ async fn main() -> Result<(), BoxError> {
     let app_state = AppState::new(config).await?;
 
     let assembler = Arc::new(MemoryContextAssembler::default_from_store(app_state.store.clone()));
-    let facade = Arc::new(MemoryFacade::new(assembler.clone()));
+    let governance = Arc::new(ares_governance::GovernanceFacade::new(
+        app_state.store.clone(),
+        std::path::PathBuf::from(&project_path),
+    ));
+    let facade = Arc::new(MemoryFacade::new(assembler.clone(), governance.clone()));
 
     // Create the Why tool
     let facade_why = facade.clone();
@@ -134,6 +149,38 @@ async fn main() -> Result<(), BoxError> {
             }
         });
 
+    // Create the Compliance tool
+    let facade_compliance = facade.clone();
+    let compliance_tool = ToolBuilder::new("ares_compliance")
+        .description("Evaluates the compliance of a specific entity against active governance policies")
+        .handler(move |input: GovernanceQueryInput| {
+            let facade = facade_compliance.clone();
+            async move {
+                let governance = facade.get_governance();
+                match governance.is_compliant(&ares_core::ProjectId::from(input.project_id), &ares_core::NodeId::from(input.node_id)).await {
+                    Ok(result) => Ok(CallToolResult::text(serde_json::to_string(&result).unwrap_or_else(|_| "Failed to serialize".to_string()))),
+                    Err(e) => Ok(CallToolResult::text(format!("Error: {}", e))),
+                }
+            }
+        })
+        .build();
+
+    // Create the Scorecard tool
+    let facade_scorecard = facade.clone();
+    let scorecard_tool = ToolBuilder::new("ares_scorecard")
+        .description("Retrieves the governance scorecard for a project")
+        .handler(move |input: ProjectQueryInput| {
+            let facade = facade_scorecard.clone();
+            async move {
+                let governance = facade.get_governance();
+                match governance.get_scorecard(&ares_core::ProjectId::from(input.project_id)).await {
+                    Ok(result) => Ok(CallToolResult::text(serde_json::to_string(&result).unwrap_or_else(|_| "Failed to serialize".to_string()))),
+                    Err(e) => Ok(CallToolResult::text(format!("Error: {}", e))),
+                }
+            }
+        })
+        .build();
+
     // Create Router and attach tools
     let router = McpRouter::new()
         .server_info("ares-mcp", env!("CARGO_PKG_VERSION"))
@@ -141,6 +188,8 @@ async fn main() -> Result<(), BoxError> {
         .tool(who_tool)
         .tool(evolution_tool)
         .tool(impact_tool)
+        .tool(compliance_tool)
+        .tool(scorecard_tool)
         .resource(cert_resource)
         .resource_template(context_resource);
 

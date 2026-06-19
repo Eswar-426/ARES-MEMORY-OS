@@ -39,6 +39,9 @@ impl RequirementStore {
         let priority_str = serde_json::to_string(&input.priority)
             .unwrap_or_else(|_| "\"medium\"".to_string())
             .replace("\"", "");
+        let source_str = serde_json::to_string(&input.source)
+            .unwrap_or_else(|_| "\"product\"".to_string())
+            .replace("\"", "");
         let tags_json = serde_json::to_string(&input.tags).unwrap_or_else(|_| "[]".to_string());
 
         conn.execute(
@@ -46,14 +49,15 @@ impl RequirementStore {
                 id, title, description, priority, status, source, created_at,
                 requirement_type, owner, updated_at, tags, project_id
             ) VALUES (
-                ?1, ?2, ?3, ?4, 'draft', 'user', ?5,
-                ?6, ?7, ?8, ?9, ?10
+                ?1, ?2, ?3, ?4, 'draft', ?5, ?6,
+                ?7, ?8, ?9, ?10, ?11
             )",
             params![
                 req_id.as_str(),
                 input.title,
                 input.description,
                 priority_str,
+                source_str,
                 now,
                 type_str,
                 input.owner,
@@ -94,6 +98,12 @@ impl RequirementStore {
         if let Some(req_type) = input.requirement_type {
             sets.push(format!("requirement_type = ?{idx}"));
             let val = serde_json::to_string(&req_type).unwrap().replace("\"", "");
+            params_vec.push(Box::new(val));
+            idx += 1;
+        }
+        if let Some(source) = input.source {
+            sets.push(format!("source = ?{idx}"));
+            let val = serde_json::to_string(&source).unwrap().replace("\"", "");
             params_vec.push(Box::new(val));
             idx += 1;
         }
@@ -276,6 +286,12 @@ impl RequirementStore {
             LinkTargetType::Decision => "decision",
             LinkTargetType::Architecture => "architecture",
             LinkTargetType::Code => "code",
+            LinkTargetType::RuntimeMetric => "runtime_metric",
+        };
+
+        let target_id_val = match &link.target {
+            LinkTarget::RuntimeMetric(r) => serde_json::to_string(r).unwrap_or_else(|_| r.id.as_str().to_string()),
+            _ => link.target.target_id().to_string(),
         };
 
         conn.execute(
@@ -285,7 +301,7 @@ impl RequirementStore {
             params![
                 link.id.as_str(),
                 link.source_requirement_id.as_str(),
-                link.target.target_id(),
+                target_id_val,
                 target_type_str,
                 link.relationship,
                 link.created_at,
@@ -340,6 +356,7 @@ impl RequirementStore {
             LinkTargetType::Decision => "decision",
             LinkTargetType::Architecture => "architecture",
             LinkTargetType::Code => "code",
+            LinkTargetType::RuntimeMetric => "runtime_metric",
         };
 
         let mut stmt = conn
@@ -413,6 +430,9 @@ fn row_to_requirement(row: &rusqlite::Row<'_>) -> Result<Requirement, rusqlite::
     let priority_str: String = row.get(6)?;
     let priority_val = serde_json::from_str(&format!("\"{}\"", priority_str)).unwrap_or(RequirementPriority::Medium);
 
+    let source_str: String = row.get(11).unwrap_or_else(|_| "product".to_string());
+    let source_val = serde_json::from_str(&format!("\"{}\"", source_str)).unwrap_or(crate::models::RequirementSource::Product);
+
     let tags_str: String = row.get(10)?;
     let tags_val: Vec<String> = serde_json::from_str(&tags_str).unwrap_or_default();
 
@@ -423,6 +443,7 @@ fn row_to_requirement(row: &rusqlite::Row<'_>) -> Result<Requirement, rusqlite::
         description: row.get(3)?,
         requirement_type: type_val,
         status: status_val,
+        source: source_val,
         priority: priority_val,
         owner: row.get(7)?,
         created_at: row.get(8)?,
@@ -440,6 +461,15 @@ fn row_to_requirement_link(row: &rusqlite::Row<'_>) -> Result<RequirementLink, r
         "decision" => LinkTarget::Decision(ares_core::DecisionId::from(target_id_str)),
         "architecture" => LinkTarget::Architecture(ares_core::ArchComponentId::from(target_id_str)),
         "code" => LinkTarget::Code(ares_core::CodeArtifactId::from(target_id_str)),
+        "runtime_metric" => {
+            let parsed_ref: crate::models::RuntimeMetricRef = serde_json::from_str(&target_id_str)
+                .unwrap_or_else(|_| crate::models::RuntimeMetricRef {
+                    id: ares_core::RuntimeMetricId::from(target_id_str.clone()),
+                    provider: crate::models::MetricProvider::Internal,
+                    external_id: None,
+                });
+            LinkTarget::RuntimeMetric(parsed_ref)
+        },
         _ => LinkTarget::Code(ares_core::CodeArtifactId::from(target_id_str)), // Fallback
     };
 

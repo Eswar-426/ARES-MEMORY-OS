@@ -1,0 +1,18 @@
+api_version: v1
+kind: Policy
+metadata:
+  name: WARN-001
+  version: "1.0"
+  description: "Warns on missing evidence"
+  category: Evidence
+  enforcement: Warn
+spec:
+  rules:
+    - name: "Warn missing evidence"
+      severity: Warning
+      condition: missing_evidence
+      target:
+        - requirement
+        - feature
+        - decision
+      enforcement: Warn

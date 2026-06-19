@@ -149,6 +149,13 @@ mod tests {
 
         // V31 — Memory Evolution Engine
         assert!(tables.contains(&"memory_revisions".to_string()));
+
+        // V32 — Enterprise Governance
+        assert!(tables.contains(&"policy_versions".to_string()));
+        assert!(tables.contains(&"compliance_results".to_string()));
+        assert!(tables.contains(&"compliance_violations".to_string()));
+        assert!(tables.contains(&"compliance_violation_supports".to_string()));
+        assert!(tables.contains(&"governance_certifications".to_string()));
     }
     #[test]
     fn test_migrations_rerun_and_idempotency() {

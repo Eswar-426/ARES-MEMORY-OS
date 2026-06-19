@@ -178,6 +178,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "ares-core",
+ "ares-governance",
  "ares-intelligence",
  "ares-memory-intelligence",
  "ares-store",
@@ -208,6 +209,7 @@ dependencies = [
  "ares-decision-dna",
  "ares-decision-intelligence",
  "ares-extractor",
+ "ares-governance",
  "ares-knowledge",
  "ares-knowledge-graph",
  "ares-memory-evolution",
@@ -302,10 +304,14 @@ name = "ares-cli"
 version = "0.1.0"
 dependencies = [
  "ares-core",
+ "ares-governance",
+ "ares-knowledge-graph",
  "ares-memory-intelligence",
+ "ares-pr-engine",
  "ares-store",
  "ares-validation",
  "clap",
+ "serde_json",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
@@ -472,6 +478,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "ares-governance"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ares-core",
+ "ares-knowledge-graph",
+ "ares-memory-evolution",
+ "ares-requirements",
+ "ares-store",
+ "ares-traceability",
+ "chrono",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sha2",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
 name = "ares-intelligence"
 version = "0.1.0"
 dependencies = [
@@ -537,6 +567,8 @@ dependencies = [
  "ares-context-injector",
  "ares-core",
  "ares-extractor",
+ "ares-governance",
+ "ares-knowledge-graph",
  "ares-memory-intelligence",
  "ares-planner",
  "ares-project-memory",
@@ -577,11 +609,15 @@ name = "ares-memory-intelligence"
 version = "0.1.0"
 dependencies = [
  "ares-core",
+ "ares-decision-intelligence",
  "ares-gap-engine",
+ "ares-governance",
  "ares-knowledge-graph",
  "ares-memory-evolution",
+ "ares-requirements",
  "ares-resolution-engine",
  "ares-store",
+ "ares-traceability",
  "chrono",
  "rusqlite",
  "serde",
@@ -671,6 +707,22 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "ares-pr-engine"
+version = "0.1.0"
+dependencies = [
+ "ares-core",
+ "ares-governance",
+ "ares-knowledge-graph",
+ "ares-store",
+ "ares-validation",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
 ]
 
 [[package]]
@@ -840,6 +892,7 @@ version = "0.1.0"
 dependencies = [
  "ares-core",
  "ares-gap-engine",
+ "ares-governance",
  "ares-knowledge-graph",
  "ares-memory-evolution",
  "ares-memory-intelligence",

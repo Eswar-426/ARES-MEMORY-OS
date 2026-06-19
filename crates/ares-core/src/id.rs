@@ -89,6 +89,7 @@ define_id!(ScanRunId, "scan_run");
 define_id!(RequirementId, "requirement");
 define_id!(ArchComponentId, "arch_component");
 define_id!(CodeArtifactId, "code_artifact");
+define_id!(RuntimeMetricId, "runtime_metric");
 define_id!(RequirementLinkId, "requirement_link");
 define_id!(RequirementRevisionId, "requirement_revision");
 define_id!(EvidenceId, "evidence");

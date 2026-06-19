@@ -3,9 +3,9 @@ use crate::models::GraphNodePageResponse;
 use ares_decision_intelligence::integration::DecisionCoverage;
 use ares_decision_intelligence::integration::DecisionSummary;
 use crate::models::DecisionPageResponse;
-use ares_requirements::integration::RequirementSummary;
+use ares_requirements::RequirementSummary;
 use ares_core::types::node::ImpactGraph;
-use ares_requirements::integration::RequirementCoverage;
+use ares_requirements::{RequirementCoverage, RequirementCoverageSummary, RequirementCoverageTrend, RequirementGap, GapType, CoverageStatus, GapSummary};
 use ares_app::AppState;
 use axum::{
     routing::{get, post},
@@ -18,6 +18,7 @@ use utoipa_swagger_ui::SwaggerUi;
 pub mod auth;
 pub mod routes;
 pub mod models;
+pub mod middleware;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -41,6 +42,14 @@ pub mod models;
         routes::facade_memory::evolution,
         routes::facade_memory::context,
         routes::facade_health::certification,
+        routes::governance::compliance,
+        routes::governance::certification,
+        routes::governance::scorecard,
+        routes::governance::policies,
+        routes::governance::dashboard,
+        routes::governance::drift,
+        routes::governance::exemptions,
+        routes::governance::explain,
         routes::context::get_context,
         routes::context::inject_context,
         routes::decisions::decision_history,
@@ -128,12 +137,40 @@ pub mod models;
             ares_project_memory::types::ProjectStats,
             ares_core::types::decision::ReasoningStep,
             ares_core::types::decision::Risk,
+            ares_governance::models::GovernanceExplanation,
+            ares_governance::models::GovernanceExplanationSummary,
+            ares_governance::models::DecisionHealthMetrics,
+            ares_governance::models::KnowledgeDebtMetrics,
+            ares_governance::models::ApprovalMetrics,
+            ares_governance::models::DriftMetrics,
+            ares_requirements::models::RequirementSource,
+            ares_requirements::models::MetricProvider,
             crate::routes::semantic::SemanticSearchResultDto,
             ares_core::types::plan::TaskStatus,
             DecisionCoverage,
             DecisionSummary,
             RequirementCoverage,
+            RequirementCoverageSummary,
+            RequirementCoverageTrend,
+            RequirementGap,
+            GapType,
+            CoverageStatus,
+            GapSummary,
             RequirementSummary,
+            ares_requirements::RequirementDriftType,
+            ares_requirements::StructuralDrift,
+            ares_requirements::SemanticDrift,
+            ares_requirements::DriftSeverity,
+            ares_requirements::DriftConfidence,
+            ares_requirements::DriftEvidence,
+            ares_requirements::RequirementDriftReport,
+            ares_requirements::RequirementBaseline,
+            ares_requirements::ImpactCategory,
+            ares_requirements::ImpactBreakdown,
+            ares_requirements::ImpactSeverity,
+            ares_requirements::ChangeRisk,
+            ares_requirements::RequirementImpactReport,
+            ares_governance::models::RequirementDriftSummary,
             ares_orchestrator::runtime::dlq::models::DeadLetterItem,
             ares_orchestrator::runtime::execution::models::DistributedExecution,
             ares_orchestrator::runtime::queue::models::WorkflowQueueItem,
@@ -245,6 +282,13 @@ pub mod models;
             routes::planner::PlanGraphEdge,
             // Extractor
             routes::extractor::ExtractKnowledgeRequest,
+            ares_governance::models::GovernanceDashboard,
+            ares_governance::models::PolicyDriftStatus,
+            ares_governance::models::EnforcementAction,
+            ares_governance::models::PolicyCategory,
+            ares_governance::models::EnforcementDecision,
+            ares_governance::models::EnforcementReadiness,
+            ares_governance::models::PolicyExemption,
         )
     ),
     tags(
@@ -288,7 +332,11 @@ pub fn create_router(state: AppState) -> Router {
     routes::observability::init_metrics();
 
     let assembler = ares_memory_intelligence::assembler::MemoryContextAssembler::default_from_store(state.store.clone());
-    let memory_facade = std::sync::Arc::new(ares_memory_intelligence::facade::MemoryFacade::new(std::sync::Arc::new(assembler)));
+    let governance = std::sync::Arc::new(ares_governance::GovernanceFacade::new(
+        state.store.clone(),
+        std::path::PathBuf::from(state.config.project_path.clone()),
+    ));
+    let memory_facade = std::sync::Arc::new(ares_memory_intelligence::facade::MemoryFacade::new(std::sync::Arc::new(assembler), governance.clone()));
     let validation_runner = std::sync::Arc::new(ares_validation::validation_runner::ValidationRunner::new(
         std::sync::Arc::new(state.store.clone()),
         std::sync::Arc::new(ares_memory_intelligence::assembler::MemoryContextAssembler::default_from_store(state.store.clone()))
@@ -305,6 +353,16 @@ pub fn create_router(state: AppState) -> Router {
     let cert_router = Router::new()
         .route("/memory/certification", get(routes::facade_health::certification))
         .with_state(validation_runner);
+
+    let governance_router = Router::new()
+        .route("/governance/compliance/:project_id/:node_id", get(routes::governance::compliance))
+        .route("/governance/certification/:project_id", get(routes::governance::certification))
+        .route("/governance/scorecard/:project_id", get(routes::governance::scorecard))
+        .route("/governance/policies/:project_id", get(routes::governance::policies))
+        .route("/governance/dashboard/:project_id", get(routes::governance::dashboard))
+        .route("/governance/drift/:project_id", get(routes::governance::drift))
+        .route("/governance/exemptions/:project_id", get(routes::governance::exemptions))
+        .with_state(state.clone());
 
     let api_routes = Router::new()
         .route(
@@ -403,6 +461,7 @@ pub fn create_router(state: AppState) -> Router {
             get(routes::workflows::visualize_workflow),
         )
         .nest("/knowledge", routes::knowledge::router(state.store.clone()))
+        .layer(axum::middleware::from_fn_with_state(state.clone(), middleware::strict_enforcement::strict_enforcement_middleware))
         .layer(axum::middleware::from_fn(auth::auth_middleware));
 
     let admin_routes = Router::new()
@@ -515,6 +574,7 @@ pub fn create_router(state: AppState) -> Router {
         .nest("/api/v1/orchestrator", combined_orchestrator_routes)
         .nest("/api/v1", facade_router)
         .nest("/api/v1", cert_router)
+        .nest("/api/v1", governance_router)
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .layer(
             tower_http::cors::CorsLayer::new()

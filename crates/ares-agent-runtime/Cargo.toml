@@ -14,6 +14,7 @@ ares-store = { path = "../ares-store" }
 ares-intelligence = { path = "../ares-intelligence" }
 ares-memory-intelligence = { path = "../ares-memory-intelligence" }
 ares-world-model = { path = "../ares-world-model" }
+ares-governance = { path = "../ares-governance" }
 
 # Async runtime
 tokio.workspace = true

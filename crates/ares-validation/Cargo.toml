@@ -13,6 +13,7 @@ ares-memory-evolution = { path = "../ares-memory-evolution" }
 ares-gap-engine = { path = "../ares-gap-engine" }
 ares-resolution-engine = { path = "../ares-resolution-engine" }
 ares-memory-intelligence = { path = "../ares-memory-intelligence" }
+ares-governance = { path = "../ares-governance" }
 
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -30,6 +30,7 @@ impl RequirementEdgeProvider {
             LinkTargetType::Decision => "decision",
             LinkTargetType::Architecture => "architecture",
             LinkTargetType::Code => "code",
+            LinkTargetType::RuntimeMetric => "runtime_metric",
         };
 
         conn.execute(
@@ -62,6 +63,7 @@ impl RequirementEdgeProvider {
             LinkTargetType::Decision => "decision",
             LinkTargetType::Architecture => "architecture",
             LinkTargetType::Code => "code",
+            LinkTargetType::RuntimeMetric => "runtime_metric",
         };
 
         conn.execute(
@@ -97,6 +99,7 @@ impl EdgeProvider for RequirementEdgeProvider {
                 "decision" => TraceTargetType::Decision,
                 "architecture" => TraceTargetType::Architecture,
                 "code" => TraceTargetType::Code,
+                "runtime_metric" => TraceTargetType::RuntimeMetric,
                 other => TraceTargetType::Unknown(other.to_string()),
             };
 

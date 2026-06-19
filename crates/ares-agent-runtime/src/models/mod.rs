@@ -67,6 +67,17 @@ pub enum AgentState {
     Terminated,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum ExecutionStatus {
+    #[default]
+    Running,
+    Paused,
+    Completed,
+    Failed,
+    GovernanceBlocked,
+    AwaitingApproval,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ExecutionContext {
     pub mission_id: Option<MissionId>,

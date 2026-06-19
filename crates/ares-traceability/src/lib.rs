@@ -11,6 +11,9 @@ pub enum TraceTargetType {
     Decision,
     Architecture,
     Code,
+    Test,
+    RuntimeMetric,
+    Governance,
     Unknown(String),
 }
 
@@ -93,6 +96,10 @@ impl TraceabilityGraph {
             TraceTargetType::Architecture
         } else if id.starts_with("CODE-") {
             TraceTargetType::Code
+        } else if id.starts_with("METRIC-") || id.starts_with("runtime_metric_") {
+            TraceTargetType::RuntimeMetric
+        } else if id.starts_with("POLICY-") || id.starts_with("GOV-") || id.starts_with("TRACE-") || id.starts_with("OWNERSHIP-") {
+            TraceTargetType::Governance
         } else {
             TraceTargetType::Unknown(id.to_string())
         }

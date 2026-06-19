@@ -10,6 +10,7 @@ pub mod snapshot;
 
 pub mod facade_memory;
 pub mod facade_health;
+pub mod governance;
 
 pub mod agents;
 pub mod knowledge;

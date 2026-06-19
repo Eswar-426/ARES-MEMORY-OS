@@ -107,4 +107,107 @@ impl KnowledgeGraphStore {
             .map_err(|e| AresError::Database(e.to_string()))?;
         Ok(count)
     }
+
+    /// Exports the entire graph (nodes and edges) for delta computation or snapshotting.
+    pub fn export_graph(&self) -> Result<crate::models::KnowledgeGraph, AresError> {
+        let conn = self.store.get_conn()?;
+        
+        let mut node_stmt = conn.prepare("SELECT id, entity_type, name, properties, created_at FROM graph_entities")
+            .map_err(|e| AresError::Database(e.to_string()))?;
+            
+        let node_iter = node_stmt.query_map([], |row| {
+            let n_type: String = row.get(1)?;
+            let props_str: String = row.get(3)?;
+            let created_str: String = row.get(4)?;
+            
+            let node_type = match n_type.as_str() {
+                "Requirement" => NodeType::Requirement,
+                "RequirementRevision" => NodeType::RequirementRevision,
+                "Decision" => NodeType::Decision,
+                "DecisionRevision" => NodeType::DecisionRevision,
+                "Evidence" => NodeType::Evidence,
+                "Outcome" => NodeType::Outcome,
+                "Architecture" => NodeType::Architecture,
+                "CodeArtifact" => NodeType::CodeArtifact,
+                "Test" => NodeType::Test,
+                "RuntimeSignal" => NodeType::RuntimeSignal,
+                "Gap" => NodeType::Gap,
+                "RootCause" => NodeType::RootCause,
+                "Resolution" => NodeType::Resolution,
+                "Owner" => NodeType::Owner,
+                "Repository" => NodeType::Repository,
+                "Project" => NodeType::Project,
+                _ => NodeType::CodeArtifact, // fallback
+            };
+
+            let properties = serde_json::from_str(&props_str).unwrap_or(serde_json::Value::Null);
+            let created_at = created_str.parse::<i64>().unwrap_or(0);
+
+            Ok(KnowledgeNode {
+                id: row.get(0)?,
+                node_type,
+                name: row.get(2)?,
+                properties,
+                created_at,
+            })
+        }).map_err(|e| AresError::Database(e.to_string()))?;
+
+        let mut nodes = Vec::new();
+        for n in node_iter {
+            if let Ok(node) = n {
+                nodes.push(node);
+            }
+        }
+
+        let mut edge_stmt = conn.prepare("SELECT id, source_entity, target_entity, relationship_type, confidence_score, created_at, properties FROM graph_relationships")
+            .map_err(|e| AresError::Database(e.to_string()))?;
+
+        let edge_iter = edge_stmt.query_map([], |row| {
+            let e_type: String = row.get(3)?;
+            let confidence: f64 = row.get(4)?;
+            let created_str: String = row.get(5)?;
+            let props_str: String = row.get(6)?;
+
+            let edge_type = match e_type.as_str() {
+                "Implements" => EdgeType::Implements,
+                "Drives" => EdgeType::Drives,
+                "DependsOn" => EdgeType::DependsOn,
+                "SupportedBy" => EdgeType::SupportedBy,
+                "ValidatedBy" => EdgeType::ValidatedBy,
+                "ResultsIn" => EdgeType::ResultsIn,
+                "OwnedBy" => EdgeType::OwnedBy,
+                "Exhibits" => EdgeType::Exhibits,
+                "Causes" => EdgeType::Causes,
+                "Resolves" => EdgeType::Resolves,
+                "References" => EdgeType::References,
+                "TracesTo" => EdgeType::TracesTo,
+                "ApprovedBy" => EdgeType::ApprovedBy,
+                "DerivedFrom" => EdgeType::DerivedFrom,
+                "Supersedes" => EdgeType::Supersedes,
+                _ => EdgeType::References, // fallback
+            };
+
+            let properties = serde_json::from_str(&props_str).unwrap_or(serde_json::Value::Null);
+            let created_at = created_str.parse::<i64>().unwrap_or(0);
+
+            Ok(KnowledgeEdge {
+                id: row.get(0)?,
+                source_id: row.get(1)?,
+                target_id: row.get(2)?,
+                edge_type,
+                confidence: confidence as f32,
+                created_at,
+                properties,
+            })
+        }).map_err(|e| AresError::Database(e.to_string()))?;
+
+        let mut edges = Vec::new();
+        for e in edge_iter {
+            if let Ok(edge) = e {
+                edges.push(edge);
+            }
+        }
+
+        Ok(crate::models::KnowledgeGraph { nodes, edges })
+    }
 }

@@ -3,6 +3,7 @@ pub mod collaboration;
 pub mod evaluation;
 pub mod events;
 pub mod execution;
+pub mod governance;
 pub mod id_bridge;
 pub mod learning;
 pub mod memory;
