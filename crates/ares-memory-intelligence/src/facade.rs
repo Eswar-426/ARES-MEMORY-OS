@@ -160,8 +160,11 @@ impl MemoryFacade {
 
         let impact_engine = ares_requirements::RequirementImpactEngine::new(&graph);
         let report = impact_engine.evaluate_impact(&req.id.to_string());
+        Ok(Self::format_impact_report(&report))
+    }
 
-        let mut md = format!("Requirement: {}\n\n", req.id);
+    pub fn format_impact_report(report: &ares_requirements::impact::RequirementImpactReport) -> String {
+        let mut md = format!("Requirement: {}\n\n", report.requirement_id);
         md.push_str(&format!("Blast Radius: {}/100\n\n", report.blast_radius_score.round()));
         md.push_str(&format!("Severity: {:?}\n\n", report.severity));
         md.push_str(&format!("Risk: {:?}\n\n", report.risk));
@@ -204,7 +207,7 @@ impl MemoryFacade {
             }
         }
 
-        Ok(md)
+        md
     }
 
     pub fn does_requirement_satisfy_intent(&self, req_id: &str) -> Result<String, AresError> {

@@ -4,6 +4,8 @@ use petgraph::visit::Dfs;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+pub mod test_utils;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum TraceTargetType {
@@ -96,6 +98,8 @@ impl TraceabilityGraph {
             TraceTargetType::Architecture
         } else if id.starts_with("CODE-") {
             TraceTargetType::Code
+        } else if id.starts_with("TEST-") {
+            TraceTargetType::Test
         } else if id.starts_with("METRIC-") || id.starts_with("runtime_metric_") {
             TraceTargetType::RuntimeMetric
         } else if id.starts_with("POLICY-") || id.starts_with("GOV-") || id.starts_with("TRACE-") || id.starts_with("OWNERSHIP-") {

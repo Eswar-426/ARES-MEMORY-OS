@@ -117,9 +117,9 @@ impl<'a> RequirementDriftEngine<'a> {
             return None;
         }
 
-        let severity = if drift_types.iter().any(|d| matches!(d, RequirementDriftType::Semantic(SemanticDrift::RuntimeMismatch))) {
+        let severity = if drift_types.iter().any(|d| matches!(d, RequirementDriftType::Semantic(SemanticDrift::RuntimeMismatch)) || matches!(d, RequirementDriftType::Structural(StructuralDrift::MissingDecision))) {
             DriftSeverity::Critical
-        } else if drift_types.iter().any(|d| matches!(d, RequirementDriftType::Structural(StructuralDrift::MissingVerification)) || matches!(d, RequirementDriftType::Semantic(SemanticDrift::RequirementExpired))) {
+        } else if drift_types.iter().any(|d| matches!(d, RequirementDriftType::Structural(StructuralDrift::MissingVerification)) || matches!(d, RequirementDriftType::Structural(StructuralDrift::MissingImplementation)) || matches!(d, RequirementDriftType::Semantic(SemanticDrift::RequirementExpired))) {
             DriftSeverity::High
         } else if drift_types.iter().any(|d| matches!(d, RequirementDriftType::Structural(StructuralDrift::MissingMonitoring))) {
             DriftSeverity::Medium

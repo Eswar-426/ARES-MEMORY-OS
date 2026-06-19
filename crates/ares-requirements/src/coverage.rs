@@ -115,11 +115,8 @@ impl<'a> RequirementTraceResolver for GraphTraceResolver<'a> {
     }
 
     fn has_test(&self, req_id: &str) -> bool {
-        // Depending on convention, tests might be Code nodes with Validates relationship,
-        // or we check nodes with names containing test. For now, we do a basic check.
         if let Ok(nodes) = self.graph.find_downstream(req_id) {
-            // Simplified: Assume some test relationship or naming convention
-            nodes.iter().any(|n| matches!(n.node_type, TraceTargetType::Code) && (n.id.contains("test") || n.label.contains("test")))
+            nodes.iter().any(|n| matches!(n.node_type, TraceTargetType::Test))
         } else {
             false
         }
@@ -198,7 +195,7 @@ impl RequirementCoverageEngine {
         }
 
         let mut score = 0.0;
-        if approved || has_decision {
+        if has_decision {
             score = 25.0;
             if implemented {
                 score = 50.0;
