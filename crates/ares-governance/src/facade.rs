@@ -129,7 +129,7 @@ impl GovernanceFacade {
         let req_store = ares_requirements::RequirementStore::new(self.store.clone());
         let mut graph = ares_traceability::TraceabilityGraph::new();
         graph.add_provider(Box::new(ares_requirements::RequirementEdgeProvider::new(self.store.clone())));
-        let resolver = ares_requirements::GraphTraceResolver::new(&graph);
+        let resolver = ares_requirements::TraceAnalysisEngine::new(&graph);
         let engine = ares_requirements::RequirementCoverageEngine::new();
 
         let reqs = req_store.list(project_id, ares_requirements::RequirementFilter::default()).unwrap_or_default();
@@ -181,13 +181,24 @@ impl GovernanceFacade {
             delta: 0.0,
         };
 
+        let evolution = crate::models::EvolutionMetrics {
+            total_requirement_events: 0,
+            requirements_changed_this_week: 0,
+            requirements_regressed: 0,
+            requirements_improved: 0,
+        };
+        
+        let knowledge_gaps = ares_requirements::KnowledgeGapEngine::new(&graph).evaluate_gaps();
+
         Ok(crate::dashboard::DashboardGenerator::generate_dashboard(
             &cert, 
             top_violations, 
             req_summary, 
             requirement_coverage_trend, 
             requirement_drift,
-            top_gaps
+            evolution,
+            top_gaps,
+            &knowledge_gaps
         ))
     }
 

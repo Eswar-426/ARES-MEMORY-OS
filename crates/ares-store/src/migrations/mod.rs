@@ -156,6 +156,9 @@ mod tests {
         assert!(tables.contains(&"compliance_violations".to_string()));
         assert!(tables.contains(&"compliance_violation_supports".to_string()));
         assert!(tables.contains(&"governance_certifications".to_string()));
+
+        // V34 — Requirement Evolution Intelligence
+        assert!(tables.contains(&"requirement_evolution_events".to_string()));
     }
     #[test]
     fn test_migrations_rerun_and_idempotency() {

@@ -43,3 +43,98 @@ GOV-1
 
     assert_eq!(md, expected);
 }
+
+#[test]
+fn test_q18_evolution_snapshot() {
+    use ares_requirements::{
+        Requirement, RequirementTimeline, RequirementEvolutionEvent, 
+        RequirementEvolutionType, EventOrigin, RequirementType, RequirementStatus, RequirementPriority, RequirementSource
+    };
+    use ares_core::RequirementId;
+
+    let req = Requirement {
+        id: RequirementId::from("REQ-102".to_string()),
+        project_id: ares_core::ProjectId::from("proj1".to_string()),
+        title: "Test".to_string(),
+        description: "Desc".to_string(),
+        source: RequirementSource::Product,
+        requirement_type: RequirementType::Functional,
+        status: RequirementStatus::Approved,
+        priority: RequirementPriority::High,
+        owner: None,
+        created_at: 1768224000000000, // 2026-01-12
+        updated_at: 1768224000000000,
+        tags: vec![],
+    };
+
+    let timeline = RequirementTimeline {
+        requirement_id: req.id.clone(),
+        events: vec![
+            RequirementEvolutionEvent {
+                id: "e1".to_string(),
+                requirement_id: req.id.clone(),
+                timestamp: 1768224000000000,
+                event_type: RequirementEvolutionType::RequirementCreated,
+                event_origin: EventOrigin::Recorded,
+                actor: None,
+                description: "".to_string(),
+                correlation_id: None,
+                previous_score: None,
+                new_score: None,
+            },
+            RequirementEvolutionEvent {
+                id: "e2".to_string(),
+                requirement_id: req.id.clone(),
+                timestamp: 1768310400000000,
+                event_type: RequirementEvolutionType::DecisionAdded,
+                event_origin: EventOrigin::Recorded,
+                actor: None,
+                description: "DEC-1".to_string(),
+                correlation_id: None,
+                previous_score: None,
+                new_score: None,
+            },
+            RequirementEvolutionEvent {
+                id: "e3".to_string(),
+                requirement_id: req.id.clone(),
+                timestamp: 1768396800000000, // next day
+                event_type: RequirementEvolutionType::CoverageImproved,
+                event_origin: EventOrigin::Recorded,
+                actor: None,
+                description: "".to_string(),
+                correlation_id: None,
+                previous_score: Some(50.0),
+                new_score: Some(75.0),
+            },
+        ],
+    };
+
+    let md = MemoryFacade::format_evolution_report(&req, &timeline);
+    
+    let expected = "\
+Requirement Evolution Report
+
+Requirement:
+REQ-102
+
+Created:
+2026-01-12
+
+Timeline:
+
+✓ 2026-01-12 - Requirement Created
+✓ 2026-01-13 - Decision Added (DEC-1)
+✓ 2026-01-14 - Coverage Improved (50% → 75%)
+
+Coverage:
+75%
+
+Drift:
+None
+
+Current Status:
+Healthy
+";
+
+    assert_eq!(md, expected);
+}

@@ -5,7 +5,7 @@ use ares_decision_intelligence::integration::DecisionSummary;
 use crate::models::DecisionPageResponse;
 use ares_requirements::RequirementSummary;
 use ares_core::types::node::ImpactGraph;
-use ares_requirements::{RequirementCoverage, RequirementCoverageSummary, RequirementCoverageTrend, RequirementGap, GapType, CoverageStatus, GapSummary};
+use ares_requirements::{RequirementCoverage, RequirementCoverageSummary, RequirementCoverageTrend, RequirementGap, KnowledgeGapType, CoverageStatus, GapSummary};
 use ares_app::AppState;
 use axum::{
     routing::{get, post},
@@ -153,7 +153,7 @@ pub mod middleware;
             RequirementCoverageSummary,
             RequirementCoverageTrend,
             RequirementGap,
-            GapType,
+            KnowledgeGapType,
             CoverageStatus,
             GapSummary,
             RequirementSummary,

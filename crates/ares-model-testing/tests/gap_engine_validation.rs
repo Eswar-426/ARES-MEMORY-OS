@@ -9,7 +9,7 @@ use ares_decision_intelligence::models::{
 use ares_decision_intelligence::storage::DecisionStore;
 use ares_requirements::health::RequirementHealthEngine;
 use ares_requirements::models::{
-    CreateRequirementInput, LinkTarget, RequirementLink, RequirementPriority, RequirementType,
+    CreateRequirementInput, LinkTarget, RequirementLink, RequirementPriority, RequirementType, RequirementSource,
 };
 use ares_requirements::storage::RequirementStore;
 use ares_store::Store;
@@ -40,6 +40,7 @@ async fn test_gap_engine_validation_suite() {
         project_id: project_id.clone(),
         title: "Support RBAC".to_string(),
         description: "Need Role-Based Access Control".to_string(),
+        source: RequirementSource::Security,
         requirement_type: RequirementType::Security,
         priority: RequirementPriority::High,
         owner: Some("Alice".to_string()),
@@ -147,6 +148,7 @@ async fn test_gap_engine_validation_suite() {
         project_id: project_id.clone(),
         title: "Unimplemented stuff".to_string(),
         description: "Nobody uses this".to_string(),
+        source: RequirementSource::Architecture,
         requirement_type: RequirementType::Functional,
         priority: RequirementPriority::Low,
         owner: Some("Alice".to_string()),

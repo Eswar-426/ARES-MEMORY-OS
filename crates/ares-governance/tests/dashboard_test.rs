@@ -1,7 +1,7 @@
 use ares_governance::dashboard::DashboardGenerator;
 use ares_governance::models::{GovernanceCertification, GovernanceScorecard, ViolationSeverity, ComplianceViolation, CertificationLevel, EnforcementAction, PolicyCategory, RequirementDriftSummary};
 use ares_requirements::{RequirementCoverageSummary, RequirementCoverageTrend, GapSummary};
-use ares_requirements::coverage::GapType;
+
 
 #[test]
 fn test_dashboard_aggregation() {
@@ -71,10 +71,17 @@ fn test_dashboard_aggregation() {
 
     let top_gaps = vec![
         GapSummary {
-            gap_type: GapType::MissingDecision,
+            gap_type: ares_requirements::KnowledgeGapType::MissingDecision,
             count: 2,
         },
     ];
+
+    let evolution = ares_governance::models::EvolutionMetrics {
+        total_requirement_events: 5,
+        requirements_changed_this_week: 2,
+        requirements_regressed: 0,
+        requirements_improved: 1,
+    };
 
     let dashboard = DashboardGenerator::generate_dashboard(
         &certification,
@@ -82,7 +89,9 @@ fn test_dashboard_aggregation() {
         coverage_summary,
         coverage_trend,
         drift_summary,
+        evolution,
         top_gaps,
+        &[], // knowledge_gaps
     );
 
     assert_eq!(dashboard.requirement_coverage.fully_covered, 5);

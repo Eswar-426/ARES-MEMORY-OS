@@ -1,4 +1,5 @@
-use ares_requirements::coverage::{RequirementCoverageEngine, GraphTraceResolver, CoverageStatus};
+use ares_requirements::coverage::{RequirementCoverageEngine, CoverageStatus};
+use ares_requirements::TraceAnalysisEngine;
 use ares_core::RequirementId;
 use ares_requirements::models::RequirementStatus;
 use ares_traceability::{TraceTargetType, test_utils::TestGraphBuilder};
@@ -12,7 +13,7 @@ fn test_full_trace_coverage() {
         .link_rel("TEST-1", "METRIC-1", TraceTargetType::RuntimeMetric, "Monitors")
         .build();
 
-    let resolver = GraphTraceResolver::new(&graph);
+    let resolver = TraceAnalysisEngine::new(&graph);
     let engine = RequirementCoverageEngine::new();
     let req_id = RequirementId::from("REQ-1");
     let status = RequirementStatus::Approved;
@@ -31,7 +32,7 @@ fn test_partial_trace_coverage() {
         // Missing Test and Metric
         .build();
 
-    let resolver = GraphTraceResolver::new(&graph);
+    let resolver = TraceAnalysisEngine::new(&graph);
     let engine = RequirementCoverageEngine::new();
     let req_id = RequirementId::from("REQ-2");
     let status = RequirementStatus::Approved;
@@ -43,15 +44,15 @@ fn test_partial_trace_coverage() {
     
     // Also verify gaps
     let gap_types: Vec<_> = coverage.gaps.iter().map(|g| g.gap_type.clone()).collect();
-    assert!(gap_types.contains(&ares_requirements::coverage::GapType::MissingTests));
-    assert!(gap_types.contains(&ares_requirements::coverage::GapType::MissingRuntimeMetric));
+    assert!(gap_types.contains(&ares_requirements::KnowledgeGapType::MissingTest));
+    assert!(gap_types.contains(&ares_requirements::KnowledgeGapType::MissingRuntimeMetric));
 }
 
 #[test]
 fn test_orphan_requirement() {
     let graph = TestGraphBuilder::new().build(); // Empty graph downstream for REQ-3
 
-    let resolver = GraphTraceResolver::new(&graph);
+    let resolver = TraceAnalysisEngine::new(&graph);
     let engine = RequirementCoverageEngine::new();
     let req_id = RequirementId::from("REQ-3");
     let status = RequirementStatus::Approved;
@@ -62,5 +63,5 @@ fn test_orphan_requirement() {
     assert_eq!(coverage.coverage_score, 0.0);
     
     let gap_types: Vec<_> = coverage.gaps.iter().map(|g| g.gap_type.clone()).collect();
-    assert!(gap_types.contains(&ares_requirements::coverage::GapType::MissingDecision));
+    assert!(gap_types.contains(&ares_requirements::KnowledgeGapType::MissingDecision));
 }

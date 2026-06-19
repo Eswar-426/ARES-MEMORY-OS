@@ -250,6 +250,14 @@ pub struct RequirementDriftSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct EvolutionMetrics {
+    pub total_requirement_events: usize,
+    pub requirements_changed_this_week: usize,
+    pub requirements_regressed: usize,
+    pub requirements_improved: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct GovernanceDashboard {
     pub certification: GovernanceCertification,
     pub scorecard: GovernanceScorecard,
@@ -260,6 +268,7 @@ pub struct GovernanceDashboard {
     pub requirement_coverage: RequirementCoverageSummary,
     pub requirement_coverage_trend: RequirementCoverageTrend,
     pub requirement_drift: RequirementDriftSummary,
+    pub evolution: EvolutionMetrics,
     pub top_gaps: Vec<GapSummary>,
     pub top_violations: Vec<ComplianceViolation>,
 }

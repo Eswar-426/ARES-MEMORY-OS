@@ -316,3 +316,62 @@ pub struct RequirementBaseline {
     pub test_ids: Vec<String>,
     pub runtime_metrics: Vec<RuntimeMetricRef>,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EventOrigin {
+    Recorded,
+    Imported,
+    Inferred,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RequirementEvolutionType {
+    RequirementCreated,
+    RequirementUpdated,
+    RequirementApproved,
+    RequirementRejected,
+    RequirementOwnershipChanged,
+
+    DecisionAdded,
+    DecisionRemoved,
+
+    ImplementationAdded,
+    ImplementationRemoved,
+
+    TestAdded,
+    TestRemoved,
+
+    RuntimeMetricAdded,
+    RuntimeMetricRemoved,
+
+    CoverageImproved,
+    CoverageRegressed,
+
+    DriftDetected,
+    DriftResolved,
+
+    GovernanceViolation,
+    GovernanceApproved,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RequirementEvolutionEvent {
+    pub id: String,
+    pub requirement_id: RequirementId,
+    pub timestamp: i64,
+    pub event_type: RequirementEvolutionType,
+    pub event_origin: EventOrigin,
+    pub actor: Option<String>,
+    pub description: String,
+    pub correlation_id: Option<String>,
+    pub previous_score: Option<f32>,
+    pub new_score: Option<f32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RequirementTimeline {
+    pub requirement_id: RequirementId,
+    pub events: Vec<RequirementEvolutionEvent>,
+}

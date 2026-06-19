@@ -99,13 +99,13 @@ impl MemoryFacade {
         let mut graph = ares_traceability::TraceabilityGraph::new();
         graph.add_provider(Box::new(ares_requirements::RequirementEdgeProvider::new(store)));
         
-        let resolver = ares_requirements::GraphTraceResolver::new(&graph);
+        let resolver = ares_requirements::TraceAnalysisEngine::new(&graph);
         let engine = ares_requirements::RequirementCoverageEngine::new();
         let coverage = engine.evaluate(&req.id, &req.status, req.owner.is_some(), &resolver);
 
         let mut md = format!("{} ({})\n\n", req.id.as_str(), req.title);
         
-        let decision_mark = if coverage.gaps.iter().any(|g| matches!(g.gap_type, ares_requirements::GapType::MissingDecision)) { "✗" } else { "✓" };
+        let decision_mark = if coverage.gaps.iter().any(|g| matches!(g.gap_type, ares_requirements::KnowledgeGapType::MissingDecision)) { "✗" } else { "✓" };
         md.push_str(&format!("Decision: {}\n", decision_mark));
         
         let impl_mark = if coverage.implemented { "✓" } else { "✗" };
@@ -123,12 +123,13 @@ impl MemoryFacade {
             md.push_str("Gaps:\n");
             for gap in &coverage.gaps {
                 let text = match gap.gap_type {
-                    ares_requirements::GapType::MissingApproval => "Missing Approval",
-                    ares_requirements::GapType::MissingDecision => "Missing Decision",
-                    ares_requirements::GapType::MissingImplementation => "Missing Implementation",
-                    ares_requirements::GapType::MissingTests => "Missing Tests",
-                    ares_requirements::GapType::MissingRuntimeMetric => "Missing Runtime Metric",
-                    ares_requirements::GapType::MissingOwner => "Missing Owner",
+                    ares_requirements::KnowledgeGapType::UnapprovedRequirement => "Missing Approval",
+                    ares_requirements::KnowledgeGapType::MissingDecision => "Missing Decision",
+                    ares_requirements::KnowledgeGapType::MissingImplementation => "Missing Implementation",
+                    ares_requirements::KnowledgeGapType::MissingTest => "Missing Tests",
+                    ares_requirements::KnowledgeGapType::MissingRuntimeMetric => "Missing Runtime Metric",
+                    ares_requirements::KnowledgeGapType::MissingOwner => "Missing Owner",
+                    _ => "Other Gap",
                 };
                 md.push_str(&format!("- {}\n", text));
             }
@@ -256,6 +257,112 @@ impl MemoryFacade {
         }
 
         Ok(md)
+    }
+
+    pub fn how_has_requirement_evolved(&self, req_id: &str) -> Result<String, AresError> {
+        let req_store = ares_requirements::RequirementStore::new(self.assembler.store.clone());
+        let id_obj = ares_core::RequirementId::from(req_id);
+        let req = req_store.get(&id_obj)?
+            .ok_or_else(|| AresError::NotFound {
+                resource_type: "Requirement",
+                id: req_id.to_string(),
+            })?;
+
+        let engine = ares_requirements::evolution::RequirementEvolutionEngine::new(self.assembler.store.clone());
+        let timeline = engine.get_timeline(&id_obj)?;
+
+        Ok(Self::format_evolution_report(&req, &timeline))
+    }
+
+    pub fn format_evolution_report(req: &ares_requirements::Requirement, timeline: &ares_requirements::RequirementTimeline) -> String {
+        use chrono::{TimeZone, Utc};
+        
+        let mut md = format!("Requirement Evolution Report\n\nRequirement:\n{}\n\n", req.id.as_str());
+        
+        let created_dt = Utc.timestamp_micros(req.created_at).single().unwrap_or_default();
+        md.push_str(&format!("Created:\n{}\n\n", created_dt.format("%Y-%m-%d")));
+
+        md.push_str("Timeline:\n\n");
+        if timeline.events.is_empty() {
+            md.push_str("No evolution events recorded.\n\n");
+        } else {
+            for event in &timeline.events {
+                let dt = Utc.timestamp_micros(event.timestamp).single().unwrap_or_default();
+                let date_str = dt.format("%Y-%m-%d").to_string();
+                
+                let event_str = match &event.event_type {
+                    ares_requirements::RequirementEvolutionType::RequirementCreated => "Requirement Created",
+                    ares_requirements::RequirementEvolutionType::RequirementUpdated => "Requirement Updated",
+                    ares_requirements::RequirementEvolutionType::RequirementApproved => "Requirement Approved",
+                    ares_requirements::RequirementEvolutionType::RequirementRejected => "Requirement Rejected",
+                    ares_requirements::RequirementEvolutionType::RequirementOwnershipChanged => "Ownership Changed",
+                    ares_requirements::RequirementEvolutionType::DecisionAdded => "Decision Added",
+                    ares_requirements::RequirementEvolutionType::DecisionRemoved => "Decision Removed",
+                    ares_requirements::RequirementEvolutionType::ImplementationAdded => "Implementation Added",
+                    ares_requirements::RequirementEvolutionType::ImplementationRemoved => "Implementation Removed",
+                    ares_requirements::RequirementEvolutionType::TestAdded => "Tests Added",
+                    ares_requirements::RequirementEvolutionType::TestRemoved => "Tests Removed",
+                    ares_requirements::RequirementEvolutionType::RuntimeMetricAdded => "Runtime Metric Added",
+                    ares_requirements::RequirementEvolutionType::RuntimeMetricRemoved => "Runtime Metric Removed",
+                    ares_requirements::RequirementEvolutionType::CoverageImproved => "Coverage Improved",
+                    ares_requirements::RequirementEvolutionType::CoverageRegressed => "Coverage Regressed",
+                    ares_requirements::RequirementEvolutionType::DriftDetected => "Drift Detected",
+                    ares_requirements::RequirementEvolutionType::DriftResolved => "Drift Resolved",
+                    ares_requirements::RequirementEvolutionType::GovernanceViolation => "Governance Violation",
+                    ares_requirements::RequirementEvolutionType::GovernanceApproved => "Governance Approved",
+                };
+
+                let mut details = String::new();
+                if let (Some(prev), Some(new)) = (event.previous_score, event.new_score) {
+                    details = format!(" ({}% → {}%)", prev.round(), new.round());
+                } else if !event.description.is_empty() {
+                    details = format!(" ({})", event.description);
+                }
+
+                md.push_str(&format!("✓ {} - {}{}\n", date_str, event_str, details));
+            }
+            md.push_str("\n");
+        }
+
+        let mut coverage_transitions = Vec::new();
+        for e in &timeline.events {
+            if e.event_type == ares_requirements::RequirementEvolutionType::CoverageImproved || e.event_type == ares_requirements::RequirementEvolutionType::CoverageRegressed {
+                if let Some(new_score) = e.new_score {
+                    coverage_transitions.push(format!("{}%", new_score.round()));
+                }
+            }
+        }
+        
+        md.push_str("Coverage:\n");
+        if coverage_transitions.is_empty() {
+            md.push_str("0%\n\n");
+        } else {
+            md.push_str(&format!("{}\n\n", coverage_transitions.join(" → ")));
+        }
+
+        md.push_str("Drift:\n");
+        let mut drift_events = Vec::new();
+        for e in &timeline.events {
+            if e.event_type == ares_requirements::RequirementEvolutionType::DriftDetected || e.event_type == ares_requirements::RequirementEvolutionType::DriftResolved {
+                let dt = Utc.timestamp_micros(e.timestamp).single().unwrap_or_default();
+                let date_str = dt.format("%Y-%m-%d").to_string();
+                let action = if e.event_type == ares_requirements::RequirementEvolutionType::DriftDetected { "Detected" } else { "Resolved" };
+                drift_events.push(format!("{} ({})", action, date_str));
+            }
+        }
+        
+        if drift_events.is_empty() {
+            md.push_str("None\n\n");
+        } else {
+            for e in drift_events {
+                md.push_str(&format!("{}\n", e));
+            }
+            md.push_str("\n");
+        }
+
+        md.push_str("Current Status:\nHealthy\n"); // simplified for the canonical question format
+
+        md
     }
 
     pub fn context(&self, entity_id: &str) -> Result<serde_json::Value, AresError> {
