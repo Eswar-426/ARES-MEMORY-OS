@@ -109,6 +109,20 @@ impl TraceabilityGraph {
         }
     }
 
+    pub fn get_all_nodes(&self) -> Result<Vec<TraceNode>, AresError> {
+        let (_, nodes) = self.build_graph()?;
+        let mut result = Vec::new();
+        for (id, _) in nodes {
+            result.push(TraceNode {
+                node_type: Self::guess_type(&id),
+                id: id.clone(),
+                depth: 0,
+                label: id,
+            });
+        }
+        Ok(result)
+    }
+
     pub fn find_upstream(&self, id: &str) -> Result<Vec<TraceNode>, AresError> {
         let (graph, nodes) = self.build_graph()?;
         

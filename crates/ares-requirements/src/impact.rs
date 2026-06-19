@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ares_traceability::{TraceabilityGraph, TraceTargetType};
 use utoipa::ToSchema;
+use crate::trace_analysis::TraceAnalysisEngine;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
 pub enum ImpactCategory {
@@ -60,26 +61,14 @@ impl<'a> RequirementImpactEngine<'a> {
     }
 
     pub fn evaluate_impact(&self, req_id: &str) -> RequirementImpactReport {
-        let mut affected_decisions = Vec::new();
-        let mut affected_architecture = Vec::new();
-        let mut affected_code = Vec::new();
-        let mut affected_tests = Vec::new();
-        let mut affected_runtime_metrics = Vec::new();
-        let mut affected_governance = Vec::new();
-
-        if let Ok(downstream_nodes) = self.graph.find_downstream(req_id) {
-            for node in downstream_nodes {
-                match node.node_type {
-                    TraceTargetType::Decision => affected_decisions.push(node.id),
-                    TraceTargetType::Architecture => affected_architecture.push(node.id),
-                    TraceTargetType::Code => affected_code.push(node.id),
-                    TraceTargetType::Test => affected_tests.push(node.id),
-                    TraceTargetType::RuntimeMetric => affected_runtime_metrics.push(node.id),
-                    TraceTargetType::Governance => affected_governance.push(node.id),
-                    _ => {}
-                }
-            }
-        }
+        let resolver = TraceAnalysisEngine::new(&self.graph);
+        
+        let affected_decisions = resolver.get_downstream(req_id, TraceTargetType::Decision);
+        let affected_architecture = resolver.get_downstream(req_id, TraceTargetType::Architecture);
+        let affected_code = resolver.get_downstream(req_id, TraceTargetType::Code);
+        let affected_tests = resolver.get_downstream(req_id, TraceTargetType::Test);
+        let affected_runtime_metrics = resolver.get_downstream(req_id, TraceTargetType::RuntimeMetric);
+        let affected_governance = resolver.get_downstream(req_id, TraceTargetType::Governance);
         
         let mut breakdowns = Vec::new();
         let mut total_score = 0.0;

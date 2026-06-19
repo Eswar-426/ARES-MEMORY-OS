@@ -12,21 +12,11 @@ pub enum CoverageStatus {
     Verified,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, utoipa::ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum GapType {
-    MissingApproval,
-    MissingDecision,
-    MissingImplementation,
-    MissingTests,
-    MissingRuntimeMetric,
-    MissingOwner,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct RequirementGap {
     pub requirement_id: RequirementId,
-    pub gap_type: GapType,
+    pub gap_type: crate::gaps::KnowledgeGapType,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
@@ -49,86 +39,12 @@ pub struct RequirementCoverageSummary {
     pub average_coverage: f32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
-pub struct GapSummary {
-    pub gap_type: GapType,
-    pub count: usize,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct RequirementCoverageTrend {
     pub previous_coverage: f32,
     pub current_coverage: f32,
     pub delta: f32,
-}
-
-pub trait RequirementTraceResolver {
-    fn has_approval(&self, req_id: &str) -> bool;
-    fn has_decision(&self, req_id: &str) -> bool;
-    fn has_implementation(&self, req_id: &str) -> bool;
-    fn has_test(&self, req_id: &str) -> bool;
-    fn has_runtime_metric(&self, req_id: &str) -> bool;
-}
-
-pub struct GraphTraceResolver<'a> {
-    graph: &'a TraceabilityGraph,
-}
-
-impl<'a> GraphTraceResolver<'a> {
-    pub fn new(graph: &'a TraceabilityGraph) -> Self {
-        Self { graph }
-    }
-
-    pub fn resolve_downstream_ids(&self, req_id: &str, target_type: TraceTargetType) -> Vec<String> {
-        if let Ok(nodes) = self.graph.find_downstream(req_id) {
-            nodes
-                .into_iter()
-                .filter(|n| n.node_type == target_type)
-                .map(|n| n.id)
-                .collect()
-        } else {
-            Vec::new()
-        }
-    }
-}
-
-impl<'a> RequirementTraceResolver for GraphTraceResolver<'a> {
-    fn has_approval(&self, _req_id: &str) -> bool {
-        // In a real implementation we would check for ApprovedBy edges or RequirementStatus::Approved
-        false
-    }
-
-    fn has_decision(&self, req_id: &str) -> bool {
-        if let Ok(nodes) = self.graph.find_downstream(req_id) {
-            nodes.iter().any(|n| matches!(n.node_type, TraceTargetType::Decision))
-        } else {
-            false
-        }
-    }
-
-    fn has_implementation(&self, req_id: &str) -> bool {
-        if let Ok(nodes) = self.graph.find_downstream(req_id) {
-            nodes.iter().any(|n| matches!(n.node_type, TraceTargetType::Code))
-        } else {
-            false
-        }
-    }
-
-    fn has_test(&self, req_id: &str) -> bool {
-        if let Ok(nodes) = self.graph.find_downstream(req_id) {
-            nodes.iter().any(|n| matches!(n.node_type, TraceTargetType::Test))
-        } else {
-            false
-        }
-    }
-
-    fn has_runtime_metric(&self, req_id: &str) -> bool {
-        if let Ok(nodes) = self.graph.find_downstream(req_id) {
-            nodes.iter().any(|n| matches!(n.node_type, TraceTargetType::RuntimeMetric))
-        } else {
-            false
-        }
-    }
 }
 
 pub struct RequirementCoverageEngine {
@@ -140,18 +56,17 @@ impl RequirementCoverageEngine {
         Self {}
     }
 
-    pub fn evaluate<R: RequirementTraceResolver>(
+    pub fn evaluate(
         &self,
         req_id: &RequirementId,
         req_status: &RequirementStatus,
         has_owner: bool,
-        resolver: &R,
+        resolver: &crate::trace_analysis::TraceAnalysisEngine,
     ) -> RequirementCoverage {
         let mut gaps = Vec::new();
 
-        let approved = matches!(req_status, RequirementStatus::Approved | RequirementStatus::Implemented | RequirementStatus::Verified) 
-            || resolver.has_approval(req_id.as_str());
-            
+        let approved = matches!(req_status, RequirementStatus::Approved | RequirementStatus::Implemented | RequirementStatus::Verified);
+
         let implemented = resolver.has_implementation(req_id.as_str());
         let verified = resolver.has_test(req_id.as_str());
         let monitored = resolver.has_runtime_metric(req_id.as_str());
@@ -160,37 +75,37 @@ impl RequirementCoverageEngine {
         if !has_owner {
             gaps.push(RequirementGap {
                 requirement_id: req_id.clone(),
-                gap_type: GapType::MissingOwner,
+                gap_type: crate::gaps::KnowledgeGapType::MissingOwner,
             });
         }
         if !approved {
             gaps.push(RequirementGap {
                 requirement_id: req_id.clone(),
-                gap_type: GapType::MissingApproval,
+                gap_type: crate::gaps::KnowledgeGapType::UnapprovedRequirement,
             });
         }
         if !has_decision {
             gaps.push(RequirementGap {
                 requirement_id: req_id.clone(),
-                gap_type: GapType::MissingDecision,
+                gap_type: crate::gaps::KnowledgeGapType::MissingDecision,
             });
         }
         if !implemented {
             gaps.push(RequirementGap {
                 requirement_id: req_id.clone(),
-                gap_type: GapType::MissingImplementation,
+                gap_type: crate::gaps::KnowledgeGapType::MissingImplementation,
             });
         }
         if !verified {
             gaps.push(RequirementGap {
                 requirement_id: req_id.clone(),
-                gap_type: GapType::MissingTests,
+                gap_type: crate::gaps::KnowledgeGapType::MissingTest,
             });
         }
         if !monitored {
             gaps.push(RequirementGap {
                 requirement_id: req_id.clone(),
-                gap_type: GapType::MissingRuntimeMetric,
+                gap_type: crate::gaps::KnowledgeGapType::MissingRuntimeMetric,
             });
         }
 
@@ -231,7 +146,7 @@ impl RequirementCoverageEngine {
         }
     }
 
-    pub fn generate_summary(&self, coverages: &[RequirementCoverage]) -> (RequirementCoverageSummary, Vec<GapSummary>) {
+    pub fn generate_summary(&self, coverages: &[RequirementCoverage]) -> (RequirementCoverageSummary, Vec<crate::gaps::GapSummary>) {
         let total = coverages.len();
         let mut fully_covered = 0;
         let mut partially_covered = 0;
@@ -264,9 +179,9 @@ impl RequirementCoverageEngine {
 
         let average_coverage = if total > 0 { sum_score / total as f32 } else { 0.0 };
 
-        let mut top_gaps: Vec<GapSummary> = gap_counts
+        let mut top_gaps: Vec<crate::gaps::GapSummary> = gap_counts
             .into_iter()
-            .map(|(gap_type, count)| GapSummary { gap_type, count })
+            .map(|(gap_type, count)| crate::gaps::GapSummary { gap_type, count })
             .collect();
         top_gaps.sort_by(|a, b| b.count.cmp(&a.count));
 

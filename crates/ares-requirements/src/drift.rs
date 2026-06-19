@@ -3,7 +3,7 @@ use crate::models::{
     RequirementDriftType, SemanticDrift, StructuralDrift, RequirementStatus, RequirementPriority,
 };
 use ares_traceability::{TraceTargetType, TraceabilityGraph};
-use crate::coverage::GraphTraceResolver;
+use crate::trace_analysis::TraceAnalysisEngine;
 
 pub struct RequirementDriftEngine<'a> {
     graph: &'a TraceabilityGraph,
@@ -18,13 +18,13 @@ impl<'a> RequirementDriftEngine<'a> {
         &self,
         baseline: &RequirementBaseline,
     ) -> Option<RequirementDriftReport> {
-        let resolver = GraphTraceResolver::new(&self.graph);
+        let resolver = TraceAnalysisEngine::new(&self.graph);
         let req_id = &baseline.requirement_id;
 
-        let current_decisions = resolver.resolve_downstream_ids(req_id, TraceTargetType::Decision);
-        let current_impls = resolver.resolve_downstream_ids(req_id, TraceTargetType::Code);
-        let current_tests = resolver.resolve_downstream_ids(req_id, TraceTargetType::Test);
-        let current_metrics = resolver.resolve_downstream_ids(req_id, TraceTargetType::RuntimeMetric);
+        let current_decisions = resolver.get_downstream(req_id, TraceTargetType::Decision);
+        let current_impls = resolver.get_downstream(req_id, TraceTargetType::Code);
+        let current_tests = resolver.get_downstream(req_id, TraceTargetType::Test);
+        let current_metrics = resolver.get_downstream(req_id, TraceTargetType::RuntimeMetric);
 
         let mut drift_types = Vec::new();
         let mut evidence = Vec::new();
