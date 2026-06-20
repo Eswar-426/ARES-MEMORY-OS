@@ -19,6 +19,11 @@ pub struct MemoryImpactReport {
     pub new_compliance_violations: usize,
     pub resolved_violations: usize,
     
+    // Phase 10C Simulated Fields
+    pub simulated_coverage_delta: f32,
+    pub simulated_new_drift: usize,
+    pub simulated_new_gaps: usize,
+    
     pub new_violations_list: Vec<ComplianceViolation>,
     pub resolved_violations_list: Vec<ComplianceViolation>,
     

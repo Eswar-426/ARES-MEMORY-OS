@@ -24,6 +24,11 @@ enum Commands {
         #[command(subcommand)]
         action: GovernanceCommands,
     },
+    /// Simulation OS commands
+    Simulate {
+        #[command(subcommand)]
+        action: SimulateCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -35,6 +40,20 @@ enum GovernanceCommands {
     PrCheck {
         #[arg(long, help = "Path to the base MemorySnapshot JSON file. If omitted, uses historical DB snapshot.")]
         base_report: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum SimulateCommands {
+    /// Simulates changes to a requirement
+    Requirement {
+        id: String,
+        action: String,
+    },
+    /// Simulates changes to a code component
+    Code {
+        path: String,
+        action: String,
     },
 }
 
@@ -82,6 +101,16 @@ async fn main() -> Result<(), AresError> {
                 }
                 GovernanceCommands::PrCheck { base_report } => {
                     commands::governance::execute_pr_check(base_report.clone()).await?;
+                }
+            }
+        }
+        Commands::Simulate { action } => {
+            match action {
+                SimulateCommands::Requirement { id, action } => {
+                    commands::simulate::execute_simulate_requirement(id.clone(), action.clone()).await?;
+                }
+                SimulateCommands::Code { path, action } => {
+                    commands::simulate::execute_simulate_code(path.clone(), action.clone()).await?;
                 }
             }
         }

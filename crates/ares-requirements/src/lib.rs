@@ -9,6 +9,7 @@ pub mod impact;
 pub mod evolution;
 pub mod trace_analysis;
 pub mod gaps;
+pub mod simulation;
 
 // Public API re-exports
 pub use models::*;
@@ -22,3 +23,4 @@ pub use impact::*;
 pub use evolution::*;
 pub use trace_analysis::*;
 pub use gaps::*;
+pub use simulation::*;

@@ -36,6 +36,9 @@ impl PullRequestEvaluator {
             resolved_violations_list: gov_delta.resolved_violations_list,
             risk_level,
             baseline_source: "base.json".to_string(), // Can be updated externally
+            simulated_coverage_delta: 0.0, // TODO: Hook up RequirementSimulationEngine when dynamically analyzing changes
+            simulated_new_drift: 0,
+            simulated_new_gaps: 0,
         };
 
         let mut blocking_violations = Vec::new();

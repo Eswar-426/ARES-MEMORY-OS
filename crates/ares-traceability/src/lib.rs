@@ -123,6 +123,15 @@ impl TraceabilityGraph {
         Ok(result)
     }
 
+    pub fn get_all_edges(&self) -> Result<Vec<TraceabilityEdge>, AresError> {
+        let mut all_edges = Vec::new();
+        for provider in &self.providers {
+            let mut edges = provider.edges()?;
+            all_edges.append(&mut edges);
+        }
+        Ok(all_edges)
+    }
+
     pub fn find_upstream(&self, id: &str) -> Result<Vec<TraceNode>, AresError> {
         let (graph, nodes) = self.build_graph()?;
         
