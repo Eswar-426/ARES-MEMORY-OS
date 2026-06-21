@@ -13,11 +13,11 @@ This report analyzes how strictly ARES adheres to its own Memory OS framework.
 | **Decisions linked to Evidence** | 0.0% | 100% |
 
 ## Repository Hygiene
-| Metric | Count | Context (Total Files: 1177) |
+| Metric | Count | Context (Total Files: 1292) |
 |--------|-------|---------------------------------------|
-| **Files without Rationale** | 19 | Files not mapped to a Requirement or Decision |
-| **Files without Owner** | 1177 | Files not mapped in CODEOWNERS or equivalent |
-| **Files without Tests** | 1045 | Implementation code lacking a ValidatedBy edge |
+| **Files without Rationale** | 1291 | Files not mapped to a Requirement or Decision |
+| **Files without Owner** | 1292 | Files not mapped in CODEOWNERS or equivalent |
+| **Files without Tests** | 1161 | Implementation code lacking a ValidatedBy edge |
 
 ## Conclusion
 ARES is generating these metrics natively from its own internal SQLite Knowledge Graph.

@@ -44,7 +44,7 @@ files_without_rationale = fetch_count('''
     SELECT COUNT(*) FROM graph_entities e
     WHERE e.entity_type = 'CodeArtifact' AND NOT EXISTS (
         SELECT 1 FROM graph_relationships r 
-        WHERE r.target_entity = e.id AND r.relationship_type IN ('Drives', 'ImplementedBy', 'Contains', 'ContainedIn')
+        WHERE r.target_entity = e.id AND r.relationship_type IN ('Drives', 'ImplementedBy')
     )
 ''')
 
