@@ -6,7 +6,7 @@ use ares_core::AresError;
 
 #[derive(Parser)]
 #[command(name = "ares")]
-#[command(about = "ARES Repository Memory Operating System CLI", long_about = None)]
+#[command(about = "ARES Repository Memory Operating System CLI", long_about = "ARES Repository Memory Operating System CLI\n\nQuick Start:\n  1. Initialize repository:\n     $ ares ingest .\n\n  2. Check system health:\n     $ ares doctor\n\n  3. Evaluate a pull request:\n     $ ares governance pr-check\n\n  4. Start MCP server (for IDEs):\n     $ ares-mcp\n")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -29,6 +29,11 @@ enum Commands {
         #[command(subcommand)]
         action: SimulateCommands,
     },
+    /// Repository Ingestion
+    Ingest(commands::ingest::IngestArgs),
+    
+    /// System Health Check
+    Doctor,
 }
 
 #[derive(Subcommand)]
@@ -113,6 +118,12 @@ async fn main() -> Result<(), AresError> {
                     commands::simulate::execute_simulate_code(path.clone(), action.clone()).await?;
                 }
             }
+        }
+        Commands::Ingest(args) => {
+            commands::ingest::handle_ingest(args.clone()).await?;
+        }
+        Commands::Doctor => {
+            commands::doctor::execute_doctor().await?;
         }
     }
 

@@ -1,0 +1,186 @@
+use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
+use ares_knowledge_graph::models::{KnowledgeGraph, KnowledgeNode, KnowledgeEdge, NodeType, EdgeType};
+use crate::scanner::RepositoryScanner;
+use crate::extractors::rust::RustDependencyExtractor;
+use crate::extractors::typescript::TypeScriptDependencyExtractor;
+use crate::extractors::ownership::OwnershipExtractor;
+use crate::extractors::tests::TestResolutionEngine;
+use crate::extractors::markdown::MarkdownIntelligenceExtractor;
+use crate::gap_generator::GapGenerator;
+use uuid::Uuid;
+
+pub struct GraphBuilder {
+    root: PathBuf,
+    incremental_files: Option<Vec<PathBuf>>,
+}
+
+impl GraphBuilder {
+    pub fn new<P: AsRef<Path>>(root: P) -> Self {
+        Self {
+            root: root.as_ref().to_path_buf(),
+            incremental_files: None,
+        }
+    }
+
+    pub fn set_incremental_files(&mut self, files: Vec<PathBuf>) {
+        self.incremental_files = Some(files);
+    }
+
+    pub fn build(&self) -> Result<KnowledgeGraph, ares_core::AresError> {
+        let scanner = RepositoryScanner::new(&self.root);
+        let mut files = scanner.scan();
+        if let Some(inc_files) = &self.incremental_files {
+            // Filter files to only those that match the incremental files.
+            // Since incremental files might be absolute, we ensure we match exactly.
+            let canonical_inc: Vec<String> = inc_files.iter()
+                .map(|p| p.to_string_lossy().to_string().replace('\\', "/"))
+                .collect();
+                
+            files.retain(|f| {
+                let fs = f.to_string_lossy().to_string().replace('\\', "/");
+                canonical_inc.iter().any(|inc| fs.ends_with(inc) || inc.ends_with(&fs))
+            });
+        }
+        
+        let mut nodes = Vec::new();
+        let mut edges = Vec::new();
+        
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| ares_core::AresError::validation(format!("System time error: {}", e)))?
+            .as_millis() as i64;
+
+        // Add Repository Node
+        let repo_id = "REPO-ROOT".to_string();
+        nodes.push(KnowledgeNode {
+            id: repo_id.clone(),
+            node_type: NodeType::Repository,
+            name: self.root.file_name().unwrap_or_default().to_string_lossy().to_string(),
+            properties: serde_json::json!({"path": self.root.to_string_lossy()}),
+            created_at: now,
+        });
+
+        // Add CodeArtifacts
+        for file in &files {
+            let file_str = ares_core::canonicalize_node_id(&file.to_string_lossy());
+            nodes.push(KnowledgeNode {
+                id: file_str.clone(),
+                node_type: NodeType::CodeArtifact,
+                name: file.file_name().unwrap_or_default().to_string_lossy().to_string(),
+                properties: serde_json::json!({"path": file_str}),
+                created_at: now,
+            });
+            
+            edges.push(KnowledgeEdge {
+                id: Uuid::new_v4().to_string(),
+                source_id: repo_id.clone(),
+                target_id: file_str.clone(),
+                edge_type: EdgeType::Contains,
+                confidence: 1.0,
+                created_at: now,
+                properties: serde_json::json!({}),
+            });
+        }
+        
+        let code_artifact_ids: Vec<String> = nodes.iter()
+            .filter(|n| n.node_type == NodeType::CodeArtifact)
+            .map(|n| n.id.clone())
+            .collect();
+
+        let (mut int_nodes, mut int_edges) = MarkdownIntelligenceExtractor::extract_intelligence(&files, &self.root, &code_artifact_ids);
+        nodes.append(&mut int_nodes);
+        edges.append(&mut int_edges);
+        
+        // Ownership
+        let ownerships = OwnershipExtractor::extract_ownership(&self.root);
+        let mut owner_map = std::collections::HashSet::new();
+        for (_, owner) in &ownerships {
+            owner_map.insert(owner.clone());
+        }
+        for owner in owner_map {
+            nodes.push(KnowledgeNode {
+                id: owner.clone(),
+                node_type: NodeType::Owner,
+                name: owner.clone(),
+                properties: serde_json::json!({}),
+                created_at: now,
+            });
+        }
+        
+        // Map ownership to files
+        for file in &files {
+            let file_str = ares_core::canonicalize_node_id(&file.to_string_lossy());
+            // A real pattern matcher is more complex, doing exact or suffix match for now
+            for (pattern, owner) in &ownerships {
+                let canonical_pattern = ares_core::canonicalize_node_id(pattern);
+                if file_str.contains(&canonical_pattern) || pattern == "*" {
+                    edges.push(KnowledgeEdge {
+                        id: Uuid::new_v4().to_string(),
+                        source_id: file_str.clone(),
+                        target_id: owner.clone(),
+                        edge_type: EdgeType::OwnedBy,
+                        confidence: 1.0,
+                        created_at: now,
+                        properties: serde_json::json!({}),
+                    });
+                }
+            }
+        }
+        
+        // Tests
+        let test_relations = TestResolutionEngine::extract_test_relations(&files);
+        for (code, test) in test_relations {
+            edges.push(KnowledgeEdge {
+                id: Uuid::new_v4().to_string(),
+                source_id: ares_core::canonicalize_node_id(&code.to_string_lossy()),
+                target_id: ares_core::canonicalize_node_id(&test.to_string_lossy()),
+                edge_type: EdgeType::ValidatedBy,
+                confidence: 1.0,
+                created_at: now,
+                properties: serde_json::json!({}),
+            });
+        }
+        
+        // Dependencies
+        for file in &files {
+            let file_str = ares_core::canonicalize_node_id(&file.to_string_lossy());
+            if file_str.ends_with("Cargo.toml") {
+                let deps = RustDependencyExtractor::extract_dependencies(file);
+                for (source_file, dep_name) in deps {
+                    let dep_id = format!("DEP-RUST-{}", dep_name);
+                    edges.push(KnowledgeEdge {
+                        id: Uuid::new_v4().to_string(),
+                        source_id: ares_core::canonicalize_node_id(&source_file),
+                        target_id: dep_id,
+                        edge_type: EdgeType::DependsOn,
+                        confidence: 1.0,
+                        created_at: now,
+                        properties: serde_json::json!({"type": "rust"}),
+                    });
+                }
+            } else if file_str.ends_with("package.json") {
+                let deps = TypeScriptDependencyExtractor::extract_dependencies(file);
+                for (source_file, dep_name) in deps {
+                    let dep_id = format!("DEP-TS-{}", dep_name);
+                    edges.push(KnowledgeEdge {
+                        id: Uuid::new_v4().to_string(),
+                        source_id: ares_core::canonicalize_node_id(&source_file),
+                        target_id: dep_id,
+                        edge_type: EdgeType::DependsOn,
+                        confidence: 1.0,
+                        created_at: now,
+                        properties: serde_json::json!({"type": "typescript"}),
+                    });
+                }
+            }
+        }
+
+        GapGenerator::generate_gaps(&mut nodes, &mut edges, now);
+
+        Ok(KnowledgeGraph {
+            nodes,
+            edges,
+        })
+    }
+}

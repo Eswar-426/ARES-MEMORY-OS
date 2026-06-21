@@ -29,6 +29,8 @@ tower-mcp  = "0.12.0"
 anyhow     = { workspace = true }
 chrono     = { workspace = true }
 schemars = "1.2.1"
+ares-requirements = { version = "0.1.0", path = "../ares-requirements" }
+ares-traceability = { version = "0.1.0", path = "../ares-traceability" }
 
 [dev-dependencies]
 tempfile   = { workspace = true }

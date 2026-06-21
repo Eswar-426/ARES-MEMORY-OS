@@ -23,6 +23,9 @@ thiserror = { workspace = true }
 serde_json.workspace = true
 ares-requirements = { version = "0.1.0", path = "../ares-requirements" }
 ares-traceability = { version = "0.1.0", path = "../ares-traceability" }
+ares-ingestion = { version = "0.1.0", path = "../ares-ingestion" }
+rusqlite.workspace = true
+uuid.workspace = true
 
 [[bin]]
 name = "ares"

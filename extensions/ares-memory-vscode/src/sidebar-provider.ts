@@ -1,11 +1,10 @@
 import * as vscode from 'vscode';
-import { ApiClient } from './api-client';
 
 export class SidebarProvider implements vscode.WebviewViewProvider {
     _view?: vscode.WebviewView;
     _doc?: vscode.TextDocument;
 
-    constructor(private readonly _extensionUri: vscode.Uri, private readonly apiClient: ApiClient) {}
+    constructor(private readonly _extensionUri: vscode.Uri) {}
 
     public resolveWebviewView(webviewView: vscode.WebviewView) {
         this._view = webviewView;
@@ -35,7 +34,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 }
                 case 'searchMemory': {
                     try {
-                        const results = await this.apiClient.searchMemory(data.value);
+                        const results = { error: "Search disabled in this version. Use Command Palette." };
                         this._view?.webview.postMessage({ type: 'searchResults', value: results });
                     } catch (err: any) {
                         vscode.window.showErrorMessage("ARES Search Failed: " + err.message);

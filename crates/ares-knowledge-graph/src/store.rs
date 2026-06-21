@@ -63,7 +63,10 @@ impl KnowledgeGraphStore {
                 props_str,
                 edge.created_at.to_string()
             ],
-        ).map_err(|e| AresError::Database(e.to_string()))?;
+        ).map_err(|e| {
+            eprintln!("Failed to upsert edge: {:?} -> {:?}, Error: {}", edge.source_id, edge.target_id, e);
+            AresError::Database(e.to_string())
+        })?;
 
         Ok(())
     }
@@ -137,6 +140,9 @@ impl KnowledgeGraphStore {
                 "Owner" => NodeType::Owner,
                 "Repository" => NodeType::Repository,
                 "Project" => NodeType::Project,
+                "RepositoryEvent" => NodeType::RepositoryEvent,
+                "RepositorySnapshot" => NodeType::RepositorySnapshot,
+                "KnowledgeGap" => NodeType::KnowledgeGap,
                 _ => NodeType::CodeArtifact, // fallback
             };
 
@@ -170,9 +176,11 @@ impl KnowledgeGraphStore {
 
             let edge_type = match e_type.as_str() {
                 "Implements" => EdgeType::Implements,
+                "ImplementedBy" => EdgeType::ImplementedBy,
                 "Drives" => EdgeType::Drives,
                 "DependsOn" => EdgeType::DependsOn,
                 "SupportedBy" => EdgeType::SupportedBy,
+                "Supports" => EdgeType::Supports,
                 "ValidatedBy" => EdgeType::ValidatedBy,
                 "ResultsIn" => EdgeType::ResultsIn,
                 "OwnedBy" => EdgeType::OwnedBy,
@@ -184,6 +192,10 @@ impl KnowledgeGraphStore {
                 "ApprovedBy" => EdgeType::ApprovedBy,
                 "DerivedFrom" => EdgeType::DerivedFrom,
                 "Supersedes" => EdgeType::Supersedes,
+                "Contains" => EdgeType::Contains,
+                "OccurredIn" => EdgeType::OccurredIn,
+                "GeneratedFrom" => EdgeType::GeneratedFrom,
+                "HasGap" => EdgeType::HasGap,
                 _ => EdgeType::References, // fallback
             };
 

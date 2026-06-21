@@ -11,7 +11,7 @@ pub mod vector;
 
 pub use error::AresError;
 pub use id::{
-    new_id, AgentId, ArchComponentId, ClusterId, CodeArtifactId, DecisionId, EpisodeId, EventId,
+    canonicalize_node_id, new_id, AgentId, ArchComponentId, ClusterId, CodeArtifactId, DecisionId, EpisodeId, EventId,
     EvidenceId, ExecutionId, ExperienceId, ForecastId, LessonId, MemoryId, NodeId, PlanCandidateId,
     PlanId, PredictionId, PrincipleId, ProjectId, RequirementId, RequirementLinkId,
     RequirementRevisionId, RiskReportId, RuntimeMetricId, ScanRunId, ScenarioId, SemanticMemoryId, SimulationId,

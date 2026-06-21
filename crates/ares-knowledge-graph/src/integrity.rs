@@ -28,6 +28,9 @@ impl GraphIntegrityValidator {
                 (NodeType::Requirement, NodeType::Decision) | 
                 (NodeType::Decision, NodeType::Architecture)
             ),
+            EdgeType::ImplementedBy => matches!((source, target),
+                (NodeType::Requirement, NodeType::CodeArtifact)
+            ),
             EdgeType::Implements => matches!((source, target),
                 (NodeType::Architecture, NodeType::CodeArtifact)
             ),
@@ -51,8 +54,27 @@ impl GraphIntegrityValidator {
             EdgeType::DerivedFrom => true,
             EdgeType::TracesTo => true,
             EdgeType::References => true,
-            EdgeType::Drives => matches!(source, NodeType::Requirement),
+            EdgeType::Drives => matches!((source, target),
+                (NodeType::Decision, NodeType::CodeArtifact)
+            ),
+            EdgeType::Supports => matches!((source, target),
+                (NodeType::Evidence, NodeType::Decision)
+            ),
             EdgeType::DependsOn | EdgeType::SupportedBy => true,
+            EdgeType::Contains => matches!((source, target),
+                (NodeType::Repository, NodeType::CodeArtifact) |
+                (NodeType::CodeArtifact, NodeType::CodeArtifact)
+            ),
+            EdgeType::OccurredIn => matches!((source, target),
+                (NodeType::RepositorySnapshot, NodeType::RepositoryEvent) |
+                (NodeType::RepositoryEvent, _)
+            ),
+            EdgeType::GeneratedFrom => matches!((source, target),
+                (NodeType::RepositoryEvent, _)
+            ),
+            EdgeType::HasGap => matches!((source, target),
+                (NodeType::RepositoryEvent, NodeType::KnowledgeGap)
+            ),
         }
     }
 

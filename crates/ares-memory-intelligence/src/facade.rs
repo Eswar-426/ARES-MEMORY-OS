@@ -81,10 +81,62 @@ impl MemoryFacade {
     }
 
     pub fn evolution(&self, entity_id: &str) -> Result<serde_json::Value, AresError> {
-        let timeline = self.assembler.evolution.how_has_this_evolved(entity_id)?;
+        let conn = self.assembler.store.get_conn()?;
+        
+        // Find RepositoryEvents that OccurredIn this entity
+        let mut stmt = conn.prepare("
+            SELECT e.id, e.name, e.properties, e.created_at
+            FROM graph_entities e
+            JOIN graph_relationships r ON e.id = r.source_entity
+            WHERE r.target_entity = ?1 AND r.relationship_type = 'OccurredIn' AND e.entity_type = 'RepositoryEvent'
+            ORDER BY e.created_at ASC
+        ").map_err(|e| AresError::Database(e.to_string()))?;
+
+        let mut events = Vec::new();
+        let rows = stmt.query_map(rusqlite::params![entity_id], |row| {
+            let id: String = row.get(0)?;
+            let name: String = row.get(1)?;
+            let props_str: String = row.get(2)?;
+            let created_at: i64 = row.get(3)?;
+            let props: serde_json::Value = serde_json::from_str(&props_str).unwrap_or(serde_json::json!({}));
+            Ok(serde_json::json!({
+                "event_id": id,
+                "name": name,
+                "created_at": created_at,
+                "properties": props
+            }))
+        }).map_err(|e| AresError::Database(e.to_string()))?;
+
+        for row in rows {
+            if let Ok(ev) = row {
+                events.push(ev);
+            }
+        }
+
+        // Add latest Snapshot info
+        let mut snap_stmt = conn.prepare("
+            SELECT e.id, e.name, e.created_at 
+            FROM graph_entities e
+            JOIN graph_relationships r ON e.id = r.source_entity
+            WHERE r.relationship_type = 'OccurredIn' AND e.entity_type = 'RepositorySnapshot'
+            ORDER BY e.created_at DESC LIMIT 1
+        ").map_err(|e| AresError::Database(e.to_string()))?;
+
+        let latest_snapshot: Option<serde_json::Value> = snap_stmt.query_row([], |row| {
+            let id: String = row.get(0)?;
+            let name: String = row.get(1)?;
+            let created_at: i64 = row.get(2)?;
+            Ok(serde_json::json!({
+                "snapshot_id": id,
+                "name": name,
+                "created_at": created_at
+            }))
+        }).ok();
+
         Ok(serde_json::json!({
             "entity": entity_id,
-            "revisions": timeline.revisions.len() // Mocking the deep serialization for now
+            "latest_snapshot": latest_snapshot,
+            "events": events
         }))
     }
 
@@ -375,5 +427,84 @@ impl MemoryFacade {
 
     pub fn get_governance(&self) -> Arc<GovernanceFacade> {
         self.governance.clone()
+    }
+
+    pub fn get_gaps_by_type(&self, gap_type: &str) -> Result<Vec<serde_json::Value>, AresError> {
+        let conn = self.assembler.store.get_conn()?;
+        
+        let mut stmt = conn.prepare("
+            SELECT e.id, e.name 
+            FROM graph_relationships g
+            JOIN graph_entities e ON e.id = g.target_entity
+            JOIN graph_entities gap ON gap.id = g.source_entity
+            WHERE gap.entity_type = 'KnowledgeGap' AND gap.name = ?1 AND g.relationship_type = 'HasGap'
+        ").map_err(|e| AresError::Database(e.to_string()))?;
+
+        let mut results = Vec::new();
+        let rows = stmt.query_map(rusqlite::params![gap_type], |row| {
+            let entity_id: String = row.get(0)?;
+            let title: String = row.get(1)?;
+            Ok((entity_id, title))
+        }).map_err(|e| AresError::Database(e.to_string()))?;
+
+        let mut entity_tuples = Vec::new();
+        for row in rows {
+            if let Ok(tup) = row {
+                entity_tuples.push(tup);
+            }
+        }
+
+        for (entity_id, title) in entity_tuples {
+            let mut related_code = Vec::new();
+            let mut code_stmt = conn.prepare("
+                SELECT target_entity FROM graph_relationships 
+                WHERE source_entity = ?1 AND relationship_type IN ('ImplementedBy', 'Drives', 'References')
+            ").unwrap();
+            
+            let code_rows = code_stmt.query_map(rusqlite::params![entity_id], |r| r.get::<_, String>(0)).unwrap();
+            for c in code_rows {
+                if let Ok(c) = c {
+                    related_code.push(c);
+                }
+            }
+
+            if gap_type == "CodeWithoutTests" && related_code.is_empty() {
+                related_code.push(entity_id.clone());
+            }
+
+            results.push(serde_json::json!({
+                "id": entity_id,
+                "title": title,
+                "gap_type": gap_type,
+                "related_code": related_code
+            }));
+        }
+        
+        Ok(results)
+    }
+
+    pub fn get_uncovered_requirements(&self) -> Result<Vec<serde_json::Value>, AresError> {
+        let mut r1 = self.get_gaps_by_type("RequirementWithoutTests")?;
+        let mut r2 = self.get_gaps_by_type("RequirementWithoutImplementation")?;
+        r1.append(&mut r2);
+        Ok(r1)
+    }
+
+    pub fn get_code_without_tests(&self) -> Result<Vec<serde_json::Value>, AresError> {
+        self.get_gaps_by_type("CodeWithoutTests")
+    }
+
+    pub fn get_orphan_decisions(&self) -> Result<Vec<serde_json::Value>, AresError> {
+        let mut r1 = self.get_gaps_by_type("OrphanDecision")?;
+        let mut r2 = self.get_gaps_by_type("DecisionWithoutRequirement")?;
+        r1.append(&mut r2);
+        // deduplicate just in case
+        r1.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
+        r1.dedup_by(|a, b| a["id"] == b["id"]);
+        Ok(r1)
+    }
+
+    pub fn get_orphan_requirements(&self) -> Result<Vec<serde_json::Value>, AresError> {
+        self.get_gaps_by_type("OrphanRequirement")
     }
 }

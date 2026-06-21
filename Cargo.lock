@@ -305,6 +305,7 @@ version = "0.1.0"
 dependencies = [
  "ares-core",
  "ares-governance",
+ "ares-ingestion",
  "ares-knowledge-graph",
  "ares-memory-intelligence",
  "ares-pr-engine",
@@ -313,11 +314,13 @@ dependencies = [
  "ares-traceability",
  "ares-validation",
  "clap",
+ "rusqlite",
  "serde_json",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
@@ -504,6 +507,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ares-ingestion"
+version = "0.1.0"
+dependencies = [
+ "ares-core",
+ "ares-knowledge-graph",
+ "ignore",
+ "serde",
+ "serde_json",
+ "toml 0.8.23",
+ "uuid",
+]
+
+[[package]]
 name = "ares-intelligence"
 version = "0.1.0"
 dependencies = [
@@ -574,7 +590,9 @@ dependencies = [
  "ares-memory-intelligence",
  "ares-planner",
  "ares-project-memory",
+ "ares-requirements",
  "ares-store",
+ "ares-traceability",
  "ares-validation",
  "chrono",
  "schemars",
@@ -900,8 +918,10 @@ dependencies = [
  "ares-memory-intelligence",
  "ares-resolution-engine",
  "ares-store",
+ "rusqlite",
  "serde",
  "serde_json",
+ "sysinfo",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -2204,7 +2224,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core",
+ "windows-core 0.62.2",
 ]
 
 [[package]]
@@ -2700,6 +2720,15 @@ dependencies = [
  "crossbeam-channel",
  "log",
  "notify",
+]
+
+[[package]]
+name = "ntapi"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3b335231dfd352ffb0f8017f3b6027a4917f7df785ea2143d8af2adc66980ae"
+dependencies = [
+ "winapi",
 ]
 
 [[package]]
@@ -4129,6 +4158,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "sysinfo"
+version = "0.30.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a5b4ddaee55fb2bea2bf0e5000747e5f5c0de765e5a5ff87f4cd106439f4bb3"
+dependencies = [
+ "cfg-if",
+ "core-foundation-sys",
+ "libc",
+ "ntapi",
+ "once_cell",
+ "rayon",
+ "windows",
+]
+
+[[package]]
 name = "system-configuration"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5117,6 +5161,25 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
+
+[[package]]
+name = "windows"
+version = "0.52.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e48a53791691ab099e5e2ad123536d0fff50652600abaf43bbf952894110d0be"
+dependencies = [
+ "windows-core 0.52.0",
+ "windows-targets 0.52.6",
+]
+
+[[package]]
+name = "windows-core"
+version = "0.52.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33ab640c8d7e35bf8ba19b884ba838ceb4fba93a4e8c65a9059d08afcfc683d9"
+dependencies = [
+ "windows-targets 0.52.6",
+]
 
 [[package]]
 name = "windows-core"

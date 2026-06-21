@@ -19,6 +19,9 @@ pub enum NodeType {
     Owner,
     Repository,
     Project,
+    RepositoryEvent,
+    RepositorySnapshot,
+    KnowledgeGap,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -78,9 +81,11 @@ pub struct KnowledgeNode {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum EdgeType {
     Implements,
+    ImplementedBy,
     Drives,
     DependsOn,
     SupportedBy,
+    Supports,
     ValidatedBy,
     ResultsIn,
     OwnedBy,
@@ -92,13 +97,42 @@ pub enum EdgeType {
     ApprovedBy,
     DerivedFrom,
     Supersedes,
+    Contains,
+    OccurredIn,
+    GeneratedFrom,
+    HasGap,
 }
 
 impl fmt::Display for EdgeType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
+        let s = match self {
+            EdgeType::Implements => "Implements",
+            EdgeType::ImplementedBy => "ImplementedBy",
+            EdgeType::Drives => "Drives",
+            EdgeType::DependsOn => "DependsOn",
+            EdgeType::SupportedBy => "SupportedBy",
+            EdgeType::Supports => "Supports",
+            EdgeType::ValidatedBy => "ValidatedBy",
+            EdgeType::ResultsIn => "ResultsIn",
+            EdgeType::OwnedBy => "OwnedBy",
+            EdgeType::Exhibits => "Exhibits",
+            EdgeType::Causes => "Causes",
+            EdgeType::Resolves => "Resolves",
+            EdgeType::References => "References",
+            EdgeType::TracesTo => "TracesTo",
+            EdgeType::ApprovedBy => "ApprovedBy",
+            EdgeType::DerivedFrom => "DerivedFrom",
+            EdgeType::Supersedes => "Supersedes",
+            EdgeType::Contains => "Contains",
+            EdgeType::OccurredIn => "OccurredIn",
+            EdgeType::GeneratedFrom => "GeneratedFrom",
+            EdgeType::HasGap => "HasGap",
+        };
+        write!(f, "{}", s)
     }
 }
+
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KnowledgeEdge {

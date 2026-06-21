@@ -25,17 +25,20 @@ impl ImpactEngine {
             NodeType::Decision => 8,
             NodeType::DecisionRevision => 8,
             NodeType::Evidence => 5,
-            NodeType::RuntimeSignal => 9,
+            NodeType::RuntimeSignal => 4,
             NodeType::Gap => 8,
-            NodeType::RootCause => 8,
+            NodeType::KnowledgeGap => 8,
+            NodeType::RootCause => 9,
             NodeType::Architecture => 7,
-            NodeType::Resolution => 7,
+            NodeType::Resolution => 2,
             NodeType::Outcome => 6,
             NodeType::CodeArtifact => 5,
             NodeType::Test => 4,
             NodeType::Owner => 3,
             NodeType::Repository => 1,
             NodeType::Project => 1,
+            NodeType::RepositoryEvent => 1,
+            NodeType::RepositorySnapshot => 1,
         }
     }
 

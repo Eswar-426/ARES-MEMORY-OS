@@ -32,7 +32,9 @@ pub async fn execute_validate(strict: bool, json: bool, sarif: bool, ci: bool) -
         let results = governance.evaluate_project(&project_id).await.unwrap_or_default();
         let sarif_json = ares_governance::sarif::GovernanceSarifExporter::export_results(&results);
         let sarif_path = std::path::PathBuf::from(&project_path).join("governance.sarif");
-        std::fs::write(&sarif_path, serde_json::to_string_pretty(&sarif_json).unwrap())
+        let sarif_str = serde_json::to_string_pretty(&sarif_json)
+            .map_err(|e| AresError::Serialization(e.to_string()))?;
+        std::fs::write(&sarif_path, sarif_str)
             .map_err(|e| AresError::Io(e))?;
         if !is_json {
             println!("Exported SARIF to {:?}", sarif_path);
@@ -40,7 +42,8 @@ pub async fn execute_validate(strict: bool, json: bool, sarif: bool, ci: bool) -
     }
 
     if is_json {
-        let out = serde_json::to_string_pretty(&report).unwrap();
+        let out = serde_json::to_string_pretty(&report)
+            .map_err(|e| AresError::Serialization(e.to_string()))?;
         println!("{}", out);
     } else {
         println!("ARES MemoryOS Validation Report\n");
@@ -119,7 +122,7 @@ pub async fn execute_export(out_path: &String) -> Result<(), AresError> {
         scorecard,
     };
 
-    let json_out = serde_json::to_string_pretty(&snapshot).unwrap();
+    let json_out = serde_json::to_string_pretty(&snapshot).map_err(|e| AresError::Serialization(e.to_string()))?;
     std::fs::write(out_path, json_out).map_err(|e| AresError::Io(e))?;
 
     println!("Exported Memory Snapshot to {}", out_path);

@@ -1,0 +1,64 @@
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import * as vscode from "vscode";
+import * as fs from "fs";
+
+export class McpClient {
+    private client: Client;
+    private transport?: StdioClientTransport;
+    private outputChannel: vscode.OutputChannel;
+
+    constructor(outputChannel: vscode.OutputChannel) {
+        this.outputChannel = outputChannel;
+        this.client = new Client({
+            name: "ares-vscode-extension",
+            version: "0.1.0"
+        }, {
+            capabilities: {}
+        });
+    }
+
+    async connect(mcpPath: string, source: string): Promise<boolean> {
+        this.outputChannel.appendLine(`Starting ARES MCP from ${mcpPath} (Source: ${source})...`);
+        
+        if (source !== 'PATH' && !fs.existsSync(mcpPath)) {
+            this.outputChannel.appendLine(`ARES MCP binary not found:\n${mcpPath}`);
+            return false;
+        }
+
+        try {
+            this.transport = new StdioClientTransport({
+                command: mcpPath,
+                args: []
+            });
+
+            await this.client.connect(this.transport);
+            this.outputChannel.appendLine("Successfully connected to ARES MCP.");
+            return true;
+        } catch (e: any) {
+            this.outputChannel.appendLine(`Failed to connect to ARES MCP: ${e.message}`);
+            return false;
+        }
+    }
+
+    async disconnect() {
+        if (this.transport) {
+            await this.transport.close();
+        }
+    }
+
+    async callTool(name: string, args: any): Promise<any> {
+        this.outputChannel.appendLine(`Calling MCP tool ${name} with args: ${JSON.stringify(args)}`);
+        try {
+            const result = await this.client.callTool({
+                name,
+                arguments: args
+            });
+            this.outputChannel.appendLine(`MCP Output: ${JSON.stringify(result, null, 2)}`);
+            return result;
+        } catch (e: any) {
+            this.outputChannel.appendLine(`MCP Error: ${e.message}`);
+            throw e;
+        }
+    }
+}

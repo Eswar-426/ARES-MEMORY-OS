@@ -8,7 +8,9 @@ use ares_store::Store;
 use std::collections::HashSet;
 use std::sync::Arc;
 
-#[derive(Debug, Clone)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ProposedChange {
     AddNode { id: String, node_type: TraceTargetType },
     RemoveNode { id: String },
@@ -16,7 +18,7 @@ pub enum ProposedChange {
     RemoveEdge { source: String, target: String },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimulationReport {
     pub affected_requirements: Vec<String>,
     pub new_gaps: usize,

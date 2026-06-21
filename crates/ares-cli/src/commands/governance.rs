@@ -87,16 +87,10 @@ pub async fn execute_pr_check(base_report_path: Option<String>) -> Result<(), Ar
         base_snapshot = Some(serde_json::from_str::<ares_pr_engine::models::MemorySnapshot>(&content)
             .map_err(|e| AresError::Serialization(e.to_string()))?);
     } else {
-        // Fallback to historical snapshot from compliance_results
-        // (For now, we'll just use an empty base if none is provided, since full graph DB history needs a proper snapshot table)
-        // A complete historical fetch would query a snapshot table.
-        // Actually, as per enterprise readiness: Fail if no baseline.
-        println!("Error: No base report provided. PR Check requires a baseline for graph delta in CI/CD environments.");
-        println!("Please provide a baseline via `--base-report` or ensure a latest certified snapshot exists.");
-        std::process::exit(1);
+        return Err(AresError::validation("No base report provided. PR Check requires a baseline for graph delta in CI/CD environments.\nPlease provide a baseline via `--base-report` or ensure a latest certified snapshot exists."));
     }
 
-    let base_snapshot = base_snapshot.unwrap();
+    let base_snapshot = base_snapshot.expect("Handled above");
 
     // 3. Evaluate
     let mut readiness = ares_pr_engine::engines::PullRequestEvaluator::evaluate(&base_snapshot, &head_snapshot)?;
