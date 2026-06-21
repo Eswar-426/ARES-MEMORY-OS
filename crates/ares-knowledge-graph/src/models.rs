@@ -152,6 +152,12 @@ pub struct KnowledgeGraph {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum GraphEvent {
+    Node(KnowledgeNode),
+    Edge(KnowledgeEdge),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectedEvent {
     pub event_id: String,
     pub projected_at: i64,

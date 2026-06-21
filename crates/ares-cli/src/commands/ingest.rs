@@ -36,7 +36,6 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
     if args.incremental {
         builder.set_incremental_files(args.files.clone());
     }
-    let graph = builder.build()?;
     
     let out_dir = args.path.join(".ares");
     if !out_dir.exists() {
@@ -48,16 +47,33 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
     let graph_store = ares_knowledge_graph::store::KnowledgeGraphStore::new(raw_store.clone());
 
     if args.incremental {
+        let mut nodes = Vec::new();
+        let mut edges = Vec::new();
+        builder.build(|event| {
+            match event {
+                ares_knowledge_graph::models::GraphEvent::Node(n) => nodes.push(n),
+                ares_knowledge_graph::models::GraphEvent::Edge(e) => edges.push(e),
+            }
+            Ok(())
+        })?;
+        let graph = KnowledgeGraph { nodes, edges };
         apply_incremental(&args, graph, &graph_store, &raw_store)?;
     } else {
-        // Full ingest
-        for node in &graph.nodes {
-            graph_store.upsert_node(node)?;
-        }
-        for edge in &graph.edges {
-            if let Err(e) = graph_store.upsert_edge(edge) {
-                eprintln!("Warning: Failed to insert edge {}: {}", edge.id, e);
+        // Full ingest with streaming batch architecture
+        let mut batch = Vec::new();
+        let batch_size = 2500;
+        
+        builder.build(|event| {
+            batch.push(event);
+            if batch.len() >= batch_size {
+                graph_store.upsert_batch(&batch)?;
+                batch.clear();
             }
+            Ok(())
+        })?;
+        
+        if !batch.is_empty() {
+            graph_store.upsert_batch(&batch)?;
         }
         println!("Successfully ingested knowledge graph into SQLite database");
     }

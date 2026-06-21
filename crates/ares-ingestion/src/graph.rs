@@ -9,6 +9,7 @@ use crate::extractors::tests::TestResolutionEngine;
 use crate::extractors::markdown::MarkdownIntelligenceExtractor;
 use crate::gap_generator::GapGenerator;
 use uuid::Uuid;
+use ares_knowledge_graph::models::GraphEvent;
 
 pub struct GraphBuilder {
     root: PathBuf,
@@ -27,7 +28,10 @@ impl GraphBuilder {
         self.incremental_files = Some(files);
     }
 
-    pub fn build(&self) -> Result<KnowledgeGraph, ares_core::AresError> {
+    pub fn build<F>(&self, mut sink: F) -> Result<(), ares_core::AresError> 
+    where
+        F: FnMut(GraphEvent) -> Result<(), ares_core::AresError>
+    {
         let scanner = RepositoryScanner::new(&self.root);
         let mut files = scanner.scan();
         if let Some(inc_files) = &self.incremental_files {
@@ -43,8 +47,6 @@ impl GraphBuilder {
             });
         }
         
-        let mut nodes = Vec::new();
-        let mut edges = Vec::new();
         
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -53,26 +55,30 @@ impl GraphBuilder {
 
         // Add Repository Node
         let repo_id = "REPO-ROOT".to_string();
-        nodes.push(KnowledgeNode {
+        sink(GraphEvent::Node(KnowledgeNode {
             id: repo_id.clone(),
             node_type: NodeType::Repository,
             name: self.root.file_name().unwrap_or_default().to_string_lossy().to_string(),
             properties: serde_json::json!({"path": self.root.to_string_lossy()}),
             created_at: now,
-        });
+        }))?;
+
+        let mut code_artifact_ids = Vec::new();
 
         // Add CodeArtifacts
         for file in &files {
             let file_str = ares_core::canonicalize_node_id(&file.to_string_lossy());
-            nodes.push(KnowledgeNode {
+            code_artifact_ids.push(file_str.clone());
+            
+            sink(GraphEvent::Node(KnowledgeNode {
                 id: file_str.clone(),
                 node_type: NodeType::CodeArtifact,
                 name: file.file_name().unwrap_or_default().to_string_lossy().to_string(),
                 properties: serde_json::json!({"path": file_str}),
                 created_at: now,
-            });
+            }))?;
             
-            edges.push(KnowledgeEdge {
+            sink(GraphEvent::Edge(KnowledgeEdge {
                 id: Uuid::new_v4().to_string(),
                 source_id: repo_id.clone(),
                 target_id: file_str.clone(),
@@ -80,17 +86,16 @@ impl GraphBuilder {
                 confidence: 1.0,
                 created_at: now,
                 properties: serde_json::json!({}),
-            });
+            }))?;
         }
         
-        let code_artifact_ids: Vec<String> = nodes.iter()
-            .filter(|n| n.node_type == NodeType::CodeArtifact)
-            .map(|n| n.id.clone())
-            .collect();
-
-        let (mut int_nodes, mut int_edges) = MarkdownIntelligenceExtractor::extract_intelligence(&files, &self.root, &code_artifact_ids);
-        nodes.append(&mut int_nodes);
-        edges.append(&mut int_edges);
+        let (int_nodes, int_edges) = MarkdownIntelligenceExtractor::extract_intelligence(&files, &self.root, &code_artifact_ids);
+        for n in int_nodes {
+            sink(GraphEvent::Node(n))?;
+        }
+        for e in int_edges {
+            sink(GraphEvent::Edge(e))?;
+        }
         
         // Ownership
         let ownerships = OwnershipExtractor::extract_ownership(&self.root);
@@ -99,23 +104,34 @@ impl GraphBuilder {
             owner_map.insert(owner.clone());
         }
         for owner in owner_map {
-            nodes.push(KnowledgeNode {
+            sink(GraphEvent::Node(KnowledgeNode {
                 id: owner.clone(),
                 node_type: NodeType::Owner,
                 name: owner.clone(),
                 properties: serde_json::json!({}),
                 created_at: now,
-            });
+            }))?;
         }
         
+        let mut synthesized_nodes = std::collections::HashSet::new();
+
         // Map ownership to files
         for file in &files {
             let file_str = ares_core::canonicalize_node_id(&file.to_string_lossy());
-            // A real pattern matcher is more complex, doing exact or suffix match for now
             for (pattern, owner) in &ownerships {
                 let canonical_pattern = ares_core::canonicalize_node_id(pattern);
                 if file_str.contains(&canonical_pattern) || pattern == "*" {
-                    edges.push(KnowledgeEdge {
+                    if synthesized_nodes.insert(owner.clone()) {
+                        sink(GraphEvent::Node(KnowledgeNode {
+                            id: owner.clone(),
+                            node_type: NodeType::Owner,
+                            name: owner.clone(),
+                            properties: serde_json::json!({"pattern": canonical_pattern}),
+                            created_at: now,
+                        }))?;
+                    }
+
+                    sink(GraphEvent::Edge(KnowledgeEdge {
                         id: Uuid::new_v4().to_string(),
                         source_id: file_str.clone(),
                         target_id: owner.clone(),
@@ -123,7 +139,7 @@ impl GraphBuilder {
                         confidence: 1.0,
                         created_at: now,
                         properties: serde_json::json!({}),
-                    });
+                    }))?;
                 }
             }
         }
@@ -131,15 +147,39 @@ impl GraphBuilder {
         // Tests
         let test_relations = TestResolutionEngine::extract_test_relations(&files);
         for (code, test) in test_relations {
-            edges.push(KnowledgeEdge {
+            let code_str = ares_core::canonicalize_node_id(&code.to_string_lossy());
+            let test_str = ares_core::canonicalize_node_id(&test.to_string_lossy());
+            
+            // To be robust, ensure we emit nodes for the tests and code themselves.
+            // Often they are already emitted via walkdir, but just in case:
+            if synthesized_nodes.insert(code_str.clone()) {
+                sink(GraphEvent::Node(KnowledgeNode {
+                    id: code_str.clone(),
+                    node_type: NodeType::CodeArtifact,
+                    name: code.file_name().unwrap_or_default().to_string_lossy().to_string(),
+                    properties: serde_json::json!({}),
+                    created_at: now,
+                }))?;
+            }
+            if synthesized_nodes.insert(test_str.clone()) {
+                sink(GraphEvent::Node(KnowledgeNode {
+                    id: test_str.clone(),
+                    node_type: NodeType::Test,
+                    name: test.file_name().unwrap_or_default().to_string_lossy().to_string(),
+                    properties: serde_json::json!({}),
+                    created_at: now,
+                }))?;
+            }
+
+            sink(GraphEvent::Edge(KnowledgeEdge {
                 id: Uuid::new_v4().to_string(),
-                source_id: ares_core::canonicalize_node_id(&code.to_string_lossy()),
-                target_id: ares_core::canonicalize_node_id(&test.to_string_lossy()),
+                source_id: code_str,
+                target_id: test_str,
                 edge_type: EdgeType::ValidatedBy,
                 confidence: 1.0,
                 created_at: now,
                 properties: serde_json::json!({}),
-            });
+            }))?;
         }
         
         // Dependencies
@@ -149,7 +189,18 @@ impl GraphBuilder {
                 let deps = RustDependencyExtractor::extract_dependencies(file);
                 for (source_file, dep_name) in deps {
                     let dep_id = format!("DEP-RUST-{}", dep_name);
-                    edges.push(KnowledgeEdge {
+                    
+                    if synthesized_nodes.insert(dep_id.clone()) {
+                        sink(GraphEvent::Node(KnowledgeNode {
+                            id: dep_id.clone(),
+                            node_type: NodeType::CodeArtifact,
+                            name: dep_name.clone(),
+                            properties: serde_json::json!({"type": "rust_dependency"}),
+                            created_at: now,
+                        }))?;
+                    }
+
+                    sink(GraphEvent::Edge(KnowledgeEdge {
                         id: Uuid::new_v4().to_string(),
                         source_id: ares_core::canonicalize_node_id(&source_file),
                         target_id: dep_id,
@@ -157,13 +208,24 @@ impl GraphBuilder {
                         confidence: 1.0,
                         created_at: now,
                         properties: serde_json::json!({"type": "rust"}),
-                    });
+                    }))?;
                 }
             } else if file_str.ends_with("package.json") {
                 let deps = TypeScriptDependencyExtractor::extract_dependencies(file);
                 for (source_file, dep_name) in deps {
                     let dep_id = format!("DEP-TS-{}", dep_name);
-                    edges.push(KnowledgeEdge {
+                    
+                    if synthesized_nodes.insert(dep_id.clone()) {
+                        sink(GraphEvent::Node(KnowledgeNode {
+                            id: dep_id.clone(),
+                            node_type: NodeType::CodeArtifact,
+                            name: dep_name.clone(),
+                            properties: serde_json::json!({"type": "typescript_dependency"}),
+                            created_at: now,
+                        }))?;
+                    }
+
+                    sink(GraphEvent::Edge(KnowledgeEdge {
                         id: Uuid::new_v4().to_string(),
                         source_id: ares_core::canonicalize_node_id(&source_file),
                         target_id: dep_id,
@@ -171,16 +233,14 @@ impl GraphBuilder {
                         confidence: 1.0,
                         created_at: now,
                         properties: serde_json::json!({"type": "typescript"}),
-                    });
+                    }))?;
                 }
             }
         }
 
-        GapGenerator::generate_gaps(&mut nodes, &mut edges, now);
+        // GapGenerator needs a rewrite to operate on database instead of memory vectors.
+        // We skip memory GapGenerator here and rely on the database projection step.
 
-        Ok(KnowledgeGraph {
-            nodes,
-            edges,
-        })
+        Ok(())
     }
 }

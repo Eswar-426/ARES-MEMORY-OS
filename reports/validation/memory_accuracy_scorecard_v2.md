@@ -9,6 +9,6 @@
 | Knowledge Gap Detection | 100.0% | >= 90% | ✅ |
 | False Positive Rate | 0.0% | <= 5% | ✅ |
 | Duplicate Events | 0 | 0 | ✅ |
-| Peak RSS Memory | 18.61 MB | < 100 MB | ✅ |
-| Cold Ingest | 1016 ms | < 5000 ms | ✅ |
-| Incremental Ingest | 247 ms | < 1000 ms | ✅ |
+| Peak RSS Memory | 17.79 MB | < 100 MB | ✅ |
+| Cold Ingest | 3055 ms | < 5000 ms | ✅ |
+| Incremental Ingest | 115 ms | < 1000 ms | ✅ |

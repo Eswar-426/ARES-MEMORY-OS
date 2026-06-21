@@ -14,10 +14,21 @@ impl RepositoryScanner {
 
     pub fn scan(&self) -> Vec<PathBuf> {
         let mut files = Vec::new();
-        let walker = WalkBuilder::new(&self.root)
-            .hidden(true)
-            .git_ignore(true)
-            .build();
+        let mut builder = WalkBuilder::new(&self.root);
+        builder.hidden(true).git_ignore(true);
+        
+        let mut overrides = ignore::overrides::OverrideBuilder::new(&self.root);
+        overrides.add("!node_modules").unwrap();
+        overrides.add("!target").unwrap();
+        overrides.add("!build").unwrap();
+        overrides.add("!dist").unwrap();
+        overrides.add("!coverage").unwrap();
+        overrides.add("!reports").unwrap();
+        overrides.add("!artifacts").unwrap();
+        overrides.add("!scratch").unwrap();
+        overrides.add("!.gemini").unwrap();
+
+        let walker = builder.overrides(overrides.build().unwrap()).build();
 
         for result in walker {
             match result {

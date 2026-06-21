@@ -63,11 +63,13 @@ impl MarkdownIntelligenceExtractor {
 
                 if is_owner {
                     node_type = NodeType::Owner;
-                } else if file_str.contains("requirements/") || content.starts_with("# Requirement:") || content.contains("Requirement: ") {
+                } else if file_str.contains("docs/requirements/") || content.starts_with("# Requirement:") || content.contains("Requirement: ") {
                     node_type = NodeType::Requirement;
-                } else if file_str.contains("decisions/") || file_str.contains("adr/") || content.starts_with("# Decision:") || content.contains("Decision: ") {
+                } else if file_str.contains("docs/decisions/") || content.starts_with("# Decision:") || content.contains("Decision: ") {
                     node_type = NodeType::Decision;
-                } else if file_str.contains("evidence/") || content.starts_with("# Benchmark") || content.starts_with("# Evidence") || content.contains("Test Result") || content.contains("Investigation") {
+                } else if file_str.contains("docs/architecture/") || content.starts_with("# Architecture") {
+                    node_type = NodeType::Architecture;
+                } else if file_str.contains("docs/evidence/") || content.starts_with("# Benchmark") || content.starts_with("# Evidence") || content.contains("Test Result") || content.contains("Investigation") {
                     node_type = NodeType::Evidence;
                 } else if file_upper.contains("REQ-") {
                     node_type = NodeType::Requirement;

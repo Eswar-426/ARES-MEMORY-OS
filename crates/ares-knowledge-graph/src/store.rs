@@ -71,6 +71,56 @@ impl KnowledgeGraphStore {
         Ok(())
     }
 
+    pub fn upsert_batch(&self, events: &[crate::models::GraphEvent]) -> Result<(), AresError> {
+        let mut conn = self.store.get_conn()?;
+        let tx = conn.transaction().map_err(|e| AresError::Database(e.to_string()))?;
+
+        {
+            let mut node_stmt = tx.prepare_cached(
+                "INSERT OR REPLACE INTO graph_entities (
+                    id, entity_type, name, properties, created_at, updated_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?5)"
+            ).map_err(|e| AresError::Database(e.to_string()))?;
+
+            let mut edge_stmt = tx.prepare_cached(
+                "INSERT OR REPLACE INTO graph_relationships (
+                    id, source_entity, target_entity, relationship_type, 
+                    confidence_score, properties, created_at, updated_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7)"
+            ).map_err(|e| AresError::Database(e.to_string()))?;
+
+            for event in events {
+                match event {
+                    crate::models::GraphEvent::Node(node) => {
+                        let props_str = serde_json::to_string(&node.properties).unwrap_or_else(|_| "{}".to_string());
+                        node_stmt.execute(params![
+                            node.id,
+                            node.node_type.to_string(),
+                            node.name,
+                            props_str,
+                            node.created_at.to_string()
+                        ]).map_err(|e| AresError::Database(format!("Node Insert Error: {}", e)))?;
+                    }
+                    crate::models::GraphEvent::Edge(edge) => {
+                        let props_str = serde_json::to_string(&edge.properties).unwrap_or_else(|_| "{}".to_string());
+                        edge_stmt.execute(params![
+                            edge.id,
+                            edge.source_id,
+                            edge.target_id,
+                            edge.edge_type.to_string(),
+                            edge.confidence,
+                            props_str,
+                            edge.created_at.to_string()
+                        ]).map_err(|e| AresError::Database(format!("Edge Insert Error: {} -> {}", edge.source_id, edge.target_id)))?;
+                    }
+                }
+            }
+        }
+        
+        tx.commit().map_err(|e| AresError::Database(e.to_string()))?;
+        Ok(())
+    }
+
     /// Checks if an event has already been projected.
     pub fn is_event_projected(&self, event_id: &str) -> Result<bool, AresError> {
         let conn = self.store.get_conn()?;
