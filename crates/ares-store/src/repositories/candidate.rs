@@ -4,7 +4,7 @@ use rusqlite::{params, OptionalExtension};
 
 use ares_candidates::{
     Candidate, CandidateConfidence, CandidatePromotion, CandidateRepository, CandidateReview,
-    CandidateSource, CandidateStatus, CandidateType,
+    CandidateSource, CandidateStatus, CandidateType, DecisionCategory,
 };
 use ares_core::{GraphEdge, GraphNode};
 
@@ -44,12 +44,21 @@ impl CandidateRepository for SqliteCandidateRepository {
             CandidateStatus::Superseded => "Superseded",
         };
 
+        let decision_category_str = match &candidate.decision_category {
+            Some(DecisionCategory::TechnologyAdoption) => Some("TechnologyAdoption"),
+            Some(DecisionCategory::TechnologyRemoval) => Some("TechnologyRemoval"),
+            Some(DecisionCategory::DependencyMigration) => Some("DependencyMigration"),
+            Some(DecisionCategory::ArchitectureChange) => Some("ArchitectureChange"),
+            Some(DecisionCategory::PlatformChoice) => Some("PlatformChoice"),
+            None => None,
+        };
+
         conn.execute(
             "INSERT INTO candidates (
                 id, project_id, title, description, candidate_type, status,
                 evidence_count, source_diversity, temporal_consistency, cluster_strength,
-                created_at, updated_at
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                created_at, updated_at, decision_category
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
             params![
                 candidate.id,
                 candidate.project_id,
@@ -62,7 +71,8 @@ impl CandidateRepository for SqliteCandidateRepository {
                 candidate.confidence.temporal_consistency,
                 candidate.confidence.cluster_strength,
                 candidate.created_at,
-                candidate.updated_at
+                candidate.updated_at,
+                decision_category_str,
             ],
         )
         .map_err(|e| e.to_string())?;
@@ -70,16 +80,16 @@ impl CandidateRepository for SqliteCandidateRepository {
         Ok(())
     }
 
-    async fn get_candidate(&self, id: &str) -> Result<Option<Candidate>, String> {
+    async fn get_candidate(&self, project_id: &str, id: &str) -> Result<Option<Candidate>, String> {
         let conn = self.store.get_conn().map_err(|e| e.to_string())?;
 
         let candidate = conn
             .query_row(
                 "SELECT id, project_id, title, description, candidate_type, status,
                  evidence_count, source_diversity, temporal_consistency, cluster_strength,
-                 created_at, updated_at
-                 FROM candidates WHERE id = ?1",
-                params![id],
+                 created_at, updated_at, decision_category
+                 FROM candidates WHERE project_id = ?1 AND id = ?2",
+                params![project_id, id],
                 |row| {
                     let c_type_str: String = row.get(4)?;
                     let status_str: String = row.get(5)?;
@@ -101,12 +111,23 @@ impl CandidateRepository for SqliteCandidateRepository {
                         _ => CandidateStatus::Proposed,
                     };
 
+                    let dec_cat_str: Option<String> = row.get(12)?;
+                    let decision_category = dec_cat_str.and_then(|s| match s.as_str() {
+                        "TechnologyAdoption" => Some(DecisionCategory::TechnologyAdoption),
+                        "TechnologyRemoval" => Some(DecisionCategory::TechnologyRemoval),
+                        "DependencyMigration" => Some(DecisionCategory::DependencyMigration),
+                        "ArchitectureChange" => Some(DecisionCategory::ArchitectureChange),
+                        "PlatformChoice" => Some(DecisionCategory::PlatformChoice),
+                        _ => None,
+                    });
+
                     Ok(Candidate {
                         id: row.get(0)?,
                         project_id: row.get(1)?,
                         title: row.get(2)?,
                         description: row.get(3)?,
                         candidate_type: c_type,
+                        decision_category,
                         status,
                         confidence: CandidateConfidence {
                             evidence_count: row.get(6)?,
@@ -143,11 +164,20 @@ impl CandidateRepository for SqliteCandidateRepository {
             CandidateStatus::Superseded => "Superseded",
         };
 
+        let decision_category_str = match &candidate.decision_category {
+            Some(DecisionCategory::TechnologyAdoption) => Some("TechnologyAdoption"),
+            Some(DecisionCategory::TechnologyRemoval) => Some("TechnologyRemoval"),
+            Some(DecisionCategory::DependencyMigration) => Some("DependencyMigration"),
+            Some(DecisionCategory::ArchitectureChange) => Some("ArchitectureChange"),
+            Some(DecisionCategory::PlatformChoice) => Some("PlatformChoice"),
+            None => None,
+        };
+
         conn.execute(
             "UPDATE candidates SET
                 project_id = ?2, title = ?3, description = ?4, candidate_type = ?5, status = ?6,
                 evidence_count = ?7, source_diversity = ?8, temporal_consistency = ?9, cluster_strength = ?10,
-                updated_at = ?11
+                updated_at = ?11, decision_category = ?12
              WHERE id = ?1",
             params![
                 candidate.id,
@@ -160,7 +190,8 @@ impl CandidateRepository for SqliteCandidateRepository {
                 candidate.confidence.source_diversity,
                 candidate.confidence.temporal_consistency,
                 candidate.confidence.cluster_strength,
-                candidate.updated_at
+                candidate.updated_at,
+                decision_category_str,
             ],
         )
         .map_err(|e| e.to_string())?;
@@ -180,7 +211,7 @@ impl CandidateRepository for SqliteCandidateRepository {
             .prepare(
                 "SELECT id, project_id, title, description, candidate_type, status,
                  evidence_count, source_diversity, temporal_consistency, cluster_strength,
-                 created_at, updated_at
+                 created_at, updated_at, decision_category
                  FROM candidates WHERE project_id = ?1 ORDER BY created_at DESC LIMIT ?2 OFFSET ?3",
             )
             .map_err(|e| e.to_string())?;
@@ -207,12 +238,23 @@ impl CandidateRepository for SqliteCandidateRepository {
                     _ => CandidateStatus::Proposed,
                 };
 
+                let dec_cat_str: Option<String> = row.get(12)?;
+                let decision_category = dec_cat_str.and_then(|s| match s.as_str() {
+                    "TechnologyAdoption" => Some(DecisionCategory::TechnologyAdoption),
+                    "TechnologyRemoval" => Some(DecisionCategory::TechnologyRemoval),
+                    "DependencyMigration" => Some(DecisionCategory::DependencyMigration),
+                    "ArchitectureChange" => Some(DecisionCategory::ArchitectureChange),
+                    "PlatformChoice" => Some(DecisionCategory::PlatformChoice),
+                    _ => None,
+                });
+
                 Ok(Candidate {
                     id: row.get(0)?,
                     project_id: row.get(1)?,
                     title: row.get(2)?,
                     description: row.get(3)?,
                     candidate_type: c_type,
+                    decision_category,
                     status,
                     confidence: CandidateConfidence {
                         evidence_count: row.get(6)?,
@@ -254,17 +296,19 @@ impl CandidateRepository for SqliteCandidateRepository {
         Ok(())
     }
 
-    async fn get_sources(&self, candidate_id: &str) -> Result<Vec<CandidateSource>, String> {
+    async fn get_sources(&self, project_id: &str, candidate_id: &str) -> Result<Vec<CandidateSource>, String> {
         let conn = self.store.get_conn().map_err(|e| e.to_string())?;
         let mut stmt = conn
             .prepare(
-                "SELECT id, candidate_id, source_type, source_id, confidence
-                 FROM candidate_sources WHERE candidate_id = ?1",
+                "SELECT s.id, s.candidate_id, s.source_type, s.source_id, s.confidence
+                 FROM candidate_sources s
+                 JOIN candidates c ON s.candidate_id = c.id
+                 WHERE c.project_id = ?1 AND s.candidate_id = ?2",
             )
             .map_err(|e| e.to_string())?;
 
         let rows = stmt
-            .query_map(params![candidate_id], |row| {
+            .query_map(params![project_id, candidate_id], |row| {
                 Ok(CandidateSource {
                     id: row.get(0)?,
                     candidate_id: row.get(1)?,
@@ -304,17 +348,19 @@ impl CandidateRepository for SqliteCandidateRepository {
         Ok(())
     }
 
-    async fn get_reviews(&self, candidate_id: &str) -> Result<Vec<CandidateReview>, String> {
+    async fn get_reviews(&self, project_id: &str, candidate_id: &str) -> Result<Vec<CandidateReview>, String> {
         let conn = self.store.get_conn().map_err(|e| e.to_string())?;
         let mut stmt = conn
             .prepare(
-                "SELECT id, candidate_id, reviewer, comment, status_changed_to, review_date
-                 FROM candidate_reviews WHERE candidate_id = ?1",
+                "SELECT r.id, r.candidate_id, r.reviewer, r.comment, r.status_changed_to, r.review_date
+                 FROM candidate_reviews r
+                 JOIN candidates c ON r.candidate_id = c.id
+                 WHERE c.project_id = ?1 AND r.candidate_id = ?2",
             )
             .map_err(|e| e.to_string())?;
 
         let rows = stmt
-            .query_map(params![candidate_id], |row| {
+            .query_map(params![project_id, candidate_id], |row| {
                 Ok(CandidateReview {
                     id: row.get(0)?,
                     candidate_id: row.get(1)?,
@@ -355,13 +401,15 @@ impl CandidateRepository for SqliteCandidateRepository {
         Ok(())
     }
 
-    async fn get_promotion(&self, candidate_id: &str) -> Result<Option<CandidatePromotion>, String> {
+    async fn get_promotion(&self, project_id: &str, candidate_id: &str) -> Result<Option<CandidatePromotion>, String> {
         let conn = self.store.get_conn().map_err(|e| e.to_string())?;
         let promotion = conn
             .query_row(
-                "SELECT id, candidate_id, promoted_node_id, promoted_by, promoted_at, promotion_reason
-                 FROM candidate_promotions WHERE candidate_id = ?1",
-                params![candidate_id],
+                "SELECT p.id, p.candidate_id, p.promoted_node_id, p.promoted_by, p.promoted_at, p.promotion_reason
+                 FROM candidate_promotions p
+                 JOIN candidates c ON p.candidate_id = c.id
+                 WHERE c.project_id = ?1 AND p.candidate_id = ?2",
+                params![project_id, candidate_id],
                 |row| {
                     Ok(CandidatePromotion {
                         id: row.get(0)?,
@@ -394,6 +442,17 @@ impl CandidateRepository for SqliteCandidateRepository {
         }
 
         let mut conn = self.store.get_conn().map_err(|e| e.to_string())?;
+
+        // Candidate Evidence Completeness Rule
+        let evidence_count: i64 = conn.query_row(
+            "SELECT count(*) FROM candidate_sources WHERE candidate_id = ?1",
+            params![candidate.id],
+            |row| row.get(0)
+        ).unwrap_or(0);
+
+        if evidence_count == 0 {
+            return Err("Promotion rejected: Candidate has no evidence sources. ARES requires evidence for all memory promotions.".to_string());
+        }
 
         let tx = conn.transaction().map_err(|e| e.to_string())?;
 

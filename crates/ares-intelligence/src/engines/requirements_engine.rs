@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use chrono::Utc;
 use uuid::Uuid;
 
-use ares_candidates::{Candidate, CandidateStatus, CandidateConfidence, CandidateSource};
+use ares_candidates::{Candidate, CandidateStatus, CandidateType, CandidateConfidence, CandidateSource};
 use ares_core::{GraphNode, NodeType};
 
 pub struct RequirementCandidateEngine {
@@ -116,7 +116,8 @@ impl CandidateBuilder {
             project_id: self.project_id,
             title: self.title.clone(),
             description: format!("Automatically proposed based on {} pieces of evidence.", self.sources.len()),
-            candidate_type: ares_candidates::CandidateType::Requirement,
+            candidate_type: CandidateType::Requirement,
+            decision_category: None,
             status: CandidateStatus::Proposed,
             confidence,
             created_at: now,

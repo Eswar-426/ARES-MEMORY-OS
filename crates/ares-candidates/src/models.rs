@@ -17,6 +17,15 @@ pub enum CandidateType {
     Traceability,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum DecisionCategory {
+    TechnologyAdoption,
+    TechnologyRemoval,
+    DependencyMigration,
+    ArchitectureChange,
+    PlatformChoice,
+}
+
 pub use crate::confidence::CandidateConfidence;
 pub use crate::sources::CandidateSource;
 pub use crate::promotion::{CandidatePromotion, CandidateReview};
@@ -28,6 +37,7 @@ pub struct Candidate {
     pub title: String,
     pub description: String,
     pub candidate_type: CandidateType,
+    pub decision_category: Option<DecisionCategory>,
     pub status: CandidateStatus,
     pub confidence: CandidateConfidence,
     pub created_at: i64,

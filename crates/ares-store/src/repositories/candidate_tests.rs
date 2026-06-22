@@ -38,7 +38,7 @@ mod tests {
         let candidate = create_candidate("cand-1", "repo-a");
         repo.insert_candidate(&candidate).await.unwrap();
 
-        let fetched = repo.get_candidate("cand-1").await.unwrap().unwrap();
+        let fetched = repo.get_candidate("repo-a", "cand-1").await.unwrap().unwrap();
         assert_eq!(fetched.status, CandidateStatus::Proposed);
 
         // Verify NOT stored in graph_nodes
@@ -62,11 +62,11 @@ mod tests {
         candidate.status = CandidateStatus::Rejected;
         repo.update_candidate(&candidate).await.unwrap();
 
-        let fetched = repo.get_candidate("cand-2").await.unwrap().unwrap();
+        let fetched = repo.get_candidate("repo-a", "cand-2").await.unwrap().unwrap();
         assert_eq!(fetched.status, CandidateStatus::Rejected);
 
         // Verify no node and no promotion
-        let promotion = repo.get_promotion("cand-2").await.unwrap();
+        let promotion = repo.get_promotion("repo-a", "cand-2").await.unwrap();
         assert!(promotion.is_none());
 
         let mut stmt = conn.prepare("SELECT count(*) FROM graph_nodes").unwrap();
@@ -109,6 +109,15 @@ mod tests {
             promotion_reason: None,
         };
 
+        let source = CandidateSource {
+            id: Uuid::new_v4().to_string(),
+            candidate_id: "cand-3".to_string(),
+            source_type: "commit".to_string(),
+            source_id: "1234567".to_string(),
+            confidence: 1.0,
+        };
+        repo.insert_source(&source).await.unwrap();
+
         // ISOLATION TEST: repo-a candidate, repo-b node should fail
         let result = repo.promote_candidate(&candidate, &promotion, &node, &[]).await;
         assert!(result.is_err());
@@ -121,11 +130,11 @@ mod tests {
         repo.promote_candidate(&candidate, &promotion, &node, &[]).await.unwrap();
 
         // Verify Candidate Status
-        let fetched = repo.get_candidate("cand-3").await.unwrap().unwrap();
+        let fetched = repo.get_candidate("repo-a", "cand-3").await.unwrap().unwrap();
         assert_eq!(fetched.status, CandidateStatus::Approved);
 
         // Verify Promotion Record
-        let fetched_promo = repo.get_promotion("cand-3").await.unwrap().unwrap();
+        let fetched_promo = repo.get_promotion("repo-a", "cand-3").await.unwrap().unwrap();
         assert_eq!(fetched_promo.promoted_node_id, node_id);
         assert_eq!(fetched_promo.promoted_by, "test_user");
 
@@ -169,6 +178,15 @@ mod tests {
             promotion_reason: None,
         };
 
+        let source = CandidateSource {
+            id: Uuid::new_v4().to_string(),
+            candidate_id: "cand-4".to_string(),
+            source_type: "commit".to_string(),
+            source_id: "89abcdef".to_string(),
+            confidence: 1.0,
+        };
+        repo.insert_source(&source).await.unwrap();
+
         // We temporarily bypass the application-layer check to force a DB constraint failure
         // We do this by faking candidate.project_id
         let mut fake_candidate = candidate.clone();
@@ -180,10 +198,10 @@ mod tests {
         assert!(result.is_err());
 
         // TRANSACTION VERIFICATION: No partial state
-        let fetched = repo.get_candidate("cand-4").await.unwrap().unwrap();
+        let fetched = repo.get_candidate("repo-a", "cand-4").await.unwrap().unwrap();
         assert_eq!(fetched.status, CandidateStatus::Proposed); // Was not updated to Approved
 
-        let fetched_promo = repo.get_promotion("cand-4").await.unwrap();
+        let fetched_promo = repo.get_promotion("repo-a", "cand-4").await.unwrap();
         assert!(fetched_promo.is_none());
 
         let mut stmt = conn.prepare("SELECT count(*) FROM graph_nodes WHERE id = 'node-2'").unwrap();

@@ -26,4 +26,37 @@ impl CandidateConfidence {
         
         score.clamp(0.0, 100.0)
     }
+
+    pub fn normalized_score(&self) -> f64 {
+        self.overall_score() / 100.0
+    }
+}
+
+pub struct CandidateThresholds;
+
+impl CandidateThresholds {
+    pub fn requirement() -> f64 {
+        0.65
+    }
+    
+    pub fn decision() -> f64 {
+        0.80
+    }
+    
+    pub fn architecture() -> f64 {
+        0.85
+    }
+    
+    pub fn traceability() -> f64 {
+        0.75
+    }
+
+    pub fn for_type(candidate_type: &crate::models::CandidateType) -> f64 {
+        match candidate_type {
+            crate::models::CandidateType::Requirement => Self::requirement(),
+            crate::models::CandidateType::Decision => Self::decision(),
+            crate::models::CandidateType::Architecture => Self::architecture(),
+            crate::models::CandidateType::Traceability => Self::traceability(),
+        }
+    }
 }

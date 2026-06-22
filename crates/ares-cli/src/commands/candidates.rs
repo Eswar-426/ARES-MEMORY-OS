@@ -52,11 +52,12 @@ pub async fn execute_list() -> Result<(), AresError> {
 
 pub async fn execute_show(id: String) -> Result<(), AresError> {
     let repo = get_repo()?;
-    let candidate = repo.get_candidate(&id).await
+    let project_id = "TEST";
+    let candidate = repo.get_candidate(project_id, &id).await
         .map_err(|e| AresError::validation(e))?
         .ok_or_else(|| AresError::validation("Candidate not found"))?;
 
-    let sources = repo.get_sources(&id).await
+    let sources = repo.get_sources(project_id, &id).await
         .map_err(|e| AresError::validation(e))?;
 
     println!("Candidate: {}", candidate.id);
@@ -94,7 +95,8 @@ pub async fn execute_show(id: String) -> Result<(), AresError> {
 
 pub async fn execute_accept(id: String) -> Result<(), AresError> {
     let repo = get_repo()?;
-    let candidate = repo.get_candidate(&id).await
+    let project_id = "TEST";
+    let candidate = repo.get_candidate(project_id, &id).await
         .map_err(|e| AresError::validation(e))?
         .ok_or_else(|| AresError::validation("Candidate not found"))?;
 
@@ -147,7 +149,8 @@ pub async fn execute_accept(id: String) -> Result<(), AresError> {
 
 pub async fn execute_reject(id: String) -> Result<(), AresError> {
     let repo = get_repo()?;
-    let mut candidate = repo.get_candidate(&id).await
+    let project_id = "TEST";
+    let mut candidate = repo.get_candidate(project_id, &id).await
         .map_err(|e| AresError::validation(e))?
         .ok_or_else(|| AresError::validation("Candidate not found"))?;
 
