@@ -19,3 +19,11 @@ pub mod explainability;
 
 pub use facade::GovernanceFacade;
 pub use models::*;
+pub mod classifier;
+pub mod coverage_engine;
+pub mod memory_drift_engine;
+pub mod memory_debt_engine;
+pub mod memory_health_engine;
+pub mod memory_maturity_model;
+pub mod memory_gatekeeper;
+pub mod confidence_engine;
