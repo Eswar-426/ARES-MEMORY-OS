@@ -13,10 +13,6 @@ path = "src/lib.rs"
 name = "ares-agent"
 path = "src/main.rs"
 
-[[bin]]
-name = "ares"
-path = "src/cli.rs"
-
 [dependencies]
 utoipa = { workspace = true }
 ares-core    = { path = "../ares-core" }

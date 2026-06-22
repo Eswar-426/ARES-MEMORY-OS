@@ -17,6 +17,10 @@ pub struct IngestArgs {
 
     #[arg(long, value_delimiter = ',')]
     pub files: Vec<PathBuf>,
+
+    /// How many commits to analyze (default: 500)
+    #[arg(long, default_value = "500")]
+    pub git_depth: usize,
 }
 
 #[derive(Hash, Eq, PartialEq, Debug)]
@@ -36,6 +40,10 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
     if args.incremental {
         builder.set_incremental_files(args.files.clone());
     }
+    
+    let mut registry = ares_core::types::source::MemorySourceRegistry::new();
+    // Default to explicit documentation being active, as the AST scanner runs it
+    registry.register(ares_core::types::source::MemorySource::ExplicitDocumentation, ares_core::types::source::SourceStatus::Active);
     
     let out_dir = args.path.join(".ares");
     if !out_dir.exists() {
@@ -63,8 +71,25 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         let mut batch = Vec::new();
         let batch_size = 2500;
         
+        let project_id = ares_core::ProjectId::from("TEST");
+        let repo = std::sync::Arc::new(ares_store::repositories::graph::SqliteGraphRepository::new((*raw_store).clone()));
+        
+        // Insert dummy project
+        raw_store.get_conn()?.execute(
+            "INSERT OR IGNORE INTO projects (id, name, description, root_path, primary_language, domain, maturity, created_at, updated_at) VALUES (?1, 'TEST', '', '', '', '', 'greenfield', 0, 0)",
+            [project_id.as_str()],
+        ).map_err(|e| ares_core::AresError::db(e.to_string()))?;
+
+        // Collect all KG events for bridging to ares-store after scanner
+        let mut kg_nodes: Vec<KnowledgeNode> = Vec::new();
+        let mut kg_edges: Vec<KnowledgeEdge> = Vec::new();
+
         builder.build(|event| {
-            batch.push(event);
+            match &event {
+                ares_knowledge_graph::models::GraphEvent::Node(n) => kg_nodes.push(n.clone()),
+                ares_knowledge_graph::models::GraphEvent::Edge(e) => kg_edges.push(e.clone()),
+            }
+            batch.push(event.clone());
             if batch.len() >= batch_size {
                 graph_store.upsert_batch(&batch)?;
                 batch.clear();
@@ -75,7 +100,139 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         if !batch.is_empty() {
             graph_store.upsert_batch(&batch)?;
         }
-        println!("Successfully ingested knowledge graph into SQLite database");
+        
+        let scanner = ares_scanner::Scanner::new(repo.clone());
+        let _ = scanner.scan_project(&project_id, &args.path);
+
+        // --- P3.2 Git Fact Capture ---
+        println!("Extracting Git Memory (depth: {})...", args.git_depth);
+        let mut git_extractor = ares_git_memory::GitMemoryExtractor::new(&args.path);
+        git_extractor.set_depth(args.git_depth);
+        
+        match git_extractor.extract(&project_id) {
+            Ok(git_memory) => {
+                registry.register(ares_core::types::source::MemorySource::GitHistory, ares_core::types::source::SourceStatus::Active);
+                // Simple heuristic: if any author nodes exist, codeowners/blame is somewhat active
+                let has_authors = git_memory.nodes.iter().any(|n| matches!(n.node_type, ares_core::NodeType::Person));
+                if has_authors {
+                    registry.register(ares_core::types::source::MemorySource::OwnershipConfig, ares_core::types::source::SourceStatus::Active);
+                } else {
+                    registry.register(ares_core::types::source::MemorySource::OwnershipConfig, ares_core::types::source::SourceStatus::Unavailable);
+                }
+
+                println!("Captured {} git nodes and {} edges", git_memory.nodes.len(), git_memory.edges.len());
+                for node in git_memory.nodes {
+                    if let Err(e) = repo.upsert_node(node) {
+                        println!("DEBUG: Failed to upsert git node: {:?}", e);
+                    }
+                }
+                for edge in git_memory.edges {
+                    if let Err(e) = repo.upsert_edge(edge) {
+                        println!("DEBUG: Failed to upsert git edge: {:?}", e);
+                    }
+                }
+            }
+            Err(e) => {
+                registry.register(ares_core::types::source::MemorySource::GitHistory, ares_core::types::source::SourceStatus::Failed(e.to_string()));
+                println!("Warning: Git memory extraction failed: {}", e);
+            }
+        }
+
+        // Bridge KG memory-artifact nodes/edges into ares-store graph tables
+        // so governance/coverage engines can see them.
+        // First, build a mapping from KG path-based IDs to scanner UUID IDs
+        // so we can remap OwnedBy edges to scanner nodes.
+        let all_scanner_nodes = repo.get_all_nodes(&project_id).unwrap_or_default();
+        let mut path_to_scanner_id: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        for sn in &all_scanner_nodes {
+            // Only map File nodes — Function/symbol nodes share the same file_path
+            // but OwnedBy edges must point to the File node for coverage to work.
+            if sn.node_type != ares_core::NodeType::File {
+                continue;
+            }
+            if let Some(fp) = &sn.file_path {
+                let canonical = ares_core::canonicalize_node_id(fp);
+                path_to_scanner_id.insert(canonical, sn.id.as_str().to_string());
+            }
+        }
+
+        for node in &kg_nodes {
+            let ntype = match &node.node_type {
+                NodeType::CodeArtifact => continue, // Scanner already creates these as File nodes
+                NodeType::Requirement => continue,  // Scanner creates File nodes, classifier maps them
+                NodeType::Decision => continue,     // Scanner creates File nodes, classifier maps them
+                NodeType::Owner => ares_core::NodeType::Tag, // Only Owner nodes need bridging
+                NodeType::Repository => continue,
+                _ => continue,
+            };
+            let file_path = node.properties.get("path")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let gn = ares_core::GraphNode {
+                id: ares_core::NodeId::from(node.id.as_str()),
+                project_id: project_id.clone(),
+                node_type: ntype,
+                label: node.name.clone(),
+                properties: serde_json::to_value(&node.properties).unwrap_or(serde_json::json!({})),
+                file_path,
+                created_at: node.created_at,
+                updated_at: node.created_at,
+                deleted_at: None,
+            };
+            if let Err(e) = repo.upsert_node(gn) {
+                println!("DEBUG: Failed to upsert node: {:?}", e);
+            }
+        }
+        for edge in &kg_edges {
+            let etype = match &edge.edge_type {
+                EdgeType::OwnedBy => ares_core::EdgeType::OwnedBy,
+                EdgeType::Contains => continue, // Scanner already creates these
+                EdgeType::DependsOn => ares_core::EdgeType::DependsOn,
+                EdgeType::Implements => ares_core::EdgeType::Implements,
+                EdgeType::Drives => ares_core::EdgeType::Drives,
+                EdgeType::SupportedBy => ares_core::EdgeType::SupportedBy,
+                EdgeType::ValidatedBy => ares_core::EdgeType::ValidatedBy,
+                EdgeType::DerivedFrom => ares_core::EdgeType::DerivedFrom,
+                EdgeType::Supersedes => ares_core::EdgeType::Supersedes,
+                EdgeType::References => ares_core::EdgeType::References,
+                _ => ares_core::EdgeType::RelatedTo,
+            };
+            // Remap source/target IDs: if a path-based ID has a scanner counterpart, use that
+            let from_id = path_to_scanner_id.get(&edge.source_id)
+                .cloned()
+                .unwrap_or_else(|| {
+                    println!("DEBUG: from_id MISSING for source_id: {:?}", edge.source_id);
+                    edge.source_id.clone()
+                });
+            let to_id = path_to_scanner_id.get(&edge.target_id)
+                .cloned()
+                .unwrap_or_else(|| edge.target_id.clone());
+            let ge = ares_core::GraphEdge {
+                id: edge.id.clone(),
+                project_id: project_id.clone(),
+                from_node_id: ares_core::NodeId::from(from_id.as_str()),
+                to_node_id: ares_core::NodeId::from(to_id.as_str()),
+                edge_type: etype,
+                weight: 1.0,
+                confidence: edge.confidence as f32,
+                source: "scanner".to_string(),
+                valid_from: edge.created_at,
+                valid_until: None,
+                created_at: edge.created_at,
+            };
+            if let Err(e) = repo.upsert_edge(ge) {
+                println!("DEBUG: Failed to upsert edge: {:?}", e);
+            }
+        }
+        
+        println!("--------------------------------------------------");
+        println!("Memory Source Registry Status:");
+        for (source, status) in &registry.sources {
+            println!("  - {:?}: {:?}", source, status);
+        }
+        println!("--------------------------------------------------");
+
+        println!("Full ingest complete. Successfully ingested knowledge graph into SQLite database");
     }
     
     Ok(())

@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS graph_nodes_new (
                CHECK(node_type IN (
                  'project','file','function','method','class','struct','enum','trait','interface',
                  'module','service','decision','feature',
-                 'bug','concept','tag'
+                 'bug','concept','tag','requirement','architecture','evidence','owner','repository',
+                 'alternative','assumption','risk','folder'
                )),
   label        TEXT NOT NULL,
   properties   TEXT NOT NULL DEFAULT '{}',
@@ -48,7 +49,11 @@ CREATE TABLE IF NOT EXISTS graph_edges_new (
                   'depends_on','implements','caused','fixed_by',
                   'supersedes','motivated_by','impacts','owns',
                   'authored','related_to','temporal_follows',
-                  'contradicts','uses'
+                  'contradicts','uses','contains','satisfies',
+                  'supported_by','validated_by','owned_by',
+                  'derived_from','contained_in','invokes','constructs',
+                  'references','resolved_to','uses_module','uses_trait',
+                  'constrains','has_risk','has_assumption','drives'
                 )),
   weight        REAL NOT NULL DEFAULT 1.0,
   confidence    REAL NOT NULL DEFAULT 1.0,

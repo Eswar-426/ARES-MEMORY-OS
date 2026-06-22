@@ -30,6 +30,12 @@ impl Store {
             }
         }
 
+        // Set WAL mode ONCE before spawning concurrent pool connections
+        let conn = rusqlite::Connection::open(path)
+            .map_err(|e| AresError::db(format!("Failed to open DB for WAL init: {}", e)))?;
+        conn.execute_batch("PRAGMA journal_mode = WAL;").ok();
+        drop(conn);
+
         let manager =
             SqliteConnectionManager::file(path).with_init(|conn| configure_connection(conn));
 
@@ -267,7 +273,6 @@ impl Store {
 fn configure_connection(conn: &Connection) -> Result<(), rusqlite::Error> {
     conn.execute_batch(
         "
-        PRAGMA journal_mode = WAL;
         PRAGMA foreign_keys = ON;
         PRAGMA synchronous = NORMAL;
         PRAGMA temp_store = MEMORY;

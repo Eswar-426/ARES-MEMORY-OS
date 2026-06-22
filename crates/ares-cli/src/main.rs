@@ -46,6 +46,68 @@ enum GovernanceCommands {
         #[arg(long, help = "Path to the base MemorySnapshot JSON file. If omitted, uses historical DB snapshot.")]
         base_report: Option<String>,
     },
+
+    /// Generates a complete Governance Report (Coverage, Debt, Health, Maturity, Drift, Confidence)
+    Report {
+        #[arg(long)]
+        json: bool,
+        #[arg(long)]
+        markdown: bool,
+    },
+    
+    /// Generates Coverage Metrics
+    Coverage { #[arg(long)] json: bool, #[arg(long)] markdown: bool },
+    
+    /// Generates Memory Debt Metrics
+    Debt { #[arg(long)] json: bool, #[arg(long)] markdown: bool },
+    
+    /// Generates Memory Health Metrics
+    Health { #[arg(long)] json: bool, #[arg(long)] markdown: bool },
+    
+    /// Generates Memory Maturity Level
+    Maturity { #[arg(long)] json: bool, #[arg(long)] markdown: bool },
+    
+    /// Generates Memory Drift Metrics
+    Drift { #[arg(long)] json: bool, #[arg(long)] markdown: bool },
+    
+    /// Generates Traceability Confidence
+    Confidence { #[arg(long)] json: bool, #[arg(long)] markdown: bool },
+    
+    /// Validates PR memory impact as a CI gatekeeper
+    Check {
+        #[arg(long, help = "Baseline branch or snapshot")]
+        baseline: Option<String>,
+    },
+    
+    /// Snapshot subcommands
+    Snapshot {
+        #[command(subcommand)]
+        action: SnapshotCommands,
+    },
+    
+    /// Runs the MemoryOS benchmark suite against known frameworks
+    Benchmark {
+        #[arg(long)]
+        synthetic: bool,
+        #[arg(long)]
+        real: bool,
+        #[arg(long)]
+        all: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum SnapshotCommands {
+    /// Creates a new memory snapshot and saves it
+    Create {
+        #[arg(long, default_value = "snapshot.json")]
+        out: String,
+    },
+    /// Compares current memory to a previous snapshot
+    Compare {
+        #[arg(long)]
+        baseline: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -106,6 +168,43 @@ async fn main() -> Result<(), AresError> {
                 }
                 GovernanceCommands::PrCheck { base_report } => {
                     commands::governance::execute_pr_check(base_report.clone()).await?;
+                }
+                GovernanceCommands::Report { json, markdown } => {
+                    commands::governance::execute_report(*json, *markdown).await?;
+                }
+                GovernanceCommands::Coverage { json, markdown } => {
+                    commands::governance::execute_coverage(*json, *markdown).await?;
+                }
+                GovernanceCommands::Debt { json, markdown } => {
+                    commands::governance::execute_debt(*json, *markdown).await?;
+                }
+                GovernanceCommands::Health { json, markdown } => {
+                    commands::governance::execute_health(*json, *markdown).await?;
+                }
+                GovernanceCommands::Maturity { json, markdown } => {
+                    commands::governance::execute_maturity(*json, *markdown).await?;
+                }
+                GovernanceCommands::Drift { json, markdown } => {
+                    commands::governance::execute_drift(*json, *markdown).await?;
+                }
+                GovernanceCommands::Confidence { json, markdown } => {
+                    commands::governance::execute_confidence(*json, *markdown).await?;
+                }
+                GovernanceCommands::Check { baseline } => {
+                    commands::governance::execute_check(baseline.clone()).await?;
+                }
+                GovernanceCommands::Snapshot { action } => {
+                    match action {
+                        SnapshotCommands::Create { out } => {
+                            commands::governance::execute_snapshot_create(out.clone()).await?;
+                        }
+                        SnapshotCommands::Compare { baseline } => {
+                            commands::governance::execute_snapshot_compare(baseline.clone()).await?;
+                        }
+                    }
+                }
+                GovernanceCommands::Benchmark { synthetic, real, all } => {
+                    commands::governance::execute_benchmark(*synthetic, *real, *all).await?;
                 }
             }
         }

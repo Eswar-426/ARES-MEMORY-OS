@@ -95,6 +95,22 @@ impl MarkdownIntelligenceExtractor {
                 for code_path in code_artifacts {
                     if content.contains(code_path) {
                         mentioned_code.push(code_path.clone());
+                    } else {
+                        // Check if a parent directory is mentioned (e.g., "crates/ares-ingestion/")
+                        let mut prefix_match = false;
+                        let parts: Vec<&str> = code_path.split('/').collect();
+                        let mut current_prefix = String::new();
+                        for i in 0..parts.len() - 1 {
+                            current_prefix.push_str(parts[i]);
+                            current_prefix.push('/');
+                            if content.contains(&current_prefix) {
+                                prefix_match = true;
+                                break;
+                            }
+                        }
+                        if prefix_match {
+                            mentioned_code.push(code_path.clone());
+                        }
                     }
                 }
 

@@ -26,6 +26,8 @@ ares-traceability = { version = "0.1.0", path = "../ares-traceability" }
 ares-ingestion = { version = "0.1.0", path = "../ares-ingestion" }
 rusqlite.workspace = true
 uuid.workspace = true
+ares-scanner = { version = "0.1.0", path = "../ares-scanner" }
+ares-git-memory = { version = "0.1.0", path = "../ares-git-memory" }
 
 [[bin]]
 name = "ares"

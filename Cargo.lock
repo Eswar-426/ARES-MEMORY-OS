@@ -304,12 +304,14 @@ name = "ares-cli"
 version = "0.1.0"
 dependencies = [
  "ares-core",
+ "ares-git-memory",
  "ares-governance",
  "ares-ingestion",
  "ares-knowledge-graph",
  "ares-memory-intelligence",
  "ares-pr-engine",
  "ares-requirements",
+ "ares-scanner",
  "ares-store",
  "ares-traceability",
  "ares-validation",
@@ -480,6 +482,16 @@ dependencies = [
  "serde_json",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "ares-git-memory"
+version = "0.1.0"
+dependencies = [
+ "ares-core",
+ "ignore",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

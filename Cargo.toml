@@ -2,6 +2,7 @@
 members = [
     "crates/ares-core",
     "crates/ares-store",
+    "crates/ares-git-memory",
     "crates/ares-chat-import",
     "crates/ares-retrieval",
     "crates/ares-scanner",

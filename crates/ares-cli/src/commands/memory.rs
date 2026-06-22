@@ -14,7 +14,7 @@ pub async fn execute_validate(strict: bool, json: bool, sarif: bool, ci: bool) -
         .unwrap_or_else(|_| ".".to_string());
 
     // Initialize Store
-    let store_path = std::path::PathBuf::from(&project_path).join(".ares.db");
+    let store_path = std::path::PathBuf::from(&project_path).join(".ares").join("ares.db");
     let store = Arc::new(Store::open(std::path::Path::new(&store_path))?);
     let assembler = Arc::new(MemoryContextAssembler::default_from_store((*store).clone()));
     
@@ -90,7 +90,7 @@ pub async fn execute_export(out_path: &String) -> Result<(), AresError> {
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|_| ".".to_string());
 
-    let store_path = std::path::PathBuf::from(&project_path).join(".ares.db");
+    let store_path = std::path::PathBuf::from(&project_path).join(".ares").join("ares.db");
     let store = Arc::new(Store::open(std::path::Path::new(&store_path))?);
     
     // Get Graph

@@ -136,7 +136,15 @@ impl Scanner {
                             
                             dir_nodes.insert(path, dir_node_id);
                         } else if entry.file_type().is_some_and(|ft| ft.is_file()) {
-                            paths.push(path);
+                            let is_supported = path.extension()
+                                .map(|ext| {
+                                    let e = ext.to_string_lossy();
+                                    matches!(e.as_ref(), "rs" | "ts" | "js" | "py" | "go" | "md" | "txt" | "json" | "yml" | "yaml")
+                                })
+                                .unwrap_or(false);
+                            if is_supported {
+                                paths.push(path);
+                            }
                         }
                     }
                     Err(_) => continue,
@@ -152,11 +160,21 @@ impl Scanner {
         let dir_nodes_arc = Arc::new(dir_nodes);
         let total = files.len() as u32;
         eprintln!("[scanner] Total files to process: {}", total);
+        let mut existing_files: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        if let Ok(nodes) = self.graph_repo.get_all_nodes(project_id) {
+            for node in nodes {
+                if let Some(file_path) = &node.file_path {
+                    existing_files.insert(file_path.clone(), node.id.as_str().to_string());
+                }
+            }
+        }
+
         let parsed = AtomicU32::new(0);
         let failed = AtomicU32::new(0);
         let symbols_extracted = AtomicU32::new(0);
         let imports_found = AtomicU32::new(0);
         let relationships_created = AtomicU32::new(0);
+        let scanned_paths = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashSet::new()));
 
         files.iter().for_each(|path| {
             let done = parsed.load(Ordering::Relaxed) + failed.load(Ordering::Relaxed);
@@ -176,11 +194,19 @@ impl Scanner {
             if !force_full {
                 if let Ok(Some(prev_hash)) = self.graph_repo.get_scan_state(project_id, &path_str) {
                     if current_hash == prev_hash {
+                        let mut paths = scanned_paths.lock().unwrap();
+                        paths.insert(path_str.clone());
                         return; // Unchanged
                     }
                 }
             }
 
+            let file_node_id = if let Some(existing_id) = existing_files.get(&path_str) {
+                ares_core::NodeId::from(existing_id.as_str())
+            } else {
+                ares_core::NodeId::new()
+            };
+            
             let source_code = match std::fs::read_to_string(path) {
                 Ok(s) => s,
                 Err(_) => {
@@ -188,8 +214,7 @@ impl Scanner {
                     return;
                 }
             };
-
-            let file_node_id = ares_core::NodeId::new();
+            
             let now = ares_core::types::event::now_micros();
             let file_node = ares_core::GraphNode {
                 id: file_node_id.clone(),
@@ -202,6 +227,11 @@ impl Scanner {
                 updated_at: now,
                 deleted_at: None,
             };
+
+            {
+                let mut paths = scanned_paths.lock().unwrap();
+                paths.insert(path_str.clone());
+            }
 
             let mut edges_to_insert = Vec::new();
 
@@ -306,6 +336,17 @@ impl Scanner {
             p_count,
             failed.load(Ordering::Relaxed),
         )?;
+
+        let current_time = ares_core::types::event::now_micros();
+        let paths = scanned_paths.lock().unwrap();
+        for (file_path, node_id) in existing_files {
+            if !paths.contains(&file_path) {
+                if let Ok(Some(mut node)) = self.graph_repo.get_node(&ares_core::NodeId::from(node_id.as_str())) {
+                    node.deleted_at = Some(current_time);
+                    let _ = self.graph_repo.upsert_node(node);
+                }
+            }
+        }
 
         let extraction_success_rate = if total > 0 {
             p_count as f64 / total as f64

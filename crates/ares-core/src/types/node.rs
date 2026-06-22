@@ -30,6 +30,11 @@ pub enum NodeType {
     Assumption,
     Risk,
     Requirement,
+    // P3.2 Memory Capture: fact-level node types
+    Person,
+    Commit,
+    Release,
+    Branch,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -64,6 +69,10 @@ impl NodeType {
             Self::Assumption => "assumption",
             Self::Risk => "risk",
             Self::Requirement => "requirement",
+            Self::Person => "person",
+            Self::Commit => "commit",
+            Self::Release => "release",
+            Self::Branch => "branch",
         }
     }
 }
@@ -93,6 +102,10 @@ impl std::str::FromStr for NodeType {
             "assumption" => Ok(Self::Assumption),
             "risk" => Ok(Self::Risk),
             "requirement" => Ok(Self::Requirement),
+            "person" => Ok(Self::Person),
+            "commit" => Ok(Self::Commit),
+            "release" => Ok(Self::Release),
+            "branch" => Ok(Self::Branch),
             other => Err(format!("Unknown node type: {other}")),
         }
     }
@@ -131,6 +144,17 @@ pub enum EdgeType {
     Constrains,
     HasRisk,
     HasAssumption,
+    Drives,
+    Satisfies,
+    OwnedBy,
+    SupportedBy,
+    ValidatedBy,
+    // P3.2 Memory Capture: contribution and evolution edges
+    ContributedTo,
+    Maintains,
+    Touches,
+    AuthoredBy,
+    ReleasedIn,
 }
 
 impl EdgeType {
@@ -165,6 +189,16 @@ impl EdgeType {
             Self::Constrains => "constrains",
             Self::HasRisk => "has_risk",
             Self::HasAssumption => "has_assumption",
+            Self::Drives => "drives",
+            Self::Satisfies => "satisfies",
+            Self::OwnedBy => "owned_by",
+            Self::SupportedBy => "supported_by",
+            Self::ValidatedBy => "validated_by",
+            Self::ContributedTo => "contributed_to",
+            Self::Maintains => "maintains",
+            Self::Touches => "touches",
+            Self::AuthoredBy => "authored_by",
+            Self::ReleasedIn => "released_in",
         }
     }
 }
@@ -202,6 +236,16 @@ impl std::str::FromStr for EdgeType {
             "constrains" => Ok(Self::Constrains),
             "has_risk" => Ok(Self::HasRisk),
             "has_assumption" => Ok(Self::HasAssumption),
+            "drives" => Ok(Self::Drives),
+            "satisfies" => Ok(Self::Satisfies),
+            "owned_by" => Ok(Self::OwnedBy),
+            "supported_by" => Ok(Self::SupportedBy),
+            "validated_by" => Ok(Self::ValidatedBy),
+            "contributed_to" => Ok(Self::ContributedTo),
+            "maintains" => Ok(Self::Maintains),
+            "touches" => Ok(Self::Touches),
+            "authored_by" => Ok(Self::AuthoredBy),
+            "released_in" => Ok(Self::ReleasedIn),
             other => Err(format!("Unknown edge type: {other}")),
         }
     }

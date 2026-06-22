@@ -202,3 +202,11 @@ mod tests {
         assert_eq!(project_name_3, "Test");
     }
 }
+
+// force rebuild
+
+// force rebuild V37
+
+// force rebuild V38
+
+// force rebuild V39
