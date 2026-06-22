@@ -1,0 +1,487 @@
+{
+  "graph": {
+    "nodes": [
+      {
+        "id": "REPO-ROOT",
+        "node_type": "Repository",
+        "name": "",
+        "properties": {
+          "path": "."
+        },
+        "created_at": 1782100918575
+      },
+      {
+        "id": "src/main_0.rs",
+        "node_type": "CodeArtifact",
+        "name": "main_0.rs",
+        "properties": {
+          "path": "src/main_0.rs"
+        },
+        "created_at": 1782100918575
+      },
+      {
+        "id": "src/main_1.rs",
+        "node_type": "CodeArtifact",
+        "name": "main_1.rs",
+        "properties": {
+          "path": "src/main_1.rs"
+        },
+        "created_at": 1782100918575
+      },
+      {
+        "id": "src/main_2.rs",
+        "node_type": "CodeArtifact",
+        "name": "main_2.rs",
+        "properties": {
+          "path": "src/main_2.rs"
+        },
+        "created_at": 1782100918575
+      },
+      {
+        "id": "src/main_3.rs",
+        "node_type": "CodeArtifact",
+        "name": "main_3.rs",
+        "properties": {
+          "path": "src/main_3.rs"
+        },
+        "created_at": 1782100918575
+      },
+      {
+        "id": "src/main_4.rs",
+        "node_type": "CodeArtifact",
+        "name": "main_4.rs",
+        "properties": {
+          "path": "src/main_4.rs"
+        },
+        "created_at": 1782100918575
+      },
+      {
+        "id": "src/main_5.rs",
+        "node_type": "CodeArtifact",
+        "name": "main_5.rs",
+        "properties": {
+          "path": "src/main_5.rs"
+        },
+        "created_at": 1782100918575
+      },
+      {
+        "id": "src/main_6.rs",
+        "node_type": "CodeArtifact",
+        "name": "main_6.rs",
+        "properties": {
+          "path": "src/main_6.rs"
+        },
+        "created_at": 1782100918575
+      },
+      {
+        "id": "src/main_7.rs",
+        "node_type": "CodeArtifact",
+        "name": "main_7.rs",
+        "properties": {
+          "path": "src/main_7.rs"
+        },
+        "created_at": 1782100918575
+      },
+      {
+        "id": "src/main_8.rs",
+        "node_type": "CodeArtifact",
+        "name": "main_8.rs",
+        "properties": {
+          "path": "src/main_8.rs"
+        },
+        "created_at": 1782100918575
+      },
+      {
+        "id": "src/main_9.rs",
+        "node_type": "CodeArtifact",
+        "name": "main_9.rs",
+        "properties": {
+          "path": "src/main_9.rs"
+        },
+        "created_at": 1782100918575
+      },
+      {
+        "id": "docs/decisions/ADR_0.md",
+        "node_type": "Decision",
+        "name": "ADR_0.md",
+        "properties": {
+          "path": "docs/decisions/ADR_0.md"
+        },
+        "created_at": 1782100918575
+      },
+      {
+        "id": "docs/decisions/ADR_1.md",
+        "node_type": "Decision",
+        "name": "ADR_1.md",
+        "properties": {
+          "path": "docs/decisions/ADR_1.md"
+        },
+        "created_at": 1782100918575
+      },
+      {
+        "id": "docs/decisions/ADR_2.md",
+        "node_type": "Decision",
+        "name": "ADR_2.md",
+        "properties": {
+          "path": "docs/decisions/ADR_2.md"
+        },
+        "created_at": 1782100918575
+      },
+      {
+        "id": "docs/decisions/ADR_3.md",
+        "node_type": "Decision",
+        "name": "ADR_3.md",
+        "properties": {
+          "path": "docs/decisions/ADR_3.md"
+        },
+        "created_at": 1782100918575
+      },
+      {
+        "id": "docs/decisions/ADR_4.md",
+        "node_type": "Decision",
+        "name": "ADR_4.md",
+        "properties": {
+          "path": "docs/decisions/ADR_4.md"
+        },
+        "created_at": 1782100918575
+      },
+      {
+        "id": "docs/requirements/REQ_0.md",
+        "node_type": "Requirement",
+        "name": "REQ_0.md",
+        "properties": {
+          "path": "docs/requirements/REQ_0.md"
+        },
+        "created_at": 1782100918575
+      },
+      {
+        "id": "docs/requirements/REQ_1.md",
+        "node_type": "Requirement",
+        "name": "REQ_1.md",
+        "properties": {
+          "path": "docs/requirements/REQ_1.md"
+        },
+        "created_at": 1782100918575
+      },
+      {
+        "id": "docs/requirements/REQ_2.md",
+        "node_type": "Requirement",
+        "name": "REQ_2.md",
+        "properties": {
+          "path": "docs/requirements/REQ_2.md"
+        },
+        "created_at": 1782100918575
+      },
+      {
+        "id": "docs/requirements/REQ_3.md",
+        "node_type": "Requirement",
+        "name": "REQ_3.md",
+        "properties": {
+          "path": "docs/requirements/REQ_3.md"
+        },
+        "created_at": 1782100918575
+      },
+      {
+        "id": "docs/requirements/REQ_4.md",
+        "node_type": "Requirement",
+        "name": "REQ_4.md",
+        "properties": {
+          "path": "docs/requirements/REQ_4.md"
+        },
+        "created_at": 1782100918575
+      },
+      {
+        "id": "@eswar-426",
+        "node_type": "Owner",
+        "name": "@eswar-426",
+        "properties": {
+          "pattern": "*"
+        },
+        "created_at": 1782100918575
+      }
+    ],
+    "edges": [
+      {
+        "id": "541d57ac-874b-4b62-84de-e909d2b4b2b7",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/main_0.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "73837383-e87a-4ba8-bf1c-f1f57715c4d7",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/main_1.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "7300b154-06b7-43bc-82c2-659db128c97e",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/main_2.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "eeb2b730-dfd4-4cc0-9c94-ff667fe85f83",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/main_3.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "618ed8f4-2357-40f2-805d-4738db2727e2",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/main_4.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "637b25d5-aced-4cbe-b9cf-2c298facb485",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/main_5.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "d10d2271-3de1-4c45-bb1a-b56113836d9b",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/main_6.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "3f840d3d-8667-40e9-aa73-245ed11f295c",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/main_7.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "351355e5-710c-423f-be54-57422983fb53",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/main_8.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "9438239b-7100-4c51-ab61-84daac173d78",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/main_9.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "70972641-e057-4f1a-93ea-3781a6bc8e5d",
+        "source_id": "docs/decisions/ADR_0.md",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "71e1174e-b8f2-4957-a8d6-934c5c09aa33",
+        "source_id": "docs/decisions/ADR_1.md",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "bba00a73-fc42-4146-9b86-23afdc86e46b",
+        "source_id": "docs/decisions/ADR_2.md",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "cb0830d0-6352-49e4-9929-966ae93633d8",
+        "source_id": "docs/decisions/ADR_3.md",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "f1943622-259f-40b6-af83-e42e4a352afd",
+        "source_id": "docs/decisions/ADR_4.md",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "f6a01a3c-b527-454f-bc1d-b00b27794282",
+        "source_id": "docs/requirements/REQ_0.md",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "22cddd17-0df6-4e2a-a69b-394691e27456",
+        "source_id": "docs/requirements/REQ_1.md",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "9cb270d5-70e5-4913-8a30-5b2ca860fa20",
+        "source_id": "docs/requirements/REQ_2.md",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "ee39fb32-4942-494a-a64b-d327379ecefc",
+        "source_id": "docs/requirements/REQ_3.md",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "8c04bf03-8d88-42a2-9e87-3c18a56dd6e5",
+        "source_id": "docs/requirements/REQ_4.md",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "7dd2e887-8c38-43c8-a539-a3515c95258c",
+        "source_id": "src/main_0.rs",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "62614132-1d40-4c36-bc16-8f077d9f0c1f",
+        "source_id": "src/main_1.rs",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "ccae7b3d-b673-4574-ab9b-a8bac34901a5",
+        "source_id": "src/main_2.rs",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "35c47cbe-f4e5-43a5-94c4-e2317c9f4421",
+        "source_id": "src/main_3.rs",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "cd1a44cd-e79d-4e8b-a6db-3643ec140dc7",
+        "source_id": "src/main_4.rs",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "5e48bef5-87f4-4564-8dd3-a04bb8a25d28",
+        "source_id": "src/main_5.rs",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "32b40e08-b56a-41c8-926e-42c5e502294b",
+        "source_id": "src/main_6.rs",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "f01211cd-e0f0-4463-9ab9-95483063ee52",
+        "source_id": "src/main_7.rs",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "a01ddc0d-e93e-409b-a8a9-1cb02ee73af5",
+        "source_id": "src/main_8.rs",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      },
+      {
+        "id": "dbb0c6ce-dd79-4a50-9e0e-0771bf2bd3ae",
+        "source_id": "src/main_9.rs",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100918575,
+        "properties": {}
+      }
+    ]
+  },
+  "compliance": [],
+  "scorecard": {
+    "ownership_score": 100.0,
+    "traceability_score": 100.0,
+    "evidence_score": 100.0,
+    "approval_score": 100.0,
+    "retention_score": 100.0,
+    "security_score": 100.0,
+    "architecture_score": 100.0,
+    "overall_score": 100.0
+  }
+}

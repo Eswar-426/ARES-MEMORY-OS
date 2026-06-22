@@ -1,0 +1,307 @@
+{
+  "graph": {
+    "nodes": [
+      {
+        "id": "REPO-ROOT",
+        "node_type": "Repository",
+        "name": "",
+        "properties": {
+          "path": "."
+        },
+        "created_at": 1782100920357
+      },
+      {
+        "id": "src/main_0.rs",
+        "node_type": "CodeArtifact",
+        "name": "main_0.rs",
+        "properties": {
+          "path": "src/main_0.rs"
+        },
+        "created_at": 1782100920357
+      },
+      {
+        "id": "src/main_1.rs",
+        "node_type": "CodeArtifact",
+        "name": "main_1.rs",
+        "properties": {
+          "path": "src/main_1.rs"
+        },
+        "created_at": 1782100920357
+      },
+      {
+        "id": "src/main_2.rs",
+        "node_type": "CodeArtifact",
+        "name": "main_2.rs",
+        "properties": {
+          "path": "src/main_2.rs"
+        },
+        "created_at": 1782100920357
+      },
+      {
+        "id": "src/main_3.rs",
+        "node_type": "CodeArtifact",
+        "name": "main_3.rs",
+        "properties": {
+          "path": "src/main_3.rs"
+        },
+        "created_at": 1782100920357
+      },
+      {
+        "id": "src/main_4.rs",
+        "node_type": "CodeArtifact",
+        "name": "main_4.rs",
+        "properties": {
+          "path": "src/main_4.rs"
+        },
+        "created_at": 1782100920357
+      },
+      {
+        "id": "src/main_5.rs",
+        "node_type": "CodeArtifact",
+        "name": "main_5.rs",
+        "properties": {
+          "path": "src/main_5.rs"
+        },
+        "created_at": 1782100920357
+      },
+      {
+        "id": "src/main_6.rs",
+        "node_type": "CodeArtifact",
+        "name": "main_6.rs",
+        "properties": {
+          "path": "src/main_6.rs"
+        },
+        "created_at": 1782100920357
+      },
+      {
+        "id": "src/main_7.rs",
+        "node_type": "CodeArtifact",
+        "name": "main_7.rs",
+        "properties": {
+          "path": "src/main_7.rs"
+        },
+        "created_at": 1782100920357
+      },
+      {
+        "id": "src/main_8.rs",
+        "node_type": "CodeArtifact",
+        "name": "main_8.rs",
+        "properties": {
+          "path": "src/main_8.rs"
+        },
+        "created_at": 1782100920357
+      },
+      {
+        "id": "src/main_9.rs",
+        "node_type": "CodeArtifact",
+        "name": "main_9.rs",
+        "properties": {
+          "path": "src/main_9.rs"
+        },
+        "created_at": 1782100920357
+      },
+      {
+        "id": "@eswar-426",
+        "node_type": "Owner",
+        "name": "@eswar-426",
+        "properties": {
+          "pattern": "*"
+        },
+        "created_at": 1782100920357
+      }
+    ],
+    "edges": [
+      {
+        "id": "dfaf42e2-2998-4c9c-bc17-c53eadd74551",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/main_0.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100920357,
+        "properties": {}
+      },
+      {
+        "id": "5435cd6b-03a6-47ba-b31e-7c74d01bd650",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/main_1.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100920357,
+        "properties": {}
+      },
+      {
+        "id": "1b02c652-ba25-4cdf-bf86-fb835243d933",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/main_2.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100920357,
+        "properties": {}
+      },
+      {
+        "id": "52e5f8ad-3bb9-4ed8-8616-866011626b7d",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/main_3.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100920357,
+        "properties": {}
+      },
+      {
+        "id": "0d6b8e5d-acbe-4683-8dcf-2df0d876b888",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/main_4.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100920357,
+        "properties": {}
+      },
+      {
+        "id": "454abb03-4b72-4694-9e14-aee599182108",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/main_5.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100920357,
+        "properties": {}
+      },
+      {
+        "id": "568e2bb4-6128-4f51-8b69-825b6662a1c1",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/main_6.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100920357,
+        "properties": {}
+      },
+      {
+        "id": "ea8715ce-7902-419e-9abc-458954e6d87e",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/main_7.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100920357,
+        "properties": {}
+      },
+      {
+        "id": "60fea93e-e93f-47da-8843-8642f26b2a0e",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/main_8.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100920357,
+        "properties": {}
+      },
+      {
+        "id": "9d9233cf-edc6-4c2d-a140-539a71725679",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/main_9.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100920357,
+        "properties": {}
+      },
+      {
+        "id": "6cd47efc-e8cf-47c2-a4a6-4073980c30f0",
+        "source_id": "src/main_0.rs",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100920357,
+        "properties": {}
+      },
+      {
+        "id": "714f0327-6aba-4b65-b030-592e6447e9a6",
+        "source_id": "src/main_1.rs",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100920357,
+        "properties": {}
+      },
+      {
+        "id": "da364814-3892-41bd-bf84-9347f65d2c4c",
+        "source_id": "src/main_2.rs",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100920357,
+        "properties": {}
+      },
+      {
+        "id": "54fbcbcf-0d00-49c3-9294-94f8a9178bd0",
+        "source_id": "src/main_3.rs",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100920357,
+        "properties": {}
+      },
+      {
+        "id": "857d20df-ea19-4ec5-84dc-0dccce92d7ae",
+        "source_id": "src/main_4.rs",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100920357,
+        "properties": {}
+      },
+      {
+        "id": "e76c2e6f-5d27-4f7a-8dc2-37be74ebd5b4",
+        "source_id": "src/main_5.rs",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100920357,
+        "properties": {}
+      },
+      {
+        "id": "69a201c0-42be-4f9d-a33c-df75bdb232a3",
+        "source_id": "src/main_6.rs",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100920357,
+        "properties": {}
+      },
+      {
+        "id": "810a16c8-68cb-4780-a959-3e632d887a4a",
+        "source_id": "src/main_7.rs",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100920357,
+        "properties": {}
+      },
+      {
+        "id": "4d5302f2-c322-4a29-b44d-e7d1d42f3e14",
+        "source_id": "src/main_8.rs",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100920357,
+        "properties": {}
+      },
+      {
+        "id": "fe280fbc-9797-46c4-b419-1c850f542367",
+        "source_id": "src/main_9.rs",
+        "target_id": "@eswar-426",
+        "edge_type": "OwnedBy",
+        "confidence": 1.0,
+        "created_at": 1782100920357,
+        "properties": {}
+      }
+    ]
+  },
+  "compliance": [],
+  "scorecard": {
+    "ownership_score": 100.0,
+    "traceability_score": 100.0,
+    "evidence_score": 100.0,
+    "approval_score": 100.0,
+    "retention_score": 100.0,
+    "security_score": 100.0,
+    "architecture_score": 100.0,
+    "overall_score": 100.0
+  }
+}

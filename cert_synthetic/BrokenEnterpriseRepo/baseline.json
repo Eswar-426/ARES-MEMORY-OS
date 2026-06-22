@@ -1,0 +1,928 @@
+{
+  "graph": {
+    "nodes": [
+      {
+        "id": "REPO-ROOT",
+        "node_type": "Repository",
+        "name": "",
+        "properties": {
+          "path": "."
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_0.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_0.rs",
+        "properties": {
+          "path": "src/legacy_0.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_1.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_1.rs",
+        "properties": {
+          "path": "src/legacy_1.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_10.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_10.rs",
+        "properties": {
+          "path": "src/legacy_10.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_11.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_11.rs",
+        "properties": {
+          "path": "src/legacy_11.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_12.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_12.rs",
+        "properties": {
+          "path": "src/legacy_12.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_13.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_13.rs",
+        "properties": {
+          "path": "src/legacy_13.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_14.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_14.rs",
+        "properties": {
+          "path": "src/legacy_14.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_15.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_15.rs",
+        "properties": {
+          "path": "src/legacy_15.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_16.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_16.rs",
+        "properties": {
+          "path": "src/legacy_16.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_17.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_17.rs",
+        "properties": {
+          "path": "src/legacy_17.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_18.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_18.rs",
+        "properties": {
+          "path": "src/legacy_18.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_19.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_19.rs",
+        "properties": {
+          "path": "src/legacy_19.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_2.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_2.rs",
+        "properties": {
+          "path": "src/legacy_2.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_20.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_20.rs",
+        "properties": {
+          "path": "src/legacy_20.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_21.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_21.rs",
+        "properties": {
+          "path": "src/legacy_21.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_22.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_22.rs",
+        "properties": {
+          "path": "src/legacy_22.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_23.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_23.rs",
+        "properties": {
+          "path": "src/legacy_23.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_24.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_24.rs",
+        "properties": {
+          "path": "src/legacy_24.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_25.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_25.rs",
+        "properties": {
+          "path": "src/legacy_25.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_26.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_26.rs",
+        "properties": {
+          "path": "src/legacy_26.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_27.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_27.rs",
+        "properties": {
+          "path": "src/legacy_27.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_28.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_28.rs",
+        "properties": {
+          "path": "src/legacy_28.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_29.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_29.rs",
+        "properties": {
+          "path": "src/legacy_29.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_3.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_3.rs",
+        "properties": {
+          "path": "src/legacy_3.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_30.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_30.rs",
+        "properties": {
+          "path": "src/legacy_30.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_31.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_31.rs",
+        "properties": {
+          "path": "src/legacy_31.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_32.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_32.rs",
+        "properties": {
+          "path": "src/legacy_32.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_33.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_33.rs",
+        "properties": {
+          "path": "src/legacy_33.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_34.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_34.rs",
+        "properties": {
+          "path": "src/legacy_34.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_35.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_35.rs",
+        "properties": {
+          "path": "src/legacy_35.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_36.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_36.rs",
+        "properties": {
+          "path": "src/legacy_36.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_37.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_37.rs",
+        "properties": {
+          "path": "src/legacy_37.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_38.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_38.rs",
+        "properties": {
+          "path": "src/legacy_38.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_39.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_39.rs",
+        "properties": {
+          "path": "src/legacy_39.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_4.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_4.rs",
+        "properties": {
+          "path": "src/legacy_4.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_40.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_40.rs",
+        "properties": {
+          "path": "src/legacy_40.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_41.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_41.rs",
+        "properties": {
+          "path": "src/legacy_41.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_42.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_42.rs",
+        "properties": {
+          "path": "src/legacy_42.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_43.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_43.rs",
+        "properties": {
+          "path": "src/legacy_43.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_44.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_44.rs",
+        "properties": {
+          "path": "src/legacy_44.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_45.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_45.rs",
+        "properties": {
+          "path": "src/legacy_45.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_46.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_46.rs",
+        "properties": {
+          "path": "src/legacy_46.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_47.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_47.rs",
+        "properties": {
+          "path": "src/legacy_47.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_48.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_48.rs",
+        "properties": {
+          "path": "src/legacy_48.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_49.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_49.rs",
+        "properties": {
+          "path": "src/legacy_49.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_5.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_5.rs",
+        "properties": {
+          "path": "src/legacy_5.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_6.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_6.rs",
+        "properties": {
+          "path": "src/legacy_6.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_7.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_7.rs",
+        "properties": {
+          "path": "src/legacy_7.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_8.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_8.rs",
+        "properties": {
+          "path": "src/legacy_8.rs"
+        },
+        "created_at": 1782100923979
+      },
+      {
+        "id": "src/legacy_9.rs",
+        "node_type": "CodeArtifact",
+        "name": "legacy_9.rs",
+        "properties": {
+          "path": "src/legacy_9.rs"
+        },
+        "created_at": 1782100923979
+      }
+    ],
+    "edges": [
+      {
+        "id": "bb6a409f-3f11-461e-a18b-e8485332f2c0",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_0.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "54ad4ca5-305d-4ae4-9c5e-6c4ab8e0fe50",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_1.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "30339fc3-6e19-4a91-823b-bade8cce4748",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_10.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "c6872b76-c23f-4e67-8f2d-ed2a44f18bb9",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_11.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "4ef0ecdf-0bcd-4d0a-8bb6-9df878d21dbe",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_12.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "bc13cdb4-9825-46c3-963b-dc454d0b2c51",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_13.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "6da13c66-d821-474d-8b19-4464ae3df3b5",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_14.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "aece3e11-e043-42ce-aabe-d00b3916d096",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_15.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "c636970e-8452-4828-be93-9afa8e23836b",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_16.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "8b3d2119-a228-4adc-9bac-eb38fb5b5406",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_17.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "6811ff67-7e4e-471c-bbf1-64134a589b3e",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_18.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "28df31f7-0ba7-4deb-a2dd-2518486295cc",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_19.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "0913c3d3-434c-4bca-95bd-2ca8b5f2a14e",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_2.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "fba35ec3-7b3b-4e29-9080-6839316ce901",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_20.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "f9d6a96b-2f7d-4f2e-8a99-569dca460a28",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_21.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "c897f6be-08fa-438b-8144-93aa7029b0d3",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_22.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "5f5540be-de14-4f8b-9036-cc976237e671",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_23.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "21523aee-58ab-4d0a-9f54-34ec60dd7004",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_24.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "8e8670a2-1ea0-4674-84fc-600691278005",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_25.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "0c9ecc48-0f61-420b-bfb0-18716aa1f5c1",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_26.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "fb3b9afd-a9a2-45a8-8a86-80b2f441e9bf",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_27.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "4b86f306-2483-42c2-8b98-f2be05cd5bdf",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_28.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "2aa5ae2e-0918-49c5-aa18-fb2d710e7db6",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_29.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "a1822347-e613-4b46-a0fd-2ce0c9e586cf",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_3.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "a6c360d2-83ea-4c50-99ea-9e127593ff2a",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_30.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "15a3b73a-fce3-477f-9a89-2ddcd775e421",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_31.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "f016c4e1-16f5-4007-97b3-a4aa1b56144a",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_32.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "f9548eaf-5059-4282-a4b4-1724da5f76a7",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_33.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "a6e815ac-852f-49ab-963b-560f57582b4b",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_34.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "2fde3fa5-fe1e-4f0b-bc12-42e3020322bf",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_35.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "fe6d105f-f453-40e4-998a-86034580ca3e",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_36.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "936dc308-d5c9-4ebe-8b72-c5e487dbc7ea",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_37.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "46748b41-9e7b-4c55-96aa-ebb81cb1e2e2",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_38.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "9fa35c0b-ca7f-4990-893f-4d7eb4fb1d8f",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_39.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "83892711-9f80-4ba2-898e-14b0c901ea8e",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_4.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "d8683907-dd4a-4061-961a-a19868f870a5",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_40.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "7c857d9f-7124-4f94-b777-792315ee36e5",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_41.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "a9d8b11a-1d2e-482d-9bb8-f10c06cfa05f",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_42.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "1bb40271-e4a6-483d-8f48-2fe07303ca05",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_43.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "1c668baf-3f39-47e9-9de7-3039cd1286bf",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_44.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "ee99350a-f94f-4158-af74-c27cf9e86ef3",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_45.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "74c1d158-bac5-4a03-931f-eaf17d0299bd",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_46.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "6a09e3da-72ae-492a-b050-54b8f214ba4b",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_47.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "b2b81693-b193-4603-898f-783657fcc1cd",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_48.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "42513866-9850-4b2b-b8c6-2809199552bb",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_49.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "9a20c9ee-72b6-4176-9ee3-e26b2fdd5260",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_5.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "d0a3ef94-7e4d-447a-b3fb-01a9f8bd721e",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_6.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "e74c70c4-c7ec-4ee3-bb7b-d17405e7433d",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_7.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "16284333-423e-4d3f-a123-dc9cca6280bb",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_8.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      },
+      {
+        "id": "048ed993-877f-404d-9eb1-637cc756d335",
+        "source_id": "REPO-ROOT",
+        "target_id": "src/legacy_9.rs",
+        "edge_type": "Contains",
+        "confidence": 1.0,
+        "created_at": 1782100923979,
+        "properties": {}
+      }
+    ]
+  },
+  "compliance": [],
+  "scorecard": {
+    "ownership_score": 100.0,
+    "traceability_score": 100.0,
+    "evidence_score": 100.0,
+    "approval_score": 100.0,
+    "retention_score": 100.0,
+    "security_score": 100.0,
+    "architecture_score": 100.0,
+    "overall_score": 100.0
+  }
+}
