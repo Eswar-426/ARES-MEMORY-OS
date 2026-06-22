@@ -1,0 +1,43 @@
+# ARES Repository Ownership
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default Owner — all files
+* @eswar-426
+
+# Core Subsystems
+crates/ares-core/ @eswar-426
+crates/ares-knowledge-graph/ @eswar-426
+crates/ares-store/ @eswar-426
+crates/ares-ingestion/ @eswar-426
+crates/ares-validation/ @eswar-426
+
+# Intelligence Layer
+crates/ares-memory-intelligence/ @eswar-426
+crates/ares-decision-intelligence/ @eswar-426
+crates/ares-gap-engine/ @eswar-426
+crates/ares-requirements/ @eswar-426
+crates/ares-traceability/ @eswar-426
+crates/ares-memory-evolution/ @eswar-426
+
+# Retrieval & Context
+crates/ares-retrieval/ @eswar-426
+crates/ares-context-generator/ @eswar-426
+crates/ares-context-injector/ @eswar-426
+
+# Interface Layer
+crates/ares-cli/ @eswar-426
+crates/ares-mcp/ @eswar-426
+apps/vscode-extension/ @eswar-426
+
+# Governance & Compliance
+crates/ares-governance/ @eswar-426
+crates/ares-pr-engine/ @eswar-426
+
+# Orchestration & Runtime
+crates/ares-orchestrator/ @eswar-426
+crates/ares-app/ @eswar-426
+crates/ares-agent/ @eswar-426
+
+# Documentation & Knowledge
+docs/ @eswar-426
+reports/ @eswar-426

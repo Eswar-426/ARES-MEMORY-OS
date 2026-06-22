@@ -32,10 +32,10 @@ dec_with_code = fetch_count('''
 ''')
 
 dec_with_evidence = fetch_count('''
-    SELECT COUNT(DISTINCT r.source_entity)
+    SELECT COUNT(DISTINCT r.target_entity)
     FROM graph_relationships r
-    JOIN graph_entities e ON r.source_entity = e.id
-    WHERE e.entity_type = 'Decision' AND r.relationship_type = 'SupportedBy'
+    JOIN graph_entities e ON r.target_entity = e.id
+    WHERE e.entity_type = 'Decision' AND r.relationship_type = 'Supports'
 ''')
 
 total_files = fetch_count('SELECT COUNT(*) FROM graph_entities WHERE entity_type = \'CodeArtifact\'')
