@@ -18,7 +18,9 @@ async-trait = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
 reqwest = { workspace = true, features = ["json", "rustls-tls"] }
-
+ares-core = { path = "../ares-core" }
+ares-candidates = { path = "../ares-candidates" }
+ares-git-memory = { path = "../ares-git-memory" }
 [dev-dependencies]
 tokio = { workspace = true }
 proptest = "1.4"

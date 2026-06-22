@@ -284,6 +284,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ares-candidates"
+version = "0.1.0"
+dependencies = [
+ "ares-core",
+ "async-trait",
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "uuid",
+]
+
+[[package]]
 name = "ares-chat-import"
 version = "0.1.0"
 dependencies = [
@@ -303,6 +316,7 @@ dependencies = [
 name = "ares-cli"
 version = "0.1.0"
 dependencies = [
+ "ares-candidates",
  "ares-core",
  "ares-git-memory",
  "ares-governance",
@@ -536,6 +550,9 @@ name = "ares-intelligence"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "ares-candidates",
+ "ares-core",
+ "ares-git-memory",
  "async-trait",
  "chrono",
  "proptest",
@@ -887,6 +904,7 @@ name = "ares-store"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "ares-candidates",
  "ares-core",
  "ares-intelligence",
  "async-trait",
@@ -900,6 +918,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror 1.0.69",
+ "tokio",
  "tracing",
  "uuid",
 ]

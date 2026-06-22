@@ -24,6 +24,11 @@ enum Commands {
         #[command(subcommand)]
         action: GovernanceCommands,
     },
+    /// Candidates & Intelligence Engine
+    Candidates {
+        #[command(subcommand)]
+        action: CandidatesCommands,
+    },
     /// Simulation OS commands
     Simulate {
         #[command(subcommand)]
@@ -125,6 +130,18 @@ enum SimulateCommands {
 }
 
 #[derive(Subcommand)]
+enum CandidatesCommands {
+    /// List pending candidates
+    List,
+    /// Show details of a specific candidate
+    Show { id: String },
+    /// Accept and promote a candidate
+    Accept { id: String },
+    /// Reject a candidate
+    Reject { id: String },
+}
+
+#[derive(Subcommand)]
 enum MemoryCommands {
     /// Validates the Memory OS certification status
     Validate {
@@ -215,6 +232,22 @@ async fn main() -> Result<(), AresError> {
                 }
                 SimulateCommands::Code { path, action } => {
                     commands::simulate::execute_simulate_code(path.clone(), action.clone()).await?;
+                }
+            }
+        }
+        Commands::Candidates { action } => {
+            match action {
+                CandidatesCommands::List => {
+                    commands::candidates::execute_list().await?;
+                }
+                CandidatesCommands::Show { id } => {
+                    commands::candidates::execute_show(id.clone()).await?;
+                }
+                CandidatesCommands::Accept { id } => {
+                    commands::candidates::execute_accept(id.clone()).await?;
+                }
+                CandidatesCommands::Reject { id } => {
+                    commands::candidates::execute_reject(id.clone()).await?;
                 }
             }
         }

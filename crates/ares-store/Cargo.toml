@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 ares-core   = { path = "../ares-core" }
 ares-intelligence = { path = "../ares-intelligence" }
+ares-candidates = { path = "../ares-candidates" }
 
 serde       = { workspace = true }
 serde_json  = { workspace = true }
@@ -27,3 +28,4 @@ tempfile.workspace = true
 
 [dev-dependencies]
 tempfile    = { workspace = true }
+tokio       = { workspace = true, features = ["full", "test-util"] }
