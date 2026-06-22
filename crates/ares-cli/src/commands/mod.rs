@@ -5,3 +5,5 @@ pub mod ingest;
 pub mod doctor;
 pub mod benchmark;
 pub mod candidates;
+pub mod traceability;
+pub mod reasoning;

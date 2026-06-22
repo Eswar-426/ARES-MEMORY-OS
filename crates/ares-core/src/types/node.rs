@@ -35,6 +35,11 @@ pub enum NodeType {
     Commit,
     Release,
     Branch,
+    // P3.4 Reasoning Node Types
+    Architecture,
+    Test,
+    RuntimeSignal,
+    Outcome,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -73,6 +78,10 @@ impl NodeType {
             Self::Commit => "commit",
             Self::Release => "release",
             Self::Branch => "branch",
+            Self::Architecture => "architecture",
+            Self::Test => "test",
+            Self::RuntimeSignal => "runtime_signal",
+            Self::Outcome => "outcome",
         }
     }
 }
@@ -106,6 +115,10 @@ impl std::str::FromStr for NodeType {
             "commit" => Ok(Self::Commit),
             "release" => Ok(Self::Release),
             "branch" => Ok(Self::Branch),
+            "architecture" => Ok(Self::Architecture),
+            "test" => Ok(Self::Test),
+            "runtime_signal" => Ok(Self::RuntimeSignal),
+            "outcome" => Ok(Self::Outcome),
             other => Err(format!("Unknown node type: {other}")),
         }
     }

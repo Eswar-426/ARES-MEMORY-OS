@@ -36,9 +36,38 @@ enum Commands {
     },
     /// Repository Ingestion
     Ingest(commands::ingest::IngestArgs),
+    /// Traceability Analysis
+    Traceability {
+        #[command(subcommand)]
+        action: TraceabilityCommands,
+    },
     
     /// System Health Check
     Doctor,
+
+    // --- P3.4 Reasoning Engines ---
+    
+    /// Explain decisions and rationale
+    Explain {
+        #[command(subcommand)]
+        action: ExplainCommands,
+    },
+    /// Why Engine: Explain lineage of a node
+    Why {
+        target_type: String, // e.g. "file", "architecture"
+        target_id: String,
+    },
+    /// Impact Engine: Analyze downstream impact
+    Impact {
+        #[command(subcommand)]
+        action: ImpactCommands,
+    },
+    /// Breakage Engine: What breaks due to a change?
+    WhatBreaks {
+        target_id: String,
+    },
+    /// Memory Gap Detection
+    Gaps,
 }
 
 #[derive(Subcommand)]
@@ -126,6 +155,31 @@ enum SimulateCommands {
     Code {
         path: String,
         action: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum TraceabilityCommands {
+    /// Explain the traceability graph for a given path
+    Explain {
+        #[arg(help = "The path or ID to explain traceability for")]
+        path: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum ExplainCommands {
+    /// Explain a specific decision
+    Decision {
+        id: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum ImpactCommands {
+    /// Analyze downstream impact
+    Analyze {
+        target_id: String,
     },
 }
 
@@ -251,11 +305,37 @@ async fn main() -> Result<(), AresError> {
                 }
             }
         }
+        Commands::Traceability { action } => {
+            commands::traceability::handle_traceability(action).await?;
+        }
         Commands::Ingest(args) => {
             commands::ingest::handle_ingest(args.clone()).await?;
         }
         Commands::Doctor => {
             commands::doctor::execute_doctor().await?;
+        }
+        Commands::Explain { action } => {
+            match action {
+                ExplainCommands::Decision { id } => {
+                    commands::reasoning::handle_explain_decision(id).await?;
+                }
+            }
+        }
+        Commands::Why { target_type, target_id } => {
+            commands::reasoning::handle_why(target_type, target_id).await?;
+        }
+        Commands::Impact { action } => {
+            match action {
+                ImpactCommands::Analyze { target_id } => {
+                    commands::reasoning::handle_impact(target_id).await?;
+                }
+            }
+        }
+        Commands::WhatBreaks { target_id } => {
+            commands::reasoning::handle_what_breaks(target_id).await?;
+        }
+        Commands::Gaps => {
+            commands::reasoning::handle_gaps().await?;
         }
     }
 

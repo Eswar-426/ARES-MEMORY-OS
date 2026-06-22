@@ -324,6 +324,7 @@ dependencies = [
  "ares-knowledge-graph",
  "ares-memory-intelligence",
  "ares-pr-engine",
+ "ares-reasoning",
  "ares-requirements",
  "ares-scanner",
  "ares-store",
@@ -810,6 +811,7 @@ dependencies = [
  "ares-store",
  "clap",
  "petgraph",
+ "rusqlite",
  "serde",
  "serde_json",
 ]

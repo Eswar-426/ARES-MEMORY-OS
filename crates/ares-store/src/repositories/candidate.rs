@@ -4,7 +4,8 @@ use rusqlite::{params, OptionalExtension};
 
 use ares_candidates::{
     Candidate, CandidateConfidence, CandidatePromotion, CandidateRepository, CandidateReview,
-    CandidateSource, CandidateStatus, CandidateType, DecisionCategory,
+    CandidateSource, CandidateStatus, CandidateType, DecisionCategory, ArchitectureCategory,
+    TraceabilityCategory, TraceabilityEndpointType, TraceabilityEndpoint, TraceabilityStrength,
 };
 use ares_core::{GraphEdge, GraphNode};
 
@@ -44,6 +45,63 @@ impl CandidateRepository for SqliteCandidateRepository {
             CandidateStatus::Superseded => "Superseded",
         };
 
+        
+        let architecture_category_str = match &candidate.architecture_category {
+            Some(ArchitectureCategory::Service) => Some("Service"),
+            Some(ArchitectureCategory::Component) => Some("Component"),
+            Some(ArchitectureCategory::Module) => Some("Module"),
+            Some(ArchitectureCategory::Workspace) => Some("Workspace"),
+            Some(ArchitectureCategory::Domain) => Some("Domain"),
+            Some(ArchitectureCategory::Integration) => Some("Integration"),
+            None => None,
+        };
+
+        let dependent_components_str = candidate.dependent_components.join(",");
+        let ownership_domains_str = candidate.ownership_domains.join(",");
+
+
+        let traceability_category_str = match &candidate.traceability_category {
+            Some(TraceabilityCategory::RequirementToDecision) => Some("RequirementToDecision"),
+            Some(TraceabilityCategory::DecisionToArchitecture) => Some("DecisionToArchitecture"),
+            Some(TraceabilityCategory::ArchitectureToCode) => Some("ArchitectureToCode"),
+            Some(TraceabilityCategory::RequirementToCode) => Some("RequirementToCode"),
+            None => None,
+        };
+
+        let (source_endpoint_type, source_endpoint_id) = match &candidate.source_endpoint {
+            Some(ep) => {
+                let ep_type = match ep.endpoint_type {
+                    TraceabilityEndpointType::Candidate => "Candidate",
+                    TraceabilityEndpointType::GraphNode => "GraphNode",
+                    TraceabilityEndpointType::File => "File",
+                    TraceabilityEndpointType::Commit => "Commit",
+                };
+                (Some(ep_type), Some(ep.endpoint_id.as_str()))
+            },
+            None => (None, None),
+        };
+
+        let (target_endpoint_type, target_endpoint_id) = match &candidate.target_endpoint {
+            Some(ep) => {
+                let ep_type = match ep.endpoint_type {
+                    TraceabilityEndpointType::Candidate => "Candidate",
+                    TraceabilityEndpointType::GraphNode => "GraphNode",
+                    TraceabilityEndpointType::File => "File",
+                    TraceabilityEndpointType::Commit => "Commit",
+                };
+                (Some(ep_type), Some(ep.endpoint_id.as_str()))
+            },
+            None => (None, None),
+        };
+
+        let traceability_strength_str = match &candidate.traceability_strength {
+            Some(TraceabilityStrength::Weak) => Some("Weak"),
+            Some(TraceabilityStrength::Moderate) => Some("Moderate"),
+            Some(TraceabilityStrength::Strong) => Some("Strong"),
+            Some(TraceabilityStrength::Definitive) => Some("Definitive"),
+            None => None,
+        };
+
         let decision_category_str = match &candidate.decision_category {
             Some(DecisionCategory::TechnologyAdoption) => Some("TechnologyAdoption"),
             Some(DecisionCategory::TechnologyRemoval) => Some("TechnologyRemoval"),
@@ -57,8 +115,8 @@ impl CandidateRepository for SqliteCandidateRepository {
             "INSERT INTO candidates (
                 id, project_id, title, description, candidate_type, status,
                 evidence_count, source_diversity, temporal_consistency, cluster_strength,
-                created_at, updated_at, decision_category
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                created_at, updated_at, decision_category, architecture_category, dependent_components, ownership_domains, traceability_category, source_endpoint_type, source_endpoint_id, target_endpoint_type, target_endpoint_id, traceability_strength
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)",
             params![
                 candidate.id,
                 candidate.project_id,
@@ -73,6 +131,15 @@ impl CandidateRepository for SqliteCandidateRepository {
                 candidate.created_at,
                 candidate.updated_at,
                 decision_category_str,
+                architecture_category_str,
+                dependent_components_str,
+                ownership_domains_str,
+                traceability_category_str,
+                source_endpoint_type,
+                source_endpoint_id,
+                target_endpoint_type,
+                target_endpoint_id,
+                traceability_strength_str,
             ],
         )
         .map_err(|e| e.to_string())?;
@@ -87,7 +154,7 @@ impl CandidateRepository for SqliteCandidateRepository {
             .query_row(
                 "SELECT id, project_id, title, description, candidate_type, status,
                  evidence_count, source_diversity, temporal_consistency, cluster_strength,
-                 created_at, updated_at, decision_category
+                 created_at, updated_at, decision_category, architecture_category, dependent_components, ownership_domains, traceability_category, source_endpoint_type, source_endpoint_id, target_endpoint_type, target_endpoint_id, traceability_strength
                  FROM candidates WHERE project_id = ?1 AND id = ?2",
                 params![project_id, id],
                 |row| {
@@ -121,6 +188,74 @@ impl CandidateRepository for SqliteCandidateRepository {
                         _ => None,
                     });
 
+                    
+                    let arch_cat_str: Option<String> = row.get(13)?;
+                    let architecture_category = arch_cat_str.and_then(|s| match s.as_str() {
+                        "Service" => Some(ArchitectureCategory::Service),
+                        "Component" => Some(ArchitectureCategory::Component),
+                        "Module" => Some(ArchitectureCategory::Module),
+                        "Workspace" => Some(ArchitectureCategory::Workspace),
+                        "Domain" => Some(ArchitectureCategory::Domain),
+                        "Integration" => Some(ArchitectureCategory::Integration),
+                        _ => None,
+                    });
+
+                    let dep_comp: String = row.get(14).unwrap_or_default();
+                    let owner_dom: String = row.get(15).unwrap_or_default();
+                    let dependent_components = if dep_comp.is_empty() { vec![] } else { dep_comp.split(",").map(|s| s.to_string()).collect() };
+                    let ownership_domains = if owner_dom.is_empty() { vec![] } else { owner_dom.split(",").map(|s| s.to_string()).collect() };
+
+
+                    let trace_cat_str: Option<String> = row.get(16).unwrap_or(None);
+                    let traceability_category = trace_cat_str.and_then(|s| match s.as_str() {
+                        "RequirementToDecision" => Some(TraceabilityCategory::RequirementToDecision),
+                        "DecisionToArchitecture" => Some(TraceabilityCategory::DecisionToArchitecture),
+                        "ArchitectureToCode" => Some(TraceabilityCategory::ArchitectureToCode),
+                        "RequirementToCode" => Some(TraceabilityCategory::RequirementToCode),
+                        _ => None,
+                    });
+
+                    let src_ep_type_str: Option<String> = row.get(17).unwrap_or(None);
+                    let src_ep_id_str: Option<String> = row.get(18).unwrap_or(None);
+                    let source_endpoint = match (src_ep_type_str, src_ep_id_str) {
+                        (Some(t), Some(id)) => {
+                            let ep_type = match t.as_str() {
+                                "Candidate" => TraceabilityEndpointType::Candidate,
+                                "GraphNode" => TraceabilityEndpointType::GraphNode,
+                                "File" => TraceabilityEndpointType::File,
+                                "Commit" => TraceabilityEndpointType::Commit,
+                                _ => TraceabilityEndpointType::Candidate,
+                            };
+                            Some(TraceabilityEndpoint { endpoint_type: ep_type, endpoint_id: id })
+                        },
+                        _ => None,
+                    };
+
+                    let tgt_ep_type_str: Option<String> = row.get(19).unwrap_or(None);
+                    let tgt_ep_id_str: Option<String> = row.get(20).unwrap_or(None);
+                    let target_endpoint = match (tgt_ep_type_str, tgt_ep_id_str) {
+                        (Some(t), Some(id)) => {
+                            let ep_type = match t.as_str() {
+                                "Candidate" => TraceabilityEndpointType::Candidate,
+                                "GraphNode" => TraceabilityEndpointType::GraphNode,
+                                "File" => TraceabilityEndpointType::File,
+                                "Commit" => TraceabilityEndpointType::Commit,
+                                _ => TraceabilityEndpointType::Candidate,
+                            };
+                            Some(TraceabilityEndpoint { endpoint_type: ep_type, endpoint_id: id })
+                        },
+                        _ => None,
+                    };
+
+                    let trace_strength_str: Option<String> = row.get(21).unwrap_or(None);
+                    let traceability_strength = trace_strength_str.and_then(|s| match s.as_str() {
+                        "Weak" => Some(TraceabilityStrength::Weak),
+                        "Moderate" => Some(TraceabilityStrength::Moderate),
+                        "Strong" => Some(TraceabilityStrength::Strong),
+                        "Definitive" => Some(TraceabilityStrength::Definitive),
+                        _ => None,
+                    });
+
                     Ok(Candidate {
                         id: row.get(0)?,
                         project_id: row.get(1)?,
@@ -128,6 +263,13 @@ impl CandidateRepository for SqliteCandidateRepository {
                         description: row.get(3)?,
                         candidate_type: c_type,
                         decision_category,
+                        architecture_category,
+                        traceability_category,
+                        source_endpoint,
+                        target_endpoint,
+                        traceability_strength,
+                        dependent_components,
+                        ownership_domains,
                         status,
                         confidence: CandidateConfidence {
                             evidence_count: row.get(6)?,
@@ -164,6 +306,63 @@ impl CandidateRepository for SqliteCandidateRepository {
             CandidateStatus::Superseded => "Superseded",
         };
 
+        
+        let architecture_category_str = match &candidate.architecture_category {
+            Some(ArchitectureCategory::Service) => Some("Service"),
+            Some(ArchitectureCategory::Component) => Some("Component"),
+            Some(ArchitectureCategory::Module) => Some("Module"),
+            Some(ArchitectureCategory::Workspace) => Some("Workspace"),
+            Some(ArchitectureCategory::Domain) => Some("Domain"),
+            Some(ArchitectureCategory::Integration) => Some("Integration"),
+            None => None,
+        };
+
+        let dependent_components_str = candidate.dependent_components.join(",");
+        let ownership_domains_str = candidate.ownership_domains.join(",");
+
+
+        let traceability_category_str = match &candidate.traceability_category {
+            Some(TraceabilityCategory::RequirementToDecision) => Some("RequirementToDecision"),
+            Some(TraceabilityCategory::DecisionToArchitecture) => Some("DecisionToArchitecture"),
+            Some(TraceabilityCategory::ArchitectureToCode) => Some("ArchitectureToCode"),
+            Some(TraceabilityCategory::RequirementToCode) => Some("RequirementToCode"),
+            None => None,
+        };
+
+        let (source_endpoint_type, source_endpoint_id) = match &candidate.source_endpoint {
+            Some(ep) => {
+                let ep_type = match ep.endpoint_type {
+                    TraceabilityEndpointType::Candidate => "Candidate",
+                    TraceabilityEndpointType::GraphNode => "GraphNode",
+                    TraceabilityEndpointType::File => "File",
+                    TraceabilityEndpointType::Commit => "Commit",
+                };
+                (Some(ep_type), Some(ep.endpoint_id.as_str()))
+            },
+            None => (None, None),
+        };
+
+        let (target_endpoint_type, target_endpoint_id) = match &candidate.target_endpoint {
+            Some(ep) => {
+                let ep_type = match ep.endpoint_type {
+                    TraceabilityEndpointType::Candidate => "Candidate",
+                    TraceabilityEndpointType::GraphNode => "GraphNode",
+                    TraceabilityEndpointType::File => "File",
+                    TraceabilityEndpointType::Commit => "Commit",
+                };
+                (Some(ep_type), Some(ep.endpoint_id.as_str()))
+            },
+            None => (None, None),
+        };
+
+        let traceability_strength_str = match &candidate.traceability_strength {
+            Some(TraceabilityStrength::Weak) => Some("Weak"),
+            Some(TraceabilityStrength::Moderate) => Some("Moderate"),
+            Some(TraceabilityStrength::Strong) => Some("Strong"),
+            Some(TraceabilityStrength::Definitive) => Some("Definitive"),
+            None => None,
+        };
+
         let decision_category_str = match &candidate.decision_category {
             Some(DecisionCategory::TechnologyAdoption) => Some("TechnologyAdoption"),
             Some(DecisionCategory::TechnologyRemoval) => Some("TechnologyRemoval"),
@@ -177,7 +376,7 @@ impl CandidateRepository for SqliteCandidateRepository {
             "UPDATE candidates SET
                 project_id = ?2, title = ?3, description = ?4, candidate_type = ?5, status = ?6,
                 evidence_count = ?7, source_diversity = ?8, temporal_consistency = ?9, cluster_strength = ?10,
-                updated_at = ?11, decision_category = ?12
+                updated_at = ?11, decision_category = ?12, architecture_category = ?13, dependent_components = ?14, ownership_domains = ?15, traceability_category = ?16, source_endpoint_type = ?17, source_endpoint_id = ?18, target_endpoint_type = ?19, target_endpoint_id = ?20, traceability_strength = ?21
              WHERE id = ?1",
             params![
                 candidate.id,
@@ -192,6 +391,15 @@ impl CandidateRepository for SqliteCandidateRepository {
                 candidate.confidence.cluster_strength,
                 candidate.updated_at,
                 decision_category_str,
+                architecture_category_str,
+                dependent_components_str,
+                ownership_domains_str,
+                traceability_category_str,
+                source_endpoint_type,
+                source_endpoint_id,
+                target_endpoint_type,
+                target_endpoint_id,
+                traceability_strength_str,
             ],
         )
         .map_err(|e| e.to_string())?;
@@ -211,7 +419,7 @@ impl CandidateRepository for SqliteCandidateRepository {
             .prepare(
                 "SELECT id, project_id, title, description, candidate_type, status,
                  evidence_count, source_diversity, temporal_consistency, cluster_strength,
-                 created_at, updated_at, decision_category
+                 created_at, updated_at, decision_category, architecture_category, dependent_components, ownership_domains, traceability_category, source_endpoint_type, source_endpoint_id, target_endpoint_type, target_endpoint_id, traceability_strength
                  FROM candidates WHERE project_id = ?1 ORDER BY created_at DESC LIMIT ?2 OFFSET ?3",
             )
             .map_err(|e| e.to_string())?;
@@ -248,13 +456,91 @@ impl CandidateRepository for SqliteCandidateRepository {
                     _ => None,
                 });
 
-                Ok(Candidate {
+                let dep_comp: String = row.get(14).unwrap_or_default();
+                let owner_dom: String = row.get(15).unwrap_or_default();
+
+                
+                    let arch_cat_str: Option<String> = row.get(13)?;
+                    let architecture_category = arch_cat_str.and_then(|s| match s.as_str() {
+                        "Service" => Some(ArchitectureCategory::Service),
+                        "Component" => Some(ArchitectureCategory::Component),
+                        "Module" => Some(ArchitectureCategory::Module),
+                        "Workspace" => Some(ArchitectureCategory::Workspace),
+                        "Domain" => Some(ArchitectureCategory::Domain),
+                        "Integration" => Some(ArchitectureCategory::Integration),
+                        _ => None,
+                    });
+
+                    let dep_comp: String = row.get(14).unwrap_or_default();
+                    let owner_dom: String = row.get(15).unwrap_or_default();
+                    let dependent_components = if dep_comp.is_empty() { vec![] } else { dep_comp.split(",").map(|s| s.to_string()).collect() };
+                    let ownership_domains = if owner_dom.is_empty() { vec![] } else { owner_dom.split(",").map(|s| s.to_string()).collect() };
+
+
+                    let trace_cat_str: Option<String> = row.get(16).unwrap_or(None);
+                    let traceability_category = trace_cat_str.and_then(|s| match s.as_str() {
+                        "RequirementToDecision" => Some(TraceabilityCategory::RequirementToDecision),
+                        "DecisionToArchitecture" => Some(TraceabilityCategory::DecisionToArchitecture),
+                        "ArchitectureToCode" => Some(TraceabilityCategory::ArchitectureToCode),
+                        "RequirementToCode" => Some(TraceabilityCategory::RequirementToCode),
+                        _ => None,
+                    });
+
+                    let src_ep_type_str: Option<String> = row.get(17).unwrap_or(None);
+                    let src_ep_id_str: Option<String> = row.get(18).unwrap_or(None);
+                    let source_endpoint = match (src_ep_type_str, src_ep_id_str) {
+                        (Some(t), Some(id)) => {
+                            let ep_type = match t.as_str() {
+                                "Candidate" => TraceabilityEndpointType::Candidate,
+                                "GraphNode" => TraceabilityEndpointType::GraphNode,
+                                "File" => TraceabilityEndpointType::File,
+                                "Commit" => TraceabilityEndpointType::Commit,
+                                _ => TraceabilityEndpointType::Candidate,
+                            };
+                            Some(TraceabilityEndpoint { endpoint_type: ep_type, endpoint_id: id })
+                        },
+                        _ => None,
+                    };
+
+                    let tgt_ep_type_str: Option<String> = row.get(19).unwrap_or(None);
+                    let tgt_ep_id_str: Option<String> = row.get(20).unwrap_or(None);
+                    let target_endpoint = match (tgt_ep_type_str, tgt_ep_id_str) {
+                        (Some(t), Some(id)) => {
+                            let ep_type = match t.as_str() {
+                                "Candidate" => TraceabilityEndpointType::Candidate,
+                                "GraphNode" => TraceabilityEndpointType::GraphNode,
+                                "File" => TraceabilityEndpointType::File,
+                                "Commit" => TraceabilityEndpointType::Commit,
+                                _ => TraceabilityEndpointType::Candidate,
+                            };
+                            Some(TraceabilityEndpoint { endpoint_type: ep_type, endpoint_id: id })
+                        },
+                        _ => None,
+                    };
+
+                    let trace_strength_str: Option<String> = row.get(21).unwrap_or(None);
+                    let traceability_strength = trace_strength_str.and_then(|s| match s.as_str() {
+                        "Weak" => Some(TraceabilityStrength::Weak),
+                        "Moderate" => Some(TraceabilityStrength::Moderate),
+                        "Strong" => Some(TraceabilityStrength::Strong),
+                        "Definitive" => Some(TraceabilityStrength::Definitive),
+                        _ => None,
+                    });
+
+                    Ok(Candidate {
                     id: row.get(0)?,
                     project_id: row.get(1)?,
                     title: row.get(2)?,
                     description: row.get(3)?,
                     candidate_type: c_type,
                     decision_category,
+                    architecture_category,
+                    traceability_category,
+                    source_endpoint,
+                    target_endpoint,
+                    traceability_strength,
+                    dependent_components,
+                    ownership_domains,
                     status,
                     confidence: CandidateConfidence {
                         evidence_count: row.get(6)?,

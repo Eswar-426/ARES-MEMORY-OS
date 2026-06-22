@@ -12,3 +12,6 @@ serde_json.workspace = true
 anyhow.workspace = true
 petgraph.workspace = true
 clap.workspace = true
+
+[dev-dependencies]
+rusqlite.workspace = true

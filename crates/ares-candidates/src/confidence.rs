@@ -59,4 +59,16 @@ impl CandidateThresholds {
             crate::models::CandidateType::Traceability => Self::traceability(),
         }
     }
+
+    pub fn get_traceability_strength(score: f64) -> crate::models::TraceabilityStrength {
+        if score >= 0.95 {
+            crate::models::TraceabilityStrength::Definitive
+        } else if score >= 0.90 {
+            crate::models::TraceabilityStrength::Strong
+        } else if score >= 0.80 {
+            crate::models::TraceabilityStrength::Moderate
+        } else {
+            crate::models::TraceabilityStrength::Weak
+        }
+    }
 }
