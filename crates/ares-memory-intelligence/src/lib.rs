@@ -11,17 +11,17 @@
 //! - Retrieval engine (similar missions, failures, successes, lessons)
 
 pub mod agent_knowledge;
+pub mod assembler;
 pub mod compression;
 pub mod consolidation;
 pub mod decision_intelligence;
 pub mod episodic;
 pub mod evolution;
 pub mod experience;
+pub mod facade;
 pub mod retrieval;
 pub mod semantic;
 pub mod test_utils;
-pub mod assembler;
-pub mod facade;
 
 #[cfg(test)]
 mod tests;

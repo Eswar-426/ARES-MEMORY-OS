@@ -1,4 +1,3 @@
-use crate::control::workers::models::Worker;
 use super::routing::DiscoveryService;
 use ares_core::AresError;
 use axum::{

@@ -30,7 +30,7 @@ pub enum SourceStatus {
 }
 
 /// A registry that tracks the available memory sources in a repository.
-/// 
+///
 /// This allows higher-level intelligence engines to know exactly what facts
 /// they are operating on and whether they are missing critical context.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

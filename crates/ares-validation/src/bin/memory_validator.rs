@@ -1,10 +1,11 @@
-use std::path::{Path, PathBuf};
+#![allow(unused_variables)]
+#![allow(unused_assignments)]
+use rusqlite::Connection;
 use std::fs;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Instant;
-use tempfile::TempDir;
-use sysinfo::{System, ProcessRefreshKind};
-use rusqlite::Connection;
+use sysinfo::System;
 
 #[derive(Default, Debug)]
 struct TestMetrics {
@@ -28,15 +29,21 @@ fn main() {
 
     let temp_dir = tempfile::tempdir().unwrap();
     let repo_path = temp_dir.path();
-    
-    println!("1. Provisioning controlled mock repository at {:?}", repo_path);
+
+    println!(
+        "1. Provisioning controlled mock repository at {:?}",
+        repo_path
+    );
     generate_mock_repository(repo_path);
-    
+
     println!("2. Performing Cold Ingestion...");
     let (duration, rss) = run_ares_ingest(repo_path, false, &[]);
     metrics.cold_ingest_ms = duration;
     metrics.peak_rss_mb = metrics.peak_rss_mb.max(rss);
-    println!("   Cold Ingestion Time: {}ms, Peak RSS: {:.2}MB", duration, rss);
+    println!(
+        "   Cold Ingestion Time: {}ms, Peak RSS: {:.2}MB",
+        duration, rss
+    );
 
     println!("3. Performing Continuous Evolution & Incremental Ingestion...");
     simulate_continuous_evolution(repo_path, &mut metrics);
@@ -46,7 +53,7 @@ fn main() {
 
     println!("\n--- Validation Results ---");
     println!("{:#?}", metrics);
-    
+
     write_reports(repo_path, &metrics);
 }
 
@@ -62,10 +69,16 @@ fn generate_mock_repository(path: &Path) {
             "# Requirement: REQ-{:03}\nDescription for requirement {}.\nTarget: src/module_{}.rs",
             i, i, i
         );
-        fs::write(path.join(format!("requirements/REQ-{:03}.md", i)), req_content).unwrap();
+        fs::write(
+            path.join(format!("requirements/REQ-{:03}.md", i)),
+            req_content,
+        )
+        .unwrap();
     }
     // REQ-010 intentionally has no implementation
-    let req_10 = fs::read_to_string(path.join("requirements/REQ-010.md")).unwrap().replace("Target: src/module_10.rs", "");
+    let req_10 = fs::read_to_string(path.join("requirements/REQ-010.md"))
+        .unwrap()
+        .replace("Target: src/module_10.rs", "");
     fs::write(path.join("requirements/REQ-010.md"), req_10).unwrap();
 
     // Generate 10 Decisions
@@ -84,14 +97,22 @@ fn generate_mock_repository(path: &Path) {
     }
 
     // Unlinked false positive file
-    fs::write(path.join("src/payment.rs"), "// Payment logic with no requirements or decisions.\nfn pay() {}").unwrap();
+    fs::write(
+        path.join("src/payment.rs"),
+        "// Payment logic with no requirements or decisions.\nfn pay() {}",
+    )
+    .unwrap();
 
     // Generate tests for some modules to create Traceability paths
     for i in 1..=9 {
         let test_content = format!("// Test for module {}\nfn test_module_{}() {{}}", i, i);
-        fs::write(path.join(format!("tests/module_{}_test.rs", i)), test_content).unwrap();
+        fs::write(
+            path.join(format!("tests/module_{}_test.rs", i)),
+            test_content,
+        )
+        .unwrap();
     }
-    
+
     // We intentionally leave module_9 without tests to trigger KnowledgeGap
 }
 
@@ -111,7 +132,7 @@ fn run_ares_ingest(repo_path: &Path, incremental: bool, files: &[&str]) -> (u128
     cmd.current_dir(repo_path);
     cmd.arg("ingest");
     cmd.arg(".");
-    
+
     if incremental {
         cmd.arg("--incremental");
         cmd.arg("--files");
@@ -121,10 +142,10 @@ fn run_ares_ingest(repo_path: &Path, incremental: bool, files: &[&str]) -> (u128
     let mut sys = System::new_all();
     let start = Instant::now();
     let mut child = cmd.spawn().unwrap();
-    
+
     let mut peak_rss: u64 = 0;
     let pid = sysinfo::Pid::from_u32(child.id());
-    
+
     loop {
         sys.refresh_processes();
         if let Some(process) = sys.process(pid) {
@@ -133,13 +154,13 @@ fn run_ares_ingest(repo_path: &Path, incremental: bool, files: &[&str]) -> (u128
                 peak_rss = rss;
             }
         }
-        
+
         if let Ok(Some(_)) = child.try_wait() {
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
-    
+
     let duration = start.elapsed().as_millis();
     (duration, peak_rss as f64 / 1024.0 / 1024.0) // Return MB
 }
@@ -160,7 +181,7 @@ fn simulate_continuous_evolution(repo_path: &Path, metrics: &mut TestMetrics) {
     content.push_str("\nAnother update.");
     fs::write(&req_path, content).unwrap();
 
-    let (dur2, rss2) = run_ares_ingest(repo_path, true, &["requirements/REQ-001.md"]);
+    let (_dur2, rss2) = run_ares_ingest(repo_path, true, &["requirements/REQ-001.md"]);
     metrics.peak_rss_mb = metrics.peak_rss_mb.max(rss2);
 }
 
@@ -170,16 +191,44 @@ fn extract_graph_metrics(repo_path: &Path, metrics: &mut TestMetrics) {
 
     // 1. Requirement Precision & Recall
     let expected_reqs = 10;
-    let actual_reqs: i64 = conn.query_row("SELECT COUNT(*) FROM graph_entities WHERE entity_type = 'Requirement'", [], |row| row.get(0)).unwrap_or(0);
+    let actual_reqs: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM graph_entities WHERE entity_type = 'Requirement'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
     let expected_decs = 10;
-    let actual_decs: i64 = conn.query_row("SELECT COUNT(*) FROM graph_entities WHERE entity_type = 'Decision'", [], |row| row.get(0)).unwrap_or(0);
+    let actual_decs: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM graph_entities WHERE entity_type = 'Decision'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
 
-    metrics.req_recall = if expected_reqs > 0 { (actual_reqs as f64 / expected_reqs as f64) * 100.0 } else { 100.0 };
-    metrics.dec_recall = if expected_decs > 0 { (actual_decs as f64 / expected_decs as f64) * 100.0 } else { 100.0 };
-    
+    metrics.req_recall = if expected_reqs > 0 {
+        (actual_reqs as f64 / expected_reqs as f64) * 100.0
+    } else {
+        100.0
+    };
+    metrics.dec_recall = if expected_decs > 0 {
+        (actual_decs as f64 / expected_decs as f64) * 100.0
+    } else {
+        100.0
+    };
+
     // We assume precision based on no hallucinated nodes
-    metrics.req_precision = if actual_reqs > expected_reqs { (expected_reqs as f64 / actual_reqs as f64) * 100.0 } else { 100.0 };
-    metrics.dec_precision = if actual_decs > expected_decs { (expected_decs as f64 / actual_decs as f64) * 100.0 } else { 100.0 };
+    metrics.req_precision = if actual_reqs > expected_reqs {
+        (expected_reqs as f64 / actual_reqs as f64) * 100.0
+    } else {
+        100.0
+    };
+    metrics.dec_precision = if actual_decs > expected_decs {
+        (expected_decs as f64 / actual_decs as f64) * 100.0
+    } else {
+        100.0
+    };
 
     // 2. False Positive Validation (src/payment.rs)
     let payment_edges: i64 = conn.query_row(
@@ -187,7 +236,7 @@ fn extract_graph_metrics(repo_path: &Path, metrics: &mut TestMetrics) {
         [],
         |row| row.get(0)
     ).unwrap_or(0);
-    
+
     if payment_edges == 0 {
         metrics.false_positive_rate = 0.0;
     } else {
@@ -204,10 +253,22 @@ fn extract_graph_metrics(repo_path: &Path, metrics: &mut TestMetrics) {
         let req_id = format!("REQ-{:03}", i);
         let dec_id = format!("ADR-{:03}", i);
         let code_id = format!("src/module_{}.rs", i);
-        let test_id = format!("tests/module_{}_test.rs", i);
+        let _test_id = format!("tests/module_{}_test.rs", i);
 
-        let has_req: bool = conn.query_row("SELECT 1 FROM graph_entities WHERE id LIKE ?1 LIMIT 1", [format!("%{}%", req_id)], |_| Ok(true)).unwrap_or(false);
-        let has_dec: bool = conn.query_row("SELECT 1 FROM graph_entities WHERE id LIKE ?1 LIMIT 1", [format!("%{}%", dec_id)], |_| Ok(true)).unwrap_or(false);
+        let has_req: bool = conn
+            .query_row(
+                "SELECT 1 FROM graph_entities WHERE id LIKE ?1 LIMIT 1",
+                [format!("%{}%", req_id)],
+                |_| Ok(true),
+            )
+            .unwrap_or(false);
+        let has_dec: bool = conn
+            .query_row(
+                "SELECT 1 FROM graph_entities WHERE id LIKE ?1 LIMIT 1",
+                [format!("%{}%", dec_id)],
+                |_| Ok(true),
+            )
+            .unwrap_or(false);
         let has_code_link: bool = conn.query_row(
             "SELECT 1 FROM graph_relationships WHERE (source_entity LIKE ?1 AND target_entity LIKE ?2 AND relationship_type = 'ImplementedBy') OR (source_entity LIKE ?3 AND target_entity LIKE ?2 AND relationship_type = 'Drives') LIMIT 1",
             [format!("%{}%", req_id), format!("%{}%", code_id), format!("%{}%", dec_id)],
@@ -227,7 +288,7 @@ fn extract_graph_metrics(repo_path: &Path, metrics: &mut TestMetrics) {
             untraceable += 1;
         }
     }
-    
+
     metrics.traceability_score = (fully_traceable as f64 / 10.0) * 100.0;
 
     // 4. Duplicate Events
@@ -247,15 +308,17 @@ fn extract_graph_metrics(repo_path: &Path, metrics: &mut TestMetrics) {
     metrics.evolution_accuracy = if has_drift { 100.0 } else { 0.0 };
 
     // 6. Knowledge Gap Detection
-    let gaps: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM graph_entities WHERE entity_type = 'KnowledgeGap'",
-        [],
-        |row| row.get(0)
-    ).unwrap_or(0);
+    let gaps: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM graph_entities WHERE entity_type = 'KnowledgeGap'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
     metrics.knowledge_gap_detection = if gaps > 0 { 100.0 } else { 0.0 };
 }
 
-fn write_reports(repo_path: &Path, metrics: &TestMetrics) {
+fn write_reports(_repo_path: &Path, metrics: &TestMetrics) {
     let out_dir = std::env::current_dir().unwrap();
     let scorecard = format!(
         "# ARES P1.6 Memory Quality Scorecard v2\n\n\
@@ -271,21 +334,79 @@ fn write_reports(repo_path: &Path, metrics: &TestMetrics) {
         | Peak RSS Memory | {:.2} MB | < 100 MB | {} |\n\
         | Cold Ingest | {} ms | < 5000 ms | {} |\n\
         | Incremental Ingest | {} ms | < 1000 ms | {} |\n",
-        metrics.req_precision, if metrics.req_precision >= 95.0 { "✅" } else { "❌" },
-        metrics.dec_precision, if metrics.dec_precision >= 95.0 { "✅" } else { "❌" },
-        metrics.traceability_score, if metrics.traceability_score >= 90.0 { "✅" } else { "❌" },
-        metrics.evolution_accuracy, if metrics.evolution_accuracy >= 95.0 { "✅" } else { "❌" },
-        metrics.knowledge_gap_detection, if metrics.knowledge_gap_detection >= 90.0 { "✅" } else { "❌" },
-        metrics.false_positive_rate, if metrics.false_positive_rate <= 5.0 { "✅" } else { "❌" },
-        metrics.duplicate_events, if metrics.duplicate_events == 0 { "✅" } else { "❌" },
-        metrics.peak_rss_mb, if metrics.peak_rss_mb < 100.0 { "✅" } else { "❌" },
-        metrics.cold_ingest_ms, if metrics.cold_ingest_ms < 5000 { "✅" } else { "❌" },
-        metrics.incremental_ingest_ms, if metrics.incremental_ingest_ms < 1000 { "✅" } else { "❌" },
+        metrics.req_precision,
+        if metrics.req_precision >= 95.0 {
+            "✅"
+        } else {
+            "❌"
+        },
+        metrics.dec_precision,
+        if metrics.dec_precision >= 95.0 {
+            "✅"
+        } else {
+            "❌"
+        },
+        metrics.traceability_score,
+        if metrics.traceability_score >= 90.0 {
+            "✅"
+        } else {
+            "❌"
+        },
+        metrics.evolution_accuracy,
+        if metrics.evolution_accuracy >= 95.0 {
+            "✅"
+        } else {
+            "❌"
+        },
+        metrics.knowledge_gap_detection,
+        if metrics.knowledge_gap_detection >= 90.0 {
+            "✅"
+        } else {
+            "❌"
+        },
+        metrics.false_positive_rate,
+        if metrics.false_positive_rate <= 5.0 {
+            "✅"
+        } else {
+            "❌"
+        },
+        metrics.duplicate_events,
+        if metrics.duplicate_events == 0 {
+            "✅"
+        } else {
+            "❌"
+        },
+        metrics.peak_rss_mb,
+        if metrics.peak_rss_mb < 100.0 {
+            "✅"
+        } else {
+            "❌"
+        },
+        metrics.cold_ingest_ms,
+        if metrics.cold_ingest_ms < 5000 {
+            "✅"
+        } else {
+            "❌"
+        },
+        metrics.incremental_ingest_ms,
+        if metrics.incremental_ingest_ms < 1000 {
+            "✅"
+        } else {
+            "❌"
+        },
     );
-    
+
     fs::write(out_dir.join("memory_accuracy_scorecard_v2.md"), scorecard).unwrap();
-    
+
     // Other reports
-    fs::write(out_dir.join("traceability_validation.md"), "# Traceability Validation\nValidation complete. Check scorecard.").unwrap();
-    fs::write(out_dir.join("knowledge_gap_validation.md"), "# Knowledge Gap Validation\nValidation complete. Check scorecard.").unwrap();
+    fs::write(
+        out_dir.join("traceability_validation.md"),
+        "# Traceability Validation\nValidation complete. Check scorecard.",
+    )
+    .unwrap();
+    fs::write(
+        out_dir.join("knowledge_gap_validation.md"),
+        "# Knowledge Gap Validation\nValidation complete. Check scorecard.",
+    )
+    .unwrap();
 }

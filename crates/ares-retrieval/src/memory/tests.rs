@@ -51,6 +51,4 @@ mod tests {
             RetrievalStrategy::GovernanceFocused
         );
     }
-
-
 }

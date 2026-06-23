@@ -15,7 +15,12 @@ impl ShortestPathTraverser {
     }
 
     /// Finds the shortest path between source and target nodes using BFS
-    pub async fn find_shortest_path(&self, project_id: &ares_core::ProjectId, source: &NodeId, target: &NodeId) -> Result<Vec<NodeId>, AresError> {
+    pub async fn find_shortest_path(
+        &self,
+        _project_id: &ares_core::ProjectId,
+        source: &NodeId,
+        target: &NodeId,
+    ) -> Result<Vec<NodeId>, AresError> {
         let mut queue = VecDeque::new();
         let mut visited = HashSet::new();
         let mut parent_map = std::collections::HashMap::new();

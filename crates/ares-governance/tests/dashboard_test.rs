@@ -1,7 +1,9 @@
 use ares_governance::dashboard::DashboardGenerator;
-use ares_governance::models::{GovernanceCertification, GovernanceScorecard, ViolationSeverity, ComplianceViolation, CertificationLevel, EnforcementAction, PolicyCategory, RequirementDriftSummary};
-use ares_requirements::{RequirementCoverageSummary, RequirementCoverageTrend, GapSummary};
-
+use ares_governance::models::{
+    CertificationLevel, ComplianceViolation, EnforcementAction, GovernanceCertification,
+    GovernanceScorecard, PolicyCategory, RequirementDriftSummary, ViolationSeverity,
+};
+use ares_requirements::{GapSummary, RequirementCoverageSummary, RequirementCoverageTrend};
 
 #[test]
 fn test_dashboard_aggregation() {
@@ -69,12 +71,10 @@ fn test_dashboard_aggregation() {
         unresolved_drift: 1,
     };
 
-    let top_gaps = vec![
-        GapSummary {
-            gap_type: ares_requirements::KnowledgeGapType::MissingDecision,
-            count: 2,
-        },
-    ];
+    let top_gaps = vec![GapSummary {
+        gap_type: ares_requirements::KnowledgeGapType::MissingDecision,
+        count: 2,
+    }];
 
     let evolution = ares_governance::models::EvolutionMetrics {
         total_requirement_events: 5,
@@ -97,8 +97,14 @@ fn test_dashboard_aggregation() {
     assert_eq!(dashboard.requirement_coverage.fully_covered, 5);
     assert_eq!(dashboard.requirement_drift.critical_drift, 1);
     assert_eq!(dashboard.top_gaps.len(), 1);
-    
+
     // Check sorting of violations (Critical should be first)
-    assert_eq!(dashboard.top_violations[0].severity, ViolationSeverity::Critical);
-    assert_eq!(dashboard.top_violations[1].severity, ViolationSeverity::Warning);
+    assert_eq!(
+        dashboard.top_violations[0].severity,
+        ViolationSeverity::Critical
+    );
+    assert_eq!(
+        dashboard.top_violations[1].severity,
+        ViolationSeverity::Warning
+    );
 }

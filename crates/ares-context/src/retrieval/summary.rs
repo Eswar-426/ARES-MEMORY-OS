@@ -12,7 +12,10 @@ impl SummaryRetriever {
     }
 
     /// Retrieves the latest repository summary
-    pub async fn fetch_latest_summary(&self, project_id: &ProjectId) -> Result<Option<String>, AresError> {
+    pub async fn fetch_latest_summary(
+        &self,
+        project_id: &ProjectId,
+    ) -> Result<Option<String>, AresError> {
         let filter = ares_core::MemoryFilter {
             memory_type: Some(MemoryType::RepositorySummary),
             status: Some(ares_core::types::memory::MemoryStatus::Active),
@@ -20,7 +23,10 @@ impl SummaryRetriever {
             since: None,
             until: None,
         };
-        let page = ares_core::types::pagination::Pagination { page: 1, page_size: 1 };
+        let page = ares_core::types::pagination::Pagination {
+            page: 1,
+            page_size: 1,
+        };
         let result = self.repo.list(project_id, filter, page)?;
         if let Some(mem) = result.items.first() {
             if let Some(content) = mem.content.as_str() {

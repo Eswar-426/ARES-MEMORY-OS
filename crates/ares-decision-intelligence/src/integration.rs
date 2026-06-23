@@ -1,17 +1,14 @@
-use crate::models::{Decision, DecisionStatus};
-use crate::health::DecisionHealthSnapshot;
+use crate::models::DecisionStatus;
 use serde::{Deserialize, Serialize};
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize)]
 pub struct DecisionSummary {
     pub id: String,
     pub title: String,
     pub approval_status: DecisionStatus,
 }
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize)]
 pub struct DecisionCoverage {
     pub total_decisions: usize,
     pub approved_decisions: usize,

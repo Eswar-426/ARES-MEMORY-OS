@@ -22,8 +22,7 @@ pub struct Requirement {
     pub tags: Vec<String>,
 }
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(utoipa::ToSchema, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RequirementSource {
     Customer,
@@ -34,8 +33,7 @@ pub enum RequirementSource {
     TechnicalDebt,
 }
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(utoipa::ToSchema, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RequirementType {
     Functional,
@@ -60,8 +58,7 @@ pub enum RequirementStatus {
     Rejected,
 }
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(utoipa::ToSchema, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RequirementPriority {
     Critical,
@@ -70,8 +67,7 @@ pub enum RequirementPriority {
     Low,
 }
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(utoipa::ToSchema, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MetricProvider {
     Prometheus,
@@ -227,8 +223,7 @@ pub struct RequirementEvidence {
     pub created_at: i64,
 }
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize)]
 pub struct RequirementSummary {
     pub id: String,
     pub title: String,
@@ -240,8 +235,7 @@ pub struct RequirementSummary {
     pub created_at: i64,
 }
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum StructuralDrift {
     MissingDecision,
     MissingImplementation,
@@ -250,8 +244,7 @@ pub enum StructuralDrift {
     MissingOwner,
 }
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SemanticDrift {
     DecisionChanged,
     ImplementationChanged,
@@ -259,15 +252,13 @@ pub enum SemanticDrift {
     RequirementExpired,
 }
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RequirementDriftType {
     Structural(StructuralDrift),
     Semantic(SemanticDrift),
 }
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum DriftSeverity {
     Low,
     Medium,
@@ -275,8 +266,7 @@ pub enum DriftSeverity {
     Critical,
 }
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum DriftConfidence {
     Certain,
     High,
@@ -284,8 +274,7 @@ pub enum DriftConfidence {
     Low,
 }
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize)]
 pub struct DriftEvidence {
     pub source_node: String,
     pub target_node: String,
@@ -294,8 +283,7 @@ pub struct DriftEvidence {
     pub expected_state: String,
 }
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize)]
 pub struct RequirementDriftReport {
     pub requirement_id: String,
     pub severity: DriftSeverity,
@@ -306,8 +294,7 @@ pub struct RequirementDriftReport {
     pub remediations: Vec<String>,
 }
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize)]
 pub struct RequirementBaseline {
     pub requirement_id: String,
     pub approved_at: i64,

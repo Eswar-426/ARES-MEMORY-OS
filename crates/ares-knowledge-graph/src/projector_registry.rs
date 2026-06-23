@@ -1,10 +1,18 @@
-use crate::models::{DomainEvent, DomainEventType, KnowledgeNode, KnowledgeEdge, NodeType, EdgeType};
+use crate::models::{
+    DomainEvent, DomainEventType, EdgeType, KnowledgeEdge, KnowledgeNode, NodeType,
+};
 use crate::projection::{GraphProjector, ProjectionBatch};
 use ares_core::AresError;
 use serde_json::json;
 
 pub struct ProjectorRegistry {
     pub projectors: Vec<Box<dyn GraphProjector>>,
+}
+
+impl Default for ProjectorRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ProjectorRegistry {
@@ -35,7 +43,12 @@ impl GraphProjector for RequirementProjector {
         let node = KnowledgeNode {
             id: event.entity_id.clone(),
             node_type: NodeType::Requirement,
-            name: event.payload.get("title").and_then(|v| v.as_str()).unwrap_or("Unknown Requirement").to_string(),
+            name: event
+                .payload
+                .get("title")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown Requirement")
+                .to_string(),
             properties: event.payload.clone(),
             created_at: event.timestamp,
         };
@@ -59,11 +72,16 @@ impl GraphProjector for DecisionProjector {
         let mut batch = ProjectionBatch::new();
 
         let decision_id = event.entity_id.clone();
-        
+
         let decision_node = KnowledgeNode {
             id: decision_id.clone(),
             node_type: NodeType::Decision,
-            name: event.payload.get("title").and_then(|v| v.as_str()).unwrap_or("Unknown Decision").to_string(),
+            name: event
+                .payload
+                .get("title")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown Decision")
+                .to_string(),
             properties: event.payload.clone(),
             created_at: event.timestamp,
         };
@@ -121,11 +139,16 @@ impl GraphProjector for GapProjector {
         let mut batch = ProjectionBatch::new();
 
         let gap_id = event.entity_id.clone();
-        
+
         let gap_node = KnowledgeNode {
             id: gap_id.clone(),
             node_type: NodeType::Gap,
-            name: event.payload.get("title").and_then(|v| v.as_str()).unwrap_or("Unknown Gap").to_string(),
+            name: event
+                .payload
+                .get("title")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown Gap")
+                .to_string(),
             properties: event.payload.clone(),
             created_at: event.timestamp,
         };
@@ -170,11 +193,16 @@ impl GraphProjector for ResolutionProjector {
         let mut batch = ProjectionBatch::new();
 
         let resolution_id = event.entity_id.clone();
-        
+
         let resolution_node = KnowledgeNode {
             id: resolution_id.clone(),
             node_type: NodeType::Resolution,
-            name: event.payload.get("title").and_then(|v| v.as_str()).unwrap_or("Unknown Resolution").to_string(),
+            name: event
+                .payload
+                .get("title")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown Resolution")
+                .to_string(),
             properties: event.payload.clone(),
             created_at: event.timestamp,
         };
@@ -211,11 +239,16 @@ impl GraphProjector for ArchitectureProjector {
     fn project(&self, event: &DomainEvent) -> Result<ProjectionBatch, AresError> {
         let mut batch = ProjectionBatch::new();
         let node_id = event.entity_id.clone();
-        
+
         batch.nodes.push(KnowledgeNode {
             id: node_id.clone(),
             node_type: NodeType::Architecture,
-            name: event.payload.get("title").and_then(|v| v.as_str()).unwrap_or("Unknown Architecture").to_string(),
+            name: event
+                .payload
+                .get("title")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown Architecture")
+                .to_string(),
             properties: event.payload.clone(),
             created_at: event.timestamp,
         });
@@ -245,16 +278,25 @@ impl GraphProjector for CodeArtifactProjector {
     fn project(&self, event: &DomainEvent) -> Result<ProjectionBatch, AresError> {
         let mut batch = ProjectionBatch::new();
         let node_id = event.entity_id.clone();
-        
+
         batch.nodes.push(KnowledgeNode {
             id: node_id.clone(),
             node_type: NodeType::CodeArtifact,
-            name: event.payload.get("file_path").and_then(|v| v.as_str()).unwrap_or("Unknown File").to_string(),
+            name: event
+                .payload
+                .get("file_path")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown File")
+                .to_string(),
             properties: event.payload.clone(),
             created_at: event.timestamp,
         });
 
-        if let Some(architecture_id) = event.payload.get("architecture_id").and_then(|v| v.as_str()) {
+        if let Some(architecture_id) = event
+            .payload
+            .get("architecture_id")
+            .and_then(|v| v.as_str())
+        {
             batch.edges.push(KnowledgeEdge {
                 id: "".to_string(),
                 source_id: architecture_id.to_string(),
@@ -275,18 +317,25 @@ impl GraphProjector for TestProjector {
     fn supports(&self, event_type: &DomainEventType) -> bool {
         matches!(
             event_type,
-            DomainEventType::TestExecuted | DomainEventType::TestPassed | DomainEventType::TestFailed
+            DomainEventType::TestExecuted
+                | DomainEventType::TestPassed
+                | DomainEventType::TestFailed
         )
     }
 
     fn project(&self, event: &DomainEvent) -> Result<ProjectionBatch, AresError> {
         let mut batch = ProjectionBatch::new();
         let node_id = event.entity_id.clone();
-        
+
         batch.nodes.push(KnowledgeNode {
             id: node_id.clone(),
             node_type: NodeType::Test,
-            name: event.payload.get("test_name").and_then(|v| v.as_str()).unwrap_or("Unknown Test").to_string(),
+            name: event
+                .payload
+                .get("test_name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown Test")
+                .to_string(),
             properties: event.payload.clone(),
             created_at: event.timestamp,
         });
@@ -319,11 +368,16 @@ impl GraphProjector for RuntimeSignalProjector {
     fn project(&self, event: &DomainEvent) -> Result<ProjectionBatch, AresError> {
         let mut batch = ProjectionBatch::new();
         let node_id = event.entity_id.clone();
-        
+
         batch.nodes.push(KnowledgeNode {
             id: node_id.clone(),
             node_type: NodeType::RuntimeSignal,
-            name: event.payload.get("metric_name").and_then(|v| v.as_str()).unwrap_or("Unknown Metric").to_string(),
+            name: event
+                .payload
+                .get("metric_name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown Metric")
+                .to_string(),
             properties: event.payload.clone(),
             created_at: event.timestamp,
         });
@@ -349,18 +403,25 @@ impl GraphProjector for OutcomeProjector {
     fn supports(&self, event_type: &DomainEventType) -> bool {
         matches!(
             event_type,
-            DomainEventType::OutcomeMeasured | DomainEventType::OutcomeImproved | DomainEventType::OutcomeDegraded
+            DomainEventType::OutcomeMeasured
+                | DomainEventType::OutcomeImproved
+                | DomainEventType::OutcomeDegraded
         )
     }
 
     fn project(&self, event: &DomainEvent) -> Result<ProjectionBatch, AresError> {
         let mut batch = ProjectionBatch::new();
         let node_id = event.entity_id.clone();
-        
+
         batch.nodes.push(KnowledgeNode {
             id: node_id.clone(),
             node_type: NodeType::Outcome,
-            name: event.payload.get("outcome_name").and_then(|v| v.as_str()).unwrap_or("Unknown Outcome").to_string(),
+            name: event
+                .payload
+                .get("outcome_name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown Outcome")
+                .to_string(),
             properties: event.payload.clone(),
             created_at: event.timestamp,
         });
@@ -389,17 +450,19 @@ impl GraphProjector for OwnerProjector {
         // Owners can be extracted from many types of events where ownership is defined or transferred.
         matches!(
             event_type,
-            DomainEventType::RequirementCreated | DomainEventType::DecisionApproved | DomainEventType::ArchitectureDesigned
+            DomainEventType::RequirementCreated
+                | DomainEventType::DecisionApproved
+                | DomainEventType::ArchitectureDesigned
         )
     }
 
     fn project(&self, event: &DomainEvent) -> Result<ProjectionBatch, AresError> {
         let mut batch = ProjectionBatch::new();
 
-        let mut extract_and_push = |key: &str, edge_type: EdgeType, batch: &mut ProjectionBatch| {
+        let extract_and_push = |key: &str, edge_type: EdgeType, batch: &mut ProjectionBatch| {
             if let Some(owner_name) = event.payload.get(key).and_then(|v| v.as_str()) {
                 let owner_id = format!("OWNER-{}", owner_name.to_uppercase().replace(" ", "-"));
-                
+
                 batch.nodes.push(KnowledgeNode {
                     id: owner_id.clone(),
                     node_type: NodeType::Owner,
@@ -422,7 +485,10 @@ impl GraphProjector for OwnerProjector {
             }
         };
 
-        if matches!(event.event_type, DomainEventType::RequirementCreated | DomainEventType::ArchitectureDesigned) {
+        if matches!(
+            event.event_type,
+            DomainEventType::RequirementCreated | DomainEventType::ArchitectureDesigned
+        ) {
             extract_and_push("owner", EdgeType::OwnedBy, &mut batch);
         } else if matches!(event.event_type, DomainEventType::DecisionApproved) {
             extract_and_push("approved_by", EdgeType::ApprovedBy, &mut batch);

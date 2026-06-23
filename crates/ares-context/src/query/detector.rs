@@ -2,6 +2,12 @@ use super::intent::QueryIntent;
 
 pub struct IntentDetector;
 
+impl Default for IntentDetector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl IntentDetector {
     pub fn new() -> Self {
         Self
@@ -46,7 +52,11 @@ impl IntentDetector {
             return QueryIntent::RepositoryOverview;
         }
 
-        if q.contains("find") || q.contains("search") || q.contains("where is") || q.contains("implement") {
+        if q.contains("find")
+            || q.contains("search")
+            || q.contains("where is")
+            || q.contains("implement")
+        {
             return QueryIntent::ImplementationSearch;
         }
 

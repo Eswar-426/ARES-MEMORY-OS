@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
-use ares_traceability::{TraceabilityGraph, TraceTargetType};
-use utoipa::ToSchema;
 use crate::trace_analysis::TraceAnalysisEngine;
+use ares_traceability::{TraceTargetType, TraceabilityGraph};
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, ToSchema)]
 pub enum ImpactCategory {
@@ -61,25 +61,26 @@ impl<'a> RequirementImpactEngine<'a> {
     }
 
     pub fn evaluate_impact(&self, req_id: &str) -> RequirementImpactReport {
-        let resolver = TraceAnalysisEngine::new(&self.graph);
-        
+        let resolver = TraceAnalysisEngine::new(self.graph);
+
         let affected_decisions = resolver.get_downstream(req_id, TraceTargetType::Decision);
         let affected_architecture = resolver.get_downstream(req_id, TraceTargetType::Architecture);
         let affected_code = resolver.get_downstream(req_id, TraceTargetType::Code);
         let affected_tests = resolver.get_downstream(req_id, TraceTargetType::Test);
-        let affected_runtime_metrics = resolver.get_downstream(req_id, TraceTargetType::RuntimeMetric);
+        let affected_runtime_metrics =
+            resolver.get_downstream(req_id, TraceTargetType::RuntimeMetric);
         let affected_governance = resolver.get_downstream(req_id, TraceTargetType::Governance);
-        
+
         let mut breakdowns = Vec::new();
         let mut total_score = 0.0;
-        
+
         let decision_weight = 10.0;
         let architecture_weight = 8.0;
         let metric_weight = 7.0;
         let governance_weight = 6.0;
         let test_weight = 4.0;
         let code_weight = 2.0;
-        
+
         if !affected_decisions.is_empty() {
             let score = affected_decisions.len() as f32 * decision_weight;
             total_score += score;
@@ -136,7 +137,7 @@ impl<'a> RequirementImpactEngine<'a> {
         }
 
         let blast_radius_score = total_score.min(100.0);
-        
+
         let severity = match blast_radius_score {
             s if s >= 90.0 => ImpactSeverity::Critical,
             s if s >= 70.0 => ImpactSeverity::High,
@@ -146,10 +147,16 @@ impl<'a> RequirementImpactEngine<'a> {
         };
 
         let mut risk_score = 0;
-        if !affected_decisions.is_empty() { risk_score += 40; }
-        if !affected_governance.is_empty() { risk_score += 30; }
-        if !affected_architecture.is_empty() { risk_score += 20; }
-        
+        if !affected_decisions.is_empty() {
+            risk_score += 40;
+        }
+        if !affected_governance.is_empty() {
+            risk_score += 30;
+        }
+        if !affected_architecture.is_empty() {
+            risk_score += 20;
+        }
+
         let risk = match risk_score {
             r if r >= 70 => ChangeRisk::Critical,
             r if r >= 40 => ChangeRisk::High,

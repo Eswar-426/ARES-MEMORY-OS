@@ -1,4 +1,3 @@
-use super::models::WorkflowQueueItem;
 use super::{dto::EnqueueRequest, service::QueueService};
 use ares_core::AresError;
 use axum::{extract::State, response::IntoResponse, Json};

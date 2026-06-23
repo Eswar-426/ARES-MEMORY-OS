@@ -1,8 +1,8 @@
-use std::sync::Arc;
-use ares_core::AresError;
 use crate::engine::MemoryEvolutionEngine;
 use crate::models::{EvolutionTimeline, MemoryRevision, StateSnapshot};
 use crate::supersession::{EntitySupersession, SupersessionEngine};
+use ares_core::AresError;
+use std::sync::Arc;
 
 pub struct TemporalQueries {
     engine: Arc<MemoryEvolutionEngine>,
@@ -11,7 +11,10 @@ pub struct TemporalQueries {
 
 impl TemporalQueries {
     pub fn new(engine: Arc<MemoryEvolutionEngine>, supersession: Arc<SupersessionEngine>) -> Self {
-        Self { engine, supersession }
+        Self {
+            engine,
+            supersession,
+        }
     }
 
     pub fn how_has_this_evolved(&self, entity_id: &str) -> Result<EvolutionTimeline, AresError> {
@@ -28,10 +31,17 @@ impl TemporalQueries {
 
     pub fn why_was_this_changed(&self, entity_id: &str) -> Result<Vec<MemoryRevision>, AresError> {
         let timeline = self.engine.build_timeline(entity_id)?;
-        Ok(timeline.revisions.into_iter().filter(|r| r.reason.is_some()).collect())
+        Ok(timeline
+            .revisions
+            .into_iter()
+            .filter(|r| r.reason.is_some())
+            .collect())
     }
 
-    pub fn what_replaced_this(&self, entity_id: &str) -> Result<Vec<EntitySupersession>, AresError> {
+    pub fn what_replaced_this(
+        &self,
+        entity_id: &str,
+    ) -> Result<Vec<EntitySupersession>, AresError> {
         self.supersession.what_replaced_this(entity_id)
     }
 
@@ -51,7 +61,7 @@ impl TemporalQueries {
         }
         Ok(authors)
     }
-    
+
     pub fn what_was_active_during(&self, timestamp: i64) -> Result<Vec<String>, AresError> {
         // Alias for show_state_at_time
         let snapshot = self.engine.reconstruct_state(timestamp)?;

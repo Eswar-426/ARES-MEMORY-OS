@@ -18,7 +18,7 @@ fn setup_store() -> Store {
 
 fn seed_data(store: &Store) {
     let conn = store.get_conn().unwrap();
-    
+
     // Seed Requirement
     conn.execute(
         "INSERT INTO requirements (
@@ -52,7 +52,8 @@ fn seed_data(store: &Store) {
             'EVID-1', 'DEC-AUTH-SYS', '\"Benchmark\"', '', 'JWT vs Session benchmark', 0.9
         )",
         [],
-    ).unwrap();
+    )
+    .unwrap();
 
     // Outcome
     conn.execute(

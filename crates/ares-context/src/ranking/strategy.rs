@@ -20,7 +20,11 @@ pub trait RankingStrategy: Send + Sync {
             .collect();
 
         // Sort descending
-        ranked.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        ranked.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         ranked
     }
 }

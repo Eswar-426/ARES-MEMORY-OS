@@ -1,5 +1,5 @@
 use ares_requirements::drift::RequirementDriftEngine;
-use ares_requirements::models::{RequirementDriftType, StructuralDrift, DriftSeverity};
+use ares_requirements::models::{DriftSeverity, RequirementDriftType, StructuralDrift};
 use ares_requirements::RequirementBaseline;
 use ares_traceability::{test_utils::TestGraphBuilder, TraceTargetType};
 
@@ -10,7 +10,7 @@ fn test_structural_drift_missing_decision() {
         .build();
 
     let engine = RequirementDriftEngine::new(&graph);
-    
+
     let baseline = RequirementBaseline {
         requirement_id: "REQ-1".to_string(),
         approved_at: 0,
@@ -26,8 +26,12 @@ fn test_structural_drift_missing_decision() {
 
     assert_eq!(report.requirement_id, "REQ-1");
     assert!(report.drift_types.len() >= 1);
-    
-    assert!(report.drift_types.contains(&RequirementDriftType::Structural(StructuralDrift::MissingDecision)));
+
+    assert!(report
+        .drift_types
+        .contains(&RequirementDriftType::Structural(
+            StructuralDrift::MissingDecision
+        )));
     assert_eq!(report.severity, DriftSeverity::Critical);
 }
 
@@ -38,7 +42,7 @@ fn test_structural_drift_missing_code() {
         .build();
 
     let engine = RequirementDriftEngine::new(&graph);
-    
+
     let baseline = RequirementBaseline {
         requirement_id: "REQ-2".to_string(),
         approved_at: 0,
@@ -54,7 +58,11 @@ fn test_structural_drift_missing_code() {
 
     assert_eq!(report.requirement_id, "REQ-2");
     assert!(report.drift_types.len() >= 1);
-    
-    assert!(report.drift_types.contains(&RequirementDriftType::Structural(StructuralDrift::MissingImplementation)));
+
+    assert!(report
+        .drift_types
+        .contains(&RequirementDriftType::Structural(
+            StructuralDrift::MissingImplementation
+        )));
     assert_eq!(report.severity, DriftSeverity::High);
 }

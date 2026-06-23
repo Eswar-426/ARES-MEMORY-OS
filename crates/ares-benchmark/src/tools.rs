@@ -3,6 +3,12 @@ use serde_json::Value;
 
 pub struct BenchmarkTools {}
 
+impl Default for BenchmarkTools {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BenchmarkTools {
     pub fn new() -> Self {
         Self {}
@@ -94,18 +100,14 @@ impl BenchmarkTools {
                     is_error: false,
                 }
             }
-            "write_file" => {
-                ToolResult {
-                    output: "File written successfully.".into(),
-                    is_error: false,
-                }
-            }
-            "get_context_for_prompt" | "search_memory" => {
-                ToolResult {
-                    output: "ARES tools not supported in benchmark anymore.".into(),
-                    is_error: true,
-                }
-            }
+            "write_file" => ToolResult {
+                output: "File written successfully.".into(),
+                is_error: false,
+            },
+            "get_context_for_prompt" | "search_memory" => ToolResult {
+                output: "ARES tools not supported in benchmark anymore.".into(),
+                is_error: true,
+            },
             _ => ToolResult {
                 output: format!("Unknown tool: {name}"),
                 is_error: true,

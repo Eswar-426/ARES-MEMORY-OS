@@ -1,8 +1,8 @@
+use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use anyhow::Result;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RetrievalTelemetry {
@@ -32,10 +32,10 @@ impl TelemetryCollector {
     pub fn record(&self, telemetry: RetrievalTelemetry) -> Result<()> {
         let timestamp_str = telemetry.timestamp.format("%Y%m%d_%H%M%S").to_string();
         let filename = format!("telemetry_{}.json", timestamp_str);
-        
+
         let mut path = self.storage_dir.clone();
         path.push(filename);
-        
+
         let json = serde_json::to_string_pretty(&telemetry)?;
         fs::write(path, json)?;
         Ok(())
@@ -44,7 +44,7 @@ impl TelemetryCollector {
     pub fn save_json(&self, telemetry_list: &[RetrievalTelemetry], filename: &str) -> Result<()> {
         let mut path = self.storage_dir.clone();
         path.push(filename);
-        
+
         let json = serde_json::to_string_pretty(telemetry_list)?;
         fs::write(path, json)?;
         Ok(())
@@ -63,13 +63,15 @@ impl TelemetryCollector {
                 let content = fs::read_to_string(&path)?;
                 if let Ok(telemetry) = serde_json::from_str::<RetrievalTelemetry>(&content) {
                     history.push(telemetry);
-                } else if let Ok(telemetry_list) = serde_json::from_str::<Vec<RetrievalTelemetry>>(&content) {
+                } else if let Ok(telemetry_list) =
+                    serde_json::from_str::<Vec<RetrievalTelemetry>>(&content)
+                {
                     history.extend(telemetry_list);
                 }
             }
         }
-        
-        history.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+
+        history.sort_by_key(|a| a.timestamp);
         Ok(history)
     }
 }

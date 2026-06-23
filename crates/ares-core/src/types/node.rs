@@ -40,6 +40,9 @@ pub enum NodeType {
     Test,
     RuntimeSignal,
     Outcome,
+    // P3.5 Evolution Engine
+    EvolutionEvent,
+    Evidence,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -82,6 +85,8 @@ impl NodeType {
             Self::Test => "test",
             Self::RuntimeSignal => "runtime_signal",
             Self::Outcome => "outcome",
+            Self::EvolutionEvent => "evolution_event",
+            Self::Evidence => "evidence",
         }
     }
 }
@@ -119,6 +124,8 @@ impl std::str::FromStr for NodeType {
             "test" => Ok(Self::Test),
             "runtime_signal" => Ok(Self::RuntimeSignal),
             "outcome" => Ok(Self::Outcome),
+            "evolution_event" => Ok(Self::EvolutionEvent),
+            "evidence" => Ok(Self::Evidence),
             other => Err(format!("Unknown node type: {other}")),
         }
     }
@@ -168,6 +175,11 @@ pub enum EdgeType {
     Touches,
     AuthoredBy,
     ReleasedIn,
+    // P3.5 Evolution Engine
+    Evolves,
+    Drifts,
+    Supports,
+    Observes,
 }
 
 impl EdgeType {
@@ -212,6 +224,10 @@ impl EdgeType {
             Self::Touches => "touches",
             Self::AuthoredBy => "authored_by",
             Self::ReleasedIn => "released_in",
+            Self::Evolves => "evolves",
+            Self::Drifts => "drifts",
+            Self::Supports => "supports",
+            Self::Observes => "observes",
         }
     }
 }
@@ -259,6 +275,10 @@ impl std::str::FromStr for EdgeType {
             "touches" => Ok(Self::Touches),
             "authored_by" => Ok(Self::AuthoredBy),
             "released_in" => Ok(Self::ReleasedIn),
+            "evolves" => Ok(Self::Evolves),
+            "drifts" => Ok(Self::Drifts),
+            "supports" => Ok(Self::Supports),
+            "observes" => Ok(Self::Observes),
             other => Err(format!("Unknown edge type: {other}")),
         }
     }

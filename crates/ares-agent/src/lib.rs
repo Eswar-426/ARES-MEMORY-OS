@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 pub mod agent;
 pub mod config;
 pub mod ipc;

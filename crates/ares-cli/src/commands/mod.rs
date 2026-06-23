@@ -1,9 +1,9 @@
-pub mod memory;
-pub mod governance;
-pub mod simulate;
-pub mod ingest;
-pub mod doctor;
 pub mod benchmark;
 pub mod candidates;
-pub mod traceability;
+pub mod doctor;
+pub mod governance;
+pub mod ingest;
+pub mod memory;
 pub mod reasoning;
+pub mod simulate;
+pub mod traceability;

@@ -1,9 +1,11 @@
-use clap::Args;
-use std::path::PathBuf;
-use ares_ingestion::GraphBuilder;
 use ares_core::AresError;
-use std::collections::{HashSet, HashMap};
-use ares_knowledge_graph::models::{KnowledgeGraph, KnowledgeNode, KnowledgeEdge, NodeType, EdgeType};
+use ares_ingestion::GraphBuilder;
+use ares_knowledge_graph::models::{
+    EdgeType, KnowledgeEdge, KnowledgeGraph, KnowledgeNode, NodeType,
+};
+use clap::Args;
+use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Args, Debug, Clone)]
@@ -33,23 +35,29 @@ struct EdgeIdentity {
 pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
     println!("Ingesting repository at: {}", args.path.display());
     if args.incremental {
-        println!("Incremental mode enabled. Processing {} file(s).", args.files.len());
+        println!(
+            "Incremental mode enabled. Processing {} file(s).",
+            args.files.len()
+        );
     }
-    
+
     let mut builder = GraphBuilder::new(&args.path);
     if args.incremental {
         builder.set_incremental_files(args.files.clone());
     }
-    
+
     let mut registry = ares_core::types::source::MemorySourceRegistry::new();
     // Default to explicit documentation being active, as the AST scanner runs it
-    registry.register(ares_core::types::source::MemorySource::ExplicitDocumentation, ares_core::types::source::SourceStatus::Active);
-    
+    registry.register(
+        ares_core::types::source::MemorySource::ExplicitDocumentation,
+        ares_core::types::source::SourceStatus::Active,
+    );
+
     let out_dir = args.path.join(".ares");
     if !out_dir.exists() {
         std::fs::create_dir_all(&out_dir).map_err(|e| AresError::validation(e.to_string()))?;
     }
-    
+
     let db_path = out_dir.join("ares.db");
     let raw_store = std::sync::Arc::new(ares_store::db::Store::open(&db_path)?);
     let graph_store = ares_knowledge_graph::store::KnowledgeGraphStore::new(raw_store.clone());
@@ -70,10 +78,12 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         // Full ingest with streaming batch architecture
         let mut batch = Vec::new();
         let batch_size = 2500;
-        
+
         let project_id = ares_core::ProjectId::from("TEST");
-        let repo = std::sync::Arc::new(ares_store::repositories::graph::SqliteGraphRepository::new((*raw_store).clone()));
-        
+        let repo = std::sync::Arc::new(
+            ares_store::repositories::graph::SqliteGraphRepository::new((*raw_store).clone()),
+        );
+
         // Insert dummy project
         raw_store.get_conn()?.execute(
             "INSERT OR IGNORE INTO projects (id, name, description, root_path, primary_language, domain, maturity, created_at, updated_at) VALUES (?1, 'TEST', '', '', '', '', 'greenfield', 0, 0)",
@@ -96,11 +106,11 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
             }
             Ok(())
         })?;
-        
+
         if !batch.is_empty() {
             graph_store.upsert_batch(&batch)?;
         }
-        
+
         let scanner = ares_scanner::Scanner::new(repo.clone());
         let _ = scanner.scan_project(&project_id, &args.path);
 
@@ -108,19 +118,35 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         println!("Extracting Git Memory (depth: {})...", args.git_depth);
         let mut git_extractor = ares_git_memory::GitMemoryExtractor::new(&args.path);
         git_extractor.set_depth(args.git_depth);
-        
+
         match git_extractor.extract(&project_id) {
             Ok(git_memory) => {
-                registry.register(ares_core::types::source::MemorySource::GitHistory, ares_core::types::source::SourceStatus::Active);
+                registry.register(
+                    ares_core::types::source::MemorySource::GitHistory,
+                    ares_core::types::source::SourceStatus::Active,
+                );
                 // Simple heuristic: if any author nodes exist, codeowners/blame is somewhat active
-                let has_authors = git_memory.nodes.iter().any(|n| matches!(n.node_type, ares_core::NodeType::Person));
+                let has_authors = git_memory
+                    .nodes
+                    .iter()
+                    .any(|n| matches!(n.node_type, ares_core::NodeType::Person));
                 if has_authors {
-                    registry.register(ares_core::types::source::MemorySource::OwnershipConfig, ares_core::types::source::SourceStatus::Active);
+                    registry.register(
+                        ares_core::types::source::MemorySource::OwnershipConfig,
+                        ares_core::types::source::SourceStatus::Active,
+                    );
                 } else {
-                    registry.register(ares_core::types::source::MemorySource::OwnershipConfig, ares_core::types::source::SourceStatus::Unavailable);
+                    registry.register(
+                        ares_core::types::source::MemorySource::OwnershipConfig,
+                        ares_core::types::source::SourceStatus::Unavailable,
+                    );
                 }
 
-                println!("Captured {} git nodes and {} edges", git_memory.nodes.len(), git_memory.edges.len());
+                println!(
+                    "Captured {} git nodes and {} edges",
+                    git_memory.nodes.len(),
+                    git_memory.edges.len()
+                );
                 for node in git_memory.nodes {
                     if let Err(e) = repo.upsert_node(node) {
                         println!("DEBUG: Failed to upsert git node: {:?}", e);
@@ -133,7 +159,10 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                 }
             }
             Err(e) => {
-                registry.register(ares_core::types::source::MemorySource::GitHistory, ares_core::types::source::SourceStatus::Failed(e.to_string()));
+                registry.register(
+                    ares_core::types::source::MemorySource::GitHistory,
+                    ares_core::types::source::SourceStatus::Failed(e.to_string()),
+                );
                 println!("Warning: Git memory extraction failed: {}", e);
             }
         }
@@ -143,7 +172,8 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         // First, build a mapping from KG path-based IDs to scanner UUID IDs
         // so we can remap OwnedBy edges to scanner nodes.
         let all_scanner_nodes = repo.get_all_nodes(&project_id).unwrap_or_default();
-        let mut path_to_scanner_id: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        let mut path_to_scanner_id: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
         for sn in &all_scanner_nodes {
             // Only map File nodes — Function/symbol nodes share the same file_path
             // but OwnedBy edges must point to the File node for coverage to work.
@@ -159,13 +189,15 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         for node in &kg_nodes {
             let ntype = match &node.node_type {
                 NodeType::CodeArtifact => continue, // Scanner already creates these as File nodes
-                NodeType::Requirement => continue,  // Scanner creates File nodes, classifier maps them
-                NodeType::Decision => continue,     // Scanner creates File nodes, classifier maps them
+                NodeType::Requirement => continue, // Scanner creates File nodes, classifier maps them
+                NodeType::Decision => continue, // Scanner creates File nodes, classifier maps them
                 NodeType::Owner => ares_core::NodeType::Tag, // Only Owner nodes need bridging
                 NodeType::Repository => continue,
                 _ => continue,
             };
-            let file_path = node.properties.get("path")
+            let file_path = node
+                .properties
+                .get("path")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
             let gn = ares_core::GraphNode {
@@ -198,13 +230,15 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                 _ => ares_core::EdgeType::RelatedTo,
             };
             // Remap source/target IDs: if a path-based ID has a scanner counterpart, use that
-            let from_id = path_to_scanner_id.get(&edge.source_id)
+            let from_id = path_to_scanner_id
+                .get(&edge.source_id)
                 .cloned()
                 .unwrap_or_else(|| {
                     println!("DEBUG: from_id MISSING for source_id: {:?}", edge.source_id);
                     edge.source_id.clone()
                 });
-            let to_id = path_to_scanner_id.get(&edge.target_id)
+            let to_id = path_to_scanner_id
+                .get(&edge.target_id)
                 .cloned()
                 .unwrap_or_else(|| edge.target_id.clone());
             let ge = ares_core::GraphEdge {
@@ -214,7 +248,7 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                 to_node_id: ares_core::NodeId::from(to_id.as_str()),
                 edge_type: etype,
                 weight: 1.0,
-                confidence: edge.confidence as f32,
+                confidence: edge.confidence,
                 source: "scanner".to_string(),
                 valid_from: edge.created_at,
                 valid_until: None,
@@ -224,7 +258,7 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                 println!("DEBUG: Failed to upsert edge: {:?}", e);
             }
         }
-        
+
         println!("--------------------------------------------------");
         println!("Memory Source Registry Status:");
         for (source, status) in &registry.sources {
@@ -232,13 +266,20 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         }
         println!("--------------------------------------------------");
 
-        println!("Full ingest complete. Successfully ingested knowledge graph into SQLite database");
+        println!(
+            "Full ingest complete. Successfully ingested knowledge graph into SQLite database"
+        );
     }
-    
+
     Ok(())
 }
 
-fn apply_incremental(args: &IngestArgs, new_graph: KnowledgeGraph, store: &ares_knowledge_graph::store::KnowledgeGraphStore, raw_store: &std::sync::Arc<ares_store::db::Store>) -> Result<(), AresError> {
+fn apply_incremental(
+    args: &IngestArgs,
+    new_graph: KnowledgeGraph,
+    store: &ares_knowledge_graph::store::KnowledgeGraphStore,
+    raw_store: &std::sync::Arc<ares_store::db::Store>,
+) -> Result<(), AresError> {
     let mut target_file_ids = HashSet::new();
     for f in &args.files {
         let p_str = f.to_string_lossy().to_string().replace('\\', "/");
@@ -284,7 +325,7 @@ fn apply_incremental(args: &IngestArgs, new_graph: KnowledgeGraph, store: &ares_
                 edge_type: edge.edge_type.to_string(),
             };
             new_edges.insert(ident, edge.clone());
-            
+
             // Fix referential integrity for synthetic nodes like KnowledgeGaps
             if let Some(src_node) = new_graph.nodes.iter().find(|n| n.id == edge.source_id) {
                 new_nodes.insert(src_node.id.clone(), src_node.clone());
@@ -306,7 +347,7 @@ fn apply_incremental(args: &IngestArgs, new_graph: KnowledgeGraph, store: &ares_
     }
 
     // Find removed nodes
-    for (id, _node) in &current_nodes {
+    for id in current_nodes.keys() {
         if !new_nodes.contains_key(id) {
             diff_events.push(format!("NodeRemoved: {}", id));
             // In a real system we'd delete the node. For now we just record it.
@@ -317,7 +358,10 @@ fn apply_incremental(args: &IngestArgs, new_graph: KnowledgeGraph, store: &ares_
     // Find added edges
     for (ident, edge) in &new_edges {
         if !current_edges.contains_key(ident) {
-            diff_events.push(format!("EdgeAdded: {} -> {} ({})", ident.source, ident.target, ident.edge_type));
+            diff_events.push(format!(
+                "EdgeAdded: {} -> {} ({})",
+                ident.source, ident.target, ident.edge_type
+            ));
             store.upsert_edge(edge)?;
 
             // Knowledge Gap Detection
@@ -329,13 +373,19 @@ fn apply_incremental(args: &IngestArgs, new_graph: KnowledgeGraph, store: &ares_
     }
 
     // Find removed edges
-    for (ident, _edge) in &current_edges {
+    for ident in current_edges.keys() {
         if !new_edges.contains_key(ident) {
-            diff_events.push(format!("EdgeRemoved: {} -> {} ({})", ident.source, ident.target, ident.edge_type));
+            diff_events.push(format!(
+                "EdgeRemoved: {} -> {} ({})",
+                ident.source, ident.target, ident.edge_type
+            ));
         }
     }
 
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64;
 
     if diff_events.is_empty() {
         println!("No semantic changes detected. Skipping event generation.");
@@ -348,11 +398,20 @@ fn apply_incremental(args: &IngestArgs, new_graph: KnowledgeGraph, store: &ares_
     }
 
     // Generate RepositoryEvent with Compression
-    let event_type = if diff_events.iter().any(|e| e.starts_with("EdgeAdded") && e.contains("DependsOn")) {
+    let event_type = if diff_events
+        .iter()
+        .any(|e| e.starts_with("EdgeAdded") && e.contains("DependsOn"))
+    {
         "DependencyAdded"
-    } else if diff_events.iter().any(|e| e.starts_with("NodeAdded") && e.contains("REQ")) {
+    } else if diff_events
+        .iter()
+        .any(|e| e.starts_with("NodeAdded") && e.contains("REQ"))
+    {
         "RequirementAdded"
-    } else if diff_events.iter().any(|e| e.starts_with("NodeAdded") && e.contains("ADR")) {
+    } else if diff_events
+        .iter()
+        .any(|e| e.starts_with("NodeAdded") && e.contains("ADR"))
+    {
         "DecisionAdded"
     } else {
         "FileModified"
@@ -361,19 +420,24 @@ fn apply_incremental(args: &IngestArgs, new_graph: KnowledgeGraph, store: &ares_
     let summary = diff_events.join("; ");
     let mut affected = target_file_ids.into_iter().collect::<Vec<_>>();
     affected.sort();
-    
+
     // We will use a deterministic ID based on event_type and affected entities for compression
     let event_id = format!("EVENT-{}-{}", event_type, affected.join("-"));
-    
+
     // Check if event already exists for compression
     let existing_query = "SELECT properties FROM graph_entities WHERE id = ?1";
     let conn = raw_store.get_conn()?;
     let mut stmt = conn.prepare(existing_query).unwrap();
-    let existing_props_res: Result<String, _> = stmt.query_row(rusqlite::params![event_id], |row| row.get(0));
+    let existing_props_res: Result<String, _> =
+        stmt.query_row(rusqlite::params![event_id], |row| row.get(0));
 
     let properties = if let Ok(props_str) = existing_props_res {
-        let mut props: serde_json::Value = serde_json::from_str(&props_str).unwrap_or(serde_json::json!({}));
-        let count = props.get("event_count").and_then(|v| v.as_i64()).unwrap_or(1);
+        let mut props: serde_json::Value =
+            serde_json::from_str(&props_str).unwrap_or(serde_json::json!({}));
+        let count = props
+            .get("event_count")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(1);
         props["event_count"] = serde_json::json!(count + 1);
         props["last_seen"] = serde_json::json!(now);
         props["summary"] = serde_json::json!(summary);
@@ -442,7 +506,9 @@ fn apply_incremental(args: &IngestArgs, new_graph: KnowledgeGraph, store: &ares_
     // Code Added && No Tests
     for (id, node) in &new_nodes {
         if node.node_type == NodeType::CodeArtifact && !id.contains("test") {
-            let has_test_edge = new_edges.iter().any(|(ident, _)| ident.source == *id && ident.edge_type == "ValidatedBy");
+            let has_test_edge = new_edges
+                .iter()
+                .any(|(ident, _)| ident.source == *id && ident.edge_type == "ValidatedBy");
             if !has_test_edge {
                 let gap_id = format!("GAP-NoTest-{}", id);
                 let gap_node = KnowledgeNode {

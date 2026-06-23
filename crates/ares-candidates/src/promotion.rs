@@ -1,5 +1,5 @@
-use serde::{Serialize, Deserialize};
 use ares_core::NodeId;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CandidatePromotion {

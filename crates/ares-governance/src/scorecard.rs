@@ -19,10 +19,10 @@ pub fn calculate_scorecard(results: &[ComplianceResult]) -> GovernanceScorecard 
 
     for res in results {
         let is_compliant = if res.compliant { 100.0 } else { 0.0 };
-        
+
         let total = scores.entry(res.category.clone()).or_insert(0.0);
         let count = counts.entry(res.category.clone()).or_insert(0);
-        
+
         *total += is_compliant;
         *count += 1;
     }
@@ -44,7 +44,14 @@ pub fn calculate_scorecard(results: &[ComplianceResult]) -> GovernanceScorecard 
     let security_score = get_score(PolicyCategory::Security);
     let architecture_score = get_score(PolicyCategory::Architecture);
 
-    let overall_score = (ownership_score + traceability_score + evidence_score + approval_score + retention_score + security_score + architecture_score) / 7.0;
+    let overall_score = (ownership_score
+        + traceability_score
+        + evidence_score
+        + approval_score
+        + retention_score
+        + security_score
+        + architecture_score)
+        / 7.0;
 
     GovernanceScorecard {
         ownership_score,

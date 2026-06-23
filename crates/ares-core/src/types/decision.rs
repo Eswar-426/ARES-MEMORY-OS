@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 use crate::id::{DecisionId, MemoryId, ProjectId};
 use serde::{Deserialize, Serialize};
 

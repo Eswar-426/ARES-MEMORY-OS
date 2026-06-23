@@ -109,7 +109,7 @@ impl LanguageExtractor for RustExtractor {
                         "module" => Some(NodeType::Module),
                         _ => None,
                     };
-                    
+
                     if node_type_opt.is_none() {
                         ref_type_opt = match capture_name {
                             "call" => Some(RefType::Call),
@@ -126,9 +126,12 @@ impl LanguageExtractor for RustExtractor {
 
             if !name.is_empty() {
                 if let Some(node_type) = node_type_opt {
-                    if node_type == NodeType::Tag && capture_names_contains_import(&m, &self.query) {
-                        let import_path = name.replace("use ", "").replace(";", "").trim().to_string();
-                        let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}", import_path));
+                    if node_type == NodeType::Tag && capture_names_contains_import(&m, &self.query)
+                    {
+                        let import_path =
+                            name.replace("use ", "").replace(";", "").trim().to_string();
+                        let unresolved_node_id =
+                            ares_core::NodeId::from(format!("unresolved_{}", import_path));
                         let signature = ares_core::types::node::SymbolSignature {
                             name: import_path.clone(),
                             file_path: None,
@@ -152,7 +155,11 @@ impl LanguageExtractor for RustExtractor {
                         nodes.push(unresolved_node);
 
                         let edge = ares_core::GraphEdge {
-                            id: format!("edge_import_{}_{}", file_node_id.as_str(), unresolved_node_id.as_str()),
+                            id: format!(
+                                "edge_import_{}_{}",
+                                file_node_id.as_str(),
+                                unresolved_node_id.as_str()
+                            ),
                             project_id: project_id.clone(),
                             from_node_id: file_node_id.clone(),
                             to_node_id: unresolved_node_id.clone(),
@@ -201,7 +208,11 @@ impl LanguageExtractor for RustExtractor {
                     };
 
                     let reverse_edge = ares_core::GraphEdge {
-                        id: format!("edge_containedin_{}_{}", graph_node.id.as_str(), file_node_id.as_str()),
+                        id: format!(
+                            "edge_containedin_{}_{}",
+                            graph_node.id.as_str(),
+                            file_node_id.as_str()
+                        ),
                         project_id: project_id.clone(),
                         from_node_id: graph_node.id.clone(),
                         to_node_id: file_node_id.clone(),
@@ -219,7 +230,7 @@ impl LanguageExtractor for RustExtractor {
                         start_line,
                         end_line,
                     });
-                    
+
                     nodes.push(graph_node);
                     edges.push(edge);
                     edges.push(reverse_edge);
@@ -264,14 +275,14 @@ impl LanguageExtractor for RustExtractor {
                 RefType::Construct => NodeType::Struct,
                 RefType::ImplTrait => NodeType::Trait,
             };
-            
+
             let signature = ares_core::types::node::SymbolSignature {
                 name: r.name.clone(),
                 file_path: None,
                 module_path: None,
                 symbol_type: expected_type.clone(),
             };
-            
+
             let unresolved_node = GraphNode {
                 id: unresolved_node_id.clone(),
                 project_id: project_id.clone(),
@@ -290,7 +301,12 @@ impl LanguageExtractor for RustExtractor {
             nodes.push(unresolved_node);
 
             let ref_edge = ares_core::GraphEdge {
-                id: format!("edge_{}_{}_{}", edge_type.as_str(), source_node_id.as_str(), unresolved_node_id.as_str()),
+                id: format!(
+                    "edge_{}_{}_{}",
+                    edge_type.as_str(),
+                    source_node_id.as_str(),
+                    unresolved_node_id.as_str()
+                ),
                 project_id: project_id.clone(),
                 from_node_id: source_node_id.clone(),
                 to_node_id: unresolved_node_id.clone(),
@@ -328,29 +344,31 @@ mod tests {
         let extractor = RustExtractor::new();
         let project_id = ProjectId::new();
         let file_node_id = ares_core::NodeId::new();
-        
+
         let source_code = r#"
             use std::collections::HashMap;
             use crate::memory::builder;
             
             fn main() {}
         "#;
-        
-        let result = extractor.extract(&project_id, &file_node_id, "src/main.rs", source_code).unwrap();
-        
+
+        let result = extractor
+            .extract(&project_id, &file_node_id, "src/main.rs", source_code)
+            .unwrap();
+
         // Should have 1 function node and 2 unresolved module nodes
         assert_eq!(result.nodes.len(), 3);
-        
+
         // Should have 1 Defines edge, 1 ContainedIn edge, and 2 Imports edges
         assert_eq!(result.edges.len(), 4);
-        
+
         let mut import_paths = Vec::new();
         for edge in result.edges {
             if edge.edge_type == ares_core::EdgeType::Imports {
                 import_paths.push(edge.source.replace("import:", ""));
             }
         }
-        
+
         assert_eq!(import_paths.len(), 2);
         assert!(import_paths.contains(&"std::collections::HashMap".to_string()));
         assert!(import_paths.contains(&"crate::memory::builder".to_string()));

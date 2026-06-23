@@ -1,15 +1,16 @@
+use crate::extractors::markdown::MarkdownIntelligenceExtractor;
+use crate::extractors::ownership::OwnershipExtractor;
+use crate::extractors::rust::RustDependencyExtractor;
+use crate::extractors::tests::TestResolutionEngine;
+use crate::extractors::typescript::TypeScriptDependencyExtractor;
+use crate::scanner::RepositoryScanner;
+use ares_knowledge_graph::models::GraphEvent;
+use ares_knowledge_graph::models::{
+    EdgeType, KnowledgeEdge, KnowledgeNode, NodeType,
+};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-use ares_knowledge_graph::models::{KnowledgeGraph, KnowledgeNode, KnowledgeEdge, NodeType, EdgeType};
-use crate::scanner::RepositoryScanner;
-use crate::extractors::rust::RustDependencyExtractor;
-use crate::extractors::typescript::TypeScriptDependencyExtractor;
-use crate::extractors::ownership::OwnershipExtractor;
-use crate::extractors::tests::TestResolutionEngine;
-use crate::extractors::markdown::MarkdownIntelligenceExtractor;
-use crate::gap_generator::GapGenerator;
 use uuid::Uuid;
-use ares_knowledge_graph::models::GraphEvent;
 
 pub struct GraphBuilder {
     root: PathBuf,
@@ -28,26 +29,28 @@ impl GraphBuilder {
         self.incremental_files = Some(files);
     }
 
-    pub fn build<F>(&self, mut sink: F) -> Result<(), ares_core::AresError> 
+    pub fn build<F>(&self, mut sink: F) -> Result<(), ares_core::AresError>
     where
-        F: FnMut(GraphEvent) -> Result<(), ares_core::AresError>
+        F: FnMut(GraphEvent) -> Result<(), ares_core::AresError>,
     {
         let scanner = RepositoryScanner::new(&self.root);
         let mut files = scanner.scan();
         if let Some(inc_files) = &self.incremental_files {
             // Filter files to only those that match the incremental files.
             // Since incremental files might be absolute, we ensure we match exactly.
-            let canonical_inc: Vec<String> = inc_files.iter()
+            let canonical_inc: Vec<String> = inc_files
+                .iter()
                 .map(|p| p.to_string_lossy().to_string().replace('\\', "/"))
                 .collect();
-                
+
             files.retain(|f| {
                 let fs = f.to_string_lossy().to_string().replace('\\', "/");
-                canonical_inc.iter().any(|inc| fs.ends_with(inc) || inc.ends_with(&fs))
+                canonical_inc
+                    .iter()
+                    .any(|inc| fs.ends_with(inc) || inc.ends_with(&fs))
             });
         }
-        
-        
+
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|e| ares_core::AresError::validation(format!("System time error: {}", e)))?
@@ -58,7 +61,12 @@ impl GraphBuilder {
         sink(GraphEvent::Node(KnowledgeNode {
             id: repo_id.clone(),
             node_type: NodeType::Repository,
-            name: self.root.file_name().unwrap_or_default().to_string_lossy().to_string(),
+            name: self
+                .root
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string(),
             properties: serde_json::json!({"path": self.root.to_string_lossy()}),
             created_at: now,
         }))?;
@@ -69,15 +77,19 @@ impl GraphBuilder {
         for file in &files {
             let file_str = ares_core::canonicalize_node_id(&file.to_string_lossy());
             code_artifact_ids.push(file_str.clone());
-            
+
             sink(GraphEvent::Node(KnowledgeNode {
                 id: file_str.clone(),
                 node_type: NodeType::CodeArtifact,
-                name: file.file_name().unwrap_or_default().to_string_lossy().to_string(),
+                name: file
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string(),
                 properties: serde_json::json!({"path": file_str}),
                 created_at: now,
             }))?;
-            
+
             sink(GraphEvent::Edge(KnowledgeEdge {
                 id: Uuid::new_v4().to_string(),
                 source_id: repo_id.clone(),
@@ -88,15 +100,19 @@ impl GraphBuilder {
                 properties: serde_json::json!({}),
             }))?;
         }
-        
-        let (int_nodes, int_edges) = MarkdownIntelligenceExtractor::extract_intelligence(&files, &self.root, &code_artifact_ids);
+
+        let (int_nodes, int_edges) = MarkdownIntelligenceExtractor::extract_intelligence(
+            &files,
+            &self.root,
+            &code_artifact_ids,
+        );
         for n in int_nodes {
             sink(GraphEvent::Node(n))?;
         }
         for e in int_edges {
             sink(GraphEvent::Edge(e))?;
         }
-        
+
         // Ownership
         let ownerships = OwnershipExtractor::extract_ownership(&self.root);
         let mut owner_map = std::collections::HashSet::new();
@@ -112,7 +128,7 @@ impl GraphBuilder {
                 created_at: now,
             }))?;
         }
-        
+
         let mut synthesized_nodes = std::collections::HashSet::new();
 
         // Map ownership to files
@@ -143,20 +159,24 @@ impl GraphBuilder {
                 }
             }
         }
-        
+
         // Tests
         let test_relations = TestResolutionEngine::extract_test_relations(&files);
         for (code, test) in test_relations {
             let code_str = ares_core::canonicalize_node_id(&code.to_string_lossy());
             let test_str = ares_core::canonicalize_node_id(&test.to_string_lossy());
-            
+
             // To be robust, ensure we emit nodes for the tests and code themselves.
             // Often they are already emitted via walkdir, but just in case:
             if synthesized_nodes.insert(code_str.clone()) {
                 sink(GraphEvent::Node(KnowledgeNode {
                     id: code_str.clone(),
                     node_type: NodeType::CodeArtifact,
-                    name: code.file_name().unwrap_or_default().to_string_lossy().to_string(),
+                    name: code
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string(),
                     properties: serde_json::json!({}),
                     created_at: now,
                 }))?;
@@ -165,7 +185,11 @@ impl GraphBuilder {
                 sink(GraphEvent::Node(KnowledgeNode {
                     id: test_str.clone(),
                     node_type: NodeType::Test,
-                    name: test.file_name().unwrap_or_default().to_string_lossy().to_string(),
+                    name: test
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string(),
                     properties: serde_json::json!({}),
                     created_at: now,
                 }))?;
@@ -181,7 +205,7 @@ impl GraphBuilder {
                 properties: serde_json::json!({}),
             }))?;
         }
-        
+
         // Dependencies
         for file in &files {
             let file_str = ares_core::canonicalize_node_id(&file.to_string_lossy());
@@ -189,7 +213,7 @@ impl GraphBuilder {
                 let deps = RustDependencyExtractor::extract_dependencies(file);
                 for (source_file, dep_name) in deps {
                     let dep_id = format!("DEP-RUST-{}", dep_name);
-                    
+
                     if synthesized_nodes.insert(dep_id.clone()) {
                         sink(GraphEvent::Node(KnowledgeNode {
                             id: dep_id.clone(),
@@ -214,7 +238,7 @@ impl GraphBuilder {
                 let deps = TypeScriptDependencyExtractor::extract_dependencies(file);
                 for (source_file, dep_name) in deps {
                     let dep_id = format!("DEP-TS-{}", dep_name);
-                    
+
                     if synthesized_nodes.insert(dep_id.clone()) {
                         sink(GraphEvent::Node(KnowledgeNode {
                             id: dep_id.clone(),

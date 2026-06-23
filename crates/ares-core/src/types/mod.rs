@@ -1,5 +1,10 @@
+#![allow(ambiguous_glob_reexports)]
 pub mod decision;
+pub mod drift;
 pub mod event;
+pub mod evidence;
+pub mod evolution;
+pub mod impact;
 pub mod intelligence;
 pub mod knowledge;
 pub mod memory;
@@ -8,11 +13,16 @@ pub mod pagination;
 pub mod plan;
 pub mod project;
 pub mod source;
+pub mod staleness;
 pub mod workflow;
 pub mod workflow_api;
 
 pub use decision::*;
+pub use drift::*;
 pub use event::*;
+pub use evidence::*;
+pub use evolution::*;
+pub use impact::*;
 pub use intelligence::*;
 pub use knowledge::*;
 pub use memory::*;
@@ -21,5 +31,6 @@ pub use pagination::*;
 pub use plan::*;
 pub use project::*;
 pub use source::*;
+pub use staleness::*;
 pub use workflow::*;
 pub use workflow_api::*;

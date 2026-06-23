@@ -1,4 +1,4 @@
-use crate::models::{ContextBundle, ContextPack, ContextBudget, RetrievalExplanation};
+use crate::models::{ContextBudget, ContextBundle, ContextPack, RetrievalExplanation};
 use chrono::Utc;
 use std::collections::HashSet;
 
@@ -18,8 +18,12 @@ impl ContextPackBuilder {
         let max_impact_entries = self.budget.max_impact_entries;
 
         // Truncate nodes
-        let ranked_nodes = bundle.ranked_nodes.into_iter().take(max_nodes).collect::<Vec<_>>();
-        
+        let ranked_nodes = bundle
+            .ranked_nodes
+            .into_iter()
+            .take(max_nodes)
+            .collect::<Vec<_>>();
+
         let mut relevant_files = HashSet::new();
         for node in &ranked_nodes {
             if let Some(path) = &node.file_path {
@@ -27,7 +31,10 @@ impl ContextPackBuilder {
             }
         }
         // Limit relevant files based on budget
-        let relevant_files = relevant_files.into_iter().take(self.budget.max_files).collect::<Vec<_>>();
+        let relevant_files = relevant_files
+            .into_iter()
+            .take(self.budget.max_files)
+            .collect::<Vec<_>>();
 
         // Truncate dependencies
         let mut dependency_trace = bundle.dependency_traces;
@@ -42,7 +49,10 @@ impl ContextPackBuilder {
         }
 
         // We build a simple explanation based on top ranked nodes
-        let selected_nodes = ranked_nodes.iter().map(|n| n.label.clone()).collect::<Vec<_>>();
+        let selected_nodes = ranked_nodes
+            .iter()
+            .map(|n| n.label.clone())
+            .collect::<Vec<_>>();
         let ranking_reasons = if !selected_nodes.is_empty() {
             vec!["Matches query intent and graph centrality.".to_string()]
         } else {
@@ -54,7 +64,11 @@ impl ContextPackBuilder {
             ranking_reasons,
         };
 
-        let token_estimate: usize = ranked_nodes.iter().map(|n| n.properties.to_string().len()).sum::<usize>() / 4;
+        let token_estimate: usize = ranked_nodes
+            .iter()
+            .map(|n| n.properties.to_string().len())
+            .sum::<usize>()
+            / 4;
         let nodes_selected = ranked_nodes.len();
         let context_efficiency = if token_estimate > 0 {
             nodes_selected as f64 / token_estimate as f64
@@ -66,7 +80,7 @@ impl ContextPackBuilder {
         final_metrics.nodes_selected = nodes_selected;
         final_metrics.files_selected = relevant_files.len();
         final_metrics.token_estimate = token_estimate;
-        final_metrics.avg_depth = 1.0; 
+        final_metrics.avg_depth = 1.0;
         final_metrics.max_depth = self.budget.max_depth;
         final_metrics.context_efficiency = context_efficiency;
 
@@ -74,13 +88,16 @@ impl ContextPackBuilder {
             let out_dir = root.join("artifacts").join("validation");
             let _ = std::fs::create_dir_all(&out_dir);
             let out_file = out_dir.join("context_metrics.json");
-            let _ = std::fs::write(&out_file, serde_json::to_string_pretty(&final_metrics).unwrap_or_default());
+            let _ = std::fs::write(
+                &out_file,
+                serde_json::to_string_pretty(&final_metrics).unwrap_or_default(),
+            );
         }
 
         ContextPack {
             query: bundle.query,
             intent: bundle.intent,
-            summary: format!("ARES Context generated for intent."), // could be better summarized
+            summary: "ARES Context generated for intent.".to_string(), // could be better summarized
             relevant_files,
             relevant_nodes: ranked_nodes,
             dependency_trace,

@@ -1,13 +1,13 @@
-pub mod decision;
 pub mod chain;
-pub mod risk;
+pub mod decision;
 pub mod impact;
 pub mod provenance;
 pub mod requirement;
+pub mod risk;
 
-pub use decision::*;
 pub use chain::*;
-pub use risk::*;
+pub use decision::*;
 pub use impact::*;
 pub use provenance::*;
 pub use requirement::*;
+pub use risk::*;

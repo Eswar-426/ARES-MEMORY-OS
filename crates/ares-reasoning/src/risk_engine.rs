@@ -1,5 +1,11 @@
 pub struct RiskEngine;
 
+impl Default for RiskEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RiskEngine {
     pub fn new() -> Self {
         Self
@@ -9,7 +15,7 @@ impl RiskEngine {
     /// Formula:
     /// Risk Score = (Requirements * 0.25) + (Decisions * 0.25) + (Architecture Nodes * 0.20) + (Files * 0.15) + (Tests * 0.15)
     /// Normalized: 0.0 -> 1.0
-    /// 
+    ///
     /// Note: This is versioned and frozen. Changes require an ADR.
     pub fn calculate_risk_score(
         &self,

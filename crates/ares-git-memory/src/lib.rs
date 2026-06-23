@@ -1,13 +1,17 @@
-pub mod models;
-pub mod commits;
-pub mod releases;
+#![allow(clippy::manual_strip)]
+#![allow(clippy::manual_flatten)]
+#![allow(unused_assignments)]
+#![allow(unused_variables)]
+pub mod blame;
 pub mod branches;
 pub mod codeowners;
-pub mod blame;
+pub mod commits;
+pub mod models;
+pub mod releases;
 
-use std::path::Path;
 use ares_core::ProjectId;
 use models::GitMemoryResult;
+use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct GitMemoryExtractor {
@@ -28,14 +32,22 @@ impl GitMemoryExtractor {
     }
 
     pub fn extract(&self, project_id: &ProjectId) -> Result<GitMemoryResult, String> {
-        let captured_at = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
-        
+        let captured_at = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64;
+
         let mut all_nodes = Vec::new();
         let mut all_edges = Vec::new();
         let mut sources = Vec::new();
 
         // 1. Commits
-        if let Ok((nodes, edges)) = commits::CommitExtractor::extract(&self.project_path, project_id, self.depth, captured_at) {
+        if let Ok((nodes, edges)) = commits::CommitExtractor::extract(
+            &self.project_path,
+            project_id,
+            self.depth,
+            captured_at,
+        ) {
             sources.push(models::MemorySource {
                 name: "git_log".to_string(),
                 tier: models::SourceTier::Repository,
@@ -49,7 +61,9 @@ impl GitMemoryExtractor {
         }
 
         // 2. Releases
-        if let Ok((nodes, edges)) = releases::ReleaseExtractor::extract(&self.project_path, project_id, captured_at) {
+        if let Ok((nodes, edges)) =
+            releases::ReleaseExtractor::extract(&self.project_path, project_id, captured_at)
+        {
             sources.push(models::MemorySource {
                 name: "git_tag".to_string(),
                 tier: models::SourceTier::Repository,
@@ -63,7 +77,9 @@ impl GitMemoryExtractor {
         }
 
         // 3. Branches
-        if let Ok((nodes, edges)) = branches::BranchExtractor::extract(&self.project_path, project_id, captured_at) {
+        if let Ok((nodes, edges)) =
+            branches::BranchExtractor::extract(&self.project_path, project_id, captured_at)
+        {
             sources.push(models::MemorySource {
                 name: "git_branch".to_string(),
                 tier: models::SourceTier::Repository,
@@ -77,7 +93,9 @@ impl GitMemoryExtractor {
         }
 
         // 4. CODEOWNERS
-        if let Ok((nodes, edges)) = codeowners::CodeownersExtractor::extract(&self.project_path, project_id, captured_at) {
+        if let Ok((nodes, edges)) =
+            codeowners::CodeownersExtractor::extract(&self.project_path, project_id, captured_at)
+        {
             sources.push(models::MemorySource {
                 name: "codeowners".to_string(),
                 tier: models::SourceTier::Explicit,
@@ -91,7 +109,9 @@ impl GitMemoryExtractor {
         }
 
         // 5. Blame
-        if let Ok((nodes, edges)) = blame::BlameExtractor::extract(&self.project_path, project_id, captured_at) {
+        if let Ok((nodes, edges)) =
+            blame::BlameExtractor::extract(&self.project_path, project_id, captured_at)
+        {
             sources.push(models::MemorySource {
                 name: "git_blame".to_string(),
                 tier: models::SourceTier::Repository,

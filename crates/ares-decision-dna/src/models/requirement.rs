@@ -12,8 +12,7 @@ pub enum Priority {
     Critical,
 }
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RequirementStatus {
     Draft,
     Active,

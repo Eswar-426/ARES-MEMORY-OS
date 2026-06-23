@@ -1,5 +1,5 @@
-use std::path::{Path, PathBuf};
 use ignore::WalkBuilder;
+use std::path::{Path, PathBuf};
 
 pub struct RepositoryScanner {
     root: PathBuf,
@@ -16,7 +16,7 @@ impl RepositoryScanner {
         let mut files = Vec::new();
         let mut builder = WalkBuilder::new(&self.root);
         builder.hidden(true).git_ignore(true);
-        
+
         let mut overrides = ignore::overrides::OverrideBuilder::new(&self.root);
         overrides.add("!node_modules").unwrap();
         overrides.add("!target").unwrap();

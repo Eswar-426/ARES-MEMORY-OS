@@ -198,7 +198,9 @@ mod tests {
         let provider = MockExtractorProvider;
         let commit = make_commit("feat: selected OAuth2 over Keycloak for auth");
         let candidates = provider.extract(&commit).await.unwrap();
-        assert!(candidates.iter().any(|c| c.knowledge_type == KnowledgeType::Decision));
+        assert!(candidates
+            .iter()
+            .any(|c| c.knowledge_type == KnowledgeType::Decision));
     }
 
     #[tokio::test]
@@ -206,7 +208,9 @@ mod tests {
         let provider = MockExtractorProvider;
         let commit = make_commit("fix: resolve token refresh crash on expired sessions");
         let candidates = provider.extract(&commit).await.unwrap();
-        assert!(candidates.iter().any(|c| c.knowledge_type == KnowledgeType::Bug));
+        assert!(candidates
+            .iter()
+            .any(|c| c.knowledge_type == KnowledgeType::Bug));
     }
 
     #[tokio::test]
@@ -214,7 +218,9 @@ mod tests {
         let provider = MockExtractorProvider;
         let commit = make_commit("refactor: extract auth module into separate crate");
         let candidates = provider.extract(&commit).await.unwrap();
-        assert!(candidates.iter().any(|c| c.knowledge_type == KnowledgeType::Architecture));
+        assert!(candidates
+            .iter()
+            .any(|c| c.knowledge_type == KnowledgeType::Architecture));
     }
 
     #[tokio::test]
@@ -222,7 +228,9 @@ mod tests {
         let provider = MockExtractorProvider;
         let commit = make_commit("experiment: prototype WebSocket-based real-time sync");
         let candidates = provider.extract(&commit).await.unwrap();
-        assert!(candidates.iter().any(|c| c.knowledge_type == KnowledgeType::Experiment));
+        assert!(candidates
+            .iter()
+            .any(|c| c.knowledge_type == KnowledgeType::Experiment));
     }
 
     #[tokio::test]

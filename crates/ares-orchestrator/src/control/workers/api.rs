@@ -1,4 +1,3 @@
-use super::models::Worker;
 use super::{dto::*, service::WorkerService};
 use ares_core::AresError;
 use axum::{

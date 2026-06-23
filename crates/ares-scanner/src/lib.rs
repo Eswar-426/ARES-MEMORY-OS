@@ -9,9 +9,9 @@ pub mod hasher;
 pub mod languages;
 pub mod models;
 pub mod parser;
+pub mod resolver;
 pub mod scanner;
 pub mod watcher;
-pub mod resolver;
 
 pub use hasher::hash_file;
 pub use scanner::Scanner;

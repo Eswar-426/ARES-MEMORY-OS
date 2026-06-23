@@ -3,6 +3,12 @@ use ares_core::GraphNode;
 
 pub struct DistanceScorer;
 
+impl Default for DistanceScorer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DistanceScorer {
     pub fn new() -> Self {
         Self

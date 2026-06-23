@@ -11,13 +11,13 @@ pub enum QueryIntent {
     // Legacy mapping aliases
     ChangeImpact,
     DeadCodeDiscovery,
-    
+
     // New canonical names
     ImpactAnalysis,
     DeadCodeQuery,
     CircularDependencyQuery,
     RiskAnalysis,
-    
+
     EntryPointDiscovery,
     MemoryLookup,
     RepositoryOverview,

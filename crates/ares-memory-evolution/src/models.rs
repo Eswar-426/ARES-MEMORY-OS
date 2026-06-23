@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ChangeType {
     Created,
     Updated,

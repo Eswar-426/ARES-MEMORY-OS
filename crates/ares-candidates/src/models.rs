@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum CandidateStatus {
     Proposed,
@@ -7,7 +7,6 @@ pub enum CandidateStatus {
     Rejected,
     Superseded,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum CandidateType {
@@ -67,8 +66,8 @@ pub enum TraceabilityStrength {
 }
 
 pub use crate::confidence::CandidateConfidence;
-pub use crate::sources::CandidateSource;
 pub use crate::promotion::{CandidatePromotion, CandidateReview};
+pub use crate::sources::CandidateSource;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Candidate {

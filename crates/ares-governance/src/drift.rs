@@ -22,22 +22,27 @@ impl DriftDetector {
 
         // Get the latest evaluation checksums for each policy for this project
         // We'll join compliance_results to policy_versions to get the policy name and checksum
-        let mut stmt = conn.prepare(
-            r#"
+        let mut stmt = conn
+            .prepare(
+                r#"
             SELECT pv.policy_name, pv.checksum 
             FROM compliance_results cr
             JOIN policy_versions pv ON cr.policy_version_id = pv.checksum
             WHERE cr.project_id = ?
             GROUP BY pv.policy_name
             "#,
-        ).map_err(|e| AresError::Database(e.to_string()))?;
+            )
+            .map_err(|e| AresError::Database(e.to_string()))?;
 
         let mut historical_checksums = HashMap::new();
         let mut rows = stmt
             .query([project_id.as_str()])
             .map_err(|e| AresError::Database(e.to_string()))?;
 
-        while let Some(row) = rows.next().map_err(|e| AresError::Database(e.to_string()))? {
+        while let Some(row) = rows
+            .next()
+            .map_err(|e| AresError::Database(e.to_string()))?
+        {
             let policy_name: String = row.get(0).unwrap_or_default();
             let checksum: String = row.get(1).unwrap_or_default();
             historical_checksums.insert(policy_name, checksum);

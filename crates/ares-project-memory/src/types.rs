@@ -1,9 +1,9 @@
 //! Core types for the Project Memory Engine.
 
-use ares_decision_intelligence::DecisionSummary;
-use ares_requirements::RequirementSummary;
 use ares_decision_intelligence::DecisionCoverage;
+use ares_decision_intelligence::DecisionSummary;
 use ares_requirements::RequirementCoverageSummary;
+use ares_requirements::RequirementSummary;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -13,8 +13,7 @@ use std::collections::HashMap;
 
 /// A comprehensive snapshot of a project's state, structure, and history.
 /// This is the primary output of the Project Memory Engine.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct ProjectSnapshot {
     pub project_id: String,
     pub name: String,
@@ -42,8 +41,7 @@ pub struct ProjectSnapshot {
 // Architecture
 // ─────────────────────────────────────────────────────────────────
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize)]
 pub struct ArchitectureProfile {
     pub style: ArchitectureStyle,
     pub components: Vec<ComponentInfo>,
@@ -51,8 +49,7 @@ pub struct ArchitectureProfile {
     pub entry_points: Vec<String>,
 }
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ArchitectureStyle {
     Monolith,
@@ -64,8 +61,7 @@ pub enum ArchitectureStyle {
     Unknown,
 }
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize)]
 pub struct ComponentInfo {
     pub name: String,
     pub path: String,
@@ -77,8 +73,7 @@ pub struct ComponentInfo {
 // Languages & Dependencies
 // ─────────────────────────────────────────────────────────────────
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize)]
 pub struct LanguageProfile {
     pub language: String,
     pub file_count: u32,
@@ -86,8 +81,7 @@ pub struct LanguageProfile {
     pub percentage: f32,
 }
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize)]
 pub struct DependencyInfo {
     pub name: String,
     pub version: String,
@@ -95,8 +89,7 @@ pub struct DependencyInfo {
     pub source_file: String,
 }
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DependencyType {
     Runtime,
@@ -110,8 +103,7 @@ pub enum DependencyType {
 // Folder structure
 // ─────────────────────────────────────────────────────────────────
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize)]
 pub struct FolderTree {
     pub name: String,
     pub children: Vec<FolderTree>,
@@ -143,8 +135,7 @@ impl FolderTree {
 // API endpoints
 // ─────────────────────────────────────────────────────────────────
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize)]
 pub struct ApiEndpoint {
     pub method: String,
     pub path: String,
@@ -156,8 +147,7 @@ pub struct ApiEndpoint {
 // Memory summaries (features, bugs)
 // ─────────────────────────────────────────────────────────────────
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize)]
 pub struct FeatureSummary {
     pub id: String,
     pub title: String,
@@ -165,8 +155,7 @@ pub struct FeatureSummary {
     pub created_at: i64,
 }
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize)]
 pub struct BugSummary {
     pub id: String,
     pub title: String,
@@ -179,8 +168,7 @@ pub struct BugSummary {
 // Change tracking
 // ─────────────────────────────────────────────────────────────────
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize)]
 pub struct ChangeRecord {
     pub change_type: ChangeType,
     pub description: String,
@@ -203,8 +191,7 @@ pub enum ChangeType {
 // Project statistics
 // ─────────────────────────────────────────────────────────────────
 
-#[derive(utoipa::ToSchema)]
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(utoipa::ToSchema, Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ProjectStats {
     pub total_files: u32,
     pub total_lines: u64,

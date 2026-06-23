@@ -16,7 +16,10 @@ pub struct CommitInfo {
 }
 
 /// Fetch commit information for a given hash (or HEAD) from a repository.
-pub fn get_commit_info(repo_path: &Path, commit_hash: Option<&str>) -> Result<CommitInfo, AresError> {
+pub fn get_commit_info(
+    repo_path: &Path,
+    commit_hash: Option<&str>,
+) -> Result<CommitInfo, AresError> {
     let hash_ref = commit_hash.unwrap_or("HEAD");
     debug!(repo = %repo_path.display(), commit = hash_ref, "Fetching commit info");
 
@@ -30,10 +33,22 @@ pub fn get_commit_info(repo_path: &Path, commit_hash: Option<&str>) -> Result<Co
     let author = run_git(repo_path, &["log", "-1", "--format=%an <%ae>", &hash])?;
 
     // Get the diff (limited to a reasonable size for LLM processing)
-    let diff = run_git(repo_path, &["diff", &format!("{}~1..{}", hash, hash), "--stat", "-p", "--no-color"])?;
+    let diff = run_git(
+        repo_path,
+        &[
+            "diff",
+            &format!("{}~1..{}", hash, hash),
+            "--stat",
+            "-p",
+            "--no-color",
+        ],
+    )?;
 
     // Get changed files
-    let files_output = run_git(repo_path, &["diff-tree", "--no-commit-id", "--name-only", "-r", &hash])?;
+    let files_output = run_git(
+        repo_path,
+        &["diff-tree", "--no-commit-id", "--name-only", "-r", &hash],
+    )?;
     let files_changed: Vec<String> = files_output
         .lines()
         .map(|l| l.trim().to_string())
@@ -76,7 +91,11 @@ mod tests {
     #[test]
     fn test_get_commit_info_on_this_repo() {
         // This test runs against the actual ARES repository
-        let repo_path = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().parent().unwrap();
+        let repo_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap();
         if !repo_path.join(".git").exists() {
             // Skip if not in a git repo (CI environments)
             return;

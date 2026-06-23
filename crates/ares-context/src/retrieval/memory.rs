@@ -12,7 +12,10 @@ impl MemoryRetriever {
     }
 
     /// Fetches all active memories for the project
-    pub async fn fetch_project_memories(&self, project_id: &ProjectId) -> Result<Vec<Memory>, AresError> {
+    pub async fn fetch_project_memories(
+        &self,
+        project_id: &ProjectId,
+    ) -> Result<Vec<Memory>, AresError> {
         // Just fetch all or apply a filter. Assuming a filter for now.
         let filter = MemoryFilter {
             memory_type: None,
@@ -21,7 +24,10 @@ impl MemoryRetriever {
             since: None,
             until: None,
         };
-        let page = ares_core::types::pagination::Pagination { page: 1, page_size: 100 };
+        let page = ares_core::types::pagination::Pagination {
+            page: 1,
+            page_size: 100,
+        };
         let result = self.repo.list(project_id, filter, page)?;
         Ok(result.items)
     }

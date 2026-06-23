@@ -18,7 +18,10 @@ impl PolicyLoader {
 
     pub fn load_all(&self) -> Result<Vec<(PolicyDefinition, PolicyVersion)>> {
         if !self.policy_dir.exists() {
-            warn!("Governance policy directory not found at {:?}", self.policy_dir);
+            warn!(
+                "Governance policy directory not found at {:?}",
+                self.policy_dir
+            );
             return Ok(Vec::new());
         }
 
@@ -27,7 +30,7 @@ impl PolicyLoader {
         for entry in fs::read_dir(&self.policy_dir).context("Failed to read policy directory")? {
             let entry = entry?;
             let path = entry.path();
-            
+
             if path.is_file() && path.extension().and_then(|e| e.to_str()) == Some("yaml") {
                 debug!("Loading policy from {:?}", path);
                 match self.load_policy(&path) {
@@ -43,9 +46,9 @@ impl PolicyLoader {
 
     fn load_policy(&self, path: &Path) -> Result<(PolicyDefinition, PolicyVersion)> {
         let content = fs::read_to_string(path).context("Failed to read policy file")?;
-        
-        let def: PolicyDefinition = serde_yaml::from_str(&content)
-            .context("Failed to parse policy YAML")?;
+
+        let def: PolicyDefinition =
+            serde_yaml::from_str(&content).context("Failed to parse policy YAML")?;
 
         let mut hasher = Sha256::new();
         hasher.update(content.as_bytes());

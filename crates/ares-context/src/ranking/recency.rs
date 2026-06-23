@@ -21,7 +21,7 @@ impl RankingStrategy for RecencyScorer {
         // Exponential decay based on age in days. Half-life of ~30 days.
         let half_life = 30.0;
         let decay = std::f64::consts::E.powf(-0.693 * age_days / half_life);
-        
+
         decay.clamp(0.0, 1.0)
     }
 }

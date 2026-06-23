@@ -1,4 +1,4 @@
-use crate::models::{EnforcementAction, MemoryRiskLevel, ComplianceViolation};
+use crate::models::{ComplianceViolation, EnforcementAction, MemoryRiskLevel};
 
 pub struct RiskClassificationEngine;
 

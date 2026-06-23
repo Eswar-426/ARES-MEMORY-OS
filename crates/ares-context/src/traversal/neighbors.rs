@@ -14,7 +14,11 @@ impl NeighborTraverser {
     }
 
     /// Fetches immediate neighbors for a node
-    pub async fn get_neighbors(&self, project_id: &ares_core::ProjectId, node_id: &NodeId) -> Result<Vec<GraphNode>, AresError> {
+    pub async fn get_neighbors(
+        &self,
+        _project_id: &ares_core::ProjectId,
+        node_id: &NodeId,
+    ) -> Result<Vec<GraphNode>, AresError> {
         let mut edges = self.repo.get_edges_from(node_id)?;
         if let Ok(mut incoming) = self.repo.get_edges_to(node_id) {
             edges.append(&mut incoming);
@@ -31,7 +35,7 @@ impl NeighborTraverser {
             if let Some(node) = self.repo.get_node(&neighbor_id)? {
                 neighbors.push(node);
             }
-            
+
             if neighbors.len() >= self.config.max_results {
                 break;
             }

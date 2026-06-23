@@ -466,6 +466,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "ares-evolution"
+version = "0.1.0"
+dependencies = [
+ "ares-core",
+ "ares-store",
+ "chrono",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "ares-extractor"
 version = "0.1.0"
 dependencies = [

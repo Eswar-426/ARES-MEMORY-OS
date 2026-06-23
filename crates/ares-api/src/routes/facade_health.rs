@@ -1,7 +1,7 @@
+use crate::models::{ApiErrorEnvelope, ApiResponse};
+use ares_validation::validation_runner::ValidationRunner;
 use axum::{extract::State, Json};
 use std::sync::Arc;
-use crate::models::{ApiResponse, ApiErrorEnvelope};
-use ares_validation::validation_runner::ValidationRunner;
 
 #[utoipa::path(
     get,
@@ -15,7 +15,10 @@ pub async fn certification(
         Ok(report) => {
             let val = serde_json::to_value(report).unwrap_or(serde_json::json!({}));
             Ok(Json(ApiResponse::success(val)))
-        },
-        Err(e) => Err(Json(ApiErrorEnvelope::new("INTERNAL_ERROR", &e.to_string()))),
+        }
+        Err(e) => Err(Json(ApiErrorEnvelope::new(
+            "INTERNAL_ERROR",
+            &e.to_string(),
+        ))),
     }
 }

@@ -26,7 +26,11 @@ pub struct ExtractionEngine {
 }
 
 impl ExtractionEngine {
-    pub fn new(store: Store, provider: Box<dyn ExtractorProvider>, config: ExtractionConfig) -> Self {
+    pub fn new(
+        store: Store,
+        provider: Box<dyn ExtractorProvider>,
+        config: ExtractionConfig,
+    ) -> Self {
         Self {
             store,
             provider,
@@ -111,8 +115,8 @@ impl ExtractionEngine {
     /// Persist a KnowledgeCandidate to the knowledge_candidates table.
     fn persist_candidate(&self, candidate: &KnowledgeCandidate) -> Result<(), AresError> {
         let conn = self.store.get_conn()?;
-        let affected_files_json = serde_json::to_string(&candidate.affected_files)
-            .unwrap_or_else(|_| "[]".to_string());
+        let affected_files_json =
+            serde_json::to_string(&candidate.affected_files).unwrap_or_else(|_| "[]".to_string());
 
         conn.execute(
             "INSERT INTO knowledge_candidates
@@ -243,7 +247,9 @@ mod tests {
         // Verify persisted candidates are in the database
         let conn = store.get_conn().unwrap();
         let count: i64 = conn
-            .query_row("SELECT COUNT(*) FROM knowledge_candidates", [], |r| r.get(0))
+            .query_row("SELECT COUNT(*) FROM knowledge_candidates", [], |r| {
+                r.get(0)
+            })
             .unwrap();
         assert_eq!(count as usize, result.persisted_candidates.len());
     }

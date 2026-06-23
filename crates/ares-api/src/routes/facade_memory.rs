@@ -1,7 +1,10 @@
-use axum::{extract::{State, Path}, Json};
-use std::sync::Arc;
-use crate::models::{ApiResponse, ApiErrorEnvelope};
+use crate::models::{ApiErrorEnvelope, ApiResponse};
 use ares_memory_intelligence::facade::MemoryFacade;
+use axum::{
+    extract::{Path, State},
+    Json,
+};
+use std::sync::Arc;
 
 #[utoipa::path(
     get,
@@ -14,7 +17,10 @@ pub async fn why(
 ) -> Result<Json<ApiResponse<serde_json::Value>>, Json<ApiErrorEnvelope>> {
     match facade.why(&id) {
         Ok(res) => Ok(Json(ApiResponse::success(res))),
-        Err(e) => Err(Json(ApiErrorEnvelope::new("INTERNAL_ERROR", &e.to_string()))),
+        Err(e) => Err(Json(ApiErrorEnvelope::new(
+            "INTERNAL_ERROR",
+            &e.to_string(),
+        ))),
     }
 }
 
@@ -29,7 +35,10 @@ pub async fn who(
 ) -> Result<Json<ApiResponse<serde_json::Value>>, Json<ApiErrorEnvelope>> {
     match facade.who(&id) {
         Ok(res) => Ok(Json(ApiResponse::success(res))),
-        Err(e) => Err(Json(ApiErrorEnvelope::new("INTERNAL_ERROR", &e.to_string()))),
+        Err(e) => Err(Json(ApiErrorEnvelope::new(
+            "INTERNAL_ERROR",
+            &e.to_string(),
+        ))),
     }
 }
 
@@ -46,8 +55,11 @@ pub async fn impact(
         Ok(res) => {
             let val = serde_json::to_value(res).unwrap_or(serde_json::json!({}));
             Ok(Json(ApiResponse::success(val)))
-        },
-        Err(e) => Err(Json(ApiErrorEnvelope::new("INTERNAL_ERROR", &e.to_string()))),
+        }
+        Err(e) => Err(Json(ApiErrorEnvelope::new(
+            "INTERNAL_ERROR",
+            &e.to_string(),
+        ))),
     }
 }
 
@@ -64,8 +76,11 @@ pub async fn evolution(
         Ok(res) => {
             let val = serde_json::to_value(res).unwrap_or(serde_json::json!({}));
             Ok(Json(ApiResponse::success(val)))
-        },
-        Err(e) => Err(Json(ApiErrorEnvelope::new("INTERNAL_ERROR", &e.to_string()))),
+        }
+        Err(e) => Err(Json(ApiErrorEnvelope::new(
+            "INTERNAL_ERROR",
+            &e.to_string(),
+        ))),
     }
 }
 
@@ -80,6 +95,9 @@ pub async fn context(
 ) -> Result<Json<ApiResponse<serde_json::Value>>, Json<ApiErrorEnvelope>> {
     match facade.context(&id) {
         Ok(res) => Ok(Json(ApiResponse::success(res))),
-        Err(e) => Err(Json(ApiErrorEnvelope::new("INTERNAL_ERROR", &e.to_string()))),
+        Err(e) => Err(Json(ApiErrorEnvelope::new(
+            "INTERNAL_ERROR",
+            &e.to_string(),
+        ))),
     }
 }

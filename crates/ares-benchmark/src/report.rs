@@ -11,7 +11,11 @@ pub struct BenchmarkReport {
 }
 
 impl BenchmarkReport {
-    pub fn new(task: String, repository: String, results: HashMap<AgentType, BenchmarkMetrics>) -> Self {
+    pub fn new(
+        task: String,
+        repository: String,
+        results: HashMap<AgentType, BenchmarkMetrics>,
+    ) -> Self {
         Self {
             task,
             repository,
@@ -22,25 +26,39 @@ impl BenchmarkReport {
 
     /// Generate a Markdown string report
     pub fn to_markdown(&self) -> String {
-        let baseline = self.results.get(&AgentType::Baseline).cloned().unwrap_or_default();
-        let ares = self.results.get(&AgentType::Ares).cloned().unwrap_or_default();
-        
+        let baseline = self
+            .results
+            .get(&AgentType::Baseline)
+            .cloned()
+            .unwrap_or_default();
+        let ares = self
+            .results
+            .get(&AgentType::Ares)
+            .cloned()
+            .unwrap_or_default();
+
         // Calculate improvements (Baseline vs ARES)
         let token_diff = if baseline.total_tokens > 0 {
             100.0 - (ares.total_tokens as f64 / baseline.total_tokens as f64 * 100.0)
-        } else { 0.0 };
+        } else {
+            0.0
+        };
 
         let file_read_diff = if baseline.search_depth > 0 {
             100.0 - (ares.search_depth as f64 / baseline.search_depth as f64 * 100.0)
-        } else { 0.0 };
+        } else {
+            0.0
+        };
 
         let time_diff = if baseline.time_elapsed_secs > 0.0 {
             100.0 - (ares.time_elapsed_secs / baseline.time_elapsed_secs * 100.0)
-        } else { 0.0 };
+        } else {
+            0.0
+        };
 
         let success_diff = ares.success_score - baseline.success_score;
 
-        let mut output = format!("# ARES Benchmark Report\n\n");
+        let mut output = "# ARES Benchmark Report\n\n".to_string();
         output.push_str(&format!("**Task**: {}\n", self.task));
         output.push_str(&format!("**Repository**: {}\n", self.repository));
         output.push_str(&format!("**Timestamp**: {}\n\n", self.timestamp));
@@ -59,10 +77,16 @@ impl BenchmarkReport {
                 output.push_str("---------\n");
                 output.push_str(&format!("Tokens: {}\n", metrics.total_tokens));
                 output.push_str(&format!("Cost: ${:.4}\n", metrics.provider_cost_usd));
-                output.push_str(&format!("Search Depth (Files Read): {}\n", metrics.search_depth));
+                output.push_str(&format!(
+                    "Search Depth (Files Read): {}\n",
+                    metrics.search_depth
+                ));
                 output.push_str(&format!("Time: {:.1} sec\n", metrics.time_elapsed_secs));
                 output.push_str(&format!("Success Score: {:.1}%\n", metrics.success_score));
-                output.push_str(&format!("Repeated Failure: {}\n\n", metrics.repeated_failure));
+                output.push_str(&format!(
+                    "Repeated Failure: {}\n\n",
+                    metrics.repeated_failure
+                ));
             }
         }
 

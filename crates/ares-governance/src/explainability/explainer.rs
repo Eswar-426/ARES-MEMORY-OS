@@ -1,4 +1,6 @@
-use crate::models::{ComplianceViolation, GovernanceExplanation, GovernanceExplanationSummary, ViolationSeverity};
+use crate::models::{
+    ComplianceViolation, GovernanceExplanation, GovernanceExplanationSummary,
+};
 
 pub struct GovernanceExplainer;
 
@@ -8,23 +10,24 @@ impl GovernanceExplainer {
             "TRACE-001" => (
                 "TracesTo edge".to_string(),
                 "Architecture Team".to_string(),
-                "Create TracesTo relationship linking requirement to implementation".to_string()
+                "Create TracesTo relationship linking requirement to implementation".to_string(),
             ),
             "TRACE-002" => (
                 "TracesTo edge".to_string(),
                 "Architecture Team".to_string(),
-                "Create TracesTo relationship linking decision to implementation or context".to_string()
+                "Create TracesTo relationship linking decision to implementation or context"
+                    .to_string(),
             ),
             "OWN-001" => (
                 "OwnedBy edge".to_string(),
                 "Architecture Team".to_string(),
-                "Create OwnedBy relationship linking node to a valid User or Team".to_string()
+                "Create OwnedBy relationship linking node to a valid User or Team".to_string(),
             ),
             _ => (
                 "Unknown".to_string(),
                 "System".to_string(),
-                "Review governance policy documentation".to_string()
-            )
+                "Review governance policy documentation".to_string(),
+            ),
         };
 
         GovernanceExplanationSummary {

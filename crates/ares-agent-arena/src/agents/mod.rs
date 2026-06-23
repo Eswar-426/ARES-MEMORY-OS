@@ -3,7 +3,7 @@ pub mod context_aware;
 pub mod enhanced;
 pub mod planner;
 
-use crate::models::{ArenaTask, AgentRunResult};
+use crate::models::{AgentRunResult, ArenaTask};
 use anyhow::Result;
 use async_trait::async_trait;
 

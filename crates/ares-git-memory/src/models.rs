@@ -1,5 +1,5 @@
+use ares_core::{GraphEdge, GraphNode};
 use serde::{Deserialize, Serialize};
-use ares_core::{GraphNode, GraphEdge};
 
 /// How the memory fact was captured.
 /// Directly maps to ARCH-MEMORY-CAPTURE.md Section 6.

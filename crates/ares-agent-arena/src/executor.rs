@@ -4,7 +4,7 @@ use crate::agents::enhanced::EnhancedContextAgent;
 use crate::agents::planner::PlannerAgentStub;
 use crate::agents::AgentRunner;
 use crate::evaluator::AgentEvaluator;
-use crate::models::{AgentRunResult, AgentType, ArenaTask};
+use crate::models::ArenaTask;
 use crate::report::ArenaReport;
 use anyhow::Result;
 

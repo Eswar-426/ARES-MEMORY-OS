@@ -1,8 +1,8 @@
+use crate::models::{MissingMemory, TraceResult, TraceStatus};
 use ares_core::types::node::{GraphNode, NodeType};
-use ares_store::{Store, SqliteGraphRepository};
 use ares_core::AresError;
+use ares_store::{SqliteGraphRepository, Store};
 use std::collections::{HashSet, VecDeque};
-use crate::models::{TraceResult, TraceStatus, MissingMemory};
 
 pub struct PathEngine {
     store: Store,
@@ -23,7 +23,7 @@ impl PathEngine {
         let mut path = Vec::new();
         let mut distances = Vec::new();
         let mut missing = Vec::new();
-        
+
         let mut edges_visited = 0;
         let mut query_count = 0;
 
@@ -103,7 +103,8 @@ impl PathEngine {
         // Determine trace status
         let status = if results.is_empty() {
             TraceStatus::Orphaned
-        } else if missing.is_empty() && self.is_chain_complete(&found_types, &start_node.node_type) {
+        } else if missing.is_empty() && self.is_chain_complete(&found_types, &start_node.node_type)
+        {
             TraceStatus::Complete
         } else if !missing.is_empty() {
             TraceStatus::GapDetected
@@ -131,8 +132,8 @@ impl PathEngine {
         let mut results = Vec::new();
         let mut path = Vec::new();
         let mut distances = Vec::new();
-        let mut missing = Vec::new();
-        
+        let missing = Vec::new();
+
         let mut edges_visited = 0;
         let mut query_count = 0;
 

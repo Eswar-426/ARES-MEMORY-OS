@@ -93,6 +93,12 @@ pub struct MockAgentProvider {
     pub mock_delay_ms: u64,
 }
 
+impl Default for MockAgentProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MockAgentProvider {
     pub fn new() -> Self {
         Self { mock_delay_ms: 10 }

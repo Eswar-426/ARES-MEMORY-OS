@@ -1,8 +1,8 @@
-use ares_requirements::coverage::{RequirementCoverageEngine, CoverageStatus};
-use ares_requirements::TraceAnalysisEngine;
 use ares_core::RequirementId;
+use ares_requirements::coverage::{CoverageStatus, RequirementCoverageEngine};
 use ares_requirements::models::RequirementStatus;
-use ares_traceability::{TraceTargetType, test_utils::TestGraphBuilder};
+use ares_requirements::TraceAnalysisEngine;
+use ares_traceability::{test_utils::TestGraphBuilder, TraceTargetType};
 
 #[test]
 fn test_full_trace_coverage() {
@@ -10,7 +10,12 @@ fn test_full_trace_coverage() {
         .link_rel("REQ-1", "DEC-1", TraceTargetType::Decision, "Satisfies")
         .link_rel("DEC-1", "CODE-1", TraceTargetType::Code, "Implements")
         .link_rel("CODE-1", "TEST-1", TraceTargetType::Test, "Validates")
-        .link_rel("TEST-1", "METRIC-1", TraceTargetType::RuntimeMetric, "Monitors")
+        .link_rel(
+            "TEST-1",
+            "METRIC-1",
+            TraceTargetType::RuntimeMetric,
+            "Monitors",
+        )
         .build();
 
     let resolver = TraceAnalysisEngine::new(&graph);
@@ -41,7 +46,7 @@ fn test_partial_trace_coverage() {
 
     assert_eq!(coverage.status, CoverageStatus::Partial);
     assert!(coverage.coverage_score < 100.0 && coverage.coverage_score > 0.0);
-    
+
     // Also verify gaps
     let gap_types: Vec<_> = coverage.gaps.iter().map(|g| g.gap_type.clone()).collect();
     assert!(gap_types.contains(&ares_requirements::KnowledgeGapType::MissingTest));
@@ -61,7 +66,7 @@ fn test_orphan_requirement() {
 
     assert_eq!(coverage.status, CoverageStatus::Orphaned);
     assert_eq!(coverage.coverage_score, 0.0);
-    
+
     let gap_types: Vec<_> = coverage.gaps.iter().map(|g| g.gap_type.clone()).collect();
     assert!(gap_types.contains(&ares_requirements::KnowledgeGapType::MissingDecision));
 }

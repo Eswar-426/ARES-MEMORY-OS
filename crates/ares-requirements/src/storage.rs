@@ -69,7 +69,8 @@ impl RequirementStore {
         .map_err(AresError::db)?;
 
         debug!(id = %req_id, "Requirement created");
-        self.get(&req_id)?.ok_or_else(|| AresError::not_found("requirement", req_id.as_str()))
+        self.get(&req_id)?
+            .ok_or_else(|| AresError::not_found("requirement", req_id.as_str()))
     }
 
     pub fn update(
@@ -146,10 +147,13 @@ impl RequirementStore {
 
         let conn = self.store.get_conn()?;
         let refs: Vec<&dyn rusqlite::ToSql> = params_vec.iter().map(|b| b.as_ref()).collect();
-        conn.execute(&query, refs.as_slice()).map_err(AresError::db)?;
+        conn.execute(&query, refs.as_slice())
+            .map_err(AresError::db)?;
 
         debug!(id = %id, "Requirement updated");
-        let updated_req = self.get(id)?.ok_or_else(|| AresError::not_found("requirement", id.as_str()))?;
+        let updated_req = self
+            .get(id)?
+            .ok_or_else(|| AresError::not_found("requirement", id.as_str()))?;
 
         let history = crate::history::RequirementHistory::new(self.store.clone());
         history.record_revision(
@@ -170,7 +174,7 @@ impl RequirementStore {
             params![id.as_str()],
         )
         .map_err(AresError::db)?;
-        
+
         debug!(id = %id, "Requirement deleted");
         Ok(())
     }
@@ -253,12 +257,18 @@ impl RequirementStore {
 
         let mut stmt = conn.prepare(&sql).map_err(AresError::db)?;
         let refs: Vec<&dyn rusqlite::ToSql> = bind_values.iter().map(|b| b.as_ref()).collect();
-        let rows = stmt.query_map(refs.as_slice(), row_to_requirement).map_err(AresError::db)?;
+        let rows = stmt
+            .query_map(refs.as_slice(), row_to_requirement)
+            .map_err(AresError::db)?;
 
         rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)
     }
 
-    pub fn search(&self, project_id: &ProjectId, query: &str) -> Result<Vec<Requirement>, AresError> {
+    pub fn search(
+        &self,
+        project_id: &ProjectId,
+        query: &str,
+    ) -> Result<Vec<Requirement>, AresError> {
         let conn = self.store.get_conn()?;
         let search_pattern = format!("%{}%", query);
         let mut stmt = conn
@@ -271,7 +281,10 @@ impl RequirementStore {
             .map_err(AresError::db)?;
 
         let rows = stmt
-            .query_map(params![project_id.as_str(), search_pattern], row_to_requirement)
+            .query_map(
+                params![project_id.as_str(), search_pattern],
+                row_to_requirement,
+            )
             .map_err(AresError::db)?;
 
         rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)
@@ -290,7 +303,9 @@ impl RequirementStore {
         };
 
         let target_id_val = match &link.target {
-            LinkTarget::RuntimeMetric(r) => serde_json::to_string(r).unwrap_or_else(|_| r.id.as_str().to_string()),
+            LinkTarget::RuntimeMetric(r) => {
+                serde_json::to_string(r).unwrap_or_else(|_| r.id.as_str().to_string())
+            }
             _ => link.target.target_id().to_string(),
         };
 
@@ -383,7 +398,7 @@ impl RequirementStore {
                 "SELECT target_type, COUNT(*) 
                  FROM requirement_links 
                  WHERE source_requirement_id = ?1 
-                 GROUP BY target_type"
+                 GROUP BY target_type",
             )
             .map_err(AresError::db)?;
 
@@ -422,16 +437,20 @@ impl RequirementStore {
 
 fn row_to_requirement(row: &rusqlite::Row<'_>) -> Result<Requirement, rusqlite::Error> {
     let type_str: String = row.get(4)?;
-    let type_val = serde_json::from_str(&format!("\"{}\"", type_str)).unwrap_or(RequirementType::Functional);
+    let type_val =
+        serde_json::from_str(&format!("\"{}\"", type_str)).unwrap_or(RequirementType::Functional);
 
     let status_str: String = row.get(5)?;
-    let status_val = serde_json::from_str(&format!("\"{}\"", status_str)).unwrap_or(RequirementStatus::Draft);
+    let status_val =
+        serde_json::from_str(&format!("\"{}\"", status_str)).unwrap_or(RequirementStatus::Draft);
 
     let priority_str: String = row.get(6)?;
-    let priority_val = serde_json::from_str(&format!("\"{}\"", priority_str)).unwrap_or(RequirementPriority::Medium);
+    let priority_val = serde_json::from_str(&format!("\"{}\"", priority_str))
+        .unwrap_or(RequirementPriority::Medium);
 
     let source_str: String = row.get(11).unwrap_or_else(|_| "product".to_string());
-    let source_val = serde_json::from_str(&format!("\"{}\"", source_str)).unwrap_or(crate::models::RequirementSource::Product);
+    let source_val = serde_json::from_str(&format!("\"{}\"", source_str))
+        .unwrap_or(crate::models::RequirementSource::Product);
 
     let tags_str: String = row.get(10)?;
     let tags_val: Vec<String> = serde_json::from_str(&tags_str).unwrap_or_default();
@@ -469,7 +488,7 @@ fn row_to_requirement_link(row: &rusqlite::Row<'_>) -> Result<RequirementLink, r
                     external_id: None,
                 });
             LinkTarget::RuntimeMetric(parsed_ref)
-        },
+        }
         _ => LinkTarget::Code(ares_core::CodeArtifactId::from(target_id_str)), // Fallback
     };
 

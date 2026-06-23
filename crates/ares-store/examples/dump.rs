@@ -5,13 +5,52 @@ fn main() {
     let mut seen = std::collections::HashSet::new();
 
     let stop_words: &[&str] = &[
-        "explain", "provide", "trace", "find", "locate", "summarize", "identify",
-        "describe", "analyze", "impact", "analysis", "list", "show", "what", "where",
-        "which", "that", "from", "with", "this", "have", "does", "about", "into",
-        "would", "could", "should", "including", "affected", "responsible",
-        "comprehensive", "high", "level", "internal", "external", "downstream",
-        "components", "steps", "sequence", "initial", "utilized", "coordinates",
-        "execution", "extraction", "interfaces", "generating",
+        "explain",
+        "provide",
+        "trace",
+        "find",
+        "locate",
+        "summarize",
+        "identify",
+        "describe",
+        "analyze",
+        "impact",
+        "analysis",
+        "list",
+        "show",
+        "what",
+        "where",
+        "which",
+        "that",
+        "from",
+        "with",
+        "this",
+        "have",
+        "does",
+        "about",
+        "into",
+        "would",
+        "could",
+        "should",
+        "including",
+        "affected",
+        "responsible",
+        "comprehensive",
+        "high",
+        "level",
+        "internal",
+        "external",
+        "downstream",
+        "components",
+        "steps",
+        "sequence",
+        "initial",
+        "utilized",
+        "coordinates",
+        "execution",
+        "extraction",
+        "interfaces",
+        "generating",
     ];
 
     for word in &words {
@@ -26,7 +65,8 @@ fn main() {
             continue;
         }
 
-        let has_path_sep = word_clean.contains('.') || word_clean.contains("::") || word_clean.contains('/');
+        let has_path_sep =
+            word_clean.contains('.') || word_clean.contains("::") || word_clean.contains('/');
         let has_underscore = word_clean.contains('_');
         let is_true_camel_case = {
             let chars: Vec<char> = word_clean.chars().collect();
@@ -50,7 +90,8 @@ fn main() {
     }
 
     if targets.is_empty() {
-        let mut long_words: Vec<&str> = words.iter()
+        let mut long_words: Vec<&str> = words
+            .iter()
             .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()))
             .filter(|w| w.len() > 5)
             .filter(|w| !stop_words.contains(&w.to_lowercase().as_str()))

@@ -1,7 +1,7 @@
-use std::process::Command;
-use std::path::Path;
-use ares_core::{GraphNode, GraphEdge, NodeId, ProjectId, NodeType, EdgeType};
 use crate::models::{CaptureMethod, SourceProvenance};
+use ares_core::{EdgeType, GraphEdge, GraphNode, NodeId, NodeType, ProjectId};
+use std::path::Path;
+use std::process::Command;
 
 pub struct BranchExtractor;
 
@@ -16,41 +16,44 @@ impl BranchExtractor {
 
         // Get all local branches and their tip commits
         let mut cmd = Command::new("git");
-        cmd.current_dir(project_path)
-            .args(&[
-                "for-each-ref",
-                "--format=%(refname:short)%x00%(objectname)%x00%(committerdate:unix)",
-                "refs/heads",
-                "refs/remotes",
-            ]);
+        cmd.current_dir(project_path).args([
+            "for-each-ref",
+            "--format=%(refname:short)%x00%(objectname)%x00%(committerdate:unix)",
+            "refs/heads",
+            "refs/remotes",
+        ]);
 
-        let output = cmd.output().map_err(|e| format!("Failed to execute git for-each-ref: {}", e))?;
-        
+        let output = cmd
+            .output()
+            .map_err(|e| format!("Failed to execute git for-each-ref: {}", e))?;
+
         if !output.status.success() {
             return Ok((vec![], vec![])); // Quietly return empty for non-git repos
         }
 
         let output_str = String::from_utf8_lossy(&output.stdout);
-        
+
         for line in output_str.lines() {
             if line.is_empty() {
                 continue;
             }
-            
+
             let parts: Vec<&str> = line.split('\0').collect();
-            if parts.len() < 3 { continue; }
-            
+            if parts.len() < 3 {
+                continue;
+            }
+
             let branch_name = parts[0];
             let commit_hash = parts[1];
             let date_str = parts[2];
-            
+
             // For remotes, the name might be origin/main
             // We'll just use the short name
             let timestamp: i64 = date_str.parse().unwrap_or(captured_at);
-            
+
             let branch_id = NodeId::from(format!("branch:{}", branch_name));
             let commit_id = NodeId::from(format!("commit:{}", commit_hash));
-            
+
             let prov = SourceProvenance {
                 source_system: "git_branch".to_string(),
                 source_id: branch_name.to_string(),
@@ -58,9 +61,9 @@ impl BranchExtractor {
                 captured_at,
                 confidence: CaptureMethod::Repository.base_confidence(),
             };
-            
+
             let prov_val = serde_json::to_value(&prov).unwrap_or(serde_json::json!({}));
-            
+
             // 1. Create Branch Node
             let mut props = serde_json::json!({
                 "branch": branch_name,
@@ -69,7 +72,7 @@ impl BranchExtractor {
             if let Some(p) = props.as_object_mut() {
                 p.insert("provenance".to_string(), prov_val);
             }
-            
+
             nodes.push(GraphNode {
                 id: branch_id.clone(),
                 project_id: project_id.clone(),
@@ -81,7 +84,7 @@ impl BranchExtractor {
                 updated_at: timestamp,
                 deleted_at: None,
             });
-            
+
             // 2. Create Contains Edge (Branch -> Commit)
             edges.push(GraphEdge {
                 id: format!("{}-contains-{}", branch_id.as_str(), commit_id.as_str()),

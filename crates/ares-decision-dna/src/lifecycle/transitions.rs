@@ -1,4 +1,4 @@
-use crate::models::{DecisionMemory, DecisionState, DecisionId};
+use crate::models::{DecisionId, DecisionMemory, DecisionState};
 use anyhow::{bail, Result};
 use chrono::Utc;
 
@@ -37,7 +37,10 @@ impl LifecycleManager {
         }
     }
 
-    pub fn supersede(mut old_decision: DecisionMemory, new_decision_id: DecisionId) -> Result<DecisionMemory> {
+    pub fn supersede(
+        mut old_decision: DecisionMemory,
+        new_decision_id: DecisionId,
+    ) -> Result<DecisionMemory> {
         match old_decision.state {
             DecisionState::Accepted | DecisionState::Proposed => {
                 old_decision.state = DecisionState::Superseded;
@@ -46,7 +49,10 @@ impl LifecycleManager {
                 old_decision.version += 1;
                 Ok(old_decision)
             }
-            _ => bail!("Cannot supersede a decision in state: {:?}", old_decision.state),
+            _ => bail!(
+                "Cannot supersede a decision in state: {:?}",
+                old_decision.state
+            ),
         }
     }
 

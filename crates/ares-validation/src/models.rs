@@ -21,7 +21,7 @@ pub struct MemoryCertificationReport {
 
     pub policy_drift: Option<ares_governance::models::PolicyDriftStatus>,
     pub enforcement: Option<ares_governance::models::EnforcementReadiness>,
-    
+
     pub certification_level: ares_governance::models::CertificationLevel,
 
     pub certified: bool,

@@ -46,5 +46,8 @@ fn test_full_scan_discovers_and_parses() {
 
     assert!(!nodes.is_empty());
     let has_hello_world = nodes.iter().any(|n| n.label == "hello_world");
-    assert!(has_hello_world, "Failed to find 'hello_world' in extracted nodes");
+    assert!(
+        has_hello_world,
+        "Failed to find 'hello_world' in extracted nodes"
+    );
 }

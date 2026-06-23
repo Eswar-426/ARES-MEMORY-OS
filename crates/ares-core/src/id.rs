@@ -179,7 +179,7 @@ mod tests {
 /// 4. Never stores absolute paths (if the string happens to be absolute, it removes leading slashes/drives if feasible, but primarily focuses on relative artifact paths)
 pub fn canonicalize_node_id(path: &str) -> String {
     let mut normalized = path.replace('\\', "/");
-    
+
     // Collapse duplicate slashes
     while normalized.contains("//") {
         normalized = normalized.replace("//", "/");
@@ -191,7 +191,7 @@ pub fn canonicalize_node_id(path: &str) -> String {
         // Strip leading slash to make it repository-relative if it accidentally got one
         normalized = normalized.trim_start_matches('/').to_string();
     }
-    
+
     // For Windows absolute paths like C:/foo, ideally we don't have them, but for safety:
     if normalized.contains(":/") {
         let parts: Vec<&str> = normalized.splitn(2, ":/").collect();
@@ -211,9 +211,15 @@ mod canonicalization_tests {
     fn test_canonicalize_node_id() {
         assert_eq!(canonicalize_node_id(".\\src\\main.rs"), "src/main.rs");
         assert_eq!(canonicalize_node_id("./src/main.rs"), "src/main.rs");
-        assert_eq!(canonicalize_node_id("src\\memory\\graph.rs"), "src/memory/graph.rs");
+        assert_eq!(
+            canonicalize_node_id("src\\memory\\graph.rs"),
+            "src/memory/graph.rs"
+        );
         assert_eq!(canonicalize_node_id("src/main.rs"), "src/main.rs");
         assert_eq!(canonicalize_node_id(".\\\\src\\\\main.rs"), "src/main.rs");
-        assert_eq!(canonicalize_node_id("C:\\repo\\src\\main.rs"), "repo/src/main.rs");
+        assert_eq!(
+            canonicalize_node_id("C:\\repo\\src\\main.rs"),
+            "repo/src/main.rs"
+        );
     }
 }

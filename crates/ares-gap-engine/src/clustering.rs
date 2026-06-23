@@ -4,6 +4,12 @@ use std::collections::HashMap;
 
 pub struct GapClusterEngine;
 
+impl Default for GapClusterEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GapClusterEngine {
     pub fn new() -> Self {
         Self
@@ -15,7 +21,10 @@ impl GapClusterEngine {
 
         for gap in gaps {
             if let Some(reason) = &gap.reason {
-                grouped.entry(reason.root_cause.clone()).or_default().push(gap);
+                grouped
+                    .entry(reason.root_cause.clone())
+                    .or_default()
+                    .push(gap);
             }
         }
 
@@ -27,11 +36,12 @@ impl GapClusterEngine {
 
             for gap in &cluster_gaps {
                 affected_entities.push(gap.source_id.clone());
-                
+
                 // Track highest severity in cluster
                 if gap.severity == GapSeverity::Critical {
                     max_severity = GapSeverity::Critical;
-                } else if gap.severity == GapSeverity::Warning && max_severity == GapSeverity::Info {
+                } else if gap.severity == GapSeverity::Warning && max_severity == GapSeverity::Info
+                {
                     max_severity = GapSeverity::Warning;
                 }
             }
@@ -48,7 +58,11 @@ impl GapClusterEngine {
             );
 
             clusters.push(GapCluster {
-                id: format!("cluster_{}_{}", format!("{:?}", cause).to_lowercase(), new_id()),
+                id: format!(
+                    "cluster_{}_{}",
+                    format!("{:?}", cause).to_lowercase(),
+                    new_id()
+                ),
                 root_cause: cause,
                 affected_entities,
                 severity: max_severity,

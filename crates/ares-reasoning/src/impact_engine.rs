@@ -1,9 +1,9 @@
-use ares_core::types::node::NodeType;
-use ares_core::AresError;
-use ares_store::Store;
 use crate::models::{ImpactReport, Reachability};
 use crate::path_engine::PathEngine;
 use crate::risk_engine::RiskEngine;
+use ares_core::types::node::NodeType;
+use ares_core::AresError;
+use ares_store::Store;
 
 pub struct ImpactEngine {
     path_engine: PathEngine,
@@ -31,10 +31,8 @@ impl ImpactEngine {
         let mut classifications = Vec::new();
 
         // Build a distance lookup from the trace
-        let dist_map: std::collections::HashMap<String, usize> = trace.distances
-            .iter()
-            .cloned()
-            .collect();
+        let dist_map: std::collections::HashMap<String, usize> =
+            trace.distances.iter().cloned().collect();
 
         for node in &trace.nodes {
             let dist = dist_map.get(&node.label).copied().unwrap_or(1);

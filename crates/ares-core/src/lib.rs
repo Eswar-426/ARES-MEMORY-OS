@@ -1,4 +1,5 @@
-//! ares-core — Shared types, error definitions, and ID generation.
+#![allow(deprecated)]
+//! ARES Memory OS - Core Domain Models & Types, error definitions, and ID generation.
 //!
 //! This crate has zero external network dependencies and is the foundation
 //! for all other ARES crates. All public types implement Debug + Serialize + Deserialize.
@@ -11,11 +12,11 @@ pub mod vector;
 
 pub use error::AresError;
 pub use id::{
-    canonicalize_node_id, new_id, AgentId, ArchComponentId, ClusterId, CodeArtifactId, DecisionId, EpisodeId, EventId,
-    EvidenceId, ExecutionId, ExperienceId, ForecastId, LessonId, MemoryId, NodeId, PlanCandidateId,
-    PlanId, PredictionId, PrincipleId, ProjectId, RequirementId, RequirementLinkId,
-    RequirementRevisionId, RiskReportId, RuntimeMetricId, ScanRunId, ScenarioId, SemanticMemoryId, SimulationId,
-    StepId, TaskId, WorkflowId, WorldStateId,
+    canonicalize_node_id, new_id, AgentId, ArchComponentId, ClusterId, CodeArtifactId, DecisionId,
+    EpisodeId, EventId, EvidenceId, ExecutionId, ExperienceId, ForecastId, LessonId, MemoryId,
+    NodeId, PlanCandidateId, PlanId, PredictionId, PrincipleId, ProjectId, RequirementId,
+    RequirementLinkId, RequirementRevisionId, RiskReportId, RuntimeMetricId, ScanRunId, ScenarioId,
+    SemanticMemoryId, SimulationId, StepId, TaskId, WorkflowId, WorldStateId,
 };
 pub use types::{
     decision::{

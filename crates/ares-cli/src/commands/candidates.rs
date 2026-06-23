@@ -1,6 +1,6 @@
-use ares_candidates::{CandidateRepository, CandidateStatus, CandidateType, CandidatePromotion};
-use ares_core::{AresError, GraphNode, NodeType, NodeId, ProjectId};
+use ares_candidates::{CandidatePromotion, CandidateRepository, CandidateStatus, CandidateType};
 use ares_core::types::event::now_micros;
+use ares_core::{AresError, GraphNode, NodeId, NodeType, ProjectId};
 use ares_store::{db::Store, repositories::candidate::SqliteCandidateRepository};
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -8,7 +8,9 @@ use uuid::Uuid;
 fn get_repo() -> Result<SqliteCandidateRepository, AresError> {
     let db_path = PathBuf::from(".ares/ares.db");
     if !db_path.exists() {
-        return Err(AresError::validation("Memory database not found. Run `ares ingest .` first."));
+        return Err(AresError::validation(
+            "Memory database not found. Run `ares ingest .` first.",
+        ));
     }
     let store = Store::open(&db_path)?;
     Ok(SqliteCandidateRepository::new(store))
@@ -18,15 +20,20 @@ pub async fn execute_list() -> Result<(), AresError> {
     let repo = get_repo()?;
     // Assuming a single default project ID for now, as CLI runs per repo
     let project_id = "TEST";
-    let candidates = repo.list_candidates(project_id, 100, 0).await
-        .map_err(|e| AresError::validation(e))?;
+    let candidates = repo
+        .list_candidates(project_id, 100, 0)
+        .await
+        .map_err(AresError::validation)?;
 
     if candidates.is_empty() {
         println!("No pending candidates found.");
         return Ok(());
     }
 
-    println!("{:<40} | {:<15} | {:<12} | {:<5}", "ID", "Type", "Status", "Ev.");
+    println!(
+        "{:<40} | {:<15} | {:<12} | {:<5}",
+        "ID", "Type", "Status", "Ev."
+    );
     println!("{:-<40}-+-{:-<15}-+-{:-<12}-+-{:-<5}", "", "", "", "");
 
     for c in candidates {
@@ -44,7 +51,10 @@ pub async fn execute_list() -> Result<(), AresError> {
             CandidateStatus::Superseded => "Superseded",
         };
 
-        println!("{:<40} | {:<15} | {:<12} | {:<5}", c.id, t_str, s_str, c.confidence.evidence_count);
+        println!(
+            "{:<40} | {:<15} | {:<12} | {:<5}",
+            c.id, t_str, s_str, c.confidence.evidence_count
+        );
     }
 
     Ok(())
@@ -53,17 +63,21 @@ pub async fn execute_list() -> Result<(), AresError> {
 pub async fn execute_show(id: String) -> Result<(), AresError> {
     let repo = get_repo()?;
     let project_id = "TEST";
-    let candidate = repo.get_candidate(project_id, &id).await
-        .map_err(|e| AresError::validation(e))?
+    let candidate = repo
+        .get_candidate(project_id, &id)
+        .await
+        .map_err(AresError::validation)?
         .ok_or_else(|| AresError::validation("Candidate not found"))?;
 
-    let sources = repo.get_sources(project_id, &id).await
-        .map_err(|e| AresError::validation(e))?;
+    let sources = repo
+        .get_sources(project_id, &id)
+        .await
+        .map_err(AresError::validation)?;
 
     println!("Candidate: {}", candidate.id);
     println!("Title: {}", candidate.title);
     println!("Description: {}", candidate.description);
-    
+
     let t_str = match candidate.candidate_type {
         CandidateType::Requirement => "Requirement",
         CandidateType::Decision => "Decision",
@@ -80,11 +94,11 @@ pub async fn execute_show(id: String) -> Result<(), AresError> {
         CandidateStatus::Superseded => "Superseded",
     };
     println!("Status: {}", s_str);
-    println!("Confidence: ({} sources, {} diversity)", 
-        candidate.confidence.evidence_count,
-        candidate.confidence.source_diversity
+    println!(
+        "Confidence: ({} sources, {} diversity)",
+        candidate.confidence.evidence_count, candidate.confidence.source_diversity
     );
-    
+
     println!("\nSources:");
     for s in sources {
         println!("  - [{}] {}", s.source_type, s.source_id);
@@ -96,8 +110,10 @@ pub async fn execute_show(id: String) -> Result<(), AresError> {
 pub async fn execute_accept(id: String) -> Result<(), AresError> {
     let repo = get_repo()?;
     let project_id = "TEST";
-    let candidate = repo.get_candidate(project_id, &id).await
-        .map_err(|e| AresError::validation(e))?
+    let candidate = repo
+        .get_candidate(project_id, &id)
+        .await
+        .map_err(AresError::validation)?
         .ok_or_else(|| AresError::validation("Candidate not found"))?;
 
     if candidate.status == CandidateStatus::Approved {
@@ -143,22 +159,28 @@ pub async fn execute_accept(id: String) -> Result<(), AresError> {
         .await
         .map_err(|e| AresError::validation(format!("Promotion failed: {}", e)))?;
 
-    println!("Successfully accepted candidate {} and promoted to authoritative node {}.", id, node_id);
+    println!(
+        "Successfully accepted candidate {} and promoted to authoritative node {}.",
+        id, node_id
+    );
     Ok(())
 }
 
 pub async fn execute_reject(id: String) -> Result<(), AresError> {
     let repo = get_repo()?;
     let project_id = "TEST";
-    let mut candidate = repo.get_candidate(project_id, &id).await
-        .map_err(|e| AresError::validation(e))?
+    let mut candidate = repo
+        .get_candidate(project_id, &id)
+        .await
+        .map_err(AresError::validation)?
         .ok_or_else(|| AresError::validation("Candidate not found"))?;
 
     candidate.status = CandidateStatus::Rejected;
     candidate.updated_at = now_micros();
 
-    repo.update_candidate(&candidate).await
-        .map_err(|e| AresError::validation(e))?;
+    repo.update_candidate(&candidate)
+        .await
+        .map_err(AresError::validation)?;
 
     println!("Successfully rejected candidate {}.", id);
     Ok(())

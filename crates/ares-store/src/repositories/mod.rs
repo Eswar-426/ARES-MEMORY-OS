@@ -1,6 +1,9 @@
 pub mod candidate;
 pub mod decision;
+pub mod drift;
 pub mod event;
+pub mod evidence;
+pub mod evolution;
 pub mod graph;
 pub mod intelligence;
 pub mod memory;

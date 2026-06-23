@@ -1,25 +1,26 @@
 use anyhow::Result;
+use ares_decision_dna::lifecycle::LifecycleManager;
 use ares_decision_dna::models::{
-    decision::{DecisionMemory, DecisionState},
-    provenance::{ProvenanceRecord, SourceType},
     chain::ReasoningChain,
+    decision::{DecisionMemory, DecisionState},
     impact::ImpactMap,
+    provenance::{ProvenanceRecord, SourceType},
     DecisionId,
 };
-use ares_decision_dna::storage::sqlite::DecisionStorage;
-use ares_decision_dna::lifecycle::LifecycleManager;
 use ares_decision_dna::query::DecisionQueryEngine;
 use ares_decision_dna::services::ReviewTriggerEngine;
-use chrono::{Utc, Duration};
+use ares_decision_dna::storage::sqlite::DecisionStorage;
+use chrono::{Duration, Utc};
 use rusqlite::Connection;
-use std::sync::{Arc, Mutex};
 use std::fs;
+use std::sync::{Arc, Mutex};
 
 fn setup_db() -> Result<Arc<Mutex<Connection>>> {
     let conn = Connection::open_in_memory()?;
-    
+
     // Create necessary tables
-    conn.execute_batch(r#"
+    conn.execute_batch(
+        r#"
         CREATE TABLE decisions (
             id TEXT PRIMARY KEY,
             title TEXT NOT NULL DEFAULT '',
@@ -52,7 +53,8 @@ fn setup_db() -> Result<Arc<Mutex<Connection>>> {
             pull_request_url TEXT,
             evidence_links TEXT NOT NULL DEFAULT '[]'
         );
-    "#)?;
+    "#,
+    )?;
 
     Ok(Arc::new(Mutex::new(conn)))
 }
@@ -112,8 +114,10 @@ fn main() -> Result<()> {
     print!("Testing Storage (Save/Load)... ");
     let original = create_sample_decision();
     storage.save_decision(&original)?;
-    
-    let loaded = storage.get_decision(&original.id)?.expect("Decision should exist");
+
+    let loaded = storage
+        .get_decision(&original.id)?
+        .expect("Decision should exist");
     assert_eq!(original.id, loaded.id);
     assert_eq!(original.title, loaded.title);
     assert_eq!(original.state, loaded.state);
@@ -124,10 +128,10 @@ fn main() -> Result<()> {
     print!("Testing Lifecycle (Transitions)... ");
     let d1 = LifecycleManager::accept(original.clone())?;
     assert_eq!(d1.state, DecisionState::Accepted);
-    
+
     let d2 = LifecycleManager::deprecate(d1.clone())?;
     assert_eq!(d2.state, DecisionState::Deprecated);
-    
+
     // Invalid transition
     let res = LifecycleManager::accept(d2.clone());
     assert!(res.is_err(), "Cannot accept a deprecated decision");
@@ -136,19 +140,29 @@ fn main() -> Result<()> {
 
     // --- 3. Graph Validation ---
     print!("Testing Graph Integration... ");
-    let nodes = ares_decision_dna::storage::graph::GraphIntegration::build_decision_nodes(&original)?;
+    let nodes =
+        ares_decision_dna::storage::graph::GraphIntegration::build_decision_nodes(&original)?;
     assert!(!nodes.is_empty());
-    assert_eq!(nodes[0].node_type, ares_core::types::node::NodeType::Decision);
+    assert_eq!(
+        nodes[0].node_type,
+        ares_core::types::node::NodeType::Decision
+    );
     println!("✅ Passed");
     report.push_str("## Graph Validation\n- ✅ Generated Decision GraphNode\n- ✅ Mapped properties to GraphNode\n\n");
 
     // --- 4. Query Engine Validation ---
     print!("Testing Query Engine... ");
     let q1 = DecisionQueryEngine::why_was_this_made(original.id);
-    assert_eq!(q1.steps[0].edge_type, ares_core::types::node::EdgeType::MotivatedBy);
-    
+    assert_eq!(
+        q1.steps[0].edge_type,
+        ares_core::types::node::EdgeType::MotivatedBy
+    );
+
     let q2 = DecisionQueryEngine::which_files_are_affected(original.id);
-    assert_eq!(q2.steps[0].edge_type, ares_core::types::node::EdgeType::Impacts);
+    assert_eq!(
+        q2.steps[0].edge_type,
+        ares_core::types::node::EdgeType::Impacts
+    );
     println!("✅ Passed");
     report.push_str("## Query Engine Validation\n- ✅ `why_was_this_made()` correctly mapped to MotivatedBy\n- ✅ `which_files_are_affected()` correctly mapped to Impacts\n- ✅ `what_superseded_this()` correctly mapped to Supersedes\n\n");
 
@@ -157,11 +171,14 @@ fn main() -> Result<()> {
     let mut exp_decision = create_sample_decision();
     exp_decision.state = DecisionState::Accepted;
     exp_decision.review_due_at = Some(Utc::now() - Duration::days(1));
-    
+
     let expired = ReviewTriggerEngine::check_time_elapsed(&[exp_decision.clone()]);
     assert_eq!(expired.len(), 1);
-    
-    let changed = ReviewTriggerEngine::check_impacted_files_changed(&[exp_decision.clone()], &["src/main.rs".to_string()]);
+
+    let changed = ReviewTriggerEngine::check_impacted_files_changed(
+        &[exp_decision.clone()],
+        &["src/main.rs".to_string()],
+    );
     assert_eq!(changed.len(), 1);
     println!("✅ Passed");
     report.push_str("## Review Trigger Validation\n- ✅ Expired review_due_at detected\n- ✅ Changed impact files detected\n- ✅ Assumption invalidation mapped\n\n");

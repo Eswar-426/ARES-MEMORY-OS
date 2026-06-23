@@ -1,6 +1,5 @@
 use crate::models::DecisionId;
 use ares_core::types::node::{EdgeType, NodeType};
-use anyhow::Result;
 
 pub struct DecisionQueryEngine;
 

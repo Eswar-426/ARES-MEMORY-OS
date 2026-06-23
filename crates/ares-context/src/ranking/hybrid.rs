@@ -1,6 +1,6 @@
-use super::strategy::RankingStrategy;
 use super::distance::DistanceScorer;
 use super::recency::RecencyScorer;
+use super::strategy::RankingStrategy;
 use ares_core::GraphNode;
 
 pub struct HybridRanker {

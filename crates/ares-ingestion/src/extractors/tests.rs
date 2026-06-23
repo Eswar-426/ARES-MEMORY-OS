@@ -1,29 +1,36 @@
-use std::path::PathBuf;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 pub struct TestResolutionEngine;
 
 impl TestResolutionEngine {
     pub fn extract_test_relations(files: &[PathBuf]) -> Vec<(PathBuf, PathBuf)> {
         let mut relations = Vec::new();
-        
+
         // Build a map of file_stem -> Vec<PathBuf> for code files
         // E.g., "payment" -> ["src/payment.rs", "server/payment.ts"]
         let mut base_names: HashMap<String, Vec<PathBuf>> = HashMap::new();
-        
+
         for file in files {
             if let Some(stem) = file.file_stem().and_then(|s| s.to_str()) {
                 // Ignore obvious test files in the base map to avoid test mapping to test
-                if !stem.ends_with("_test") && !stem.ends_with(".spec") && !stem.ends_with(".test") && !stem.starts_with("test_") {
-                    base_names.entry(stem.to_string()).or_default().push(file.clone());
+                if !stem.ends_with("_test")
+                    && !stem.ends_with(".spec")
+                    && !stem.ends_with(".test")
+                    && !stem.starts_with("test_")
+                {
+                    base_names
+                        .entry(stem.to_string())
+                        .or_default()
+                        .push(file.clone());
                 }
             }
         }
 
         for file in files {
-            let file_str = file.to_string_lossy();
+            let _file_str = file.to_string_lossy();
             let file_name = file.file_name().and_then(|s| s.to_str()).unwrap_or("");
-            
+
             let mut resolved_base = None;
             let mut expected_ext = "";
 
@@ -67,7 +74,7 @@ impl TestResolutionEngine {
                 }
             }
         }
-        
+
         relations
     }
 }

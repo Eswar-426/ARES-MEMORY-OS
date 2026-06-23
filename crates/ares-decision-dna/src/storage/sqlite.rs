@@ -1,9 +1,9 @@
 use crate::models::{
-    decision::{DecisionMemory, DecisionState, DecisionOutcome},
-    requirement::Requirement,
     chain::ReasoningChain,
+    decision::{DecisionMemory, DecisionOutcome, DecisionState},
     impact::ImpactMap,
     provenance::ProvenanceRecord,
+    requirement::Requirement,
 };
 use anyhow::Result;
 use rusqlite::{params, Connection};
@@ -20,7 +20,7 @@ impl DecisionStorage {
 
     pub fn save_decision(&self, decision: &DecisionMemory) -> Result<()> {
         let conn = self.conn.lock().unwrap();
-        
+
         let state_str = match decision.state {
             DecisionState::Proposed => "proposed",
             DecisionState::Accepted => "accepted",
@@ -110,7 +110,8 @@ impl DecisionStorage {
 
     pub fn get_decision(&self, id: &crate::models::DecisionId) -> Result<Option<DecisionMemory>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("
+        let mut stmt = conn.prepare(
+            "
             SELECT d.id, d.title, d.context, d.state, d.version, d.confidence, 
                    d.ai_assisted, d.human_reviewed, d.review_due_at, d.superseded_by, 
                    d.created_at, d.updated_at, d.tags,
@@ -120,7 +121,8 @@ impl DecisionStorage {
             FROM decisions d
             LEFT JOIN decision_provenance p ON d.id = p.decision_id
             WHERE d.id = ?1
-        ")?;
+        ",
+        )?;
 
         let mut rows = stmt.query(params![id.to_string()])?;
 
@@ -154,9 +156,13 @@ impl DecisionStorage {
 
             let provenance = ProvenanceRecord {
                 source_type,
-                author_id: row.get::<_, Option<String>>(14)?.map(|s| uuid::Uuid::parse_str(&s).unwrap()),
+                author_id: row
+                    .get::<_, Option<String>>(14)?
+                    .map(|s| uuid::Uuid::parse_str(&s).unwrap()),
                 created_by_agent: row.get(15).unwrap_or(None),
-                reviewed_by: row.get::<_, Option<String>>(16)?.map(|s| uuid::Uuid::parse_str(&s).unwrap()),
+                reviewed_by: row
+                    .get::<_, Option<String>>(16)?
+                    .map(|s| uuid::Uuid::parse_str(&s).unwrap()),
                 confidence: row.get(17).unwrap_or(1.0),
                 source_system: row.get(18).unwrap_or_else(|_| "ARES".to_string()),
                 original_commit: row.get(19).unwrap_or(None),
@@ -173,16 +179,22 @@ impl DecisionStorage {
                 context: row.get(2)?,
                 state,
                 version: row.get(4)?,
-                created_at: chrono::DateTime::from_timestamp_millis(created_at_ts).unwrap_or_default(),
-                updated_at: chrono::DateTime::from_timestamp_millis(updated_at_ts).unwrap_or_default(),
+                created_at: chrono::DateTime::from_timestamp_millis(created_at_ts)
+                    .unwrap_or_default(),
+                updated_at: chrono::DateTime::from_timestamp_millis(updated_at_ts)
+                    .unwrap_or_default(),
                 confidence: row.get(5)?,
                 ai_assisted: row.get(6)?,
                 human_reviewed: row.get(7)?,
-                review_due_at: row.get::<_, Option<i64>>(8)?.map(|ts| chrono::DateTime::from_timestamp_millis(ts).unwrap()),
+                review_due_at: row
+                    .get::<_, Option<i64>>(8)?
+                    .map(|ts| chrono::DateTime::from_timestamp_millis(ts).unwrap()),
                 approved_by: vec![],
                 tags,
                 supersedes: vec![],
-                superseded_by: row.get::<_, Option<String>>(9)?.map(|s| uuid::Uuid::parse_str(&s).unwrap()),
+                superseded_by: row
+                    .get::<_, Option<String>>(9)?
+                    .map(|s| uuid::Uuid::parse_str(&s).unwrap()),
                 provenance,
                 reasoning: ReasoningChain {
                     id: uuid::Uuid::new_v4(),

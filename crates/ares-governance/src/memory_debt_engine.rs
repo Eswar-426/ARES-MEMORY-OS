@@ -27,7 +27,10 @@ pub struct MemoryDebtMetrics {
 pub struct MemoryDebtEngine;
 
 impl MemoryDebtEngine {
-    pub fn calculate(coverage: &MemoryCoverageMetrics, drift: &MemoryDriftMetrics) -> MemoryDebtMetrics {
+    pub fn calculate(
+        coverage: &MemoryCoverageMetrics,
+        drift: &MemoryDriftMetrics,
+    ) -> MemoryDebtMetrics {
         // Point values as per architectural specification
         const REQ_WEIGHT: u64 = 10;
         const DEC_WEIGHT: u64 = 8;
@@ -36,10 +39,22 @@ impl MemoryDebtEngine {
         const TST_WEIGHT: u64 = 3;
         const DRIFT_WEIGHT: u64 = 2;
 
-        let missing_requirements = coverage.requirements.total.saturating_sub(coverage.requirements.covered);
-        let missing_decisions = coverage.decisions.total.saturating_sub(coverage.decisions.covered);
-        let missing_owners = coverage.ownership.total.saturating_sub(coverage.ownership.covered);
-        let missing_evidence = coverage.evidence.total.saturating_sub(coverage.evidence.covered);
+        let missing_requirements = coverage
+            .requirements
+            .total
+            .saturating_sub(coverage.requirements.covered);
+        let missing_decisions = coverage
+            .decisions
+            .total
+            .saturating_sub(coverage.decisions.covered);
+        let missing_owners = coverage
+            .ownership
+            .total
+            .saturating_sub(coverage.ownership.covered);
+        let missing_evidence = coverage
+            .evidence
+            .total
+            .saturating_sub(coverage.evidence.covered);
         let missing_tests = coverage.tests.total.saturating_sub(coverage.tests.covered);
         let drifted_artifacts = drift.artifacts_changed_without_memory_updates;
 

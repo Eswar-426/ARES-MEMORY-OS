@@ -1,10 +1,11 @@
 use std::collections::HashSet;
 use uuid::Uuid;
 
-use ares_candidates::{
-    ArchitectureCategory, Candidate, CandidateConfidence, CandidateSource, CandidateStatus, CandidateType,
-};
 use ares_candidates::confidence::CandidateThresholds;
+use ares_candidates::{
+    ArchitectureCategory, Candidate, CandidateConfidence, CandidateSource, CandidateStatus,
+    CandidateType,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ArchitectureEvidenceType {
@@ -31,7 +32,11 @@ pub struct ArchitectureCandidateBuilder {
 }
 
 impl ArchitectureCandidateBuilder {
-    pub fn new(project_id: impl Into<String>, title: impl Into<String>, category: ArchitectureCategory) -> Self {
+    pub fn new(
+        project_id: impl Into<String>,
+        title: impl Into<String>,
+        category: ArchitectureCategory,
+    ) -> Self {
         Self {
             category,
             title: title.into(),
@@ -61,7 +66,10 @@ impl ArchitectureCandidateBuilder {
 
     pub fn build(self) -> Result<Candidate, String> {
         if self.evidence_types.len() < 2 {
-            return Err("Architecture Candidates require a minimum of 2 independent evidence types".to_string());
+            return Err(
+                "Architecture Candidates require a minimum of 2 independent evidence types"
+                    .to_string(),
+            );
         }
 
         let now = chrono::Utc::now().timestamp();
@@ -89,7 +97,10 @@ impl ArchitectureCandidateBuilder {
             id,
             project_id: self.project_id,
             title: self.title,
-            description: format!("Deterministic architecture inferred from {} pieces of evidence.", self.sources.len()),
+            description: format!(
+                "Deterministic architecture inferred from {} pieces of evidence.",
+                self.sources.len()
+            ),
             candidate_type: CandidateType::Architecture,
             decision_category: None,
             architecture_category: Some(self.category),
@@ -131,21 +142,32 @@ mod tests {
 
     #[test]
     fn test_minimum_evidence_rule() {
-        let builder = ArchitectureCandidateBuilder::new("PROJ-1", "Payment Service", ArchitectureCategory::Service)
-            .add_evidence(ArchitectureEvidence {
-                evidence_type: ArchitectureEvidenceType::WorkspaceStructure,
-                source: dummy_source("file", "crates/payment/Cargo.toml"),
-            });
+        let builder = ArchitectureCandidateBuilder::new(
+            "PROJ-1",
+            "Payment Service",
+            ArchitectureCategory::Service,
+        )
+        .add_evidence(ArchitectureEvidence {
+            evidence_type: ArchitectureEvidenceType::WorkspaceStructure,
+            source: dummy_source("file", "crates/payment/Cargo.toml"),
+        });
 
         let result = builder.build();
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "Architecture Candidates require a minimum of 2 independent evidence types");
+        assert_eq!(
+            result.unwrap_err(),
+            "Architecture Candidates require a minimum of 2 independent evidence types"
+        );
     }
 
     #[test]
     fn test_successful_architecture_candidate() {
-        let mut builder = ArchitectureCandidateBuilder::new("PROJ-1", "Payment Service", ArchitectureCategory::Service);
-        
+        let mut builder = ArchitectureCandidateBuilder::new(
+            "PROJ-1",
+            "Payment Service",
+            ArchitectureCategory::Service,
+        );
+
         // Add minimum evidence types
         builder = builder
             .add_evidence(ArchitectureEvidence {
@@ -167,21 +189,28 @@ mod tests {
                 evidence_type: ArchitectureEvidenceType::CommitHistory,
                 source: dummy_source(&format!("commit-{}", i), &format!("hash-{}", i)),
             });
-            builder.evidence_types.insert(ArchitectureEvidenceType::CommitHistory); // For diversity logic
-            // Hack to force diversity: we just add random strings to builder directly if we had to, 
-            // but source_diversity in Architecture uses evidence_types.len() which is max 4.
-            // Wait, diversity = evidence_types.len() which maxes at 4.
-            // If diversity is 4, (4/10)*25 = 10.
-            // If evidence_count = 50, (50/50)*30 = 30.
-            // Temporal = 20, Cluster = 25.
-            // Total score: 10 + 30 + 20 + 25 = 85.0 -> exactly 0.85 !
+            builder
+                .evidence_types
+                .insert(ArchitectureEvidenceType::CommitHistory); // For diversity logic
+                                                                  // Hack to force diversity: we just add random strings to builder directly if we had to,
+                                                                  // but source_diversity in Architecture uses evidence_types.len() which is max 4.
+                                                                  // Wait, diversity = evidence_types.len() which maxes at 4.
+                                                                  // If diversity is 4, (4/10)*25 = 10.
+                                                                  // If evidence_count = 50, (50/50)*30 = 30.
+                                                                  // Temporal = 20, Cluster = 25.
+                                                                  // Total score: 10 + 30 + 20 + 25 = 85.0 -> exactly 0.85 !
         }
 
-        builder = builder.add_ownership_domain("billing").add_dependent_component("checkout");
+        builder = builder
+            .add_ownership_domain("billing")
+            .add_dependent_component("checkout");
 
         let candidate = builder.build().expect("Should build successfully");
-        
-        assert_eq!(candidate.architecture_category, Some(ArchitectureCategory::Service));
+
+        assert_eq!(
+            candidate.architecture_category,
+            Some(ArchitectureCategory::Service)
+        );
         assert_eq!(candidate.ownership_domains, vec!["billing"]);
         assert_eq!(candidate.dependent_components, vec!["checkout"]);
         assert!(candidate.confidence.normalized_score() >= CandidateThresholds::architecture());
@@ -189,24 +218,25 @@ mod tests {
 
     #[test]
     fn test_cross_repository_protection() {
-        let mut builder = ArchitectureCandidateBuilder::new("PROJ-A", "Auth", ArchitectureCategory::Module)
-            .add_evidence(ArchitectureEvidence {
-                evidence_type: ArchitectureEvidenceType::WorkspaceStructure,
-                source: dummy_source("file", "auth/index.ts"),
-            })
-            .add_evidence(ArchitectureEvidence {
-                evidence_type: ArchitectureEvidenceType::DependencyGraph,
-                source: dummy_source("commit", "123"),
-            })
-            .add_evidence(ArchitectureEvidence {
-                evidence_type: ArchitectureEvidenceType::CodeOwnership,
-                source: dummy_source("codeowners", "CODEOWNERS"),
-            })
-            .add_evidence(ArchitectureEvidence {
-                evidence_type: ArchitectureEvidenceType::CommitHistory,
-                source: dummy_source("commit", "abc"),
-            });
-            
+        let mut builder =
+            ArchitectureCandidateBuilder::new("PROJ-A", "Auth", ArchitectureCategory::Module)
+                .add_evidence(ArchitectureEvidence {
+                    evidence_type: ArchitectureEvidenceType::WorkspaceStructure,
+                    source: dummy_source("file", "auth/index.ts"),
+                })
+                .add_evidence(ArchitectureEvidence {
+                    evidence_type: ArchitectureEvidenceType::DependencyGraph,
+                    source: dummy_source("commit", "123"),
+                })
+                .add_evidence(ArchitectureEvidence {
+                    evidence_type: ArchitectureEvidenceType::CodeOwnership,
+                    source: dummy_source("codeowners", "CODEOWNERS"),
+                })
+                .add_evidence(ArchitectureEvidence {
+                    evidence_type: ArchitectureEvidenceType::CommitHistory,
+                    source: dummy_source("commit", "abc"),
+                });
+
         for i in 0..50 {
             builder = builder.add_evidence(ArchitectureEvidence {
                 evidence_type: ArchitectureEvidenceType::CommitHistory,

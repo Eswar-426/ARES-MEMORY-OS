@@ -1,9 +1,9 @@
-use serde::{Deserialize, Serialize};
-use ares_core::GraphNode;
 use super::{ContextMetrics, DependencyTrace, ImpactReport};
-use crate::traversal::ArchitecturePath;
 use crate::query::intent::QueryIntent;
+use crate::traversal::ArchitecturePath;
+use ares_core::GraphNode;
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 /// Tracks the rationale behind why nodes were selected
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -58,7 +58,7 @@ pub struct ContextPack {
     pub confidence_score: f32,
     pub generated_at: DateTime<Utc>,
     pub retrieval_time_ms: u64,
-    
+
     pub retrieval_explanation: RetrievalExplanation,
     pub metrics: ContextMetrics,
 }

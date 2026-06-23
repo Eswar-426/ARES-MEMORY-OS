@@ -29,14 +29,18 @@ impl ResolutionEngine {
 
         for gap in &health_report.gaps {
             if let Some(reason) = &gap.reason {
-                let template = self.rule_engine.get_template(&gap.gap_type, &reason.root_cause);
+                let template = self
+                    .rule_engine
+                    .get_template(&gap.gap_type, &reason.root_cause);
 
                 let category = self.simulator.infer_category(&gap.gap_type);
                 let (health_gain, debt_reduction, breakdown) =
                     self.simulator.simulate(&gap.gap_type, &template);
-                let priority = self
-                    .prioritizer
-                    .prioritize(gap, &health_report.health, &health_report.knowledge_debt);
+                let priority = self.prioritizer.prioritize(
+                    gap,
+                    &health_report.health,
+                    &health_report.knowledge_debt,
+                );
 
                 let actions: Vec<ResolutionAction> = template
                     .actions

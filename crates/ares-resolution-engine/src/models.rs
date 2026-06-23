@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use ares_gap_engine::models::RootCause;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum EffortLevel {

@@ -26,26 +26,37 @@ impl DecisionHealthEngine {
         Self { store }
     }
 
-    pub fn generate_snapshot(&self, project_id: &ProjectId) -> Result<DecisionHealthSnapshot, AresError> {
+    pub fn generate_snapshot(
+        &self,
+        project_id: &ProjectId,
+    ) -> Result<DecisionHealthSnapshot, AresError> {
         let conn = self.store.get_conn()?;
-        
-        let mut stmt = conn.prepare("SELECT COUNT(*) FROM decision_records").map_err(AresError::db)?;
+
+        let mut stmt = conn
+            .prepare("SELECT COUNT(*) FROM decision_records")
+            .map_err(AresError::db)?;
         let total_decisions: usize = stmt.query_row([], |r| r.get(0)).unwrap_or(0);
 
-        let mut stmt = conn.prepare("SELECT COUNT(*) FROM decision_records WHERE approval_status = '\"approved\"'").map_err(AresError::db)?;
+        let mut stmt = conn
+            .prepare("SELECT COUNT(*) FROM decision_records WHERE approval_status = '\"approved\"'")
+            .map_err(AresError::db)?;
         let approved_decisions: usize = stmt.query_row([], |r| r.get(0)).unwrap_or(0);
 
-        let mut stmt = conn.prepare("SELECT COUNT(*) FROM decision_records WHERE owner IS NULL").map_err(AresError::db)?;
+        let mut stmt = conn
+            .prepare("SELECT COUNT(*) FROM decision_records WHERE owner IS NULL")
+            .map_err(AresError::db)?;
         let decisions_without_owner: usize = stmt.query_row([], |r| r.get(0)).unwrap_or(0);
 
-        let mut stmt = conn.prepare("SELECT COUNT(DISTINCT decision_id) FROM decision_evidence").map_err(AresError::db)?;
+        let mut stmt = conn
+            .prepare("SELECT COUNT(DISTINCT decision_id) FROM decision_evidence")
+            .map_err(AresError::db)?;
         let decisions_with_evidence: usize = stmt.query_row([], |r| r.get(0)).unwrap_or(0);
 
         let mut stmt = conn.prepare("SELECT COUNT(*) FROM decision_records WHERE consequences != '[]' AND consequences != ''").map_err(AresError::db)?;
         let decisions_with_consequences: usize = stmt.query_row([], |r| r.get(0)).unwrap_or(0);
 
         let mut health_score = 100.0;
-        
+
         if total_decisions > 0 {
             // Deduct points for unowned decisions
             health_score -= (decisions_without_owner as f32 / total_decisions as f32) * 30.0;
@@ -88,7 +99,8 @@ impl DecisionHealthEngine {
                 snapshot.decisions_without_owner,
                 snapshot.health_score,
             ],
-        ).map_err(AresError::db)?;
+        )
+        .map_err(AresError::db)?;
 
         Ok(snapshot)
     }

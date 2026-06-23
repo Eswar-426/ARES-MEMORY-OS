@@ -1,6 +1,5 @@
 use ares_store::db::Store;
 use std::fs;
-use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let root_path = std::env::current_dir()?;
@@ -20,10 +19,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::write(&stats_file, serde_json::to_string_pretty(&metrics)?)?;
 
     let call_stats_file = val_dir.join("call_graph_metrics.json");
-    fs::write(&call_stats_file, serde_json::to_string_pretty(&call_metrics)?)?;
+    fs::write(
+        &call_stats_file,
+        serde_json::to_string_pretty(&call_metrics)?,
+    )?;
 
     // Graph Evolution Tracking
-    let history_dir = root_path.join("artifacts").join("history").join("graph_metrics");
+    let history_dir = root_path
+        .join("artifacts")
+        .join("history")
+        .join("graph_metrics");
     if !history_dir.exists() {
         fs::create_dir_all(&history_dir)?;
     }
@@ -35,7 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         edges: metrics.total_edges,
         largest_component: metrics.largest_connected_component,
     };
-    
+
     // Save timestamped snapshot
     let timestamp_str = chrono::Utc::now().format("%Y%m%d_%H%M%S").to_string();
     let snapshot_file = history_dir.join(format!("snapshot_{}.json", timestamp_str));
@@ -43,6 +48,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Graph stats saved to {}", stats_file.display());
     println!("Call graph metrics saved to {}", call_stats_file.display());
-    println!("Graph evolution snapshot saved to {}", snapshot_file.display());
+    println!(
+        "Graph evolution snapshot saved to {}",
+        snapshot_file.display()
+    );
     Ok(())
 }

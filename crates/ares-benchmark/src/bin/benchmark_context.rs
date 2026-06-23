@@ -1,8 +1,8 @@
-use ares_benchmark::context::dataset::{BenchmarkDataset, BenchmarkQuery};
-use ares_benchmark::context::evaluator::{ContextEvaluator, ContextBenchmarkReport};
+use ares_benchmark::context::dataset::BenchmarkDataset;
+use ares_benchmark::context::evaluator::ContextEvaluator;
 use ares_context::context_engine::ContextEngine;
-use ares_context::pack::{ContextPackBuilder, ContextPackValidator};
 use ares_context::models::pack::ContextBudget;
+use ares_context::pack::{ContextPackBuilder, ContextPackValidator};
 use ares_context::traversal::TraversalConfig;
 use ares_core::ProjectId;
 use ares_store::db::Store;
@@ -15,7 +15,7 @@ use std::sync::Arc;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Loading Golden Dataset from crates/ares-benchmark/context_dataset.json...");
     let dataset = BenchmarkDataset::load_from_file("crates/ares-benchmark/context_dataset.json")?;
-    
+
     println!("Initializing ARES Context Engine...");
     let store = Store::open(Path::new("ares_memory.db"))?;
     let graph_repo = Arc::new(SqliteGraphRepository::new(store.clone()));
@@ -28,12 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         max_results: 50,
     };
 
-    let engine = ContextEngine::new(
-        project_id,
-        graph_repo,
-        memory_repo,
-        config,
-    );
+    let engine = ContextEngine::new(project_id, graph_repo, memory_repo, config);
 
     let budget = ContextBudget::default();
     let builder = ContextPackBuilder::new(budget);
@@ -45,13 +40,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         match engine.resolve_query(&query.query).await {
             Ok(bundle) => {
                 let pack = builder.build(bundle);
-                
+
                 if let Err(e) = ContextPackValidator::validate(&pack) {
                     println!("  [!] Validation Warning: {}", e);
                 }
 
                 let eval = ContextEvaluator::evaluate_pack(query, &pack);
-                println!("  -> Passed: {}, Latency: {}ms", eval.passed, eval.latency_ms);
+                println!(
+                    "  -> Passed: {}, Latency: {}ms",
+                    eval.passed, eval.latency_ms
+                );
                 evaluations.push(eval);
             }
             Err(e) => {
@@ -61,12 +59,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let report = ContextEvaluator::generate_report(evaluations);
-    
+
     println!("\n=========================================");
     println!("Benchmark Report");
     println!("=========================================");
     println!("Total Queries: {}", report.total_queries);
-    println!("Passing: {}/{}", report.passing_queries, report.total_queries);
+    println!(
+        "Passing: {}/{}",
+        report.passing_queries, report.total_queries
+    );
     println!("Avg Recall: {:.2}", report.avg_recall);
     println!("Avg Precision: {:.2}", report.avg_precision);
     println!("Avg Latency: {}ms", report.avg_latency_ms);

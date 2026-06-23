@@ -11,15 +11,69 @@ use std::time::Instant;
 
 /// Common English words that should be skipped during keyword search
 const SKIP_WORDS: &[&str] = &[
-    "explain", "trace", "find", "locate", "summarize", "identify", "provide",
-    "describe", "analyze", "list", "show", "impact", "analysis", "all",
-    "the", "and", "for", "how", "what", "where", "which", "that", "from",
-    "with", "this", "have", "does", "about", "into", "would", "could",
-    "should", "a", "an", "of", "in", "to", "by", "on", "is", "are", "be",
-    "internal", "external", "downstream", "comprehensive", "high", "level",
-    "utilized", "coordinates", "execution", "extraction", "interfaces",
-    "generating", "repository", "components", "steps", "sequence", "initial",
-    "changes", "affected", "responsible", "dependencies",
+    "explain",
+    "trace",
+    "find",
+    "locate",
+    "summarize",
+    "identify",
+    "provide",
+    "describe",
+    "analyze",
+    "list",
+    "show",
+    "impact",
+    "analysis",
+    "all",
+    "the",
+    "and",
+    "for",
+    "how",
+    "what",
+    "where",
+    "which",
+    "that",
+    "from",
+    "with",
+    "this",
+    "have",
+    "does",
+    "about",
+    "into",
+    "would",
+    "could",
+    "should",
+    "a",
+    "an",
+    "of",
+    "in",
+    "to",
+    "by",
+    "on",
+    "is",
+    "are",
+    "be",
+    "internal",
+    "external",
+    "downstream",
+    "comprehensive",
+    "high",
+    "level",
+    "utilized",
+    "coordinates",
+    "execution",
+    "extraction",
+    "interfaces",
+    "generating",
+    "repository",
+    "components",
+    "steps",
+    "sequence",
+    "initial",
+    "changes",
+    "affected",
+    "responsible",
+    "dependencies",
 ];
 
 pub struct BaselineAgent {
@@ -41,7 +95,10 @@ impl AgentRunner for BaselineAgent {
             .filter(|w| !SKIP_WORDS.contains(&w.to_lowercase().as_str()))
             .collect();
 
-        let pagination = Pagination { page: 1, page_size: 50 };
+        let pagination = Pagination {
+            page: 1,
+            page_size: 50,
+        };
         let mut all_files = HashSet::new();
         let mut all_components = HashSet::new();
 
@@ -62,12 +119,13 @@ impl AgentRunner for BaselineAgent {
                     if let Some(fp) = &node.file_path {
                         all_files.insert(fp.clone());
                     }
-                    if matches!(node.node_type,
+                    if matches!(
+                        node.node_type,
                         ares_core::NodeType::Struct
-                        | ares_core::NodeType::Function
-                        | ares_core::NodeType::Class
-                        | ares_core::NodeType::Trait
-                        | ares_core::NodeType::Enum
+                            | ares_core::NodeType::Function
+                            | ares_core::NodeType::Class
+                            | ares_core::NodeType::Trait
+                            | ares_core::NodeType::Enum
                     ) {
                         all_components.insert(node.label.clone());
                     }
@@ -76,7 +134,11 @@ impl AgentRunner for BaselineAgent {
         }
 
         let latency_ms = start.elapsed().as_millis() as u64;
-        let response = format!("Found {} files via keyword search ({:?}).", all_files.len(), unique_keywords);
+        let response = format!(
+            "Found {} files via keyword search ({:?}).",
+            all_files.len(),
+            unique_keywords
+        );
         let retrieved_files: Vec<String> = all_files.into_iter().collect();
         let retrieved_components: Vec<String> = all_components.into_iter().collect();
 

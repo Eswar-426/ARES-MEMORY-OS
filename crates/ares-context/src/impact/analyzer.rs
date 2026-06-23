@@ -1,9 +1,9 @@
-use ares_core::{AresError, NodeId, ProjectId};
-use std::sync::Arc;
 use crate::models::ImpactReport;
 use crate::traversal::dependency::DependencyTraverser;
-use ares_store::repositories::graph::SqliteGraphRepository;
 use crate::traversal::TraversalConfig;
+use ares_core::{AresError, NodeId, ProjectId};
+use ares_store::repositories::graph::SqliteGraphRepository;
+use std::sync::Arc;
 
 pub struct ImpactAnalyzer {
     repo: Arc<SqliteGraphRepository>,
@@ -19,7 +19,11 @@ impl ImpactAnalyzer {
     }
 
     /// Analyzes the impact of changing a specific node
-    pub async fn analyze(&self, project_id: &ProjectId, node_id: &NodeId) -> Result<ImpactReport, AresError> {
+    pub async fn analyze(
+        &self,
+        project_id: &ProjectId,
+        node_id: &NodeId,
+    ) -> Result<ImpactReport, AresError> {
         let trace = self.traverser.trace_dependents(project_id, node_id).await?;
 
         let mut affected_modules = Vec::new();
@@ -27,8 +31,12 @@ impl ImpactAnalyzer {
 
         for node in trace.path {
             match node.node_type {
-                ares_core::NodeType::File | ares_core::NodeType::Folder => affected_modules.push(node.label),
-                ares_core::NodeType::Function | ares_core::NodeType::Method => affected_functions.push(node.label),
+                ares_core::NodeType::File | ares_core::NodeType::Folder => {
+                    affected_modules.push(node.label)
+                }
+                ares_core::NodeType::Function | ares_core::NodeType::Method => {
+                    affected_functions.push(node.label)
+                }
                 _ => {}
             }
         }

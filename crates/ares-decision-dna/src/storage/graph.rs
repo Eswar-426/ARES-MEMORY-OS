@@ -5,10 +5,12 @@ use ares_core::types::node::NodeType;
 pub struct GraphIntegration;
 
 impl GraphIntegration {
-    pub fn build_decision_nodes(decision: &DecisionMemory) -> Result<Vec<ares_core::types::node::GraphNode>> {
+    pub fn build_decision_nodes(
+        decision: &DecisionMemory,
+    ) -> Result<Vec<ares_core::types::node::GraphNode>> {
         // Implementation for mapping DecisionMemory to GraphNodes
         let mut nodes = vec![];
-        
+
         // Main decision node
         let decision_node = ares_core::types::node::GraphNode {
             id: ares_core::id::NodeId::from(decision.id.to_string()),
@@ -27,7 +29,7 @@ impl GraphIntegration {
             deleted_at: None,
         };
         nodes.push(decision_node);
-        
+
         Ok(nodes)
     }
 }

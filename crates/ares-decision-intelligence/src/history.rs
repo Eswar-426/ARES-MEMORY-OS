@@ -1,4 +1,4 @@
-use ares_core::{AresError, DecisionId, id::new_id};
+use ares_core::{AresError, DecisionId};
 use ares_store::db::Store;
 use chrono::Utc;
 use rusqlite::params;
@@ -52,28 +52,34 @@ impl DecisionHistory {
         Ok(revision_id)
     }
 
-    pub fn get_revisions(&self, decision_id: &DecisionId) -> Result<Vec<DecisionRevision>, AresError> {
+    pub fn get_revisions(
+        &self,
+        decision_id: &DecisionId,
+    ) -> Result<Vec<DecisionRevision>, AresError> {
         let conn = self.store.get_conn()?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, changed_by, change_reason, diff_payload, created_at 
                  FROM decision_revisions 
                  WHERE decision_id = ?1 
-                 ORDER BY created_at DESC"
+                 ORDER BY created_at DESC",
             )
             .map_err(AresError::db)?;
 
-        let revisions = stmt.query_map(params![decision_id.as_str()], |row| {
-            Ok(DecisionRevision {
-                id: row.get(0)?,
-                decision_id: decision_id.clone(),
-                changed_by: row.get(1)?,
-                change_reason: row.get(2)?,
-                diff_payload: row.get(3)?,
-                created_at: row.get(4)?,
+        let revisions = stmt
+            .query_map(params![decision_id.as_str()], |row| {
+                Ok(DecisionRevision {
+                    id: row.get(0)?,
+                    decision_id: decision_id.clone(),
+                    changed_by: row.get(1)?,
+                    change_reason: row.get(2)?,
+                    diff_payload: row.get(3)?,
+                    created_at: row.get(4)?,
+                })
             })
-        }).map_err(AresError::db)?
-        .collect::<Result<Vec<_>, _>>().map_err(AresError::db)?;
+            .map_err(AresError::db)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(AresError::db)?;
 
         Ok(revisions)
     }

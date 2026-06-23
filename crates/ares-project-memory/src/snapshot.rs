@@ -134,8 +134,7 @@ impl SnapshotStore {
 }
 
 /// Lightweight snapshot metadata (without the full JSON payload).
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[derive(utoipa::ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct SnapshotMeta {
     pub id: String,
     pub project_id: String,

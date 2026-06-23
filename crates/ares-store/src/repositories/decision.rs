@@ -1,8 +1,12 @@
+#![allow(deprecated)]
+#![allow(unused_imports)]
 use crate::db::Store;
 use ares_core::{
-    types::decision::ReasoningStep, types::event::now_micros, AresError, CreateDecisionInput,
-    Decision, DecisionFilter, DecisionId, DecisionSearchResult, DecisionStatus, MemoryId,
-    ProjectId,
+    types::decision::{
+        Alternative, CreateDecisionInput, Decision, DecisionFilter, DecisionPatch, ReasoningStep,
+    },
+    types::event::now_micros,
+    AresError, DecisionId, DecisionSearchResult, DecisionStatus, MemoryId, ProjectId,
 };
 use rusqlite::params;
 use tracing::debug;

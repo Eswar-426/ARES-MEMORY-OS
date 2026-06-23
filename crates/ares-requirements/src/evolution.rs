@@ -1,5 +1,7 @@
-use crate::models::{EventOrigin, RequirementEvolutionEvent, RequirementEvolutionType, RequirementTimeline};
-use ares_core::{AresError, RequirementId, id::new_id};
+use crate::models::{
+    EventOrigin, RequirementEvolutionEvent, RequirementEvolutionType, RequirementTimeline,
+};
+use ares_core::{id::new_id, AresError, RequirementId};
 use ares_store::db::Store;
 use chrono::Utc;
 use rusqlite::params;
@@ -71,7 +73,10 @@ impl RequirementEvolutionStorage {
         })
     }
 
-    pub fn get_timeline(&self, requirement_id: &RequirementId) -> Result<RequirementTimeline, AresError> {
+    pub fn get_timeline(
+        &self,
+        requirement_id: &RequirementId,
+    ) -> Result<RequirementTimeline, AresError> {
         let conn = self.store.get_conn()?;
         let mut stmt = conn
             .prepare(
@@ -87,9 +92,13 @@ impl RequirementEvolutionStorage {
                 let r_id: String = row.get(1)?;
                 let e_type_str: String = row.get(2)?;
                 let origin_str: String = row.get(3)?;
-                
-                let event_type: RequirementEvolutionType = serde_json::from_str(&format!("\"{}\"", e_type_str)).unwrap_or(RequirementEvolutionType::RequirementCreated);
-                let event_origin: EventOrigin = serde_json::from_str(&format!("\"{}\"", origin_str)).unwrap_or(EventOrigin::Recorded);
+
+                let event_type: RequirementEvolutionType =
+                    serde_json::from_str(&format!("\"{}\"", e_type_str))
+                        .unwrap_or(RequirementEvolutionType::RequirementCreated);
+                let event_origin: EventOrigin =
+                    serde_json::from_str(&format!("\"{}\"", origin_str))
+                        .unwrap_or(EventOrigin::Recorded);
 
                 Ok(RequirementEvolutionEvent {
                     id: row.get(0)?,
@@ -129,7 +138,10 @@ impl RequirementEvolutionEngine {
         }
     }
 
-    pub fn get_timeline(&self, requirement_id: &RequirementId) -> Result<RequirementTimeline, AresError> {
+    pub fn get_timeline(
+        &self,
+        requirement_id: &RequirementId,
+    ) -> Result<RequirementTimeline, AresError> {
         self.storage.get_timeline(requirement_id)
     }
 

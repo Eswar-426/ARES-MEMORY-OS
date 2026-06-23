@@ -1,6 +1,6 @@
-use ares_core::{AresError, EdgeDirection, EdgeType, NodeId, ProjectId};
-use ares_core::types::node::{GraphEdge, GraphNode};
 use crate::compliance_engine::GraphProvider;
+use ares_core::types::node::{GraphEdge, GraphNode};
+use ares_core::{AresError, EdgeDirection, EdgeType, NodeId, ProjectId};
 
 #[derive(Clone)]
 pub enum GraphMutation {
@@ -14,12 +14,16 @@ pub struct VirtualGraphProvider {
 }
 
 impl VirtualGraphProvider {
-    pub fn new(mut base_nodes: Vec<GraphNode>, mut base_edges: Vec<GraphEdge>, mutation: GraphMutation) -> Self {
+    pub fn new(
+        mut base_nodes: Vec<GraphNode>,
+        mut base_edges: Vec<GraphEdge>,
+        mutation: GraphMutation,
+    ) -> Self {
         match mutation {
             GraphMutation::AddNode(n) => base_nodes.push(n),
             GraphMutation::AddEdge(e) => base_edges.push(e),
         }
-        
+
         Self {
             nodes: base_nodes,
             edges: base_edges,
@@ -39,12 +43,12 @@ impl GraphProvider for VirtualGraphProvider {
         edge_types: &[EdgeType],
     ) -> Result<Vec<GraphNode>, AresError> {
         let mut neighbors = Vec::new();
-        
+
         for edge in &self.edges {
             if !edge_types.contains(&edge.edge_type) {
                 continue;
             }
-            
+
             match direction {
                 EdgeDirection::Outgoing => {
                     if edge.from_node_id == *id {
@@ -73,11 +77,16 @@ impl GraphProvider for VirtualGraphProvider {
                 }
             }
         }
-        
+
         Ok(neighbors)
     }
 
     fn get_all_nodes(&self, project_id: &ProjectId) -> Result<Vec<GraphNode>, AresError> {
-        Ok(self.nodes.iter().filter(|n| n.project_id == *project_id).cloned().collect())
+        Ok(self
+            .nodes
+            .iter()
+            .filter(|n| n.project_id == *project_id)
+            .cloned()
+            .collect())
     }
 }

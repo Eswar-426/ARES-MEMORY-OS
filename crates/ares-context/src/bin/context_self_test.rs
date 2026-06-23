@@ -1,11 +1,10 @@
-use ares_context::ContextEngine;
+use ares_context::models::pack::ContextBudget;
+use ares_context::pack::{ContextPackBuilder, ContextPackValidator};
 use ares_context::traversal::TraversalConfig;
+use ares_context::ContextEngine;
 use ares_core::ProjectId;
 use ares_store::repositories::graph::SqliteGraphRepository;
 use ares_store::repositories::memory::SqliteMemoryRepository;
-use ares_context::pack::{ContextPackBuilder, ContextPackValidator};
-use ares_context::models::pack::ContextBudget;
-use ares_context::pack::markdown::ToMarkdown;
 use std::sync::Arc;
 
 use ares_store::db::Store;
@@ -28,12 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         max_results: 20,
     };
 
-    let engine = ContextEngine::new(
-        project_id,
-        graph_repo,
-        memory_repo,
-        config,
-    );
+    let engine = ContextEngine::new(project_id, graph_repo, memory_repo, config);
 
     let budget = ContextBudget::default();
     let builder = ContextPackBuilder::new(budget);

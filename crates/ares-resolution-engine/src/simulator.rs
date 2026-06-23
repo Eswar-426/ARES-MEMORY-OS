@@ -1,4 +1,4 @@
-use crate::models::{HealthGainBreakdown, ResolutionTemplate, ResolutionCategory};
+use crate::models::{HealthGainBreakdown, ResolutionCategory, ResolutionTemplate};
 use ares_gap_engine::models::GapType;
 
 pub struct MemoryHealthSimulator;
@@ -48,7 +48,9 @@ impl MemoryHealthSimulator {
     pub fn infer_category(&self, gap_type: &GapType) -> ResolutionCategory {
         match gap_type {
             GapType::MissingOwner => ResolutionCategory::Ownership,
-            GapType::MissingDecision | GapType::MissingImplementation | GapType::OrphanCode => ResolutionCategory::Traceability,
+            GapType::MissingDecision | GapType::MissingImplementation | GapType::OrphanCode => {
+                ResolutionCategory::Traceability
+            }
             GapType::MissingEvidence => ResolutionCategory::Governance,
             GapType::StaleRequirement => ResolutionCategory::Documentation,
         }

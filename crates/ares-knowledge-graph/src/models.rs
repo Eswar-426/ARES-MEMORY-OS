@@ -132,8 +132,6 @@ impl fmt::Display for EdgeType {
     }
 }
 
-
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KnowledgeEdge {
     pub id: String,

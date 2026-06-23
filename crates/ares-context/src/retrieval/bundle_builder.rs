@@ -1,8 +1,16 @@
-use crate::models::{ContextBundle, DependencyTrace, FileExplanation, ImpactReport, RepositoryInsight};
+use crate::models::{
+    ContextBundle, DependencyTrace, FileExplanation, ImpactReport, RepositoryInsight,
+};
 use ares_core::GraphNode;
 
 pub struct BundleBuilder {
     pub bundle: ContextBundle,
+}
+
+impl Default for BundleBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl BundleBuilder {

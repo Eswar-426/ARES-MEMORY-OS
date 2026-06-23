@@ -1,9 +1,9 @@
-use std::path::{Path, PathBuf};
+use rusqlite::Connection;
+use std::fs;
+use std::path::PathBuf;
 use std::process::Command;
 use std::time::Instant;
-use rusqlite::Connection;
-use sysinfo::{System, ProcessRefreshKind};
-use std::fs;
+use sysinfo::{ProcessRefreshKind, System};
 
 use serde::Serialize;
 
@@ -28,18 +28,54 @@ struct TestResult {
 
 fn main() {
     let repos = vec![
-        RepoTest { name: "ARES".to_string(), path: PathBuf::from("."), tier: "A".to_string() },
-        RepoTest { name: "Automyra".to_string(), path: PathBuf::from(".temp/automyra"), tier: "A".to_string() },
-        RepoTest { name: "ripgrep".to_string(), path: PathBuf::from(".temp/ripgrep"), tier: "B".to_string() },
-        RepoTest { name: "cargo-watch".to_string(), path: PathBuf::from(".temp/cargo-watch"), tier: "B".to_string() },
-        RepoTest { name: "Next.js".to_string(), path: PathBuf::from(".temp/nextjs"), tier: "B".to_string() },
-        RepoTest { name: "NestJS".to_string(), path: PathBuf::from(".temp/nestjs"), tier: "B".to_string() },
-        RepoTest { name: "Turborepo".to_string(), path: PathBuf::from(".temp/turborepo"), tier: "B".to_string() },
-        RepoTest { name: "Nx Workspace".to_string(), path: PathBuf::from(".temp/nx"), tier: "B".to_string() },
+        RepoTest {
+            name: "ARES".to_string(),
+            path: PathBuf::from("."),
+            tier: "A".to_string(),
+        },
+        RepoTest {
+            name: "Automyra".to_string(),
+            path: PathBuf::from(".temp/automyra"),
+            tier: "A".to_string(),
+        },
+        RepoTest {
+            name: "ripgrep".to_string(),
+            path: PathBuf::from(".temp/ripgrep"),
+            tier: "B".to_string(),
+        },
+        RepoTest {
+            name: "cargo-watch".to_string(),
+            path: PathBuf::from(".temp/cargo-watch"),
+            tier: "B".to_string(),
+        },
+        RepoTest {
+            name: "Next.js".to_string(),
+            path: PathBuf::from(".temp/nextjs"),
+            tier: "B".to_string(),
+        },
+        RepoTest {
+            name: "NestJS".to_string(),
+            path: PathBuf::from(".temp/nestjs"),
+            tier: "B".to_string(),
+        },
+        RepoTest {
+            name: "Turborepo".to_string(),
+            path: PathBuf::from(".temp/turborepo"),
+            tier: "B".to_string(),
+        },
+        RepoTest {
+            name: "Nx Workspace".to_string(),
+            path: PathBuf::from(".temp/nx"),
+            tier: "B".to_string(),
+        },
     ];
 
-    let exe = std::env::current_dir().unwrap().join("target/release/ares.exe");
-    let mut sys = System::new_with_specifics(sysinfo::RefreshKind::new().with_processes(ProcessRefreshKind::everything()));
+    let exe = std::env::current_dir()
+        .unwrap()
+        .join("target/release/ares.exe");
+    let mut sys = System::new_with_specifics(
+        sysinfo::RefreshKind::new().with_processes(ProcessRefreshKind::everything()),
+    );
 
     let mut results = Vec::new();
 
@@ -48,7 +84,7 @@ fn main() {
             println!("Skipping {}, path does not exist", repo.name);
             continue;
         }
-        
+
         // Remove existing DB to ensure cold ingest
         let db_path = repo.path.join(".ares").join(".ares.db");
         if db_path.exists() {
@@ -56,7 +92,7 @@ fn main() {
         }
 
         println!("Validating {}...", repo.name);
-        
+
         let start = Instant::now();
         let mut child = Command::new(&exe)
             .arg("ingest")
@@ -68,7 +104,7 @@ fn main() {
         let mut peak_rss: u64 = 0;
 
         loop {
-            if let Ok(Some(status)) = child.try_wait() {
+            if let Ok(Some(_status)) = child.try_wait() {
                 break;
             }
             sys.refresh_processes();
@@ -93,12 +129,30 @@ fn main() {
 
         if db_path.exists() {
             if let Ok(conn) = Connection::open(&db_path) {
-                node_count = conn.query_row("SELECT COUNT(*) FROM graph_entities", [], |row| row.get(0)).unwrap_or(0);
-                edge_count = conn.query_row("SELECT COUNT(*) FROM graph_relationships", [], |row| row.get(0)).unwrap_or(0);
-                gap_count = conn.query_row("SELECT COUNT(*) FROM graph_entities WHERE entity_type = 'KnowledgeGap'", [], |row| row.get(0)).unwrap_or(0);
-                
+                node_count = conn
+                    .query_row("SELECT COUNT(*) FROM graph_entities", [], |row| row.get(0))
+                    .unwrap_or(0);
+                edge_count = conn
+                    .query_row("SELECT COUNT(*) FROM graph_relationships", [], |row| {
+                        row.get(0)
+                    })
+                    .unwrap_or(0);
+                gap_count = conn
+                    .query_row(
+                        "SELECT COUNT(*) FROM graph_entities WHERE entity_type = 'KnowledgeGap'",
+                        [],
+                        |row| row.get(0),
+                    )
+                    .unwrap_or(0);
+
                 // Traceability approximation
-                code_nodes = conn.query_row("SELECT COUNT(*) FROM graph_entities WHERE entity_type = 'CodeArtifact'", [], |row| row.get(0)).unwrap_or(0);
+                code_nodes = conn
+                    .query_row(
+                        "SELECT COUNT(*) FROM graph_entities WHERE entity_type = 'CodeArtifact'",
+                        [],
+                        |row| row.get(0),
+                    )
+                    .unwrap_or(0);
                 let traced: i64 = conn.query_row("SELECT COUNT(DISTINCT source_entity) FROM graph_relationships WHERE relationship_type = 'ValidatedBy'", [], |row| row.get(0)).unwrap_or(0);
                 fully_traceable = traced;
             }
@@ -124,7 +178,7 @@ fn main() {
         println!("{:?}", res);
         results.push(res);
     }
-    
+
     // Dump results
     let json = serde_json::to_string_pretty(&results).unwrap_or_default();
     fs::write("reports/validation/real_world_results.json", json).unwrap();

@@ -1,6 +1,6 @@
-use ares_core::{AresError, Project};
-use crate::types::{ProjectSnapshot};
+use crate::types::ProjectSnapshot;
 use ares_core::types::project::ProjectFingerprint;
+use ares_core::{AresError, Project};
 
 pub enum SummaryTrigger {
     InitialScan,
@@ -10,6 +10,12 @@ pub enum SummaryTrigger {
 
 pub struct RepositorySummarizer;
 
+impl Default for RepositorySummarizer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RepositorySummarizer {
     pub fn new() -> Self {
         Self {}
@@ -17,30 +23,48 @@ impl RepositorySummarizer {
 
     pub fn compute_fingerprint(snapshot: &ProjectSnapshot) -> ProjectFingerprint {
         let total_files = snapshot.stats.total_files as usize;
-        let mut languages: Vec<String> = snapshot.languages.iter().map(|l| l.language.clone()).collect();
+        let mut languages: Vec<String> = snapshot
+            .languages
+            .iter()
+            .map(|l| l.language.clone())
+            .collect();
         languages.sort();
 
         let mut all_files = String::new();
         // Since we don't have all files, we use the total numbers to derive a hash
-        all_files.push_str(&format!("{}_{}_{}_{}", total_files, snapshot.stats.total_lines, snapshot.stats.total_memories, snapshot.stats.total_decisions));
+        all_files.push_str(&format!(
+            "{}_{}_{}_{}",
+            total_files,
+            snapshot.stats.total_lines,
+            snapshot.stats.total_memories,
+            snapshot.stats.total_decisions
+        ));
         let hash = blake3::hash(all_files.as_bytes()).to_hex().to_string();
 
         ProjectFingerprint {
             total_files,
             languages,
-            crates: 0, // Could be extracted from dependencies
+            crates: 0,  // Could be extracted from dependencies
             modules: 0, // Could be extracted from folder_structure
             hash,
         }
     }
 
-    pub fn should_regenerate(prev: Option<&ProjectFingerprint>, current: &ProjectFingerprint) -> Option<SummaryTrigger> {
+    pub fn should_regenerate(
+        prev: Option<&ProjectFingerprint>,
+        current: &ProjectFingerprint,
+    ) -> Option<SummaryTrigger> {
         match prev {
             None => Some(SummaryTrigger::InitialScan),
             Some(p) => {
-                let diff_files = (p.total_files as isize - current.total_files as isize).abs() as usize;
-                let percent_change = if p.total_files == 0 { 100.0 } else { (diff_files as f64 / p.total_files as f64) * 100.0 };
-                
+                let diff_files =
+                    (p.total_files as isize - current.total_files as isize).unsigned_abs();
+                let percent_change = if p.total_files == 0 {
+                    100.0
+                } else {
+                    (diff_files as f64 / p.total_files as f64) * 100.0
+                };
+
                 if percent_change > 15.0 {
                     Some(SummaryTrigger::SignificantChange)
                 } else if p.hash != current.hash {
@@ -54,11 +78,11 @@ impl RepositorySummarizer {
     }
 
     pub async fn generate_summary(
-        &self, 
-        project: &Project, 
-        snapshot: &ProjectSnapshot, 
+        &self,
+        project: &Project,
+        snapshot: &ProjectSnapshot,
         _trigger: SummaryTrigger,
-        _provider: &dyn ares_extractor::provider::ExtractorProvider
+        _provider: &dyn ares_extractor::provider::ExtractorProvider,
     ) -> Result<String, AresError> {
         // Here we format the snapshot into structured markdown.
         // We simulate the LLM call using the generic provider if needed,
@@ -67,9 +91,16 @@ impl RepositorySummarizer {
 
         let mut markdown = String::new();
         markdown.push_str(&format!("# Repository Summary: {}\n\n", project.name));
-        
+
         markdown.push_str("## Purpose\n");
-        markdown.push_str(&format!("{}\n\n", if project.description.is_empty() { "No description provided." } else { &project.description }));
+        markdown.push_str(&format!(
+            "{}\n\n",
+            if project.description.is_empty() {
+                "No description provided."
+            } else {
+                &project.description
+            }
+        ));
 
         markdown.push_str("## Architecture\n");
         if snapshot.architecture.components.is_empty() {
@@ -77,9 +108,12 @@ impl RepositorySummarizer {
         } else {
             markdown.push_str("### Components\n");
             for component in &snapshot.architecture.components {
-                markdown.push_str(&format!("- **{}**: {}\n", component.name, component.description));
+                markdown.push_str(&format!(
+                    "- **{}**: {}\n",
+                    component.name, component.description
+                ));
             }
-            markdown.push_str("\n");
+            markdown.push('\n');
         }
 
         markdown.push_str("## Languages\n");
@@ -91,7 +125,7 @@ impl RepositorySummarizer {
             };
             markdown.push_str(&format!("- {} {:.1}%\n", lang.language, percentage));
         }
-        markdown.push_str("\n");
+        markdown.push('\n');
 
         markdown.push_str("## Key Folders\n");
         for folder in snapshot.folder_structure.children.iter().take(5) {
@@ -119,15 +153,18 @@ mod tests {
             name: "Test Project".to_string(),
             description: "".to_string(),
             root_path: "/".to_string(),
-            architecture: crate::types::ArchitectureProfile { 
+            architecture: crate::types::ArchitectureProfile {
                 style: crate::types::ArchitectureStyle::Unknown,
                 components: vec![],
                 patterns: vec![],
                 entry_points: vec![],
             },
-            languages: vec![
-                crate::types::LanguageProfile { language: "Rust".to_string(), file_count: 10, line_count: 500, percentage: 100.0 }
-            ],
+            languages: vec![crate::types::LanguageProfile {
+                language: "Rust".to_string(),
+                file_count: 10,
+                line_count: 500,
+                percentage: 100.0,
+            }],
             frameworks: vec![],
             dependencies: vec![],
             folder_structure: crate::types::FolderTree::new_dir("root"),
@@ -180,8 +217,17 @@ mod tests {
             hash: "abc".to_string(),
         };
 
-        assert!(matches!(RepositorySummarizer::should_regenerate(None, &fp1), Some(SummaryTrigger::InitialScan)));
-        assert!(matches!(RepositorySummarizer::should_regenerate(Some(&fp1), &fp2), Some(SummaryTrigger::SignificantChange)));
-        assert!(matches!(RepositorySummarizer::should_regenerate(Some(&fp1), &fp3), None));
+        assert!(matches!(
+            RepositorySummarizer::should_regenerate(None, &fp1),
+            Some(SummaryTrigger::InitialScan)
+        ));
+        assert!(matches!(
+            RepositorySummarizer::should_regenerate(Some(&fp1), &fp2),
+            Some(SummaryTrigger::SignificantChange)
+        ));
+        assert!(matches!(
+            RepositorySummarizer::should_regenerate(Some(&fp1), &fp3),
+            None
+        ));
     }
 }

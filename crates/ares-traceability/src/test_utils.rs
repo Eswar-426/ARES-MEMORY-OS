@@ -15,30 +15,36 @@ pub struct TestGraphBuilder {
     edges: Vec<TraceabilityEdge>,
 }
 
+impl Default for TestGraphBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TestGraphBuilder {
     pub fn new() -> Self {
         Self { edges: Vec::new() }
     }
 
-    pub fn requirement(self, id: &str) -> Self {
-        // Just defining a node implicitly by edges or we could add a self edge, 
-        // but typically a node is added via an edge. 
+    pub fn requirement(self, _id: &str) -> Self {
+        // Just defining a node implicitly by edges or we could add a self edge,
+        // but typically a node is added via an edge.
         self
     }
 
-    pub fn decision(self, id: &str) -> Self {
+    pub fn decision(self, _id: &str) -> Self {
         self
     }
 
-    pub fn code(self, id: &str) -> Self {
+    pub fn code(self, _id: &str) -> Self {
         self
     }
 
-    pub fn test(self, id: &str) -> Self {
+    pub fn test(self, _id: &str) -> Self {
         self
     }
 
-    pub fn metric(self, id: &str) -> Self {
+    pub fn metric(self, _id: &str) -> Self {
         self
     }
 
@@ -52,7 +58,13 @@ impl TestGraphBuilder {
         self
     }
 
-    pub fn link_rel(mut self, source: &str, target: &str, target_type: TraceTargetType, relationship: &str) -> Self {
+    pub fn link_rel(
+        mut self,
+        source: &str,
+        target: &str,
+        target_type: TraceTargetType,
+        relationship: &str,
+    ) -> Self {
         self.edges.push(TraceabilityEdge {
             source_id: source.to_string(),
             target_id: target.to_string(),

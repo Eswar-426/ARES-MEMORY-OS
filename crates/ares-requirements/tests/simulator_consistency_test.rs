@@ -23,17 +23,20 @@ fn test_impact_vs_simulation_parity() {
 
     let engine = RequirementImpactEngine::new(&graph);
     let impact_report = engine.evaluate_impact("REQ-1");
-    
-    let total_impact_artifacts = 
-        impact_report.affected_decisions.len() + 
-        impact_report.affected_code.len() + 
-        impact_report.affected_tests.len() + 
-        impact_report.affected_runtime_metrics.len() +
-        impact_report.affected_governance.len() +
-        impact_report.affected_architecture.len();
+
+    let total_impact_artifacts = impact_report.affected_decisions.len()
+        + impact_report.affected_code.len()
+        + impact_report.affected_tests.len()
+        + impact_report.affected_runtime_metrics.len()
+        + impact_report.affected_governance.len()
+        + impact_report.affected_architecture.len();
 
     let simulated_artifacts = simulate_change("REQ-1", &graph);
-    
+
     // Impact Engine says X artifacts, Simulator says Y artifacts. They must match!
-    assert_eq!(total_impact_artifacts, simulated_artifacts.len(), "Impact Engine and Simulator parity mismatch");
+    assert_eq!(
+        total_impact_artifacts,
+        simulated_artifacts.len(),
+        "Impact Engine and Simulator parity mismatch"
+    );
 }

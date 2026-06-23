@@ -1,12 +1,12 @@
-use std::path::{Path, PathBuf};
 use std::fs;
+use std::path::Path;
 
 pub struct OwnershipExtractor;
 
 impl OwnershipExtractor {
     pub fn extract_ownership(root: &Path) -> Vec<(String, String)> {
         let mut ownership = Vec::new();
-        
+
         let codeowners_path = root.join("CODEOWNERS");
         if let Ok(content) = fs::read_to_string(codeowners_path) {
             for line in content.lines() {
@@ -14,7 +14,7 @@ impl OwnershipExtractor {
                 if line.is_empty() || line.starts_with('#') {
                     continue;
                 }
-                
+
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 if parts.len() >= 2 {
                     let pattern = parts[0];
@@ -23,7 +23,7 @@ impl OwnershipExtractor {
                 }
             }
         }
-        
+
         // Also check .github/CODEOWNERS
         let github_codeowners = root.join(".github").join("CODEOWNERS");
         if let Ok(content) = fs::read_to_string(github_codeowners) {
@@ -32,7 +32,7 @@ impl OwnershipExtractor {
                 if line.is_empty() || line.starts_with('#') {
                     continue;
                 }
-                
+
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 if parts.len() >= 2 {
                     let pattern = parts[0];
@@ -49,7 +49,7 @@ impl OwnershipExtractor {
                 if line.is_empty() || line.starts_with('#') {
                     continue;
                 }
-                
+
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 if parts.len() >= 2 {
                     let pattern = parts[0];
@@ -58,7 +58,7 @@ impl OwnershipExtractor {
                 }
             }
         }
-        
+
         ownership
     }
 }

@@ -23,8 +23,11 @@ impl ResolutionPrioritizer {
 
         // Escalate based on ImpactRadius
         if let Some(radius) = &gap.impact_radius {
-            let total_impact = radius.requirements + radius.decisions + radius.architecture_components + radius.code_artifacts;
-            
+            let total_impact = radius.requirements
+                + radius.decisions
+                + radius.architecture_components
+                + radius.code_artifacts;
+
             if total_impact > 20 {
                 score += 30.0;
             } else if total_impact > 10 {

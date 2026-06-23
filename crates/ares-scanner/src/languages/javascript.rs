@@ -79,9 +79,11 @@ impl LanguageExtractor for JavaScriptExtractor {
 
             if let Some(node_type) = node_type_opt {
                 if !name.is_empty() {
-                    if node_type == NodeType::Tag && capture_names_contains_import(&m, &self.query) {
+                    if node_type == NodeType::Tag && capture_names_contains_import(&m, &self.query)
+                    {
                         let import_path = extract_js_import_path(&name);
-                        let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}", import_path));
+                        let unresolved_node_id =
+                            ares_core::NodeId::from(format!("unresolved_{}", import_path));
                         let unresolved_node = GraphNode {
                             id: unresolved_node_id.clone(),
                             project_id: project_id.clone(),
@@ -96,7 +98,11 @@ impl LanguageExtractor for JavaScriptExtractor {
                         nodes.push(unresolved_node);
 
                         let edge = ares_core::GraphEdge {
-                            id: format!("edge_import_{}_{}", file_node_id.as_str(), unresolved_node_id.as_str()),
+                            id: format!(
+                                "edge_import_{}_{}",
+                                file_node_id.as_str(),
+                                unresolved_node_id.as_str()
+                            ),
                             project_id: project_id.clone(),
                             from_node_id: file_node_id.clone(),
                             to_node_id: unresolved_node_id.clone(),

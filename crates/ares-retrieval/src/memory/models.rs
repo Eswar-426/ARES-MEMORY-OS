@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
-use ares_requirements::models::Requirement;
 use ares_decision_intelligence::models::{Decision, DecisionEvidence, DecisionOutcome};
 use ares_gap_engine::models::{Gap, KnowledgeDebt, RepositoryHealthReport};
+use ares_requirements::models::Requirement;
 use ares_resolution_engine::models::ResolutionPlan;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum QueryIntent {

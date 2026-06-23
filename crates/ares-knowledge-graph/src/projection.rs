@@ -1,8 +1,10 @@
-use crate::models::{KnowledgeEdge, KnowledgeNode, EdgeType, DomainEvent, DomainEventType, ProjectionMetrics};
+use crate::models::{
+    DomainEvent, DomainEventType, EdgeType, KnowledgeEdge, KnowledgeNode, ProjectionMetrics,
+};
 use crate::store::KnowledgeGraphStore;
 use ares_core::AresError;
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub enum ProjectionMode {
     FullRebuild,
@@ -12,6 +14,12 @@ pub enum ProjectionMode {
 pub struct ProjectionBatch {
     pub nodes: Vec<KnowledgeNode>,
     pub edges: Vec<KnowledgeEdge>,
+}
+
+impl Default for ProjectionBatch {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ProjectionBatch {
@@ -29,7 +37,7 @@ pub trait GraphProjector: Send + Sync {
 }
 
 pub fn generate_edge_id(source_id: &str, edge_type: &EdgeType, target_id: &str) -> String {
-    format!("{}:{}:{}", source_id, edge_type.to_string(), target_id)
+    format!("{}:{}:{}", source_id, edge_type, target_id)
 }
 
 pub struct ProjectionEngine {

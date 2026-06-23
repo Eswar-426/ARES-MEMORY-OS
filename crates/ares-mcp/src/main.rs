@@ -6,7 +6,14 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tower_mcp::{protocol::{CallToolResult, ReadResourceResult}, router::McpRouter, tool::ToolBuilder, resource::{ResourceBuilder, ResourceTemplateBuilder}, transport::stdio::StdioTransport, BoxError};
+use tower_mcp::{
+    protocol::{CallToolResult, ReadResourceResult},
+    resource::{ResourceBuilder, ResourceTemplateBuilder},
+    router::McpRouter,
+    tool::ToolBuilder,
+    transport::stdio::StdioTransport,
+    BoxError,
+};
 use tracing::info;
 
 fn format_mcp_error(message: &str, details: &str) -> String {
@@ -14,7 +21,8 @@ fn format_mcp_error(message: &str, details: &str) -> String {
         "code": -32603,
         "message": message,
         "details": details
-    }).to_string()
+    })
+    .to_string()
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -34,6 +42,7 @@ struct ProjectQueryInput {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[allow(dead_code)]
 struct SimulationInput {
     project_id: String,
     action: String,
@@ -59,7 +68,9 @@ async fn main() -> Result<(), BoxError> {
     let config = AgentConfig::load(&project_path)?;
     let app_state = AppState::new(config).await?;
 
-    let assembler = Arc::new(MemoryContextAssembler::default_from_store(app_state.store.clone()));
+    let assembler = Arc::new(MemoryContextAssembler::default_from_store(
+        app_state.store.clone(),
+    ));
     let governance = Arc::new(ares_governance::GovernanceFacade::new(
         app_state.store.clone(),
         std::path::PathBuf::from(&project_path),
@@ -76,7 +87,10 @@ async fn main() -> Result<(), BoxError> {
                 let id = ares_core::canonicalize_node_id(&input.id);
                 match facade.why(&id) {
                     Ok(result) => Ok(CallToolResult::text(result.to_string())),
-                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to explain why entity exists", &e.to_string()))),
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
+                        "Failed to explain why entity exists",
+                        &e.to_string(),
+                    ))),
                 }
             }
         })
@@ -92,7 +106,10 @@ async fn main() -> Result<(), BoxError> {
                 let id = ares_core::canonicalize_node_id(&input.id);
                 match facade.who(&id) {
                     Ok(result) => Ok(CallToolResult::text(result.to_string())),
-                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to identify ownership", &e.to_string()))),
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
+                        "Failed to identify ownership",
+                        &e.to_string(),
+                    ))),
                 }
             }
         })
@@ -109,8 +126,16 @@ async fn main() -> Result<(), BoxError> {
                 match facade.evolution(&id) {
                     Ok(result) => serde_json::to_string(&result)
                         .map(CallToolResult::text)
-                        .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize evolution timeline", &e.to_string()))),
-                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to retrieve evolution timeline", &e.to_string()))),
+                        .map_err(|e| {
+                            tower_mcp::Error::internal(format_mcp_error(
+                                "Failed to serialize evolution timeline",
+                                &e.to_string(),
+                            ))
+                        }),
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
+                        "Failed to retrieve evolution timeline",
+                        &e.to_string(),
+                    ))),
                 }
             }
         })
@@ -137,9 +162,9 @@ async fn main() -> Result<(), BoxError> {
     // Create the Certification Resource
     let cert_runner = Arc::new(ares_validation::validation_runner::ValidationRunner::new(
         Arc::new(app_state.store.clone()),
-        assembler.clone()
+        assembler.clone(),
     ));
-    
+
     let runner_cert = cert_runner.clone();
     let cert_resource = ResourceBuilder::new("memory://certification")
         .name("MemoryOS Certification")
@@ -151,8 +176,16 @@ async fn main() -> Result<(), BoxError> {
                 match runner.run_certification().await {
                     Ok(result) => serde_json::to_string(&result)
                         .map(|s| ReadResourceResult::text("memory://certification", s))
-                        .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize certification result", &e.to_string()))),
-                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to run certification", &e.to_string()))),
+                        .map_err(|e| {
+                            tower_mcp::Error::internal(format_mcp_error(
+                                "Failed to serialize certification result",
+                                &e.to_string(),
+                            ))
+                        }),
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
+                        "Failed to run certification",
+                        &e.to_string(),
+                    ))),
                 }
             }
         })
@@ -171,8 +204,16 @@ async fn main() -> Result<(), BoxError> {
                 match facade.context(&id) {
                     Ok(result) => serde_json::to_string(&result)
                         .map(|s| ReadResourceResult::text(uri, s))
-                        .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize context", &e.to_string()))),
-                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to retrieve context", &e.to_string()))),
+                        .map_err(|e| {
+                            tower_mcp::Error::internal(format_mcp_error(
+                                "Failed to serialize context",
+                                &e.to_string(),
+                            ))
+                        }),
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
+                        "Failed to retrieve context",
+                        &e.to_string(),
+                    ))),
                 }
             }
         });
@@ -202,24 +243,45 @@ async fn main() -> Result<(), BoxError> {
 
                 serde_json::to_string(&summary)
                     .map(|s| ReadResourceResult::text(uri, s))
-                    .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize summary", &e.to_string())))
+                    .map_err(|e| {
+                        tower_mcp::Error::internal(format_mcp_error(
+                            "Failed to serialize summary",
+                            &e.to_string(),
+                        ))
+                    })
             }
         });
 
     // Create the Compliance tool
     let facade_compliance = facade.clone();
     let compliance_tool = ToolBuilder::new("ares_compliance")
-        .description("Evaluates the compliance of a specific entity against active governance policies")
+        .description(
+            "Evaluates the compliance of a specific entity against active governance policies",
+        )
         .handler(move |input: GovernanceQueryInput| {
             let facade = facade_compliance.clone();
             async move {
                 let governance = facade.get_governance();
                 let node_id = ares_core::canonicalize_node_id(&input.node_id);
-                match governance.is_compliant(&ares_core::ProjectId::from(input.project_id), &ares_core::NodeId::from(node_id)).await {
+                match governance
+                    .is_compliant(
+                        &ares_core::ProjectId::from(input.project_id),
+                        &ares_core::NodeId::from(node_id),
+                    )
+                    .await
+                {
                     Ok(result) => serde_json::to_string(&result)
                         .map(CallToolResult::text)
-                        .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize compliance evaluation", &e.to_string()))),
-                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to evaluate compliance", &e.to_string()))),
+                        .map_err(|e| {
+                            tower_mcp::Error::internal(format_mcp_error(
+                                "Failed to serialize compliance evaluation",
+                                &e.to_string(),
+                            ))
+                        }),
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
+                        "Failed to evaluate compliance",
+                        &e.to_string(),
+                    ))),
                 }
             }
         })
@@ -233,11 +295,22 @@ async fn main() -> Result<(), BoxError> {
             let facade = facade_scorecard.clone();
             async move {
                 let governance = facade.get_governance();
-                match governance.get_scorecard(&ares_core::ProjectId::from(input.project_id)).await {
+                match governance
+                    .get_scorecard(&ares_core::ProjectId::from(input.project_id))
+                    .await
+                {
                     Ok(result) => serde_json::to_string(&result)
                         .map(CallToolResult::text)
-                        .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize scorecard", &e.to_string()))),
-                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to retrieve scorecard", &e.to_string()))),
+                        .map_err(|e| {
+                            tower_mcp::Error::internal(format_mcp_error(
+                                "Failed to serialize scorecard",
+                                &e.to_string(),
+                            ))
+                        }),
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
+                        "Failed to retrieve scorecard",
+                        &e.to_string(),
+                    ))),
                 }
             }
         })
@@ -252,21 +325,39 @@ async fn main() -> Result<(), BoxError> {
             async move {
                 let project_id = ares_core::ProjectId::from(input.project_id);
                 let req_store = ares_requirements::storage::RequirementStore::new(store.clone());
-                let reqs = match req_store.list(&project_id, ares_requirements::models::RequirementFilter::default()) {
+                let reqs = match req_store.list(
+                    &project_id,
+                    ares_requirements::models::RequirementFilter::default(),
+                ) {
                     Ok(r) => r,
-                    Err(e) => return Err(tower_mcp::Error::internal(format_mcp_error("Failed to list requirements", &e.to_string()))),
+                    Err(e) => {
+                        return Err(tower_mcp::Error::internal(format_mcp_error(
+                            "Failed to list requirements",
+                            &e.to_string(),
+                        )))
+                    }
                 };
                 let graph = ares_traceability::TraceabilityGraph::new(); // In a real scenario we load the actual edges
                 let engine = ares_requirements::coverage::RequirementCoverageEngine::new();
                 let trace = ares_requirements::trace_analysis::TraceAnalysisEngine::new(&graph);
                 let mut coverages = Vec::new();
                 for req in reqs {
-                    coverages.push(engine.evaluate(&req.id, &req.status, req.owner.is_some(), &trace));
+                    coverages.push(engine.evaluate(
+                        &req.id,
+                        &req.status,
+                        req.owner.is_some(),
+                        &trace,
+                    ));
                 }
                 let (summary, _) = engine.generate_summary(&coverages);
                 serde_json::to_string(&summary)
                     .map(CallToolResult::text)
-                    .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize coverage summary", &e.to_string())))
+                    .map_err(|e| {
+                        tower_mcp::Error::internal(format_mcp_error(
+                            "Failed to serialize coverage summary",
+                            &e.to_string(),
+                        ))
+                    })
             }
         })
         .build();
@@ -278,24 +369,34 @@ async fn main() -> Result<(), BoxError> {
             let _store = store_drift.clone();
             async move {
                 // Mapped to graph traversal
-                serde_json::to_string("Drift calculation requires historic baseline. Not fully implemented.")
-                    .map(CallToolResult::text)
-                    .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize drift message", &e.to_string())))
+                serde_json::to_string(
+                    "Drift calculation requires historic baseline. Not fully implemented.",
+                )
+                .map(CallToolResult::text)
+                .map_err(|e| {
+                    tower_mcp::Error::internal(format_mcp_error(
+                        "Failed to serialize drift message",
+                        &e.to_string(),
+                    ))
+                })
             }
         })
         .build();
 
     let gaps_tool = ToolBuilder::new("ares_gaps")
         .description("Evaluates knowledge gaps in the traceability graph")
-        .handler(move |_input: ProjectQueryInput| {
-            async move {
-                let graph = ares_traceability::TraceabilityGraph::new();
-                let engine = ares_requirements::gaps::KnowledgeGapEngine::new(&graph);
-                let gaps = engine.evaluate_gaps();
-                serde_json::to_string(&gaps)
-                    .map(CallToolResult::text)
-                    .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize gaps evaluation", &e.to_string())))
-            }
+        .handler(move |_input: ProjectQueryInput| async move {
+            let graph = ares_traceability::TraceabilityGraph::new();
+            let engine = ares_requirements::gaps::KnowledgeGapEngine::new(&graph);
+            let gaps = engine.evaluate_gaps();
+            serde_json::to_string(&gaps)
+                .map(CallToolResult::text)
+                .map_err(|e| {
+                    tower_mcp::Error::internal(format_mcp_error(
+                        "Failed to serialize gaps evaluation",
+                        &e.to_string(),
+                    ))
+                })
         })
         .build();
 
@@ -343,6 +444,6 @@ async fn main() -> Result<(), BoxError> {
     info!("ARES MCP Server started on stdio");
 
     StdioTransport::new(router).run().await?;
-    
+
     Ok(())
 }

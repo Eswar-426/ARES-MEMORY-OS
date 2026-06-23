@@ -39,9 +39,11 @@ impl MemoryGatekeeper {
         // Check Percentage Deltas
         let coverage_delta = after_coverage.overall.percentage - before_coverage.overall.percentage;
         let health_delta = after_health.total_health - before_health.total_health;
-        
+
         let debt_delta_pct = if before_debt.total_debt_score > 0 {
-            ((after_debt.total_debt_score as f64 - before_debt.total_debt_score as f64) / before_debt.total_debt_score as f64) * 100.0
+            ((after_debt.total_debt_score as f64 - before_debt.total_debt_score as f64)
+                / before_debt.total_debt_score as f64)
+                * 100.0
         } else if after_debt.total_debt_score > 0 {
             100.0
         } else {
@@ -50,13 +52,22 @@ impl MemoryGatekeeper {
 
         // Hard Fail Thresholds
         if coverage_delta < -5.0 {
-            hard_fail_reasons.push(format!("Coverage regressed by {:.1}% (Threshold: -5%)", coverage_delta));
+            hard_fail_reasons.push(format!(
+                "Coverage regressed by {:.1}% (Threshold: -5%)",
+                coverage_delta
+            ));
         }
         if health_delta < -10.0 {
-            hard_fail_reasons.push(format!("Health regressed by {:.1}% (Threshold: -10%)", health_delta));
+            hard_fail_reasons.push(format!(
+                "Health regressed by {:.1}% (Threshold: -10%)",
+                health_delta
+            ));
         }
         if debt_delta_pct > 25.0 {
-            hard_fail_reasons.push(format!("Debt increased by {:.1}% (Threshold: +25%)", debt_delta_pct));
+            hard_fail_reasons.push(format!(
+                "Debt increased by {:.1}% (Threshold: +25%)",
+                debt_delta_pct
+            ));
         }
 
         if !hard_fail_reasons.is_empty() {
@@ -65,13 +76,22 @@ impl MemoryGatekeeper {
 
         // Soft Fail Thresholds
         if coverage_delta < -1.5 {
-            soft_fail_reasons.push(format!("Coverage regressed by {:.1}% (Warning threshold: -1.5%)", coverage_delta));
+            soft_fail_reasons.push(format!(
+                "Coverage regressed by {:.1}% (Warning threshold: -1.5%)",
+                coverage_delta
+            ));
         }
         if health_delta < -5.0 {
-            soft_fail_reasons.push(format!("Health regressed by {:.1}% (Warning threshold: -5%)", health_delta));
+            soft_fail_reasons.push(format!(
+                "Health regressed by {:.1}% (Warning threshold: -5%)",
+                health_delta
+            ));
         }
         if debt_delta_pct > 5.0 {
-            soft_fail_reasons.push(format!("Debt increased by {:.1}% (Warning threshold: +5%)", debt_delta_pct));
+            soft_fail_reasons.push(format!(
+                "Debt increased by {:.1}% (Warning threshold: +5%)",
+                debt_delta_pct
+            ));
         }
 
         if !soft_fail_reasons.is_empty() {

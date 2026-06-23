@@ -35,26 +35,43 @@ impl RequirementHistory {
         reason: Option<&str>,
     ) -> Result<RequirementRevision, AresError> {
         let conn = self.store.get_conn()?;
-        
+
         let current_rev = self.current_revision_number(requirement_id)?;
         let next_rev = current_rev + 1;
         let rev_id = RequirementRevisionId::new();
         let now = Utc::now().timestamp_micros();
 
-        let prev_json = serde_json::to_value(previous).map_err(|e| AresError::validation(e.to_string()))?;
-        let new_json = serde_json::to_value(updated).map_err(|e| AresError::validation(e.to_string()))?;
-        
+        let prev_json =
+            serde_json::to_value(previous).map_err(|e| AresError::validation(e.to_string()))?;
+        let new_json =
+            serde_json::to_value(updated).map_err(|e| AresError::validation(e.to_string()))?;
+
         // Compute changed fields
         let mut changed = Vec::new();
-        if previous.title != updated.title { changed.push("title".to_string()); }
-        if previous.description != updated.description { changed.push("description".to_string()); }
-        if previous.requirement_type != updated.requirement_type { changed.push("requirement_type".to_string()); }
-        if previous.status != updated.status { changed.push("status".to_string()); }
-        if previous.priority != updated.priority { changed.push("priority".to_string()); }
-        if previous.owner != updated.owner { changed.push("owner".to_string()); }
-        if previous.tags != updated.tags { changed.push("tags".to_string()); }
+        if previous.title != updated.title {
+            changed.push("title".to_string());
+        }
+        if previous.description != updated.description {
+            changed.push("description".to_string());
+        }
+        if previous.requirement_type != updated.requirement_type {
+            changed.push("requirement_type".to_string());
+        }
+        if previous.status != updated.status {
+            changed.push("status".to_string());
+        }
+        if previous.priority != updated.priority {
+            changed.push("priority".to_string());
+        }
+        if previous.owner != updated.owner {
+            changed.push("owner".to_string());
+        }
+        if previous.tags != updated.tags {
+            changed.push("tags".to_string());
+        }
 
-        let changed_fields_json = serde_json::to_string(&changed).unwrap_or_else(|_| "[]".to_string());
+        let changed_fields_json =
+            serde_json::to_string(&changed).unwrap_or_else(|_| "[]".to_string());
 
         conn.execute(
             "INSERT INTO requirement_revisions (
@@ -101,7 +118,7 @@ impl RequirementHistory {
                  changed_fields, changed_by, change_reason, created_at
                  FROM requirement_revisions
                  WHERE requirement_id = ?1
-                 ORDER BY revision_number ASC"
+                 ORDER BY revision_number ASC",
             )
             .map_err(AresError::db)?;
 
@@ -123,11 +140,14 @@ impl RequirementHistory {
                 "SELECT id, requirement_id, revision_number, previous_state, new_state,
                  changed_fields, changed_by, change_reason, created_at
                  FROM requirement_revisions
-                 WHERE requirement_id = ?1 AND revision_number = ?2"
+                 WHERE requirement_id = ?1 AND revision_number = ?2",
             )
             .map_err(AresError::db)?;
 
-        let result = stmt.query_row(params![requirement_id.as_str(), revision_number], row_to_revision);
+        let result = stmt.query_row(
+            params![requirement_id.as_str(), revision_number],
+            row_to_revision,
+        );
 
         match result {
             Ok(rev) => Ok(Some(rev)),
@@ -145,7 +165,7 @@ impl RequirementHistory {
             .prepare(
                 "SELECT COALESCE(MAX(revision_number), 0)
                  FROM requirement_revisions
-                 WHERE requirement_id = ?1"
+                 WHERE requirement_id = ?1",
             )
             .map_err(AresError::db)?;
 

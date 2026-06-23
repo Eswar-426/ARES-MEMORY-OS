@@ -1,5 +1,5 @@
-pub mod rest;
 pub mod dtos;
+pub mod rest;
 
-pub use rest::*;
 pub use dtos::*;
+pub use rest::*;

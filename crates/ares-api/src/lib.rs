@@ -1,12 +1,15 @@
-use crate::models::TimelinePageResponse;
+use crate::models::DecisionPageResponse;
 use crate::models::GraphNodePageResponse;
+use crate::models::TimelinePageResponse;
+use ares_app::AppState;
+use ares_core::types::node::ImpactGraph;
 use ares_decision_intelligence::integration::DecisionCoverage;
 use ares_decision_intelligence::integration::DecisionSummary;
-use crate::models::DecisionPageResponse;
 use ares_requirements::RequirementSummary;
-use ares_core::types::node::ImpactGraph;
-use ares_requirements::{RequirementCoverage, RequirementCoverageSummary, RequirementCoverageTrend, RequirementGap, KnowledgeGapType, CoverageStatus, GapSummary};
-use ares_app::AppState;
+use ares_requirements::{
+    CoverageStatus, GapSummary, KnowledgeGapType, RequirementCoverage, RequirementCoverageSummary,
+    RequirementCoverageTrend, RequirementGap,
+};
 use axum::{
     routing::{get, post},
     Router,
@@ -16,9 +19,9 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 pub mod auth;
-pub mod routes;
-pub mod models;
 pub mod middleware;
+pub mod models;
+pub mod routes;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -331,37 +334,77 @@ impl utoipa::Modify for SecurityAddon {
 pub fn create_router(state: AppState) -> Router {
     routes::observability::init_metrics();
 
-    let assembler = ares_memory_intelligence::assembler::MemoryContextAssembler::default_from_store(state.store.clone());
+    let assembler = ares_memory_intelligence::assembler::MemoryContextAssembler::default_from_store(
+        state.store.clone(),
+    );
     let governance = std::sync::Arc::new(ares_governance::GovernanceFacade::new(
         state.store.clone(),
         std::path::PathBuf::from(state.config.project_path.clone()),
     ));
-    let memory_facade = std::sync::Arc::new(ares_memory_intelligence::facade::MemoryFacade::new(std::sync::Arc::new(assembler), governance.clone()));
-    let validation_runner = std::sync::Arc::new(ares_validation::validation_runner::ValidationRunner::new(
-        std::sync::Arc::new(state.store.clone()),
-        std::sync::Arc::new(ares_memory_intelligence::assembler::MemoryContextAssembler::default_from_store(state.store.clone()))
+    let memory_facade = std::sync::Arc::new(ares_memory_intelligence::facade::MemoryFacade::new(
+        std::sync::Arc::new(assembler),
+        governance.clone(),
     ));
+    let validation_runner =
+        std::sync::Arc::new(ares_validation::validation_runner::ValidationRunner::new(
+            std::sync::Arc::new(state.store.clone()),
+            std::sync::Arc::new(
+                ares_memory_intelligence::assembler::MemoryContextAssembler::default_from_store(
+                    state.store.clone(),
+                ),
+            ),
+        ));
 
     let facade_router = Router::new()
         .route("/memory/why/:id", get(routes::facade_memory::why))
         .route("/memory/who/:id", get(routes::facade_memory::who))
         .route("/memory/impact/:id", get(routes::facade_memory::impact))
-        .route("/memory/evolution/:id", get(routes::facade_memory::evolution))
-        .route("/memory/facade_context/:id", get(routes::facade_memory::context))
+        .route(
+            "/memory/evolution/:id",
+            get(routes::facade_memory::evolution),
+        )
+        .route(
+            "/memory/facade_context/:id",
+            get(routes::facade_memory::context),
+        )
         .with_state(memory_facade);
 
     let cert_router = Router::new()
-        .route("/memory/certification", get(routes::facade_health::certification))
+        .route(
+            "/memory/certification",
+            get(routes::facade_health::certification),
+        )
         .with_state(validation_runner);
 
     let governance_router = Router::new()
-        .route("/governance/compliance/:project_id/:node_id", get(routes::governance::compliance))
-        .route("/governance/certification/:project_id", get(routes::governance::certification))
-        .route("/governance/scorecard/:project_id", get(routes::governance::scorecard))
-        .route("/governance/policies/:project_id", get(routes::governance::policies))
-        .route("/governance/dashboard/:project_id", get(routes::governance::dashboard))
-        .route("/governance/drift/:project_id", get(routes::governance::drift))
-        .route("/governance/exemptions/:project_id", get(routes::governance::exemptions))
+        .route(
+            "/governance/compliance/:project_id/:node_id",
+            get(routes::governance::compliance),
+        )
+        .route(
+            "/governance/certification/:project_id",
+            get(routes::governance::certification),
+        )
+        .route(
+            "/governance/scorecard/:project_id",
+            get(routes::governance::scorecard),
+        )
+        .route(
+            "/governance/policies/:project_id",
+            get(routes::governance::policies),
+        )
+        .route(
+            "/governance/dashboard/:project_id",
+            get(routes::governance::dashboard),
+        )
+        .route(
+            "/governance/drift/:project_id",
+            get(routes::governance::drift),
+        )
+        .route(
+            "/governance/exemptions/:project_id",
+            get(routes::governance::exemptions),
+        )
         .with_state(state.clone());
 
     let api_routes = Router::new()
@@ -422,7 +465,10 @@ pub fn create_router(state: AppState) -> Router {
         .route("/plans/:id", get(routes::planner::get_plan))
         .route("/plans/:id/graph", get(routes::planner::get_plan_graph))
         // Extractor routes
-        .route("/knowledge/extract", post(routes::extractor::extract_knowledge))
+        .route(
+            "/knowledge/extract",
+            post(routes::extractor::extract_knowledge),
+        )
         // Agent routes
         .route("/agents", get(routes::agents::list_agents))
         .route("/agents/register", post(routes::agents::register_agent))
@@ -461,7 +507,10 @@ pub fn create_router(state: AppState) -> Router {
             get(routes::workflows::visualize_workflow),
         )
         .nest("/knowledge", routes::knowledge::router(state.store.clone()))
-        .layer(axum::middleware::from_fn_with_state(state.clone(), middleware::strict_enforcement::strict_enforcement_middleware))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            middleware::strict_enforcement::strict_enforcement_middleware,
+        ))
         .layer(axum::middleware::from_fn(auth::auth_middleware));
 
     let admin_routes = Router::new()

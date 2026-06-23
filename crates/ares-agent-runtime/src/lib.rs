@@ -1,3 +1,4 @@
+#![allow(clippy::too_many_arguments)]
 pub mod agents;
 pub mod collaboration;
 pub mod evaluation;

@@ -21,11 +21,21 @@ impl MemoryQueryPlanner {
             },
             QueryPattern {
                 intent: QueryIntent::Impact,
-                keywords: vec!["impact".into(), "break".into(), "depend".into(), "change".into()],
+                keywords: vec![
+                    "impact".into(),
+                    "break".into(),
+                    "depend".into(),
+                    "change".into(),
+                ],
             },
             QueryPattern {
                 intent: QueryIntent::Debt,
-                keywords: vec!["debt".into(), "gap".into(), "missing".into(), "resolution".into()],
+                keywords: vec![
+                    "debt".into(),
+                    "gap".into(),
+                    "missing".into(),
+                    "resolution".into(),
+                ],
             },
             QueryPattern {
                 intent: QueryIntent::Traceability,

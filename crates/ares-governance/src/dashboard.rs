@@ -4,7 +4,7 @@ pub struct DashboardGenerator;
 
 impl DashboardGenerator {
     pub fn generate_dashboard(
-        certification: &GovernanceCertification, 
+        certification: &GovernanceCertification,
         top_violations: Vec<ComplianceViolation>,
         requirement_coverage: ares_requirements::RequirementCoverageSummary,
         requirement_coverage_trend: ares_requirements::RequirementCoverageTrend,
@@ -24,7 +24,7 @@ impl DashboardGenerator {
             };
             rank(&a.severity).cmp(&rank(&b.severity))
         });
-        
+
         let top_10 = violations.into_iter().take(10).collect();
 
         let mut orphan_requirements = 0;
@@ -35,11 +35,14 @@ impl DashboardGenerator {
 
         for gap in knowledge_gaps {
             match gap.gap_type {
-                ares_requirements::KnowledgeGapType::UnapprovedRequirement => orphan_requirements += 1,
+                ares_requirements::KnowledgeGapType::UnapprovedRequirement => {
+                    orphan_requirements += 1
+                }
                 ares_requirements::KnowledgeGapType::OrphanedDecision => orphan_decisions += 1,
                 ares_requirements::KnowledgeGapType::MissingOwner => missing_owners += 1,
                 ares_requirements::KnowledgeGapType::MissingTest => missing_evidence += 1,
-                ares_requirements::KnowledgeGapType::MissingImplementation | ares_requirements::KnowledgeGapType::MissingDecision => traceability_gaps += 1,
+                ares_requirements::KnowledgeGapType::MissingImplementation
+                | ares_requirements::KnowledgeGapType::MissingDecision => traceability_gaps += 1,
                 _ => {}
             }
         }
@@ -67,7 +70,8 @@ impl DashboardGenerator {
                 missing_evidence,
                 traceability_gaps,
                 policy_violations: certification.violations_count,
-                debt_score: (orphan_requirements + orphan_decisions + traceability_gaps) as f32 * 5.0,
+                debt_score: (orphan_requirements + orphan_decisions + traceability_gaps) as f32
+                    * 5.0,
             },
             approvals: ApprovalMetrics {
                 pending: 0,

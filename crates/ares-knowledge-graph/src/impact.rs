@@ -45,12 +45,12 @@ impl ImpactEngine {
     pub fn calculate_impact(&self, start_node_id: &str) -> Result<ImpactReport, AresError> {
         // Downstream traversal to find all impacted nodes
         let path = self.traversal.downstream(start_node_id, 10)?;
-        
+
         let mut total_score = 0;
         let mut impacted_nodes = Vec::new();
 
         for node in path.nodes {
-            // We don't want to count the starting node itself in the impact risk score, 
+            // We don't want to count the starting node itself in the impact risk score,
             // but for simplicity we will include it as part of the impacted chain if it's the root.
             if node.id != start_node_id {
                 total_score += Self::weight_for_node(&node.node_type);

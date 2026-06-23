@@ -1,17 +1,27 @@
-use ares_knowledge_graph::models::{KnowledgeNode, KnowledgeEdge, NodeType, EdgeType};
-use uuid::Uuid;
+use ares_knowledge_graph::models::{EdgeType, KnowledgeEdge, KnowledgeNode, NodeType};
 use std::collections::{HashMap, HashSet};
+use uuid::Uuid;
 
 pub struct GapGenerator;
 
 impl GapGenerator {
-    pub fn generate_gaps(nodes: &mut Vec<KnowledgeNode>, edges: &mut Vec<KnowledgeEdge>, timestamp: i64) {
+    pub fn generate_gaps(
+        nodes: &mut Vec<KnowledgeNode>,
+        edges: &mut Vec<KnowledgeEdge>,
+        timestamp: i64,
+    ) {
         let mut out_degree: HashMap<String, Vec<(&EdgeType, String)>> = HashMap::new();
         let mut in_degree: HashMap<String, Vec<(&EdgeType, String)>> = HashMap::new();
 
         for edge in edges.iter() {
-            out_degree.entry(edge.source_id.clone()).or_default().push((&edge.edge_type, edge.target_id.clone()));
-            in_degree.entry(edge.target_id.clone()).or_default().push((&edge.edge_type, edge.source_id.clone()));
+            out_degree
+                .entry(edge.source_id.clone())
+                .or_default()
+                .push((&edge.edge_type, edge.target_id.clone()));
+            in_degree
+                .entry(edge.target_id.clone())
+                .or_default()
+                .push((&edge.edge_type, edge.source_id.clone()));
         }
 
         let mut code_has_test: HashSet<String> = HashSet::new();
@@ -20,7 +30,7 @@ impl GapGenerator {
         let mut dec_has_req: HashSet<String> = HashSet::new();
         let mut dec_has_impl: HashSet<String> = HashSet::new();
         let mut test_has_code: HashSet<String> = HashSet::new();
-        let mut test_has_req: HashSet<String> = HashSet::new();
+        let _test_has_req: HashSet<String> = HashSet::new();
 
         // 1st pass: build basic maps
         for edge in edges.iter() {
@@ -46,11 +56,14 @@ impl GapGenerator {
         // Trace Test -> Requirement (Test is ValidatedBy target, Code is ValidatedBy source)
         // Code -> ImplementedBy (source is Req)
         let mut test_to_req = HashSet::new();
-        for edge in edges.iter().filter(|e| e.edge_type == EdgeType::ValidatedBy) {
+        for edge in edges
+            .iter()
+            .filter(|e| e.edge_type == EdgeType::ValidatedBy)
+        {
             let code_id = &edge.source_id;
             let test_id = &edge.target_id;
             if let Some(req_edges) = in_degree.get(code_id) {
-                for (etype, req_id) in req_edges {
+                for (etype, _req_id) in req_edges {
                     if **etype == EdgeType::ImplementedBy {
                         test_to_req.insert(test_id.clone());
                     }
@@ -97,12 +110,11 @@ impl GapGenerator {
                         let mut all_impls_untested = true;
                         if let Some(impls) = out_degree.get(id) {
                             for (etype, target) in impls {
-                                if **etype == EdgeType::ImplementedBy {
-                                    if code_has_test.contains(target) {
+                                if **etype == EdgeType::ImplementedBy
+                                    && code_has_test.contains(target) {
                                         all_impls_untested = false;
                                         break;
                                     }
-                                }
                             }
                         }
                         if all_impls_untested {
@@ -127,7 +139,7 @@ impl GapGenerator {
                         push_gap(id, "OrphanDecision"); // Emitting both as per request
                     }
                 }
-                // Determine if it's a test file by name pattern if NodeType is CodeArtifact 
+                // Determine if it's a test file by name pattern if NodeType is CodeArtifact
                 // Wait, TestDiscoveryEngine actually doesn't create NodeType::Test, it creates CodeArtifact.
                 // But the user referred to `TestArtifact`... wait, does `NodeType::Test` exist?
                 // Let's assume nodes ending in `_test.rs` or `.test.ts` are tests. But we don't have a `NodeType::Test`.
@@ -135,7 +147,7 @@ impl GapGenerator {
                 _ => {}
             }
         }
-        
+
         // Find tests among code artifacts
         for node in nodes.iter() {
             if node.node_type == NodeType::CodeArtifact {

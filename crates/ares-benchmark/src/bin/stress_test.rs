@@ -16,9 +16,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Starting ARES Stress Test on {}", repo_path);
     println!("NOTE: In a complete implementation, this would trigger a full ares-scanner index on the target directory, then run ContextEngine queries against the resulting database to measure traversal speeds and SQLite constraint limits.");
-    
+
     let start = Instant::now();
-    
+
     // Simulate some work...
     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
 

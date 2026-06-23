@@ -1,15 +1,16 @@
-use ares_core::id::{new_id, ProjectId, EvidenceId, RequirementLinkId};
+use ares_core::id::{new_id, EvidenceId, ProjectId, RequirementLinkId};
 use ares_core::{DecisionId, RequirementId};
 use ares_decision_intelligence::health::DecisionHealthEngine;
 use ares_decision_intelligence::history::DecisionHistory;
 use ares_decision_intelligence::models::{
-    Decision, DecisionConfidence, DecisionEvidence, DecisionOutcome, DecisionStatus, EvidenceSource,
-    OutcomeType,
+    Decision, DecisionConfidence, DecisionEvidence, DecisionOutcome, DecisionStatus,
+    EvidenceSource, OutcomeType,
 };
 use ares_decision_intelligence::storage::DecisionStore;
 use ares_requirements::health::RequirementHealthEngine;
 use ares_requirements::models::{
-    CreateRequirementInput, LinkTarget, RequirementLink, RequirementPriority, RequirementType, RequirementSource,
+    CreateRequirementInput, LinkTarget, RequirementLink, RequirementPriority, RequirementSource,
+    RequirementType,
 };
 use ares_requirements::storage::RequirementStore;
 use ares_store::Store;
@@ -102,7 +103,7 @@ async fn test_gap_engine_validation_suite() {
     };
     let linked_reqs = req_store.list(&project_id, filter).unwrap();
     assert_eq!(linked_reqs.len(), 1);
-    
+
     let links = req_store.get_links_from(&req.id).unwrap();
     assert_eq!(links.len(), 1);
 
@@ -116,10 +117,12 @@ async fn test_gap_engine_validation_suite() {
     dec.approval_status = DecisionStatus::Approved;
     dec.approved_by = Some("Bob".to_string());
     dec.updated_at = 2000;
-    
+
     // Record revision
     let diff = "Status changed to Approved".to_string();
-    dec_history.record_revision(&dec.id, Some("Bob"), Some("Approval granted"), &diff).unwrap();
+    dec_history
+        .record_revision(&dec.id, Some("Bob"), Some("Approval granted"), &diff)
+        .unwrap();
 
     // Add Outcome
     let outcome = DecisionOutcome {
@@ -161,10 +164,11 @@ async fn test_gap_engine_validation_suite() {
     assert!(req_health_snapshot.decision_coverage_score < 100.0);
     // At least 1 issue should be NoDecision
     let has_no_decision_issue = req_health_snapshot.issues.iter().any(|i| {
-        i.requirement_id == orphan_req.id && i.issue_type == ares_requirements::health::HealthIssueType::NoDecision
+        i.requirement_id == orphan_req.id
+            && i.issue_type == ares_requirements::health::HealthIssueType::NoDecision
     });
     assert!(has_no_decision_issue);
-    
+
     let dec_health_snapshot = dec_health.generate_snapshot(&project_id).unwrap();
     assert_eq!(dec_health_snapshot.total_decisions, 1);
     assert_eq!(dec_health_snapshot.decisions_with_evidence, 1);

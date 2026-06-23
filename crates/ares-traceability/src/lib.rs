@@ -1,4 +1,6 @@
-use ares_core::AresError;
+#![allow(clippy::type_complexity)]
+#![allow(unused_imports)]
+use ares_core::{AresError, GraphEdge, GraphNode};
 use petgraph::graph::DiGraph;
 use petgraph::visit::Dfs;
 use serde::{Deserialize, Serialize};
@@ -62,6 +64,12 @@ pub struct TraceabilityGraph {
     providers: Vec<Box<dyn EdgeProvider>>,
 }
 
+impl Default for TraceabilityGraph {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TraceabilityGraph {
     pub fn new() -> Self {
         Self {
@@ -73,15 +81,27 @@ impl TraceabilityGraph {
         self.providers.push(provider);
     }
 
-    fn build_graph(&self) -> Result<(DiGraph<String, String>, HashMap<String, petgraph::graph::NodeIndex>), AresError> {
+    fn build_graph(
+        &self,
+    ) -> Result<
+        (
+            DiGraph<String, String>,
+            HashMap<String, petgraph::graph::NodeIndex>,
+        ),
+        AresError,
+    > {
         let mut graph = DiGraph::<String, String>::new();
         let mut nodes = HashMap::new();
 
         for provider in &self.providers {
             let edges = provider.edges()?;
             for edge in edges {
-                let source_idx = *nodes.entry(edge.source_id.clone()).or_insert_with(|| graph.add_node(edge.source_id.clone()));
-                let target_idx = *nodes.entry(edge.target_id.clone()).or_insert_with(|| graph.add_node(edge.target_id.clone()));
+                let source_idx = *nodes
+                    .entry(edge.source_id.clone())
+                    .or_insert_with(|| graph.add_node(edge.source_id.clone()));
+                let target_idx = *nodes
+                    .entry(edge.target_id.clone())
+                    .or_insert_with(|| graph.add_node(edge.target_id.clone()));
                 graph.add_edge(source_idx, target_idx, edge.relationship);
             }
         }
@@ -102,7 +122,11 @@ impl TraceabilityGraph {
             TraceTargetType::Test
         } else if id.starts_with("METRIC-") || id.starts_with("runtime_metric_") {
             TraceTargetType::RuntimeMetric
-        } else if id.starts_with("POLICY-") || id.starts_with("GOV-") || id.starts_with("TRACE-") || id.starts_with("OWNERSHIP-") {
+        } else if id.starts_with("POLICY-")
+            || id.starts_with("GOV-")
+            || id.starts_with("TRACE-")
+            || id.starts_with("OWNERSHIP-")
+        {
             TraceTargetType::Governance
         } else {
             TraceTargetType::Unknown(id.to_string())
@@ -134,7 +158,7 @@ impl TraceabilityGraph {
 
     pub fn find_upstream(&self, id: &str) -> Result<Vec<TraceNode>, AresError> {
         let (graph, nodes) = self.build_graph()?;
-        
+
         let start_idx = match nodes.get(id) {
             Some(idx) => *idx,
             None => return Ok(vec![]),
@@ -147,7 +171,9 @@ impl TraceabilityGraph {
         let mut results = Vec::new();
 
         while let Some(nx) = dfs.next(&graph_reversed) {
-            if nx == start_idx { continue; }
+            if nx == start_idx {
+                continue;
+            }
             let node_id = &graph_reversed[nx];
             results.push(TraceNode {
                 id: node_id.clone(),
@@ -162,7 +188,7 @@ impl TraceabilityGraph {
 
     pub fn find_downstream(&self, id: &str) -> Result<Vec<TraceNode>, AresError> {
         let (graph, nodes) = self.build_graph()?;
-        
+
         let start_idx = match nodes.get(id) {
             Some(idx) => *idx,
             None => return Ok(vec![]),
@@ -172,7 +198,9 @@ impl TraceabilityGraph {
         let mut results = Vec::new();
 
         while let Some(nx) = dfs.next(&graph) {
-            if nx == start_idx { continue; }
+            if nx == start_idx {
+                continue;
+            }
             let node_id = &graph[nx];
             results.push(TraceNode {
                 id: node_id.clone(),
@@ -187,7 +215,7 @@ impl TraceabilityGraph {
 
     pub fn impact_analysis(&self, root_id: &str) -> Result<ImpactReport, AresError> {
         let downstream = self.find_downstream(root_id)?;
-        
+
         let mut affected_decisions = Vec::new();
         let mut affected_architecture = Vec::new();
         let mut affected_code = Vec::new();
@@ -203,7 +231,10 @@ impl TraceabilityGraph {
             }
         }
 
-        let total_impact = affected_decisions.len() + affected_architecture.len() + affected_code.len() + affected_requirements.len();
+        let total_impact = affected_decisions.len()
+            + affected_architecture.len()
+            + affected_code.len()
+            + affected_requirements.len();
 
         let risk_level = if total_impact > 20 {
             RiskLevel::Critical

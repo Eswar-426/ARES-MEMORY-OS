@@ -1,6 +1,5 @@
-use crate::models::{RequirementStatus};
+use crate::models::RequirementStatus;
 use ares_core::RequirementId;
-use ares_traceability::{TraceabilityGraph, TraceTargetType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
@@ -11,7 +10,6 @@ pub enum CoverageStatus {
     Covered,
     Verified,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct RequirementGap {
@@ -39,7 +37,6 @@ pub struct RequirementCoverageSummary {
     pub average_coverage: f32,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct RequirementCoverageTrend {
     pub previous_coverage: f32,
@@ -49,6 +46,12 @@ pub struct RequirementCoverageTrend {
 
 pub struct RequirementCoverageEngine {
     // Engine dependencies like Store can be added here
+}
+
+impl Default for RequirementCoverageEngine {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl RequirementCoverageEngine {
@@ -65,7 +68,12 @@ impl RequirementCoverageEngine {
     ) -> RequirementCoverage {
         let mut gaps = Vec::new();
 
-        let approved = matches!(req_status, RequirementStatus::Approved | RequirementStatus::Implemented | RequirementStatus::Verified);
+        let approved = matches!(
+            req_status,
+            RequirementStatus::Approved
+                | RequirementStatus::Implemented
+                | RequirementStatus::Verified
+        );
 
         let implemented = resolver.has_implementation(req_id.as_str());
         let verified = resolver.has_test(req_id.as_str());
@@ -131,7 +139,7 @@ impl RequirementCoverageEngine {
                 } else {
                     CoverageStatus::Partial
                 }
-            },
+            }
             _ => CoverageStatus::Verified,
         };
 
@@ -146,7 +154,10 @@ impl RequirementCoverageEngine {
         }
     }
 
-    pub fn generate_summary(&self, coverages: &[RequirementCoverage]) -> (RequirementCoverageSummary, Vec<crate::gaps::GapSummary>) {
+    pub fn generate_summary(
+        &self,
+        coverages: &[RequirementCoverage],
+    ) -> (RequirementCoverageSummary, Vec<crate::gaps::GapSummary>) {
         let total = coverages.len();
         let mut fully_covered = 0;
         let mut partially_covered = 0;
@@ -164,20 +175,30 @@ impl RequirementCoverageEngine {
             if c.coverage_score == 100.0 {
                 // If we want fully covered to be strictly 100%
             }
-            
+
             sum_score += c.coverage_score;
 
             for gap in &c.gaps {
                 *gap_counts.entry(gap.gap_type.clone()).or_insert(0) += 1;
             }
         }
-        
+
         // Recalculate fully_covered as score == 100.0
-        fully_covered = coverages.iter().filter(|c| c.coverage_score == 100.0).count();
-        partially_covered = coverages.iter().filter(|c| c.coverage_score > 0.0 && c.coverage_score < 100.0).count();
+        fully_covered = coverages
+            .iter()
+            .filter(|c| c.coverage_score == 100.0)
+            .count();
+        partially_covered = coverages
+            .iter()
+            .filter(|c| c.coverage_score > 0.0 && c.coverage_score < 100.0)
+            .count();
         orphaned = coverages.iter().filter(|c| c.coverage_score == 0.0).count();
 
-        let average_coverage = if total > 0 { sum_score / total as f32 } else { 0.0 };
+        let average_coverage = if total > 0 {
+            sum_score / total as f32
+        } else {
+            0.0
+        };
 
         let mut top_gaps: Vec<crate::gaps::GapSummary> = gap_counts
             .into_iter()

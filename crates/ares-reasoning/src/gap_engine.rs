@@ -1,7 +1,9 @@
+#![allow(clippy::match_like_matches_macro)]
+#![allow(clippy::format_in_format_args)]
+use crate::models::MemoryGap;
 use ares_core::types::node::NodeType;
 use ares_core::{AresError, ProjectId};
-use ares_store::{Store, SqliteGraphRepository};
-use crate::models::MemoryGap;
+use ares_store::{SqliteGraphRepository, Store};
 
 /// GapEngine detects structural breaks in the memory hierarchy.
 /// It finds nodes that should have upstream parents but don't,

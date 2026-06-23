@@ -15,7 +15,7 @@ pub async fn handle_traceability(action: &TraceabilityCommands) -> Result<(), Ar
         TraceabilityCommands::Explain { path } => {
             println!("🔍 Traceability Explain: {}", path);
             println!("--------------------------------------------------");
-            
+
             // Dummy logic for demonstration of the output format
             let report = ExplainabilityReport {
                 file: path.clone(),
@@ -29,16 +29,19 @@ pub async fn handle_traceability(action: &TraceabilityCommands) -> Result<(), Ar
             println!("Target: {}", report.file);
             println!("Type: File / Source Code");
             println!("\nUpstream Dependencies:");
-            
+
             for arch in &report.architecture {
                 println!("  ⬆ [Architecture] {}", arch);
-                println!("    Confidence: {}% | Strength: Definitive", report.confidence);
+                println!(
+                    "    Confidence: {}% | Strength: Definitive",
+                    report.confidence
+                );
             }
-            
+
             for dec in &report.decisions {
                 println!("    ⬆ [Decision] {}", dec);
             }
-            
+
             for req in &report.requirements {
                 println!("      ⬆ [Requirement] {}", req);
             }
@@ -48,7 +51,7 @@ pub async fn handle_traceability(action: &TraceabilityCommands) -> Result<(), Ar
             println!("  No downstream candidate edges found.");
 
             println!("\n✅ Traceability Graph Path Resolved");
-            
+
             Ok(())
         }
     }

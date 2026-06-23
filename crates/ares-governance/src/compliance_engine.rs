@@ -1,8 +1,8 @@
 use crate::models::{
-    ComplianceResult, ComplianceViolation, PolicyDefinition, PolicyVersion, ViolationSeverity,
+    ComplianceResult, ComplianceViolation, PolicyDefinition, PolicyVersion,
 };
+use ares_core::types::node::GraphNode;
 use ares_core::{AresError, EdgeDirection, EdgeType, NodeId, ProjectId};
-use ares_core::types::node::{GraphNode, GraphEdge};
 use chrono::Utc;
 use uuid::Uuid;
 
@@ -58,7 +58,12 @@ impl<P: GraphProvider> ComplianceEngine<P> {
         };
 
         let mut results = Vec::new();
-        tracing::info!("Evaluating node {} ({}) against {} policies", node.id, node.node_type.as_str(), policies.len());
+        tracing::info!(
+            "Evaluating node {} ({}) against {} policies",
+            node.id,
+            node.node_type.as_str(),
+            policies.len()
+        );
 
         for (def, version) in policies {
             if !def.spec.rules.iter().any(|r| {
@@ -72,7 +77,12 @@ impl<P: GraphProvider> ComplianceEngine<P> {
             let mut violations = Vec::new();
 
             for rule in &def.spec.rules {
-                tracing::info!("Checking rule {} from policy {} against {}", rule.name, def.metadata.name, node.node_type.as_str());
+                tracing::info!(
+                    "Checking rule {} from policy {} against {}",
+                    rule.name,
+                    def.metadata.name,
+                    node.node_type.as_str()
+                );
                 if !rule
                     .target
                     .iter()
@@ -97,9 +107,10 @@ impl<P: GraphProvider> ComplianceEngine<P> {
 
                 match rule.condition.as_str() {
                     "missing_owner" => {
-                        let has_owner = node.properties.get("owners").map_or(false, |o| {
-                            o.as_array().map_or(false, |arr| !arr.is_empty())
-                        });
+                        let has_owner = node
+                            .properties
+                            .get("owners")
+                            .is_some_and(|o| o.as_array().is_some_and(|arr| !arr.is_empty()));
                         if !has_owner {
                             add_violation();
                         }
@@ -118,9 +129,10 @@ impl<P: GraphProvider> ComplianceEngine<P> {
                         }
                     }
                     "missing_approval" => {
-                        let has_approval = node.properties.get("approvers").map_or(false, |a| {
-                            a.as_array().map_or(false, |arr| !arr.is_empty())
-                        });
+                        let has_approval = node
+                            .properties
+                            .get("approvers")
+                            .is_some_and(|a| a.as_array().is_some_and(|arr| !arr.is_empty()));
                         if !has_approval {
                             add_violation();
                         }
@@ -143,7 +155,12 @@ impl<P: GraphProvider> ComplianceEngine<P> {
                             let neighbors = self.graph_repo.get_neighbors(
                                 &node.id,
                                 EdgeDirection::Outgoing,
-                                &[EdgeType::Implements, EdgeType::Impacts, EdgeType::DependsOn, EdgeType::RelatedTo],
+                                &[
+                                    EdgeType::Implements,
+                                    EdgeType::Impacts,
+                                    EdgeType::DependsOn,
+                                    EdgeType::RelatedTo,
+                                ],
                             )?;
                             if neighbors.is_empty() {
                                 add_violation();
@@ -157,17 +174,22 @@ impl<P: GraphProvider> ComplianceEngine<P> {
             }
 
             // Filter violations using exemptions
-            let mut violations = violations.into_iter().filter(|v| {
-                !exemptions.iter().any(|ex| {
-                    let matches_rule = ex.target_rules.is_empty() || ex.target_rules.contains(&v.policy_name);
-                    let matches_node = ex.target_nodes.is_empty() || ex.target_nodes.contains(&v.node_id);
-                    if ex.target_rules.is_empty() && ex.target_nodes.is_empty() {
-                        false
-                    } else {
-                        matches_rule && matches_node
-                    }
+            let violations = violations
+                .into_iter()
+                .filter(|v| {
+                    !exemptions.iter().any(|ex| {
+                        let matches_rule =
+                            ex.target_rules.is_empty() || ex.target_rules.contains(&v.policy_name);
+                        let matches_node =
+                            ex.target_nodes.is_empty() || ex.target_nodes.contains(&v.node_id);
+                        if ex.target_rules.is_empty() && ex.target_nodes.is_empty() {
+                            false
+                        } else {
+                            matches_rule && matches_node
+                        }
+                    })
                 })
-            }).collect::<Vec<_>>();
+                .collect::<Vec<_>>();
 
             results.push(ComplianceResult {
                 id: Uuid::now_v7().to_string(),

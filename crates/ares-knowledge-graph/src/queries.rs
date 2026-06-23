@@ -1,6 +1,6 @@
-use crate::models::{KnowledgeNode, KnowledgeEdge, NodeType};
-use crate::traversal::{MemoryTraversal, TraversalEngine, TraversalPath};
 use crate::impact::{ImpactEngine, ImpactReport};
+use crate::models::{KnowledgeNode, NodeType};
+use crate::traversal::{MemoryTraversal, TraversalEngine};
 use ares_core::AresError;
 use std::sync::Arc;
 
@@ -78,7 +78,10 @@ impl CanonicalQueries {
         Ok(result)
     }
 
-    pub fn what_evidence_supports_this(&self, node_id: &str) -> Result<Vec<KnowledgeNode>, AresError> {
+    pub fn what_evidence_supports_this(
+        &self,
+        node_id: &str,
+    ) -> Result<Vec<KnowledgeNode>, AresError> {
         let path = self.traversal.upstream(node_id, 10)?;
         let mut evidence = Vec::new();
 
@@ -95,7 +98,7 @@ impl CanonicalQueries {
         // Usually down/around. We will search both for gaps.
         let up_path = self.traversal.upstream(node_id, 5)?;
         let down_path = self.traversal.downstream(node_id, 5)?;
-        
+
         let mut result = DebtResult::default();
         let mut seen = std::collections::HashSet::new();
 

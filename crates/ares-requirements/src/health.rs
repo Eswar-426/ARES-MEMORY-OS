@@ -61,7 +61,10 @@ impl RequirementHealthEngine {
         }
     }
 
-    pub fn compute_health(&self, project_id: &ProjectId) -> Result<RequirementHealthScore, AresError> {
+    pub fn compute_health(
+        &self,
+        project_id: &ProjectId,
+    ) -> Result<RequirementHealthScore, AresError> {
         let filter = crate::models::RequirementFilter {
             status: None,
             priority: None,
@@ -71,10 +74,10 @@ impl RequirementHealthEngine {
             since: None,
             until: None,
         };
-        
+
         let reqs = self.req_store.list(project_id, filter)?;
         let total = reqs.len();
-        
+
         if total == 0 {
             return Ok(RequirementHealthScore {
                 total_score: 100.0,
@@ -88,7 +91,7 @@ impl RequirementHealthEngine {
                 computed_at: Utc::now().timestamp_micros(),
             });
         }
-        
+
         let mut has_owner = 0;
         let mut has_dec = 0;
         let mut has_arch = 0;
@@ -96,15 +99,15 @@ impl RequirementHealthEngine {
         let mut is_fresh = 0;
         let mut good_status = 0;
         let mut issues = Vec::new();
-        
+
         let now = Utc::now().timestamp_micros();
         let six_months_us = 180 * 24 * 60 * 60 * 1_000_000_i64;
-        
+
         for req in &reqs {
             let links = self.req_store.count_links_by_type(&req.id)?;
-            
+
             let mut is_orphan = true;
-            
+
             if req.owner.is_some() {
                 has_owner += 1;
                 is_orphan = false;
@@ -116,7 +119,7 @@ impl RequirementHealthEngine {
                     severity: IssueSeverity::Warning,
                 });
             }
-            
+
             if links.decision_links > 0 {
                 has_dec += 1;
                 is_orphan = false;
@@ -128,7 +131,7 @@ impl RequirementHealthEngine {
                     severity: IssueSeverity::Warning,
                 });
             }
-            
+
             if links.architecture_links > 0 {
                 has_arch += 1;
                 is_orphan = false;
@@ -136,11 +139,14 @@ impl RequirementHealthEngine {
                 issues.push(HealthIssue {
                     requirement_id: req.id.clone(),
                     issue_type: HealthIssueType::NoArchitecture,
-                    description: format!("Requirement {} is not linked to any architecture components.", req.id),
+                    description: format!(
+                        "Requirement {} is not linked to any architecture components.",
+                        req.id
+                    ),
                     severity: IssueSeverity::Warning,
                 });
             }
-            
+
             if links.code_links > 0 {
                 has_code += 1;
                 is_orphan = false;
@@ -148,49 +154,61 @@ impl RequirementHealthEngine {
                 issues.push(HealthIssue {
                     requirement_id: req.id.clone(),
                     issue_type: HealthIssueType::NoCode,
-                    description: format!("Requirement {} is not linked to any code artifacts.", req.id),
+                    description: format!(
+                        "Requirement {} is not linked to any code artifacts.",
+                        req.id
+                    ),
                     severity: IssueSeverity::Warning,
                 });
             }
-            
+
             if links.total > 0 {
                 is_orphan = false;
             }
-            
+
             if is_orphan {
                 issues.push(HealthIssue {
                     requirement_id: req.id.clone(),
                     issue_type: HealthIssueType::OrphanRequirement,
-                    description: format!("Requirement {} is completely orphaned (no owner, no links).", req.id),
+                    description: format!(
+                        "Requirement {} is completely orphaned (no owner, no links).",
+                        req.id
+                    ),
                     severity: IssueSeverity::Critical,
                 });
             }
-            
+
             if now - req.updated_at < six_months_us {
                 is_fresh += 1;
             } else {
                 issues.push(HealthIssue {
                     requirement_id: req.id.clone(),
                     issue_type: HealthIssueType::Stale,
-                    description: format!("Requirement {} has not been updated in 6 months.", req.id),
+                    description: format!(
+                        "Requirement {} has not been updated in 6 months.",
+                        req.id
+                    ),
                     severity: IssueSeverity::Info,
                 });
             }
-            
+
             if req.status != RequirementStatus::Draft && req.status != RequirementStatus::Rejected {
                 good_status += 1;
             }
-            
+
             if req.status == RequirementStatus::Implemented && links.code_links == 0 {
                 issues.push(HealthIssue {
                     requirement_id: req.id.clone(),
                     issue_type: HealthIssueType::StatusInconsistency,
-                    description: format!("Requirement {} is marked Implemented but has no code links.", req.id),
+                    description: format!(
+                        "Requirement {} is marked Implemented but has no code links.",
+                        req.id
+                    ),
                     severity: IssueSeverity::Error,
                 });
             }
         }
-        
+
         let t = total as f64;
         let ownership_score = (has_owner as f64 / t) * 100.0;
         let decision_coverage_score = (has_dec as f64 / t) * 100.0;
@@ -198,14 +216,13 @@ impl RequirementHealthEngine {
         let code_coverage_score = (has_code as f64 / t) * 100.0;
         let freshness_score = (is_fresh as f64 / t) * 100.0;
         let status_quality_score = (good_status as f64 / t) * 100.0;
-        
-        let total_score = 
-            (ownership_score * 0.20) +
-            (decision_coverage_score * 0.20) +
-            (architecture_coverage_score * 0.20) +
-            (code_coverage_score * 0.20) +
-            (freshness_score * 0.10) +
-            (status_quality_score * 0.10);
+
+        let total_score = (ownership_score * 0.20)
+            + (decision_coverage_score * 0.20)
+            + (architecture_coverage_score * 0.20)
+            + (code_coverage_score * 0.20)
+            + (freshness_score * 0.10)
+            + (status_quality_score * 0.10);
 
         Ok(RequirementHealthScore {
             total_score,
@@ -220,10 +237,14 @@ impl RequirementHealthEngine {
         })
     }
 
-    pub fn save_snapshot(&self, project_id: &ProjectId, health: &RequirementHealthScore) -> Result<(), AresError> {
+    pub fn save_snapshot(
+        &self,
+        project_id: &ProjectId,
+        health: &RequirementHealthScore,
+    ) -> Result<(), AresError> {
         let conn = self.store.get_conn()?;
         let json_str = serde_json::to_string(health).unwrap();
-        
+
         conn.execute(
             "INSERT INTO requirement_health_snapshots (id, project_id, snapshot_json, created_at)
              VALUES (?1, ?2, ?3, ?4)",
@@ -232,28 +253,37 @@ impl RequirementHealthEngine {
                 project_id.as_str(),
                 json_str,
                 health.computed_at
-            ]
-        ).map_err(AresError::db)?;
-        
+            ],
+        )
+        .map_err(AresError::db)?;
+
         Ok(())
     }
 
-    pub fn get_latest_snapshot(&self, project_id: &ProjectId) -> Result<Option<RequirementHealthScore>, AresError> {
+    pub fn get_latest_snapshot(
+        &self,
+        project_id: &ProjectId,
+    ) -> Result<Option<RequirementHealthScore>, AresError> {
         let conn = self.store.get_conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT snapshot_json FROM requirement_health_snapshots 
-             WHERE project_id = ?1 ORDER BY created_at DESC LIMIT 1"
-        ).map_err(AresError::db)?;
-        
-        let result = stmt.query_row(rusqlite::params![project_id.as_str()], |row| row.get::<_, String>(0));
-        
+        let mut stmt = conn
+            .prepare(
+                "SELECT snapshot_json FROM requirement_health_snapshots 
+             WHERE project_id = ?1 ORDER BY created_at DESC LIMIT 1",
+            )
+            .map_err(AresError::db)?;
+
+        let result = stmt.query_row(rusqlite::params![project_id.as_str()], |row| {
+            row.get::<_, String>(0)
+        });
+
         match result {
             Ok(json_str) => {
-                let score = serde_json::from_str(&json_str).map_err(|e| AresError::validation(e.to_string()))?;
+                let score = serde_json::from_str(&json_str)
+                    .map_err(|e| AresError::validation(e.to_string()))?;
                 Ok(Some(score))
-            },
+            }
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(AresError::db(e))
+            Err(e) => Err(AresError::db(e)),
         }
     }
 }

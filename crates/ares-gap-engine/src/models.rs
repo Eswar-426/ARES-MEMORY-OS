@@ -8,23 +8,23 @@ pub struct Gap {
     pub project_id: ProjectId,
     pub gap_type: GapType,
     pub description: String,
-    
+
     /// Target entity where the gap was discovered (e.g. RequirementId, DecisionId)
     pub source_id: String,
-    
+
     /// The specific method that flagged this gap.
     pub detection_method: DetectionMethod,
-    
-    /// A computed score (0.0 - 1.0) indicating the likelihood or severity of the gap, 
+
+    /// A computed score (0.0 - 1.0) indicating the likelihood or severity of the gap,
     /// rather than a subjective "confidence" score.
     pub evidence_score: f32,
-    
+
     pub severity: GapSeverity,
     pub identified_at: i64,
-    
+
     /// Contextual metadata regarding the gap
     pub metadata: HashMap<String, String>,
-    
+
     // Phase 3 Intelligence fields
     pub evidence: Vec<GapEvidence>,
     pub reason: Option<GapReason>,
@@ -67,7 +67,7 @@ pub struct ImpactRadius {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PriorityScore {
-    pub score: f64, // e.g. 0.0 to 100.0
+    pub score: f64,          // e.g. 0.0 to 100.0
     pub criticality: String, // e.g. "Low", "Medium", "High", "Critical"
 }
 
@@ -105,19 +105,19 @@ pub struct RepositoryHealthSnapshot {
 pub enum GapType {
     /// Requirement is marked Implemented but lacks code traces
     MissingImplementation,
-    
+
     /// Requirement exists but has no related architectural or technical decisions
     MissingDecision,
-    
+
     /// A decision was made, but has no documented alternatives or evidence
     MissingEvidence,
-    
+
     /// Code exists that doesn't trace back to any known requirement or decision
     OrphanCode,
-    
+
     /// A decision is marked Approved but lacks an Owner
     MissingOwner,
-    
+
     /// A requirement has not been updated in a long time
     StaleRequirement,
 }
@@ -127,13 +127,13 @@ pub enum GapType {
 pub enum DetectionMethod {
     /// Hard rules (e.g., "if status == Approved && owner == None")
     Deterministic,
-    
+
     /// Graph queries (e.g., "node has no incoming edges of type X")
     RuleBased,
-    
+
     /// Statistical anomalies (e.g., "this file changed 50 times but has 0 decisions")
     Statistical,
-    
+
     /// LLM-based detection (e.g., "the description of this decision conflicts with architecture")
     AIInference,
 }
@@ -150,7 +150,7 @@ pub enum GapSeverity {
 pub struct RepositoryHealthReport {
     pub project_id: ProjectId,
     pub generated_at: i64,
-    
+
     pub health: RepositoryHealthSnapshot,
     pub gaps: Vec<Gap>,
     pub clusters: Vec<GapCluster>,

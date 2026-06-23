@@ -1,8 +1,8 @@
-use crate::models::{KnowledgeEdge, KnowledgeNode, EdgeType};
+use crate::models::{KnowledgeEdge, KnowledgeNode};
 use crate::store::KnowledgeGraphStore;
 use ares_core::AresError;
-use std::sync::Arc;
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::sync::Arc;
 
 pub struct TraversalPath {
     pub nodes: Vec<KnowledgeNode>,
@@ -11,8 +11,13 @@ pub struct TraversalPath {
 
 pub trait MemoryTraversal {
     fn upstream(&self, start_node_id: &str, max_depth: usize) -> Result<TraversalPath, AresError>;
-    fn downstream(&self, start_node_id: &str, max_depth: usize) -> Result<TraversalPath, AresError>;
-    fn shortest_path(&self, start_node_id: &str, target_node_id: &str) -> Result<Option<TraversalPath>, AresError>;
+    fn downstream(&self, start_node_id: &str, max_depth: usize)
+        -> Result<TraversalPath, AresError>;
+    fn shortest_path(
+        &self,
+        start_node_id: &str,
+        target_node_id: &str,
+    ) -> Result<Option<TraversalPath>, AresError>;
 }
 
 pub struct TraversalEngine {
@@ -28,21 +33,28 @@ impl TraversalEngine {
         let conn = self.store.get_raw_store().get_conn()?;
         let mut stmt = conn.prepare("SELECT id, entity_type, name, properties, created_at FROM graph_entities WHERE id = ?")
             .map_err(|e| AresError::Database(e.to_string()))?;
-            
-        let mut rows = stmt.query([id]).map_err(|e| AresError::Database(e.to_string()))?;
-        if let Some(row) = rows.next().map_err(|e| AresError::Database(e.to_string()))? {
+
+        let mut rows = stmt
+            .query([id])
+            .map_err(|e| AresError::Database(e.to_string()))?;
+        if let Some(row) = rows
+            .next()
+            .map_err(|e| AresError::Database(e.to_string()))?
+        {
             let id: String = row.get(0).map_err(|e| AresError::Database(e.to_string()))?;
-            let node_type_str: String = row.get(1).map_err(|e| AresError::Database(e.to_string()))?;
+            let node_type_str: String =
+                row.get(1).map_err(|e| AresError::Database(e.to_string()))?;
             let name: String = row.get(2).map_err(|e| AresError::Database(e.to_string()))?;
             let props_str: String = row.get(3).map_err(|e| AresError::Database(e.to_string()))?;
-            let created_at_str: String = row.get(4).map_err(|e| AresError::Database(e.to_string()))?;
+            let created_at_str: String =
+                row.get(4).map_err(|e| AresError::Database(e.to_string()))?;
             let created_at: i64 = created_at_str.parse().unwrap_or(0);
-            
-            let properties: serde_json::Value = serde_json::from_str(&props_str).unwrap_or(serde_json::json!({}));
-            
-            let node_type = serde_json::from_value(serde_json::json!(node_type_str.clone())).unwrap_or_else(|_| {
-                crate::models::NodeType::CodeArtifact
-            });
+
+            let properties: serde_json::Value =
+                serde_json::from_str(&props_str).unwrap_or(serde_json::json!({}));
+
+            let node_type = serde_json::from_value(serde_json::json!(node_type_str.clone()))
+                .unwrap_or(crate::models::NodeType::CodeArtifact);
 
             return Ok(Some(KnowledgeNode {
                 id,
@@ -55,29 +67,43 @@ impl TraversalEngine {
         Ok(None)
     }
 
-    fn load_adjacent_edges(&self, node_id: &str, direction_downstream: bool) -> Result<Vec<KnowledgeEdge>, AresError> {
+    fn load_adjacent_edges(
+        &self,
+        node_id: &str,
+        direction_downstream: bool,
+    ) -> Result<Vec<KnowledgeEdge>, AresError> {
         let conn = self.store.get_raw_store().get_conn()?;
         let query = if direction_downstream {
             "SELECT id, source_entity, target_entity, relationship_type, confidence_score, created_at, properties FROM graph_relationships WHERE source_entity = ?"
         } else {
             "SELECT id, source_entity, target_entity, relationship_type, confidence_score, created_at, properties FROM graph_relationships WHERE target_entity = ?"
         };
-        let mut stmt = conn.prepare(query).map_err(|e| AresError::Database(e.to_string()))?;
-        
+        let mut stmt = conn
+            .prepare(query)
+            .map_err(|e| AresError::Database(e.to_string()))?;
+
         let mut edges = Vec::new();
-        let mut rows = stmt.query([node_id]).map_err(|e| AresError::Database(e.to_string()))?;
-        while let Some(row) = rows.next().map_err(|e| AresError::Database(e.to_string()))? {
+        let mut rows = stmt
+            .query([node_id])
+            .map_err(|e| AresError::Database(e.to_string()))?;
+        while let Some(row) = rows
+            .next()
+            .map_err(|e| AresError::Database(e.to_string()))?
+        {
             let id: String = row.get(0).map_err(|e| AresError::Database(e.to_string()))?;
             let source_id: String = row.get(1).map_err(|e| AresError::Database(e.to_string()))?;
             let target_id: String = row.get(2).map_err(|e| AresError::Database(e.to_string()))?;
-            let edge_type_str: String = row.get(3).map_err(|e| AresError::Database(e.to_string()))?;
+            let edge_type_str: String =
+                row.get(3).map_err(|e| AresError::Database(e.to_string()))?;
             let confidence: f64 = row.get(4).unwrap_or(1.0);
             let created_at_str: String = row.get(5).unwrap_or_else(|_| "0".to_string());
             let created_at = created_at_str.parse().unwrap_or(0);
             let props_str: String = row.get(6).unwrap_or("{}".to_string());
-            
-            let properties: serde_json::Value = serde_json::from_str(&props_str).unwrap_or(serde_json::json!({}));
-            let edge_type = serde_json::from_value(serde_json::json!(edge_type_str)).unwrap_or(crate::models::EdgeType::References);
+
+            let properties: serde_json::Value =
+                serde_json::from_str(&props_str).unwrap_or(serde_json::json!({}));
+            let edge_type = serde_json::from_value(serde_json::json!(edge_type_str))
+                .unwrap_or(crate::models::EdgeType::References);
 
             edges.push(KnowledgeEdge {
                 id,
@@ -149,11 +175,19 @@ impl MemoryTraversal for TraversalEngine {
         self.traverse(start_node_id, max_depth, false)
     }
 
-    fn downstream(&self, start_node_id: &str, max_depth: usize) -> Result<TraversalPath, AresError> {
+    fn downstream(
+        &self,
+        start_node_id: &str,
+        max_depth: usize,
+    ) -> Result<TraversalPath, AresError> {
         self.traverse(start_node_id, max_depth, true)
     }
 
-    fn shortest_path(&self, start_node_id: &str, target_node_id: &str) -> Result<Option<TraversalPath>, AresError> {
+    fn shortest_path(
+        &self,
+        start_node_id: &str,
+        target_node_id: &str,
+    ) -> Result<Option<TraversalPath>, AresError> {
         let mut visited = HashSet::new();
         let mut queue = VecDeque::new();
         let mut parent_map: HashMap<String, (String, KnowledgeEdge)> = HashMap::new();

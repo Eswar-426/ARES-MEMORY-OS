@@ -1,8 +1,8 @@
-use crate::models::{GovernanceApprovalRequest, ComplianceViolation, ApprovalStatus};
-use ares_store::Store;
+use crate::models::{ApprovalStatus, ComplianceViolation, GovernanceApprovalRequest};
 use crate::store::{ApprovalStore, SqliteApprovalStore};
-use std::sync::Arc;
 use ares_core::AresError;
+use ares_store::Store;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct ApprovalEngine {
@@ -11,11 +11,9 @@ pub struct ApprovalEngine {
 
 impl ApprovalEngine {
     pub fn new(store: Arc<Store>) -> Self {
-        Self {
-            store,
-        }
+        Self { store }
     }
-    
+
     fn approval_store(&self) -> SqliteApprovalStore {
         SqliteApprovalStore::new((*self.store).clone())
     }
@@ -44,15 +42,22 @@ impl ApprovalEngine {
         Ok(request)
     }
 
-    pub async fn get_request(&self, id: &str) -> Result<Option<GovernanceApprovalRequest>, AresError> {
+    pub async fn get_request(
+        &self,
+        id: &str,
+    ) -> Result<Option<GovernanceApprovalRequest>, AresError> {
         let repo = self.approval_store();
         repo.get_request(id)
     }
 
-    pub async fn approve_request(&self, id: &str, approved_by: &str) -> Result<GovernanceApprovalRequest, AresError> {
+    pub async fn approve_request(
+        &self,
+        id: &str,
+        approved_by: &str,
+    ) -> Result<GovernanceApprovalRequest, AresError> {
         let repo = self.approval_store();
         repo.update_status(id, ApprovalStatus::Approved, Some(approved_by))?;
-        
+
         let req = repo.get_request(id)?;
         if let Some(r) = req {
             Ok(r)

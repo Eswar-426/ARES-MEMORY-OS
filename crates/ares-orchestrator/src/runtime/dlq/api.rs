@@ -1,4 +1,3 @@
-use super::models::DeadLetterItem;
 use super::service::DlqService;
 use ares_core::AresError;
 use axum::{extract::State, response::IntoResponse, Json};

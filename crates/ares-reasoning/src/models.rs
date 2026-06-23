@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 // ─────────────────────────────────────────────────────────────────
 // Trace Status — Memory gaps are first-class information
@@ -45,7 +45,11 @@ pub struct MissingMemory {
 
 impl std::fmt::Display for MissingMemory {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} missing upstream {}", self.node_id, self.expected_type)
+        write!(
+            f,
+            "{} missing upstream {}",
+            self.node_id, self.expected_type
+        )
     }
 }
 
@@ -132,7 +136,7 @@ pub struct ImpactReport {
     pub risk_score: f32,
     /// Multi-hop reachability classifications: (node_label, reachability)
     pub classifications: Vec<(String, Reachability)>,
-    
+
     // Traversal Metrics
     pub nodes_visited: usize,
     pub edges_visited: usize,

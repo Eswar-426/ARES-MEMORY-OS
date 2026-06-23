@@ -1,10 +1,12 @@
-use ares_core::{NodeId, ProjectId};
-use ares_governance::strict_evaluation::{StrictEvaluationEngine, StrictEvaluationResult};
-use ares_governance::mutation_simulator::{VirtualGraphProvider, GraphMutation};
-use ares_governance::models::{GovernanceOutcome, PolicyDefinition, PolicyVersion, PolicyExemption};
-use ares_governance::events::GovernanceEventPublisher;
-use ares_governance::approval::ApprovalEngine;
 use crate::models::ExecutionStatus;
+use ares_core::{NodeId, ProjectId};
+use ares_governance::approval::ApprovalEngine;
+use ares_governance::events::GovernanceEventPublisher;
+use ares_governance::models::{
+    GovernanceOutcome, PolicyDefinition, PolicyExemption, PolicyVersion,
+};
+use ares_governance::mutation_simulator::{GraphMutation, VirtualGraphProvider};
+use ares_governance::strict_evaluation::StrictEvaluationEngine;
 
 pub struct GovernanceInterceptor {
     publisher: GovernanceEventPublisher,
@@ -31,47 +33,49 @@ impl GovernanceInterceptor {
         exemptions: &[PolicyExemption],
     ) -> Result<ExecutionStatus, String> {
         let provider = VirtualGraphProvider::new(base_nodes, base_edges, mutation);
-        
-        match StrictEvaluationEngine::evaluate(project_id, node_id, provider, policies, exemptions) {
-            Ok(result) => {
-                match result.outcome {
-                    GovernanceOutcome::Allow => {
-                        Ok(ExecutionStatus::Running)
-                    }
-                    GovernanceOutcome::Warn => {
-                        self.publisher.publish(ares_governance::models::GovernanceEvent::ViolationDetected {
+
+        match StrictEvaluationEngine::evaluate(project_id, node_id, provider, policies, exemptions)
+        {
+            Ok(result) => match result.outcome {
+                GovernanceOutcome::Allow => Ok(ExecutionStatus::Running),
+                GovernanceOutcome::Warn => {
+                    self.publisher.publish(
+                        ares_governance::models::GovernanceEvent::ViolationDetected {
                             project_id: project_id.to_string(),
                             workflow_id: workflow_id.to_string(),
                             violations: result.violations,
-                        });
-                        Ok(ExecutionStatus::Running)
-                    }
-                    GovernanceOutcome::RequireApproval => {
-                        let request = self.approval_engine.create_request(
-                            &project_id.to_string(),
+                        },
+                    );
+                    Ok(ExecutionStatus::Running)
+                }
+                GovernanceOutcome::RequireApproval => {
+                    let request = self
+                        .approval_engine
+                        .create_request(
+                            project_id.as_ref(),
                             workflow_id,
-                            result.violations.clone()
-                        ).await.map_err(|e| e.to_string())?;
-                        
-                        self.publisher.publish(ares_governance::models::GovernanceEvent::ApprovalRequested {
-                            request,
-                        });
-                        Ok(ExecutionStatus::AwaitingApproval)
-                    }
-                    GovernanceOutcome::Block => {
-                        self.publisher.publish(ares_governance::models::GovernanceEvent::Blocked {
+                            result.violations.clone(),
+                        )
+                        .await
+                        .map_err(|e| e.to_string())?;
+
+                    self.publisher.publish(
+                        ares_governance::models::GovernanceEvent::ApprovalRequested { request },
+                    );
+                    Ok(ExecutionStatus::AwaitingApproval)
+                }
+                GovernanceOutcome::Block => {
+                    self.publisher
+                        .publish(ares_governance::models::GovernanceEvent::Blocked {
                             project_id: project_id.to_string(),
                             workflow_id: workflow_id.to_string(),
                             reason: "Blocked by governance policy".to_string(),
                             violations: result.violations,
                         });
-                        Ok(ExecutionStatus::GovernanceBlocked)
-                    }
+                    Ok(ExecutionStatus::GovernanceBlocked)
                 }
-            }
-            Err(e) => {
-                Err(format!("Pre-flight simulation failed: {}", e))
-            }
+            },
+            Err(e) => Err(format!("Pre-flight simulation failed: {}", e)),
         }
     }
 }

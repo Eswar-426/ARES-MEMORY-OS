@@ -1,21 +1,21 @@
 use ares_core::AresError;
-use ares_store::Store;
-use ares_knowledge_graph::store::KnowledgeGraphStore;
-use ares_knowledge_graph::projection::{ProjectionEngine, ProjectionMode};
-use ares_knowledge_graph::models::{DomainEvent, DomainEventType, ProjectionMetrics};
-use ares_knowledge_graph::projector_registry::{
-    ProjectorRegistry, RequirementProjector, DecisionProjector, GapProjector, ResolutionProjector,
-};
-use ares_knowledge_graph::traversal::TraversalEngine;
 use ares_knowledge_graph::impact::ImpactEngine;
+use ares_knowledge_graph::models::{DomainEvent, DomainEventType, ProjectionMetrics};
+use ares_knowledge_graph::projection::{ProjectionEngine, ProjectionMode};
+use ares_knowledge_graph::projector_registry::{
+    DecisionProjector, GapProjector, ProjectorRegistry, RequirementProjector, ResolutionProjector,
+};
 use ares_knowledge_graph::queries::CanonicalQueries;
-use std::sync::Arc;
+use ares_knowledge_graph::store::KnowledgeGraphStore;
+use ares_knowledge_graph::traversal::TraversalEngine;
+use ares_store::Store;
 use serde_json::json;
+use std::sync::Arc;
 use tempfile::tempdir;
 
 async fn setup_test_engine() -> (
-    Arc<KnowledgeGraphStore>, 
-    ProjectionEngine, 
+    Arc<KnowledgeGraphStore>,
+    ProjectionEngine,
     ProjectorRegistry,
     CanonicalQueries,
 ) {
@@ -23,15 +23,15 @@ async fn setup_test_engine() -> (
     let db_path = dir.path().join("test_queries.db");
     let store = Store::open(&db_path).unwrap();
     let kg_store = Arc::new(KnowledgeGraphStore::new(Arc::new(store)));
-    
+
     let engine = ProjectionEngine::new(kg_store.clone());
-    
+
     let mut registry = ProjectorRegistry::new();
     registry.register(Box::new(RequirementProjector));
     registry.register(Box::new(DecisionProjector));
     registry.register(Box::new(GapProjector));
     registry.register(Box::new(ResolutionProjector));
-    
+
     let traversal = Arc::new(TraversalEngine::new(kg_store.clone()));
     let impact = Arc::new(ImpactEngine::new(traversal.clone()));
     let queries = CanonicalQueries::new(traversal.clone(), impact.clone());
@@ -40,7 +40,7 @@ async fn setup_test_engine() -> (
 }
 
 async fn seed_authentication_graph(
-    engine: &ProjectionEngine, 
+    engine: &ProjectionEngine,
     registry: &ProjectorRegistry,
     metrics: &mut ProjectionMetrics,
     kg_store: &Arc<KnowledgeGraphStore>,
@@ -90,79 +90,119 @@ async fn seed_authentication_graph(
         }),
     };
 
-    engine.process_event(&req_event, ProjectionMode::Incremental, &registry.projectors, metrics).unwrap();
-    engine.process_event(&dec_event, ProjectionMode::Incremental, &registry.projectors, metrics).unwrap();
-    engine.process_event(&gap_event, ProjectionMode::Incremental, &registry.projectors, metrics).unwrap();
-    engine.process_event(&res_event, ProjectionMode::Incremental, &registry.projectors, metrics).unwrap();
-    
-    use ares_knowledge_graph::models::{KnowledgeEdge, EdgeType};
+    engine
+        .process_event(
+            &req_event,
+            ProjectionMode::Incremental,
+            &registry.projectors,
+            metrics,
+        )
+        .unwrap();
+    engine
+        .process_event(
+            &dec_event,
+            ProjectionMode::Incremental,
+            &registry.projectors,
+            metrics,
+        )
+        .unwrap();
+    engine
+        .process_event(
+            &gap_event,
+            ProjectionMode::Incremental,
+            &registry.projectors,
+            metrics,
+        )
+        .unwrap();
+    engine
+        .process_event(
+            &res_event,
+            ProjectionMode::Incremental,
+            &registry.projectors,
+            metrics,
+        )
+        .unwrap();
+
+    use ares_knowledge_graph::models::{EdgeType, KnowledgeEdge};
     use serde_json::json;
 
     // Connect REQ -> DEC (Requirement Drives Decision)
-    kg_store.upsert_edge(&KnowledgeEdge {
-        id: "EDGE-REQ-DEC".to_string(),
-        source_id: "REQ-AUTH".to_string(),
-        target_id: "DEC-JWT".to_string(),
-        edge_type: EdgeType::Drives,
-        confidence: 1.0,
-        created_at: 1004,
-        properties: json!({}),
-    }).unwrap();
+    kg_store
+        .upsert_edge(&KnowledgeEdge {
+            id: "EDGE-REQ-DEC".to_string(),
+            source_id: "REQ-AUTH".to_string(),
+            target_id: "DEC-JWT".to_string(),
+            edge_type: EdgeType::Drives,
+            confidence: 1.0,
+            created_at: 1004,
+            properties: json!({}),
+        })
+        .unwrap();
 
     // Connect GAP -> DEC (Gap Caused By Decision)
-    kg_store.upsert_edge(&KnowledgeEdge {
-        id: "EDGE-GAP-DEC".to_string(),
-        source_id: "GAP-AUTH".to_string(),
-        target_id: "DEC-JWT".to_string(),
-        edge_type: EdgeType::Causes, // GAP -> DEC is CausedBy. We'll use Causes for now.
-        confidence: 1.0,
-        created_at: 1004,
-        properties: json!({}),
-    }).unwrap();
+    kg_store
+        .upsert_edge(&KnowledgeEdge {
+            id: "EDGE-GAP-DEC".to_string(),
+            source_id: "GAP-AUTH".to_string(),
+            target_id: "DEC-JWT".to_string(),
+            edge_type: EdgeType::Causes, // GAP -> DEC is CausedBy. We'll use Causes for now.
+            confidence: 1.0,
+            created_at: 1004,
+            properties: json!({}),
+        })
+        .unwrap();
     // Re-insert edge as DEC -> GAP
-    kg_store.upsert_edge(&KnowledgeEdge {
-        id: "EDGE-DEC-GAP".to_string(),
-        source_id: "DEC-JWT".to_string(),
-        target_id: "GAP-AUTH".to_string(),
-        edge_type: EdgeType::Causes,
-        confidence: 1.0,
-        created_at: 1004,
-        properties: json!({}),
-    }).unwrap();
+    kg_store
+        .upsert_edge(&KnowledgeEdge {
+            id: "EDGE-DEC-GAP".to_string(),
+            source_id: "DEC-JWT".to_string(),
+            target_id: "GAP-AUTH".to_string(),
+            edge_type: EdgeType::Causes,
+            confidence: 1.0,
+            created_at: 1004,
+            properties: json!({}),
+        })
+        .unwrap();
 
     // Re-insert edge as DEC -> RES
-    kg_store.upsert_edge(&KnowledgeEdge {
-        id: "EDGE-GAP-RES".to_string(),
-        source_id: "GAP-AUTH".to_string(),
-        target_id: "RES-ROTATION".to_string(),
-        edge_type: EdgeType::Causes,
-        confidence: 1.0,
-        created_at: 1004,
-        properties: json!({}),
-    }).unwrap();
+    kg_store
+        .upsert_edge(&KnowledgeEdge {
+            id: "EDGE-GAP-RES".to_string(),
+            source_id: "GAP-AUTH".to_string(),
+            target_id: "RES-ROTATION".to_string(),
+            edge_type: EdgeType::Causes,
+            confidence: 1.0,
+            created_at: 1004,
+            properties: json!({}),
+        })
+        .unwrap();
 
     use ares_knowledge_graph::models::KnowledgeNode;
     use ares_knowledge_graph::models::NodeType;
-    
+
     // Add Owner
-    kg_store.upsert_node(&KnowledgeNode {
-        id: "OWNER-ALICE".to_string(),
-        node_type: NodeType::Owner,
-        name: "Alice".to_string(),
-        properties: json!({}),
-        created_at: 1000,
-    }).unwrap();
+    kg_store
+        .upsert_node(&KnowledgeNode {
+            id: "OWNER-ALICE".to_string(),
+            node_type: NodeType::Owner,
+            name: "Alice".to_string(),
+            properties: json!({}),
+            created_at: 1000,
+        })
+        .unwrap();
 
     // Connect DEC -> OWNER (Decision ApprovedBy Owner)
-    kg_store.upsert_edge(&KnowledgeEdge {
-        id: "EDGE-OWNER-DEC".to_string(),
-        source_id: "DEC-JWT".to_string(),
-        target_id: "OWNER-ALICE".to_string(),
-        edge_type: EdgeType::ApprovedBy,
-        confidence: 1.0,
-        created_at: 1004,
-        properties: json!({}),
-    }).unwrap();
+    kg_store
+        .upsert_edge(&KnowledgeEdge {
+            id: "EDGE-OWNER-DEC".to_string(),
+            source_id: "DEC-JWT".to_string(),
+            target_id: "OWNER-ALICE".to_string(),
+            edge_type: EdgeType::ApprovedBy,
+            confidence: 1.0,
+            created_at: 1004,
+            properties: json!({}),
+        })
+        .unwrap();
 }
 
 #[tokio::test]
@@ -184,10 +224,10 @@ async fn test_canonical_queries() {
 
     // 3. What breaks if authentication changes? (Start from REQ-AUTH and go downstream)
     let impact_result = queries.what_breaks_if_changed("REQ-AUTH").unwrap();
-    
+
     // Impact should include DEC-JWT (Decision=8), OWNER-ALICE (Owner=3), GAP-AUTH (Gap=8), CAUSE-GAP-AUTH (RootCause=8), RES-ROTATION (Resolution=7)
     // Wait, REQ-AUTH downstream goes to DEC-JWT.
-    // Wait! DEC-JWT upstream is REQ-AUTH. So REQ-AUTH downstream is nothing! 
+    // Wait! DEC-JWT upstream is REQ-AUTH. So REQ-AUTH downstream is nothing!
     // In our manual edge, DEC-JWT -> REQ-AUTH. So DEC-JWT is downstream of itself, and upstream is REQ-AUTH.
     // To make REQ-AUTH downstream point to DEC-JWT, the edge should be REQ-AUTH -> DEC-JWT (Drives) or DEC-JWT -> REQ-AUTH (Implements).
     // Our Traversal downstream means following edges source -> target. So if DEC-JWT -> REQ-AUTH, downstream of DEC-JWT is REQ-AUTH.

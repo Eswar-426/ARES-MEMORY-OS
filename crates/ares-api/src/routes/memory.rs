@@ -1,8 +1,8 @@
 use crate::models::DecisionPageResponse;
 use crate::models::GraphNodePageResponse;
 use crate::models::TimelinePageResponse;
-use ares_core::ImpactGraph;
 use ares_app::AppState;
+use ares_core::ImpactGraph;
 use ares_core::{CreateMemoryInput, Memory, MemorySearchResult, ProjectId};
 use axum::extract::State;
 use axum::Json;
@@ -120,8 +120,7 @@ pub struct MemoryGraphQuery {
 pub async fn get_memory_graph(
     State(state): State<AppState>,
     axum::extract::Query(query): axum::extract::Query<MemoryGraphQuery>,
-) -> Result<Json<GraphNodePageResponse>, axum::http::StatusCode>
-{
+) -> Result<Json<GraphNodePageResponse>, axum::http::StatusCode> {
     let project_id = ProjectId::from(query.project_id);
     let pagination = ares_core::types::pagination::Pagination {
         page: query.page.unwrap_or(1),

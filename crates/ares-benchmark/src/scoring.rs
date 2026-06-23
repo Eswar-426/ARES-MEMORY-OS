@@ -20,9 +20,9 @@ impl HybridScorer {
         &self,
         compile_pass: bool,
         tests_pass: bool,
-        arch_score: f64, // 0.0 to 1.0
+        arch_score: f64,      // 0.0 to 1.0
         task_completion: f64, // 0.0 to 1.0
-        llm_judge: f64, // 0.0 to 1.0
+        llm_judge: f64,       // 0.0 to 1.0
     ) -> f64 {
         let mut total = 0.0;
 

@@ -1,6 +1,5 @@
 use crate::memory::models::{
-    ContextQuality, MemoryExplanation, MemoryResult, RetrievalCoverage,
-    RetrievalExplanationNode,
+    ContextQuality, MemoryExplanation, MemoryResult, RetrievalCoverage, RetrievalExplanationNode,
 };
 use crate::memory::planner::MemoryQueryPlanner;
 use crate::memory::source::MemorySourceRegistry;

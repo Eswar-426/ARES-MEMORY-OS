@@ -1,21 +1,34 @@
-use ares_core::{AresError, ProjectId};
-use ares_traceability::{EdgeProvider, TraceabilityEdge, TraceabilityGraph, TraceTargetType};
 use crate::coverage::RequirementCoverageEngine;
 use crate::gaps::KnowledgeGapEngine;
-use crate::trace_analysis::TraceAnalysisEngine;
 use crate::storage::RequirementStore;
+use crate::trace_analysis::TraceAnalysisEngine;
+use ares_core::{AresError, ProjectId};
 use ares_store::Store;
+use ares_traceability::{EdgeProvider, TraceTargetType, TraceabilityEdge, TraceabilityGraph};
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ProposedChange {
-    AddNode { id: String, node_type: TraceTargetType },
-    RemoveNode { id: String },
-    AddEdge { source: String, target: String, relationship: String, target_type: TraceTargetType },
-    RemoveEdge { source: String, target: String },
+    AddNode {
+        id: String,
+        node_type: TraceTargetType,
+    },
+    RemoveNode {
+        id: String,
+    },
+    AddEdge {
+        source: String,
+        target: String,
+        relationship: String,
+        target_type: TraceTargetType,
+    },
+    RemoveEdge {
+        source: String,
+        target: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,14 +73,15 @@ impl RequirementSimulationEngine {
         // --- BASELINE ---
         let base_trace = TraceAnalysisEngine::new(base_graph);
         let coverage_engine = RequirementCoverageEngine::new();
-        
+
         let mut base_coverages = Vec::new();
         for req in &all_reqs {
-            let cov = coverage_engine.evaluate(&req.id, &req.status, req.owner.is_some(), &base_trace);
+            let cov =
+                coverage_engine.evaluate(&req.id, &req.status, req.owner.is_some(), &base_trace);
             base_coverages.push(cov);
         }
         let (base_cov_summary, _) = coverage_engine.generate_summary(&base_coverages);
-        
+
         let base_gap_engine = KnowledgeGapEngine::new(base_graph);
         let base_gaps = base_gap_engine.evaluate_gaps();
 
@@ -83,12 +97,21 @@ impl RequirementSimulationEngine {
                 affected_nodes.insert(id.clone());
                 let upstream_nodes = base_trace.get_upstream_all(id);
                 let downstream_nodes = base_trace.get_downstream_all(id);
-                for n in upstream_nodes { affected_nodes.insert(n.id); }
-                for n in downstream_nodes { affected_nodes.insert(n.id); }
+                for n in upstream_nodes {
+                    affected_nodes.insert(n.id);
+                }
+                for n in downstream_nodes {
+                    affected_nodes.insert(n.id);
+                }
 
                 current_edges.retain(|e| e.source_id != *id && e.target_id != *id);
             }
-            ProposedChange::AddEdge { source, target, relationship, target_type } => {
+            ProposedChange::AddEdge {
+                source,
+                target,
+                relationship,
+                target_type,
+            } => {
                 affected_nodes.insert(source.clone());
                 affected_nodes.insert(target.clone());
                 current_edges.push(TraceabilityEdge {
@@ -107,20 +130,23 @@ impl RequirementSimulationEngine {
 
         let blast_radius = affected_nodes.len();
 
-        let simulated_provider = InMemoryEdgeProvider { edges: current_edges };
+        let simulated_provider = InMemoryEdgeProvider {
+            edges: current_edges,
+        };
         let mut simulated_graph = TraceabilityGraph::new();
         simulated_graph.add_provider(Box::new(simulated_provider));
 
         // --- SIMULATION ---
         let sim_trace = TraceAnalysisEngine::new(&simulated_graph);
-        
+
         let mut sim_coverages = Vec::new();
         for req in &all_reqs {
-            let cov = coverage_engine.evaluate(&req.id, &req.status, req.owner.is_some(), &sim_trace);
+            let cov =
+                coverage_engine.evaluate(&req.id, &req.status, req.owner.is_some(), &sim_trace);
             sim_coverages.push(cov);
         }
         let (sim_cov_summary, _) = coverage_engine.generate_summary(&sim_coverages);
-        
+
         let sim_gap_engine = KnowledgeGapEngine::new(&simulated_graph);
         let sim_gaps = sim_gap_engine.evaluate_gaps();
 
@@ -128,7 +154,7 @@ impl RequirementSimulationEngine {
         let coverage_delta = sim_cov_summary.average_coverage - base_cov_summary.average_coverage;
         let new_gaps = sim_gaps.len().saturating_sub(base_gaps.len());
         let resolved_gaps = base_gaps.len().saturating_sub(sim_gaps.len());
-        
+
         // Drift is computed separately in future phase or based on actual baseline DB.
         let new_drift = 0;
         let resolved_drift = 0;

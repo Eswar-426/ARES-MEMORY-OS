@@ -1,5 +1,5 @@
 use ares_memory_intelligence::facade::MemoryFacade;
-use ares_requirements::impact::{RequirementImpactReport, ImpactSeverity, ChangeRisk};
+use ares_requirements::impact::{ChangeRisk, ImpactSeverity, RequirementImpactReport};
 
 #[test]
 fn test_q16_impact_snapshot() {
@@ -46,11 +46,12 @@ GOV-1
 
 #[test]
 fn test_q18_evolution_snapshot() {
-    use ares_requirements::{
-        Requirement, RequirementTimeline, RequirementEvolutionEvent, 
-        RequirementEvolutionType, EventOrigin, RequirementType, RequirementStatus, RequirementPriority, RequirementSource
-    };
     use ares_core::RequirementId;
+    use ares_requirements::{
+        EventOrigin, Requirement, RequirementEvolutionEvent, RequirementEvolutionType,
+        RequirementPriority, RequirementSource, RequirementStatus, RequirementTimeline,
+        RequirementType,
+    };
 
     let req = Requirement {
         id: RequirementId::from("REQ-102".to_string()),
@@ -110,7 +111,7 @@ fn test_q18_evolution_snapshot() {
     };
 
     let md = MemoryFacade::format_evolution_report(&req, &timeline);
-    
+
     let expected = "\
 Requirement Evolution Report
 

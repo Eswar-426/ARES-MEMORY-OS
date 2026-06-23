@@ -1,6 +1,5 @@
-use std::path::{Path, PathBuf};
 use std::fs;
-use ares_knowledge_graph::models::{KnowledgeEdge, EdgeType};
+use std::path::Path;
 
 pub struct RustDependencyExtractor;
 
@@ -11,12 +10,20 @@ impl RustDependencyExtractor {
             if let Ok(parsed) = content.parse::<toml::Value>() {
                 if let Some(dependencies) = parsed.get("dependencies").and_then(|v| v.as_table()) {
                     for (dep_name, _) in dependencies {
-                        deps.push((cargo_toml_path.to_string_lossy().to_string(), dep_name.clone()));
+                        deps.push((
+                            cargo_toml_path.to_string_lossy().to_string(),
+                            dep_name.clone(),
+                        ));
                     }
                 }
-                if let Some(dev_dependencies) = parsed.get("dev-dependencies").and_then(|v| v.as_table()) {
+                if let Some(dev_dependencies) =
+                    parsed.get("dev-dependencies").and_then(|v| v.as_table())
+                {
                     for (dep_name, _) in dev_dependencies {
-                        deps.push((cargo_toml_path.to_string_lossy().to_string(), dep_name.clone()));
+                        deps.push((
+                            cargo_toml_path.to_string_lossy().to_string(),
+                            dep_name.clone(),
+                        ));
                     }
                 }
             }

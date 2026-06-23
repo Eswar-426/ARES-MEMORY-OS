@@ -7,13 +7,12 @@ use ares_agent_arena::models::ArenaTask;
 use ares_agent_arena::report::ReportGenerator;
 use ares_context::context_engine::ContextEngine;
 use ares_context::pack::ContextPackBuilder;
-use std::fs;
-use std::sync::Arc;
-use ares_core::ProjectId;
 use ares_store::db::Store;
 use ares_store::repositories::graph::SqliteGraphRepository;
 use ares_store::repositories::memory::SqliteMemoryRepository;
 use ares_store::repositories::project::SqliteProjectRepository;
+use std::fs;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

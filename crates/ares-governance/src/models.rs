@@ -10,8 +10,10 @@ pub enum ViolationSeverity {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[derive(Default)]
 pub enum EnforcementAction {
     Allow,
+    #[default]
     Warn,
     RequireApproval,
     Block,
@@ -34,13 +36,9 @@ pub enum CertificationLevel {
     Platinum,
 }
 
-impl Default for EnforcementAction {
-    fn default() -> Self {
-        Self::Warn
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+#[derive(Default)]
 pub enum PolicyCategory {
     Ownership,
     Approval,
@@ -48,14 +46,10 @@ pub enum PolicyCategory {
     Evidence,
     Retention,
     Security,
+    #[default]
     Architecture,
 }
 
-impl Default for PolicyCategory {
-    fn default() -> Self {
-        Self::Architecture
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PolicyVersion {
@@ -202,8 +196,7 @@ pub struct PolicyDriftStatus {
     pub outdated_policies: Vec<String>,
 }
 
-use std::collections::HashMap;
-use ares_requirements::{RequirementCoverageSummary, RequirementCoverageTrend, GapSummary};
+use ares_requirements::{GapSummary, RequirementCoverageSummary, RequirementCoverageTrend};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct DecisionHealthMetrics {
@@ -307,10 +300,29 @@ pub struct GovernanceApprovalRequest {
 
 #[derive(Debug, Clone)]
 pub enum GovernanceEvent {
-    ViolationDetected { project_id: String, workflow_id: String, violations: Vec<ComplianceViolation> },
-    ApprovalRequested { request: GovernanceApprovalRequest },
-    Approved { request_id: String, approved_by: String, approved_at: i64 },
-    Rejected { request_id: String, rejected_by: String, rejected_at: i64, reason: String },
-    Blocked { project_id: String, workflow_id: String, reason: String, violations: Vec<ComplianceViolation> },
+    ViolationDetected {
+        project_id: String,
+        workflow_id: String,
+        violations: Vec<ComplianceViolation>,
+    },
+    ApprovalRequested {
+        request: GovernanceApprovalRequest,
+    },
+    Approved {
+        request_id: String,
+        approved_by: String,
+        approved_at: i64,
+    },
+    Rejected {
+        request_id: String,
+        rejected_by: String,
+        rejected_at: i64,
+        reason: String,
+    },
+    Blocked {
+        project_id: String,
+        workflow_id: String,
+        reason: String,
+        violations: Vec<ComplianceViolation>,
+    },
 }
-

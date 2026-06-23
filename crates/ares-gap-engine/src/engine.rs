@@ -1,6 +1,6 @@
 use crate::detectors::GapDetector;
-use crate::models::{Gap, RepositoryHealthReport};
-use ares_core::{AresError, id::ProjectId};
+use crate::models::RepositoryHealthReport;
+use ares_core::{id::ProjectId, AresError};
 use ares_decision_intelligence::health::DecisionHealthEngine;
 use ares_requirements::health::RequirementHealthEngine;
 use ares_store::Store;
@@ -26,7 +26,10 @@ impl GapEngine {
         self.detectors.push(detector);
     }
 
-    pub async fn run_scan(&self, project_id: &ProjectId) -> Result<RepositoryHealthReport, AresError> {
+    pub async fn run_scan(
+        &self,
+        project_id: &ProjectId,
+    ) -> Result<RepositoryHealthReport, AresError> {
         info!("Starting gap detection scan for project {}", project_id);
         let mut all_gaps = Vec::new();
 
@@ -58,36 +61,39 @@ impl GapEngine {
         }
 
         // Apply a small penalty for each gap found outside the domains' own scores,
-        // or just rely on domain scores. For this prototype, we'll subtract 1.0 point 
+        // or just rely on domain scores. For this prototype, we'll subtract 1.0 point
         // per gap, down to a floor of 0.0.
         let penalty = all_gaps.len() as f64 * 1.5;
         let overall_score = (base_score - penalty).max(0.0);
 
         // --- GAP INTELLIGENCE PIPELINE ---
-        
+
         // 1. Reason about gaps (Attach Root Cause and Evidence)
         let reasoner = crate::reasoning::GapReasoner::new(self.store.clone());
         let reasoned_gaps = reasoner.reason(all_gaps)?;
 
         // 2. Prioritize gaps (Compute Impact Radius and Priority Score)
         let prioritizer = crate::prioritization::GapPrioritizer::new(self.store.clone());
-        let mut prioritized_gaps = prioritizer.prioritize(reasoned_gaps)?;
+        let prioritized_gaps = prioritizer.prioritize(reasoned_gaps)?;
 
         // 3. Cluster gaps (Group by Root Cause)
         let cluster_engine = crate::clustering::GapClusterEngine::new();
         let clusters = cluster_engine.cluster(&prioritized_gaps);
 
         // 4. Calculate Knowledge Debt
-        let stale_entities = prioritized_gaps.iter()
+        let stale_entities = prioritized_gaps
+            .iter()
             .filter(|g| g.gap_type == crate::models::GapType::StaleRequirement)
             .count();
-        let orphan_entities = prioritized_gaps.iter()
+        let orphan_entities = prioritized_gaps
+            .iter()
             .filter(|g| g.gap_type == crate::models::GapType::OrphanCode)
             .count();
-        let critical_gaps = prioritized_gaps.iter()
+        let critical_gaps = prioritized_gaps
+            .iter()
             .filter(|g| g.severity == crate::models::GapSeverity::Critical)
             .count();
-        
+
         let knowledge_debt = crate::models::KnowledgeDebt {
             debt_score: (critical_gaps as f64 * 10.0) + (prioritized_gaps.len() as f64 * 2.0),
             total_gaps: prioritized_gaps.len(),

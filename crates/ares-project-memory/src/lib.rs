@@ -12,6 +12,7 @@
 //!
 //! Produces a portable `ProjectSnapshot` that feeds into the Context Generator.
 
+#![allow(deprecated)]
 pub mod analyzer;
 pub mod builder;
 pub mod snapshot;

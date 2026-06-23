@@ -1,6 +1,6 @@
-use crate::models::{DecisionMemory, DecisionState, DecisionId};
 use crate::api::dtos::{CreateDecisionDto, DecisionResponseDto};
-use crate::lifecycle::{LifecycleManager, Validator};
+use crate::lifecycle::Validator;
+use crate::models::{DecisionId, DecisionMemory, DecisionState};
 use crate::storage::sqlite::DecisionStorage;
 use anyhow::Result;
 use chrono::Utc;
@@ -38,7 +38,7 @@ impl DecisionApi {
         };
 
         Validator::validate_for_save(&decision)?;
-        
+
         self.storage.save_decision(&decision)?;
 
         Ok(DecisionResponseDto {
@@ -50,7 +50,7 @@ impl DecisionApi {
         })
     }
 
-    pub fn accept_decision(&self, id: DecisionId) -> Result<DecisionResponseDto> {
+    pub fn accept_decision(&self, _id: DecisionId) -> Result<DecisionResponseDto> {
         // In a real app, we would fetch from storage first.
         // For demonstration of the integration, we'll assume we fetched it.
         unimplemented!()

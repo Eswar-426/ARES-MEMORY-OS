@@ -1,11 +1,11 @@
-use std::collections::{HashMap, HashSet};
 use chrono::Utc;
+use std::collections::HashSet;
 use uuid::Uuid;
 
 use ares_candidates::{
-    Candidate, CandidateStatus, CandidateType, TraceabilityCategory, TraceabilityStrength,
-    TraceabilityEndpoint, TraceabilityEndpointType, CandidateConfidence, CandidateThresholds,
-    CandidateSource, ArchitectureCategory, DecisionCategory
+    Candidate, CandidateConfidence, CandidateStatus,
+    CandidateThresholds, CandidateType, TraceabilityCategory,
+    TraceabilityEndpoint, TraceabilityEndpointType,
 };
 
 /// Evidence types that support traceability linkages.
@@ -31,20 +31,31 @@ impl TraceabilityCandidateEngine {
         let mut traceability_candidates = Vec::new();
 
         // Separate by type
-        let requirements: Vec<&Candidate> = candidates.iter().filter(|c| c.candidate_type == CandidateType::Requirement).collect();
-        let decisions: Vec<&Candidate> = candidates.iter().filter(|c| c.candidate_type == CandidateType::Decision).collect();
-        let architectures: Vec<&Candidate> = candidates.iter().filter(|c| c.candidate_type == CandidateType::Architecture).collect();
+        let requirements: Vec<&Candidate> = candidates
+            .iter()
+            .filter(|c| c.candidate_type == CandidateType::Requirement)
+            .collect();
+        let decisions: Vec<&Candidate> = candidates
+            .iter()
+            .filter(|c| c.candidate_type == CandidateType::Decision)
+            .collect();
+        let architectures: Vec<&Candidate> = candidates
+            .iter()
+            .filter(|c| c.candidate_type == CandidateType::Architecture)
+            .collect();
 
         // Phase 1: Architecture -> Code (simulated here with dummy files based on dependent_components / domains)
         // Architecture to Code is usually matched by file paths.
         // For testing we will simulate Code nodes.
-        
+
         // Phase 2: Decision -> Architecture
-        let dec_arch_candidates = self.phase_two_decision_to_architecture(&decisions, &architectures);
+        let dec_arch_candidates =
+            self.phase_two_decision_to_architecture(&decisions, &architectures);
         traceability_candidates.extend(dec_arch_candidates);
 
         // Phase 3: Requirement -> Decision
-        let req_dec_candidates = self.phase_three_requirement_to_decision(&requirements, &decisions);
+        let req_dec_candidates =
+            self.phase_three_requirement_to_decision(&requirements, &decisions);
         traceability_candidates.extend(req_dec_candidates);
 
         // Phase 4: Requirement -> Code (fallback, simplified)
@@ -52,14 +63,22 @@ impl TraceabilityCandidateEngine {
         traceability_candidates
     }
 
-    fn phase_two_decision_to_architecture(&self, decisions: &[&Candidate], architectures: &[&Candidate]) -> Vec<Candidate> {
+    fn phase_two_decision_to_architecture(
+        &self,
+        decisions: &[&Candidate],
+        architectures: &[&Candidate],
+    ) -> Vec<Candidate> {
         let mut results = Vec::new();
 
         for dec in decisions {
             for arch in architectures {
                 // Cross-repo protection
-                if dec.project_id != arch.project_id { continue; }
-                if dec.project_id != self.project_id { continue; }
+                if dec.project_id != arch.project_id {
+                    continue;
+                }
+                if dec.project_id != self.project_id {
+                    continue;
+                }
 
                 // Determine overlap
                 // Simulated: if they share keywords in title/description or are "Auth" vs "OAuth"
@@ -75,9 +94,9 @@ impl TraceabilityCandidateEngine {
                         TraceabilityEndpoint {
                             endpoint_type: TraceabilityEndpointType::Candidate,
                             endpoint_id: arch.id.clone(),
-                        }
+                        },
                     );
-                    
+
                     // Add dummy evidence proportional to overlap
                     for i in 0..50 {
                         builder.add_evidence(TraceabilityEvidence {
@@ -97,14 +116,22 @@ impl TraceabilityCandidateEngine {
         results
     }
 
-    fn phase_three_requirement_to_decision(&self, requirements: &[&Candidate], decisions: &[&Candidate]) -> Vec<Candidate> {
+    fn phase_three_requirement_to_decision(
+        &self,
+        requirements: &[&Candidate],
+        decisions: &[&Candidate],
+    ) -> Vec<Candidate> {
         let mut results = Vec::new();
 
         for req in requirements {
             for dec in decisions {
                 // Cross-repo protection
-                if req.project_id != dec.project_id { continue; }
-                if req.project_id != self.project_id { continue; }
+                if req.project_id != dec.project_id {
+                    continue;
+                }
+                if req.project_id != self.project_id {
+                    continue;
+                }
 
                 let overlap = self.calculate_overlap(req, dec);
                 if overlap > 0.5 {
@@ -118,7 +145,7 @@ impl TraceabilityCandidateEngine {
                         TraceabilityEndpoint {
                             endpoint_type: TraceabilityEndpointType::Candidate,
                             endpoint_id: dec.id.clone(),
-                        }
+                        },
                     );
 
                     for i in 0..50 {
@@ -149,7 +176,9 @@ impl TraceabilityCandidateEngine {
         let intersection = words1.intersection(&words2).count();
         let union = words1.union(&words2).count();
 
-        if union == 0 { return 0.0; }
+        if union == 0 {
+            return 0.0;
+        }
         (intersection as f64) / (union as f64)
     }
 }
@@ -187,17 +216,22 @@ impl TraceabilityCandidateBuilder {
 
     pub fn build(self) -> Option<Candidate> {
         let evidence_count = self.evidence.len() as u32;
-        let diversity = self.evidence.iter().map(|e| e.source_type.clone()).collect::<HashSet<_>>().len() as u32;
+        let diversity = self
+            .evidence
+            .iter()
+            .map(|e| e.source_type.clone())
+            .collect::<HashSet<_>>()
+            .len() as u32;
 
         let confidence = CandidateConfidence {
             evidence_count,
             source_diversity: diversity,
-            temporal_consistency: 1.0, 
+            temporal_consistency: 1.0,
             cluster_strength: 1.0,
         };
 
         let score = confidence.normalized_score();
-        
+
         // Strict threshold
         if score < CandidateThresholds::traceability() {
             return None;
@@ -209,7 +243,10 @@ impl TraceabilityCandidateBuilder {
             id: self.id.clone(),
             project_id: self.project_id.clone(),
             title: format!("{:?} Edge", self.category),
-            description: format!("Traceability from {} to {}", self.source_endpoint.endpoint_id, self.target_endpoint.endpoint_id),
+            description: format!(
+                "Traceability from {} to {}",
+                self.source_endpoint.endpoint_id, self.target_endpoint.endpoint_id
+            ),
             candidate_type: CandidateType::Traceability,
             decision_category: None,
             architecture_category: None,
@@ -247,7 +284,12 @@ mod tests {
             ownership_domains: vec![],
             dependent_components: vec![],
             status: CandidateStatus::Proposed,
-            confidence: CandidateConfidence { evidence_count: 50, source_diversity: 10, temporal_consistency: 1.0, cluster_strength: 1.0 },
+            confidence: CandidateConfidence {
+                evidence_count: 50,
+                source_diversity: 10,
+                temporal_consistency: 1.0,
+                cluster_strength: 1.0,
+            },
             created_at: 0,
             updated_at: 0,
         }
@@ -256,38 +298,68 @@ mod tests {
     #[test]
     fn test_cross_repository_protection() {
         let engine = TraceabilityCandidateEngine::new("repo-a".to_string());
-        
+
         // Valid same-repo
         let req1 = dummy_candidate("req-1", "repo-a", CandidateType::Requirement, "Auth");
         let dec1 = dummy_candidate("dec-1", "repo-a", CandidateType::Decision, "Auth");
-        
+
         // Invalid cross-repo
         let dec2 = dummy_candidate("dec-2", "repo-b", CandidateType::Decision, "Auth");
 
         // Engine only generates valid links within its project scope
         let results = engine.build_traceability_graph(&[req1.clone(), dec1.clone(), dec2.clone()]);
-        
+
         // Must contain link req1 -> dec1
-        assert!(results.iter().any(|c| c.source_endpoint.as_ref().unwrap().endpoint_id == "req-1" && c.target_endpoint.as_ref().unwrap().endpoint_id == "dec-1"));
-        
+        assert!(results.iter().any(
+            |c| c.source_endpoint.as_ref().unwrap().endpoint_id == "req-1"
+                && c.target_endpoint.as_ref().unwrap().endpoint_id == "dec-1"
+        ));
+
         // Must NOT contain link req1 -> dec2
-        assert!(!results.iter().any(|c| c.source_endpoint.as_ref().unwrap().endpoint_id == "req-1" && c.target_endpoint.as_ref().unwrap().endpoint_id == "dec-2"));
+        assert!(!results
+            .iter()
+            .any(
+                |c| c.source_endpoint.as_ref().unwrap().endpoint_id == "req-1"
+                    && c.target_endpoint.as_ref().unwrap().endpoint_id == "dec-2"
+            ));
     }
 
     #[test]
     fn test_e2e_traversal() {
         let engine = TraceabilityCandidateEngine::new("repo-test".to_string());
-        
-        let req = dummy_candidate("req-1", "repo-test", CandidateType::Requirement, "User Authentication");
-        let dec = dummy_candidate("dec-1", "repo-test", CandidateType::Decision, "User Authentication Adopt OAuth2");
-        let arch = dummy_candidate("arch-1", "repo-test", CandidateType::Architecture, "User Authentication Adopt OAuth2 Auth Service");
+
+        let req = dummy_candidate(
+            "req-1",
+            "repo-test",
+            CandidateType::Requirement,
+            "User Authentication",
+        );
+        let dec = dummy_candidate(
+            "dec-1",
+            "repo-test",
+            CandidateType::Decision,
+            "User Authentication Adopt OAuth2",
+        );
+        let arch = dummy_candidate(
+            "arch-1",
+            "repo-test",
+            CandidateType::Architecture,
+            "User Authentication Adopt OAuth2 Auth Service",
+        );
 
         let candidates = vec![req, dec, arch];
         let edges = engine.build_traceability_graph(&candidates);
 
         // We expect REQ -> DEC
-        assert!(edges.iter().any(|c| c.traceability_category == Some(TraceabilityCategory::RequirementToDecision)));
+        assert!(edges
+            .iter()
+            .any(|c| c.traceability_category == Some(TraceabilityCategory::RequirementToDecision)));
         // We expect DEC -> ARCH
-        assert!(edges.iter().any(|c| c.traceability_category == Some(TraceabilityCategory::DecisionToArchitecture)));
+        assert!(
+            edges
+                .iter()
+                .any(|c| c.traceability_category
+                    == Some(TraceabilityCategory::DecisionToArchitecture))
+        );
     }
 }

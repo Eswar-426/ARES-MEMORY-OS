@@ -1,7 +1,7 @@
 use ares_core::AresError;
-use ares_reasoning::{BreakageEngine, ImpactEngine, WhyEngine, GapEngine};
-use ares_store::Store;
 use ares_core::ProjectId;
+use ares_reasoning::{BreakageEngine, GapEngine, ImpactEngine, WhyEngine};
+use ares_store::Store;
 
 pub async fn handle_why(_target_type: &str, target_id: &str) -> Result<(), AresError> {
     let store = Store::open(std::path::Path::new(".ares/ares.db"))?;

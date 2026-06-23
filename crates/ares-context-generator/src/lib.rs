@@ -4,6 +4,7 @@
 //! pasted into any AI model's context window (ChatGPT, Claude, Gemini, Cursor)
 //! to restore full project understanding without re-explanation.
 
+#![allow(dead_code)]
 pub mod compressor;
 pub mod generator;
 pub mod summarizer;

@@ -6,11 +6,11 @@ use std::process::Command;
 pub async fn execute_doctor() -> Result<(), AresError> {
     println!("ARES Doctor - System Health Check\n");
 
-    let current_dir = env::current_dir().map_err(|e| AresError::Io(e))?;
+    let current_dir = env::current_dir().map_err(AresError::Io)?;
     let ares_dir = current_dir.join(".ares");
 
     println!("Repository Layer");
-    
+
     // Check repository
     if current_dir.exists() {
         println!("  ✓ Repository Detected");
@@ -27,14 +27,12 @@ pub async fn execute_doctor() -> Result<(), AresError> {
     let graph_path = ares_dir.join("knowledge_graph.json");
     if graph_path.exists() {
         println!("  ✓ knowledge_graph.json exists");
-        
+
         match std::fs::read_to_string(&graph_path) {
-            Ok(content) => {
-                match serde_json::from_str::<serde_json::Value>(&content) {
-                    Ok(_) => println!("  ✓ graph readable"),
-                    Err(_) => println!("  ✗ graph is not valid JSON"),
-                }
-            }
+            Ok(content) => match serde_json::from_str::<serde_json::Value>(&content) {
+                Ok(_) => println!("  ✓ graph readable"),
+                Err(_) => println!("  ✗ graph is not valid JSON"),
+            },
             Err(_) => println!("  ✗ graph is not readable"),
         }
     } else {
@@ -46,7 +44,7 @@ pub async fn execute_doctor() -> Result<(), AresError> {
     let db_path = current_dir.join("ares_memory.db");
     if db_path.exists() {
         println!("  ✓ database exists");
-        
+
         match std::fs::metadata(&db_path) {
             Ok(meta) if meta.len() > 0 => {
                 println!("  ✓ database readable");
@@ -72,10 +70,17 @@ pub async fn execute_doctor() -> Result<(), AresError> {
     }
 
     println!("\nMCP Layer");
-    let exe_dir = env::current_exe().ok().and_then(|p| p.parent().map(|p| p.to_path_buf())).unwrap_or_default();
-    let mcp_exe_name = if cfg!(windows) { "ares-mcp.exe" } else { "ares-mcp" };
+    let exe_dir = env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+        .unwrap_or_default();
+    let mcp_exe_name = if cfg!(windows) {
+        "ares-mcp.exe"
+    } else {
+        "ares-mcp"
+    };
     let mcp_exe = exe_dir.join(mcp_exe_name);
-    
+
     let mcp_path = if mcp_exe.exists() {
         mcp_exe
     } else {

@@ -56,7 +56,7 @@ async fn main() -> Result<()> {
     // Also write to file
     let out_dir = std::env::current_dir()?.join("reports");
     std::fs::create_dir_all(&out_dir)?;
-    
+
     let md_path = out_dir.join("benchmark_report.md");
     std::fs::write(&md_path, report.to_markdown())?;
     println!("Saved Markdown report to: {}", md_path.display());

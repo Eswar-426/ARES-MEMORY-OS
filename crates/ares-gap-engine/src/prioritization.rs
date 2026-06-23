@@ -1,4 +1,4 @@
-use crate::models::{Gap, ImpactRadius, PriorityScore, GapSeverity};
+use crate::models::{Gap, GapSeverity, ImpactRadius, PriorityScore};
 use ares_core::AresError;
 use ares_decision_intelligence::storage::DecisionEdgeProvider;
 use ares_requirements::storage::RequirementStore;
@@ -16,7 +16,7 @@ impl GapPrioritizer {
 
     /// Evaluates a list of reasoned gaps and attaches ImpactRadius and PriorityScore.
     pub fn prioritize(&self, mut gaps: Vec<Gap>) -> Result<Vec<Gap>, AresError> {
-        let req_store = RequirementStore::new((*self.store).clone());
+        let _req_store = RequirementStore::new((*self.store).clone());
         let _dec_edges = DecisionEdgeProvider::new((*self.store).clone());
 
         for gap in &mut gaps {
@@ -33,7 +33,7 @@ impl GapPrioritizer {
                 }
                 crate::models::GapType::MissingEvidence | crate::models::GapType::MissingOwner => {
                     dec_impact = 1;
-                    
+
                     // A decision missing evidence might affect downstream requirements if they trace to it.
                     // For now, we simulate radius
                     req_impact = 2;
@@ -66,7 +66,9 @@ impl GapPrioritizer {
                 GapSeverity::Critical => 80.0,
             };
 
-            let radius_multiplier = 1.0 + ((req_impact + dec_impact + arch_impact) as f64 * 0.05) + (code_impact as f64 * 0.01);
+            let radius_multiplier = 1.0
+                + ((req_impact + dec_impact + arch_impact) as f64 * 0.05)
+                + (code_impact as f64 * 0.01);
             let raw_score = base_score * radius_multiplier;
             let score = raw_score.min(100.0);
 
@@ -81,17 +83,16 @@ impl GapPrioritizer {
             };
 
             gap.impact_radius = Some(impact);
-            gap.priority_score = Some(PriorityScore {
-                score,
-                criticality,
-            });
+            gap.priority_score = Some(PriorityScore { score, criticality });
         }
 
         // Sort gaps by priority score descending
         gaps.sort_by(|a, b| {
             let score_a = a.priority_score.as_ref().map(|p| p.score).unwrap_or(0.0);
             let score_b = b.priority_score.as_ref().map(|p| p.score).unwrap_or(0.0);
-            score_b.partial_cmp(&score_a).unwrap_or(std::cmp::Ordering::Equal)
+            score_b
+                .partial_cmp(&score_a)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         Ok(gaps)

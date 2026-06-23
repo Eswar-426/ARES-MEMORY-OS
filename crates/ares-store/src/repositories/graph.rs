@@ -169,14 +169,20 @@ impl SqliteGraphRepository {
         rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)
     }
 
-    pub fn redirect_edges(&self, old_target: &NodeId, new_target: &NodeId) -> Result<usize, AresError> {
+    pub fn redirect_edges(
+        &self,
+        old_target: &NodeId,
+        new_target: &NodeId,
+    ) -> Result<usize, AresError> {
         let conn = self.store.get_conn()?;
-        let rows = conn.execute(
-            "UPDATE graph_edges
+        let rows = conn
+            .execute(
+                "UPDATE graph_edges
              SET to_node_id = ?2
              WHERE to_node_id = ?1 AND valid_until IS NULL",
-            params![old_target.as_str(), new_target.as_str()],
-        ).map_err(AresError::db)?;
+                params![old_target.as_str(), new_target.as_str()],
+            )
+            .map_err(AresError::db)?;
         Ok(rows)
     }
 
@@ -185,11 +191,15 @@ impl SqliteGraphRepository {
         conn.execute(
             "DELETE FROM graph_nodes WHERE id = ?1",
             params![id.as_str()],
-        ).map_err(AresError::db)?;
+        )
+        .map_err(AresError::db)?;
         Ok(())
     }
 
-    pub fn get_unresolved_nodes(&self, project_id: &ProjectId) -> Result<Vec<GraphNode>, AresError> {
+    pub fn get_unresolved_nodes(
+        &self,
+        project_id: &ProjectId,
+    ) -> Result<Vec<GraphNode>, AresError> {
         let conn = self.store.get_conn()?;
         let mut stmt = conn
             .prepare(
@@ -206,7 +216,11 @@ impl SqliteGraphRepository {
         rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)
     }
 
-    pub fn get_nodes_by_name(&self, project_id: &ProjectId, name: &str) -> Result<Vec<GraphNode>, AresError> {
+    pub fn get_nodes_by_name(
+        &self,
+        project_id: &ProjectId,
+        name: &str,
+    ) -> Result<Vec<GraphNode>, AresError> {
         let conn = self.store.get_conn()?;
         let mut stmt = conn
             .prepare(

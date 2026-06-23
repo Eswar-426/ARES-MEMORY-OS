@@ -1,8 +1,8 @@
 //! Change Tracker — reads recent changes from the memory and decision stores.
 
-use ares_decision_intelligence::DecisionSummary;
 use crate::types::*;
 use ares_core::{AresError, MemoryFilter, MemoryType, Pagination, ProjectId};
+use ares_decision_intelligence::DecisionSummary;
 use ares_store::repositories::decision::SqliteDecisionRepository;
 use ares_store::repositories::memory::SqliteMemoryRepository;
 use std::sync::Arc;
@@ -101,10 +101,12 @@ impl ChangeTracker {
                 let approval_status = match status_str.as_str() {
                     "accepted" | "approved" => ares_decision_intelligence::DecisionStatus::Approved,
                     "rejected" => ares_decision_intelligence::DecisionStatus::Rejected,
-                    "deprecated" | "superseded" => ares_decision_intelligence::DecisionStatus::Deprecated,
+                    "deprecated" | "superseded" => {
+                        ares_decision_intelligence::DecisionStatus::Deprecated
+                    }
                     _ => ares_decision_intelligence::DecisionStatus::Proposed,
                 };
-                
+
                 DecisionSummary {
                     id: d.id.as_str().to_string(),
                     title: d.title,

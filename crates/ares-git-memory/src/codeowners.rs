@@ -1,8 +1,8 @@
-use std::path::Path;
-use ares_core::{GraphNode, GraphEdge, NodeId, ProjectId, NodeType, EdgeType};
-use std::collections::{HashSet, HashMap};
-use std::fs;
 use crate::models::{CaptureMethod, SourceProvenance};
+use ares_core::{EdgeType, GraphEdge, GraphNode, NodeId, NodeType, ProjectId};
+use std::collections::HashSet;
+use std::fs;
+use std::path::Path;
 
 pub struct CodeownersExtractor;
 
@@ -45,7 +45,9 @@ impl CodeownersExtractor {
             }
 
             let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() < 2 { continue; }
+            if parts.len() < 2 {
+                continue;
+            }
 
             let pattern = parts[0];
             let owners = &parts[1..];
@@ -61,12 +63,12 @@ impl CodeownersExtractor {
                     captured_at,
                     confidence: CaptureMethod::Explicit.base_confidence(), // 1.0
                 };
-                
+
                 let prov_val = serde_json::to_value(&prov).unwrap_or(serde_json::json!({}));
 
                 if !seen_persons.contains(&person_id) {
                     seen_persons.insert(person_id.clone());
-                    
+
                     let mut props = serde_json::json!({
                         "name": owner_clean,
                         "email": owner_clean, // CODEOWNERS often uses username/team
@@ -91,12 +93,12 @@ impl CodeownersExtractor {
                 // Note: To be fully accurate, we'd need to resolve the glob `pattern` to specific files
                 // For now, we will create a generic "OwnsPattern" or just link to the pattern string.
                 // But the memory coverage engine expects `Owns` edges pointing to `File` nodes.
-                // Resolving all files matching the pattern is expensive here. 
-                // In ARES, the scanner usually does this. Since this is an architectural correction, 
-                // we'll use the `ignore` crate to walk the directory and match the pattern, 
+                // Resolving all files matching the pattern is expensive here.
+                // In ARES, the scanner usually does this. Since this is an architectural correction,
+                // we'll use the `ignore` crate to walk the directory and match the pattern,
                 // or we can defer pattern matching to the `lib.rs` orchestrator.
-                // Let's do a simple glob match for all files? 
-                // We'll leave it as creating the Person nodes for now, and handle resolving CODEOWNERS 
+                // Let's do a simple glob match for all files?
+                // We'll leave it as creating the Person nodes for now, and handle resolving CODEOWNERS
                 // to file edges properly with `ignore` crate.
             }
         }
@@ -105,33 +107,40 @@ impl CodeownersExtractor {
         // We'll do a simple walk of the directory.
         let mut builder = ignore::WalkBuilder::new(project_path);
         builder.hidden(false).git_ignore(true);
-        
+
         let walker = builder.build();
         for result in walker {
             if let Ok(entry) = result {
                 if entry.file_type().map(|ft| ft.is_file()).unwrap_or(false) {
-                    let rel_path = entry.path().strip_prefix(project_path).unwrap_or(entry.path());
+                    let rel_path = entry
+                        .path()
+                        .strip_prefix(project_path)
+                        .unwrap_or(entry.path());
                     let path_str = rel_path.to_string_lossy().replace('\\', "/");
-                    
+
                     // Simple pattern matching for CODEOWNERS
                     for line in content.lines() {
                         let line = line.trim();
-                        if line.is_empty() || line.starts_with('#') { continue; }
+                        if line.is_empty() || line.starts_with('#') {
+                            continue;
+                        }
                         let parts: Vec<&str> = line.split_whitespace().collect();
-                        if parts.len() < 2 { continue; }
+                        if parts.len() < 2 {
+                            continue;
+                        }
                         let pattern = parts[0];
                         let owners = &parts[1..];
-                        
+
                         // Very basic glob matching (starts with, ends with, or exact)
                         // A true implementation would use the `glob` or `ignore` crate's override builder.
                         let matches = if pattern == "*" {
                             true
                         } else if pattern.starts_with('*') && pattern.ends_with('*') {
-                            path_str.contains(&pattern[1..pattern.len()-1])
+                            path_str.contains(&pattern[1..pattern.len() - 1])
                         } else if pattern.starts_with('*') {
                             path_str.ends_with(&pattern[1..])
                         } else if pattern.ends_with('*') {
-                            path_str.starts_with(&pattern[..pattern.len()-1])
+                            path_str.starts_with(&pattern[..pattern.len() - 1])
                         } else if pattern.ends_with('/') {
                             path_str.starts_with(pattern)
                         } else {
@@ -143,7 +152,7 @@ impl CodeownersExtractor {
                             for owner in owners {
                                 let owner_clean = owner.trim_start_matches('@');
                                 let person_id = NodeId::from(format!("person:{}", owner_clean));
-                                
+
                                 edges.push(GraphEdge {
                                     id: format!("{}-owns-{}", person_id.as_str(), file_node_id),
                                     project_id: project_id.clone(),

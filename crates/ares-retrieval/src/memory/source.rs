@@ -2,7 +2,7 @@ use crate::memory::models::{MemoryContextPackage, MemoryQuery, RetrievalStrategy
 use ares_core::id::ProjectId;
 use ares_decision_intelligence::DecisionStore;
 use ares_gap_engine::engine::GapEngine;
-use ares_requirements::{RequirementStore, RequirementFilter};
+use ares_requirements::{RequirementFilter, RequirementStore};
 use ares_resolution_engine::engine::ResolutionEngine;
 use ares_store::Store;
 use std::sync::Arc;
@@ -30,7 +30,11 @@ impl MemorySourceRegistry {
         self.sources.push(source);
     }
 
-    pub fn execute(&self, strategy: &RetrievalStrategy, query: &MemoryQuery) -> MemoryContextPackage {
+    pub fn execute(
+        &self,
+        strategy: &RetrievalStrategy,
+        query: &MemoryQuery,
+    ) -> MemoryContextPackage {
         let mut context = MemoryContextPackage::new();
 
         for source in &self.sources {
@@ -59,7 +63,7 @@ impl MemorySource for RequirementMemorySource {
         let req_store = RequirementStore::new(store.clone());
         let lower_query = query.query.to_lowercase();
         let project_id = ProjectId::from("PROJ-DEFAULT");
-        
+
         let filter = RequirementFilter {
             status: None,
             priority: None,
@@ -98,7 +102,7 @@ impl MemorySource for DecisionMemorySource {
     fn retrieve(&self, store: &Store, query: &MemoryQuery, context: &mut MemoryContextPackage) {
         let dec_store = DecisionStore::new(store.clone());
         let lower_query = query.query.to_lowercase();
-        
+
         if let Ok(all_decs) = dec_store.list() {
             for dec in all_decs {
                 if dec.title.to_lowercase().contains(&lower_query)
@@ -130,13 +134,17 @@ impl MemorySource for GapMemorySource {
     }
     fn retrieve(&self, store: &Store, _query: &MemoryQuery, context: &mut MemoryContextPackage) {
         let mut gap_engine = GapEngine::new(Arc::new(store.clone()));
-        
+
         // Register detectors
-        gap_engine.register_detector(Box::new(ares_gap_engine::detectors::requirements::RequirementGapDetector));
-        gap_engine.register_detector(Box::new(ares_gap_engine::detectors::decisions::DecisionGapDetector));
+        gap_engine.register_detector(Box::new(
+            ares_gap_engine::detectors::requirements::RequirementGapDetector,
+        ));
+        gap_engine.register_detector(Box::new(
+            ares_gap_engine::detectors::decisions::DecisionGapDetector,
+        ));
 
         let project_id = ProjectId::from("PROJ-DEFAULT");
-        
+
         // Gap engine scan is async
         let rt = tokio::runtime::Runtime::new().unwrap();
         if let Ok(report) = rt.block_on(gap_engine.run_scan(&project_id)) {
@@ -157,10 +165,12 @@ impl MemorySource for ResolutionMemorySource {
     }
     fn retrieve(&self, _store: &Store, _query: &MemoryQuery, context: &mut MemoryContextPackage) {
         let res_engine = ResolutionEngine::new();
-        
+
         if let Some(health_report) = &context.health_report {
             let res_report = res_engine.generate_report(health_report);
-            context.resolution_plans.extend(res_report.recommended_plans);
+            context
+                .resolution_plans
+                .extend(res_report.recommended_plans);
         }
     }
 }

@@ -17,7 +17,10 @@ pub struct MemoryHealthScore {
 pub struct MemoryHealthEngine;
 
 impl MemoryHealthEngine {
-    pub fn calculate(coverage: &MemoryCoverageMetrics, drift: &MemoryDriftMetrics) -> MemoryHealthScore {
+    pub fn calculate(
+        coverage: &MemoryCoverageMetrics,
+        drift: &MemoryDriftMetrics,
+    ) -> MemoryHealthScore {
         let coverage_pct = coverage.overall.percentage;
         let ownership_pct = coverage.ownership.percentage;
         let evidence_pct = coverage.evidence.percentage;
@@ -30,11 +33,8 @@ impl MemoryHealthEngine {
         let validation_score = validation_pct * 0.15;
         let freshness_score = freshness_pct * 0.15;
 
-        let total_health = coverage_score
-            + ownership_score
-            + evidence_score
-            + validation_score
-            + freshness_score;
+        let total_health =
+            coverage_score + ownership_score + evidence_score + validation_score + freshness_score;
 
         MemoryHealthScore {
             coverage_score,

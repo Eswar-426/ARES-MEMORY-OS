@@ -1,4 +1,4 @@
-use ares_requirements::impact::{RequirementImpactEngine, ImpactSeverity, ChangeRisk};
+use ares_requirements::impact::{ChangeRisk, ImpactSeverity, RequirementImpactEngine};
 use ares_traceability::{test_utils::TestGraphBuilder, TraceTargetType};
 
 #[test]
@@ -13,7 +13,7 @@ fn test_impact_engine_small_graph() {
 
     assert_eq!(report.affected_decisions.len(), 1);
     assert_eq!(report.affected_code.len(), 1);
-    
+
     // Score: 1 Decision (10) + 1 Code (2) = 12
     assert_eq!(report.blast_radius_score, 12.0);
     assert_eq!(report.severity, ImpactSeverity::Low);
@@ -26,7 +26,6 @@ fn test_impact_engine_large_graph() {
         .link_rel("REQ-2", "DEC-1", TraceTargetType::Decision, "Satisfies")
         .link_rel("REQ-2", "DEC-2", TraceTargetType::Decision, "Satisfies")
         .link_rel("REQ-2", "DEC-3", TraceTargetType::Decision, "Satisfies")
-        
         // 10 codes
         .link_rel("DEC-1", "CODE-1", TraceTargetType::Code, "Implements")
         .link_rel("DEC-1", "CODE-2", TraceTargetType::Code, "Implements")
@@ -38,7 +37,6 @@ fn test_impact_engine_large_graph() {
         .link_rel("DEC-3", "CODE-8", TraceTargetType::Code, "Implements")
         .link_rel("DEC-3", "CODE-9", TraceTargetType::Code, "Implements")
         .link_rel("DEC-3", "CODE-10", TraceTargetType::Code, "Implements")
-
         // 5 tests
         .link_rel("CODE-1", "TEST-1", TraceTargetType::Test, "Validates")
         .link_rel("CODE-2", "TEST-2", TraceTargetType::Test, "Validates")
@@ -62,7 +60,12 @@ fn test_impact_engine_large_graph() {
 #[test]
 fn test_impact_engine_governance_dependency() {
     let graph = TestGraphBuilder::new()
-        .link_rel("REQ-3", "GOV-1", TraceTargetType::Governance, "CompliesWith")
+        .link_rel(
+            "REQ-3",
+            "GOV-1",
+            TraceTargetType::Governance,
+            "CompliesWith",
+        )
         .link_rel("REQ-3", "CODE-1", TraceTargetType::Code, "Implements")
         .build();
 

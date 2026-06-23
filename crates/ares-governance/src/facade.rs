@@ -6,8 +6,8 @@ use crate::models::{
 };
 use crate::policy_loader::PolicyLoader;
 use ares_core::{AresError, NodeId, ProjectId};
-use ares_store::repositories::graph::SqliteGraphRepository;
 use ares_store::db::Store;
+use ares_store::repositories::graph::SqliteGraphRepository;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -72,8 +72,13 @@ impl GovernanceFacade {
     ) -> Result<Vec<ComplianceResult>, AresError> {
         info!("Evaluating compliance for node {}", node_id);
         let r = self.policies.read().await;
-        let exemptions = self.exemptions_engine.load_active_exemptions().await.unwrap_or_default();
-        self.engine.evaluate_node(project_id, node_id, r.as_slice(), &exemptions)
+        let exemptions = self
+            .exemptions_engine
+            .load_active_exemptions()
+            .await
+            .unwrap_or_default();
+        self.engine
+            .evaluate_node(project_id, node_id, r.as_slice(), &exemptions)
     }
 
     pub async fn why_is_this_non_compliant(
@@ -95,8 +100,13 @@ impl GovernanceFacade {
     ) -> Result<Vec<ComplianceResult>, AresError> {
         info!("Evaluating compliance for project {}", project_id);
         let r = self.policies.read().await;
-        let exemptions = self.exemptions_engine.load_active_exemptions().await.unwrap_or_default();
-        self.engine.evaluate_project(project_id, r.as_slice(), &exemptions)
+        let exemptions = self
+            .exemptions_engine
+            .load_active_exemptions()
+            .await
+            .unwrap_or_default();
+        self.engine
+            .evaluate_project(project_id, r.as_slice(), &exemptions)
     }
 
     pub async fn get_scorecard(
@@ -128,14 +138,19 @@ impl GovernanceFacade {
 
         let req_store = ares_requirements::RequirementStore::new(self.store.clone());
         let mut graph = ares_traceability::TraceabilityGraph::new();
-        graph.add_provider(Box::new(ares_requirements::RequirementEdgeProvider::new(self.store.clone())));
+        graph.add_provider(Box::new(ares_requirements::RequirementEdgeProvider::new(
+            self.store.clone(),
+        )));
         let resolver = ares_requirements::TraceAnalysisEngine::new(&graph);
         let engine = ares_requirements::RequirementCoverageEngine::new();
 
-        let reqs = req_store.list(project_id, ares_requirements::RequirementFilter::default()).unwrap_or_default();
-        let coverages: Vec<_> = reqs.iter().map(|req| {
-            engine.evaluate(&req.id, &req.status, req.owner.is_some(), &resolver)
-        }).collect();
+        let reqs = req_store
+            .list(project_id, ares_requirements::RequirementFilter::default())
+            .unwrap_or_default();
+        let coverages: Vec<_> = reqs
+            .iter()
+            .map(|req| engine.evaluate(&req.id, &req.status, req.owner.is_some(), &resolver))
+            .collect();
 
         let (req_summary, top_gaps) = engine.generate_summary(&coverages);
 
@@ -161,7 +176,9 @@ impl GovernanceFacade {
                 }
                 for dt in report.drift_types {
                     match dt {
-                        ares_requirements::RequirementDriftType::Structural(_) => structural_drift += 1,
+                        ares_requirements::RequirementDriftType::Structural(_) => {
+                            structural_drift += 1
+                        }
                         ares_requirements::RequirementDriftType::Semantic(_) => semantic_drift += 1,
                     }
                 }
@@ -187,18 +204,18 @@ impl GovernanceFacade {
             requirements_regressed: 0,
             requirements_improved: 0,
         };
-        
+
         let knowledge_gaps = ares_requirements::KnowledgeGapEngine::new(&graph).evaluate_gaps();
 
         Ok(crate::dashboard::DashboardGenerator::generate_dashboard(
-            &cert, 
-            top_violations, 
-            req_summary, 
-            requirement_coverage_trend, 
+            &cert,
+            top_violations,
+            req_summary,
+            requirement_coverage_trend,
             requirement_drift,
             evolution,
             top_gaps,
-            &knowledge_gaps
+            &knowledge_gaps,
         ))
     }
 

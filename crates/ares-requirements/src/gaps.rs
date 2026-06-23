@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
-use ares_traceability::{TraceabilityGraph, TraceTargetType};
 use crate::trace_analysis::TraceAnalysisEngine;
+use ares_traceability::{TraceTargetType, TraceabilityGraph};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, utoipa::ToSchema)]
@@ -44,7 +44,7 @@ impl<'a> KnowledgeGapEngine<'a> {
     }
 
     pub fn evaluate_gaps(&self) -> Vec<KnowledgeGap> {
-        let resolver = TraceAnalysisEngine::new(&self.graph);
+        let resolver = TraceAnalysisEngine::new(self.graph);
         let mut gaps = Vec::new();
 
         for node in self.graph.get_all_nodes().unwrap_or_default() {

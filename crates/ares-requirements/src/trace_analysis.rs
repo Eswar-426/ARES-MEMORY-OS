@@ -1,4 +1,4 @@
-use ares_traceability::{TraceabilityGraph, TraceTargetType};
+use ares_traceability::{TraceTargetType, TraceabilityGraph};
 
 pub struct TraceAnalysisEngine<'a> {
     pub graph: &'a TraceabilityGraph,
@@ -34,19 +34,27 @@ impl<'a> TraceAnalysisEngine<'a> {
     }
 
     pub fn has_decision(&self, req_id: &str) -> bool {
-        !self.get_downstream(req_id, TraceTargetType::Decision).is_empty()
+        !self
+            .get_downstream(req_id, TraceTargetType::Decision)
+            .is_empty()
     }
 
     pub fn has_implementation(&self, req_id: &str) -> bool {
-        !self.get_downstream(req_id, TraceTargetType::Code).is_empty()
+        !self
+            .get_downstream(req_id, TraceTargetType::Code)
+            .is_empty()
     }
 
     pub fn has_test(&self, req_id: &str) -> bool {
-        !self.get_downstream(req_id, TraceTargetType::Test).is_empty()
+        !self
+            .get_downstream(req_id, TraceTargetType::Test)
+            .is_empty()
     }
 
     pub fn has_runtime_metric(&self, req_id: &str) -> bool {
-        !self.get_downstream(req_id, TraceTargetType::RuntimeMetric).is_empty()
+        !self
+            .get_downstream(req_id, TraceTargetType::RuntimeMetric)
+            .is_empty()
     }
 
     pub fn get_downstream_all(&self, node_id: &str) -> Vec<ares_traceability::TraceNode> {

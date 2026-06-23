@@ -1,18 +1,24 @@
-use std::sync::Arc;
 use ares_core::AresError;
-use ares_store::db::Store;
 use ares_core::ProjectId;
-use ares_knowledge_graph::models::{KnowledgeNode, NodeType, KnowledgeEdge, EdgeType};
 use ares_governance::coverage_engine::CoverageEngine;
-use ares_governance::memory_drift_engine::MemoryDriftEngine;
 use ares_governance::memory_debt_engine::MemoryDebtEngine;
+use ares_governance::memory_drift_engine::MemoryDriftEngine;
 use ares_governance::memory_health_engine::MemoryHealthEngine;
 use ares_governance::memory_maturity_model::{MemoryMaturityEngine, MemoryMaturityLevel};
+use ares_knowledge_graph::models::{EdgeType, KnowledgeEdge, KnowledgeNode, NodeType};
+use ares_store::db::Store;
+use std::sync::Arc;
 
 pub async fn run_synthetic_layer() -> Result<(), AresError> {
     println!("\n=== Layer 1: Synthetic Validation ===");
-    println!("{:<25} | {:<10} | {:<10} | {:<10} | {:<10} | {:<15}", "Profile", "Coverage", "Debt", "Health", "Drift", "Maturity");
-    println!("{:-<25}-|-{:-<10}-|-{:-<10}-|-{:-<10}-|-{:-<10}-|-{:-<15}", "", "", "", "", "", "");
+    println!(
+        "{:<25} | {:<10} | {:<10} | {:<10} | {:<10} | {:<15}",
+        "Profile", "Coverage", "Debt", "Health", "Drift", "Maturity"
+    );
+    println!(
+        "{:-<25}-|-{:-<10}-|-{:-<10}-|-{:-<10}-|-{:-<10}-|-{:-<15}",
+        "", "", "", "", "", ""
+    );
 
     let profiles = vec![
         ("MemoryNative", 100, 100, 50, 100, 100),
@@ -26,27 +32,33 @@ pub async fn run_synthetic_layer() -> Result<(), AresError> {
     let mut all_passed = true;
 
     for (name, code_count, req_count, dec_count, owner_count, test_count) in profiles {
-        let metrics = evaluate_synthetic(name, code_count, req_count, dec_count, owner_count, test_count).await?;
-        println!("{:<25} | {:<9.1}% | {:<10} | {:<9.1}% | {:<9.1}% | {:<15?}", 
-            name, 
-            metrics.coverage, 
-            metrics.debt, 
-            metrics.health, 
-            metrics.drift, 
-            metrics.maturity);
+        let metrics = evaluate_synthetic(
+            name,
+            code_count,
+            req_count,
+            dec_count,
+            owner_count,
+            test_count,
+        )
+        .await?;
+        println!(
+            "{:<25} | {:<9.1}% | {:<10} | {:<9.1}% | {:<9.1}% | {:<15?}",
+            name, metrics.coverage, metrics.debt, metrics.health, metrics.drift, metrics.maturity
+        );
 
         // Validation Assertions
         let pass = match name {
             "BrokenEnterpriseRepo" => {
-                metrics.coverage < 20.0 && metrics.debt > 2000 && metrics.health < 30.0 && metrics.maturity <= MemoryMaturityLevel::Level1Documented
-            },
-            "MemoryNative" => {
-                metrics.maturity == MemoryMaturityLevel::Level5MemoryNative
-            },
+                metrics.coverage < 20.0
+                    && metrics.debt > 2000
+                    && metrics.health < 30.0
+                    && metrics.maturity <= MemoryMaturityLevel::Level1Documented
+            }
+            "MemoryNative" => metrics.maturity == MemoryMaturityLevel::Level5MemoryNative,
             "Chaos" => {
                 metrics.maturity == MemoryMaturityLevel::Level0Chaos && metrics.coverage == 0.0
-            },
-            _ => true
+            }
+            _ => true,
         };
 
         if !pass {
@@ -56,7 +68,9 @@ pub async fn run_synthetic_layer() -> Result<(), AresError> {
     }
 
     if !all_passed {
-        return Err(AresError::validation("Synthetic validation failed assertions"));
+        return Err(AresError::validation(
+            "Synthetic validation failed assertions",
+        ));
     }
 
     Ok(())
@@ -153,7 +167,7 @@ async fn evaluate_synthetic(
             properties: serde_json::json!({ "project_id": pid.to_string() }),
             created_at: 0,
         })?;
-        
+
         // Connect Code
         if i < req_count {
             kg.upsert_edge(&KnowledgeEdge {
@@ -218,8 +232,14 @@ async fn evaluate_synthetic(
 
 pub async fn run_real_layer() -> Result<(), AresError> {
     println!("\n=== Layer 2: Reality Validation ===");
-    println!("{:<25} | {:<10} | {:<10} | {:<10} | {:<10} | {:<15}", "Repository", "Coverage", "Debt", "Health", "Drift", "Maturity");
-    println!("{:-<25}-|-{:-<10}-|-{:-<10}-|-{:-<10}-|-{:-<10}-|-{:-<15}", "", "", "", "", "", "");
+    println!(
+        "{:<25} | {:<10} | {:<10} | {:<10} | {:<10} | {:<15}",
+        "Repository", "Coverage", "Debt", "Health", "Drift", "Maturity"
+    );
+    println!(
+        "{:-<25}-|-{:-<10}-|-{:-<10}-|-{:-<10}-|-{:-<10}-|-{:-<15}",
+        "", "", "", "", "", ""
+    );
 
     let repos = vec![
         "ARES",
@@ -231,13 +251,10 @@ pub async fn run_real_layer() -> Result<(), AresError> {
 
     for repo in repos {
         let (metrics, pass) = fetch_and_evaluate_real(repo).await?;
-        println!("{:<25} | {:<9.1}% | {:<10} | {:<9.1}% | {:<9.1}% | {:<15?}", 
-            repo, 
-            metrics.coverage, 
-            metrics.debt, 
-            metrics.health, 
-            metrics.drift, 
-            metrics.maturity);
+        println!(
+            "{:<25} | {:<9.1}% | {:<10} | {:<9.1}% | {:<9.1}% | {:<15?}",
+            repo, metrics.coverage, metrics.debt, metrics.health, metrics.drift, metrics.maturity
+        );
 
         if !pass {
             println!("  -> FAIL: Expected ranges not met for {}", repo);
@@ -268,13 +285,16 @@ async fn fetch_and_evaluate_real(repo: &str) -> Result<(SyntheticMetrics, bool),
             let debt = MemoryDebtEngine::calculate(&coverage, &drift);
             let health = MemoryHealthEngine::calculate(&coverage, &drift);
             let maturity = MemoryMaturityEngine::evaluate(&coverage, &debt, &health, true);
-            return Ok((SyntheticMetrics {
-                coverage: coverage.overall.percentage,
-                debt: debt.total_debt_score,
-                health: health.total_health,
-                drift: drift.memory_drift_percentage,
-                maturity,
-            }, true));
+            return Ok((
+                SyntheticMetrics {
+                    coverage: coverage.overall.percentage,
+                    debt: debt.total_debt_score,
+                    health: health.total_health,
+                    drift: drift.memory_drift_percentage,
+                    maturity,
+                },
+                true,
+            ));
         } else {
             let _ = std::process::Command::new("git")
                 .arg("clone")
@@ -302,11 +322,14 @@ async fn fetch_and_evaluate_real(repo: &str) -> Result<(SyntheticMetrics, bool),
     let health = MemoryHealthEngine::calculate(&coverage, &drift);
     let maturity = MemoryMaturityEngine::evaluate(&coverage, &debt, &health, true);
 
-    Ok((SyntheticMetrics {
-        coverage: coverage.overall.percentage,
-        debt: debt.total_debt_score,
-        health: health.total_health,
-        drift: drift.memory_drift_percentage,
-        maturity,
-    }, true))
+    Ok((
+        SyntheticMetrics {
+            coverage: coverage.overall.percentage,
+            debt: debt.total_debt_score,
+            health: health.total_health,
+            drift: drift.memory_drift_percentage,
+            maturity,
+        },
+        true,
+    ))
 }

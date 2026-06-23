@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 pub mod assembly;
 pub mod retrieval;
 pub mod types;

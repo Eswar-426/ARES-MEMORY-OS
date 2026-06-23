@@ -1,5 +1,4 @@
-use crate::models::{DecisionMemory, DecisionState, DecisionId};
-use anyhow::Result;
+use crate::models::{DecisionId, DecisionMemory, DecisionState};
 use chrono::Utc;
 
 pub struct ReviewTriggerEngine;
@@ -7,7 +6,8 @@ pub struct ReviewTriggerEngine;
 impl ReviewTriggerEngine {
     pub fn check_time_elapsed(decisions: &[DecisionMemory]) -> Vec<DecisionId> {
         let now = Utc::now();
-        decisions.iter()
+        decisions
+            .iter()
             .filter(|d| d.state == DecisionState::Accepted)
             .filter(|d| {
                 if let Some(due_at) = d.review_due_at {
@@ -22,12 +22,16 @@ impl ReviewTriggerEngine {
 
     pub fn check_impacted_files_changed(
         decisions: &[DecisionMemory],
-        changed_files: &[String]
+        changed_files: &[String],
     ) -> Vec<DecisionId> {
-        decisions.iter()
+        decisions
+            .iter()
             .filter(|d| d.state == DecisionState::Accepted)
             .filter(|d| {
-                d.impact.files_affected.iter().any(|file| changed_files.contains(file))
+                d.impact
+                    .files_affected
+                    .iter()
+                    .any(|file| changed_files.contains(file))
             })
             .map(|d| d.id)
             .collect()
@@ -35,12 +39,16 @@ impl ReviewTriggerEngine {
 
     pub fn check_assumption_invalidated(
         decisions: &[DecisionMemory],
-        invalidated_assumptions: &[String]
+        invalidated_assumptions: &[String],
     ) -> Vec<DecisionId> {
-        decisions.iter()
+        decisions
+            .iter()
             .filter(|d| d.state == DecisionState::Accepted)
             .filter(|d| {
-                d.reasoning.assumptions.iter().any(|a| invalidated_assumptions.contains(&a.statement))
+                d.reasoning
+                    .assumptions
+                    .iter()
+                    .any(|a| invalidated_assumptions.contains(&a.statement))
             })
             .map(|d| d.id)
             .collect()

@@ -1,11 +1,10 @@
-use std::str::FromStr;
 use async_trait::async_trait;
 use rusqlite::{params, OptionalExtension};
 
 use ares_candidates::{
-    Candidate, CandidateConfidence, CandidatePromotion, CandidateRepository, CandidateReview,
-    CandidateSource, CandidateStatus, CandidateType, DecisionCategory, ArchitectureCategory,
-    TraceabilityCategory, TraceabilityEndpointType, TraceabilityEndpoint, TraceabilityStrength,
+    ArchitectureCategory, Candidate, CandidateConfidence, CandidatePromotion, CandidateRepository,
+    CandidateReview, CandidateSource, CandidateStatus, CandidateType, DecisionCategory,
+    TraceabilityCategory, TraceabilityEndpoint, TraceabilityEndpointType, TraceabilityStrength,
 };
 use ares_core::{GraphEdge, GraphNode};
 
@@ -45,7 +44,6 @@ impl CandidateRepository for SqliteCandidateRepository {
             CandidateStatus::Superseded => "Superseded",
         };
 
-        
         let architecture_category_str = match &candidate.architecture_category {
             Some(ArchitectureCategory::Service) => Some("Service"),
             Some(ArchitectureCategory::Component) => Some("Component"),
@@ -58,7 +56,6 @@ impl CandidateRepository for SqliteCandidateRepository {
 
         let dependent_components_str = candidate.dependent_components.join(",");
         let ownership_domains_str = candidate.ownership_domains.join(",");
-
 
         let traceability_category_str = match &candidate.traceability_category {
             Some(TraceabilityCategory::RequirementToDecision) => Some("RequirementToDecision"),
@@ -77,7 +74,7 @@ impl CandidateRepository for SqliteCandidateRepository {
                     TraceabilityEndpointType::Commit => "Commit",
                 };
                 (Some(ep_type), Some(ep.endpoint_id.as_str()))
-            },
+            }
             None => (None, None),
         };
 
@@ -90,7 +87,7 @@ impl CandidateRepository for SqliteCandidateRepository {
                     TraceabilityEndpointType::Commit => "Commit",
                 };
                 (Some(ep_type), Some(ep.endpoint_id.as_str()))
-            },
+            }
             None => (None, None),
         };
 
@@ -306,7 +303,6 @@ impl CandidateRepository for SqliteCandidateRepository {
             CandidateStatus::Superseded => "Superseded",
         };
 
-        
         let architecture_category_str = match &candidate.architecture_category {
             Some(ArchitectureCategory::Service) => Some("Service"),
             Some(ArchitectureCategory::Component) => Some("Component"),
@@ -319,7 +315,6 @@ impl CandidateRepository for SqliteCandidateRepository {
 
         let dependent_components_str = candidate.dependent_components.join(",");
         let ownership_domains_str = candidate.ownership_domains.join(",");
-
 
         let traceability_category_str = match &candidate.traceability_category {
             Some(TraceabilityCategory::RequirementToDecision) => Some("RequirementToDecision"),
@@ -338,7 +333,7 @@ impl CandidateRepository for SqliteCandidateRepository {
                     TraceabilityEndpointType::Commit => "Commit",
                 };
                 (Some(ep_type), Some(ep.endpoint_id.as_str()))
-            },
+            }
             None => (None, None),
         };
 
@@ -351,7 +346,7 @@ impl CandidateRepository for SqliteCandidateRepository {
                     TraceabilityEndpointType::Commit => "Commit",
                 };
                 (Some(ep_type), Some(ep.endpoint_id.as_str()))
-            },
+            }
             None => (None, None),
         };
 
@@ -456,78 +451,90 @@ impl CandidateRepository for SqliteCandidateRepository {
                     _ => None,
                 });
 
+                let _dep_comp: String = row.get(14).unwrap_or_default();
+                let _owner_dom: String = row.get(15).unwrap_or_default();
+
+                let arch_cat_str: Option<String> = row.get(13)?;
+                let architecture_category = arch_cat_str.and_then(|s| match s.as_str() {
+                    "Service" => Some(ArchitectureCategory::Service),
+                    "Component" => Some(ArchitectureCategory::Component),
+                    "Module" => Some(ArchitectureCategory::Module),
+                    "Workspace" => Some(ArchitectureCategory::Workspace),
+                    "Domain" => Some(ArchitectureCategory::Domain),
+                    "Integration" => Some(ArchitectureCategory::Integration),
+                    _ => None,
+                });
+
                 let dep_comp: String = row.get(14).unwrap_or_default();
                 let owner_dom: String = row.get(15).unwrap_or_default();
+                let dependent_components = if dep_comp.is_empty() {
+                    vec![]
+                } else {
+                    dep_comp.split(",").map(|s| s.to_string()).collect()
+                };
+                let ownership_domains = if owner_dom.is_empty() {
+                    vec![]
+                } else {
+                    owner_dom.split(",").map(|s| s.to_string()).collect()
+                };
 
-                
-                    let arch_cat_str: Option<String> = row.get(13)?;
-                    let architecture_category = arch_cat_str.and_then(|s| match s.as_str() {
-                        "Service" => Some(ArchitectureCategory::Service),
-                        "Component" => Some(ArchitectureCategory::Component),
-                        "Module" => Some(ArchitectureCategory::Module),
-                        "Workspace" => Some(ArchitectureCategory::Workspace),
-                        "Domain" => Some(ArchitectureCategory::Domain),
-                        "Integration" => Some(ArchitectureCategory::Integration),
-                        _ => None,
-                    });
+                let trace_cat_str: Option<String> = row.get(16).unwrap_or(None);
+                let traceability_category = trace_cat_str.and_then(|s| match s.as_str() {
+                    "RequirementToDecision" => Some(TraceabilityCategory::RequirementToDecision),
+                    "DecisionToArchitecture" => Some(TraceabilityCategory::DecisionToArchitecture),
+                    "ArchitectureToCode" => Some(TraceabilityCategory::ArchitectureToCode),
+                    "RequirementToCode" => Some(TraceabilityCategory::RequirementToCode),
+                    _ => None,
+                });
 
-                    let dep_comp: String = row.get(14).unwrap_or_default();
-                    let owner_dom: String = row.get(15).unwrap_or_default();
-                    let dependent_components = if dep_comp.is_empty() { vec![] } else { dep_comp.split(",").map(|s| s.to_string()).collect() };
-                    let ownership_domains = if owner_dom.is_empty() { vec![] } else { owner_dom.split(",").map(|s| s.to_string()).collect() };
+                let src_ep_type_str: Option<String> = row.get(17).unwrap_or(None);
+                let src_ep_id_str: Option<String> = row.get(18).unwrap_or(None);
+                let source_endpoint = match (src_ep_type_str, src_ep_id_str) {
+                    (Some(t), Some(id)) => {
+                        let ep_type = match t.as_str() {
+                            "Candidate" => TraceabilityEndpointType::Candidate,
+                            "GraphNode" => TraceabilityEndpointType::GraphNode,
+                            "File" => TraceabilityEndpointType::File,
+                            "Commit" => TraceabilityEndpointType::Commit,
+                            _ => TraceabilityEndpointType::Candidate,
+                        };
+                        Some(TraceabilityEndpoint {
+                            endpoint_type: ep_type,
+                            endpoint_id: id,
+                        })
+                    }
+                    _ => None,
+                };
 
+                let tgt_ep_type_str: Option<String> = row.get(19).unwrap_or(None);
+                let tgt_ep_id_str: Option<String> = row.get(20).unwrap_or(None);
+                let target_endpoint = match (tgt_ep_type_str, tgt_ep_id_str) {
+                    (Some(t), Some(id)) => {
+                        let ep_type = match t.as_str() {
+                            "Candidate" => TraceabilityEndpointType::Candidate,
+                            "GraphNode" => TraceabilityEndpointType::GraphNode,
+                            "File" => TraceabilityEndpointType::File,
+                            "Commit" => TraceabilityEndpointType::Commit,
+                            _ => TraceabilityEndpointType::Candidate,
+                        };
+                        Some(TraceabilityEndpoint {
+                            endpoint_type: ep_type,
+                            endpoint_id: id,
+                        })
+                    }
+                    _ => None,
+                };
 
-                    let trace_cat_str: Option<String> = row.get(16).unwrap_or(None);
-                    let traceability_category = trace_cat_str.and_then(|s| match s.as_str() {
-                        "RequirementToDecision" => Some(TraceabilityCategory::RequirementToDecision),
-                        "DecisionToArchitecture" => Some(TraceabilityCategory::DecisionToArchitecture),
-                        "ArchitectureToCode" => Some(TraceabilityCategory::ArchitectureToCode),
-                        "RequirementToCode" => Some(TraceabilityCategory::RequirementToCode),
-                        _ => None,
-                    });
+                let trace_strength_str: Option<String> = row.get(21).unwrap_or(None);
+                let traceability_strength = trace_strength_str.and_then(|s| match s.as_str() {
+                    "Weak" => Some(TraceabilityStrength::Weak),
+                    "Moderate" => Some(TraceabilityStrength::Moderate),
+                    "Strong" => Some(TraceabilityStrength::Strong),
+                    "Definitive" => Some(TraceabilityStrength::Definitive),
+                    _ => None,
+                });
 
-                    let src_ep_type_str: Option<String> = row.get(17).unwrap_or(None);
-                    let src_ep_id_str: Option<String> = row.get(18).unwrap_or(None);
-                    let source_endpoint = match (src_ep_type_str, src_ep_id_str) {
-                        (Some(t), Some(id)) => {
-                            let ep_type = match t.as_str() {
-                                "Candidate" => TraceabilityEndpointType::Candidate,
-                                "GraphNode" => TraceabilityEndpointType::GraphNode,
-                                "File" => TraceabilityEndpointType::File,
-                                "Commit" => TraceabilityEndpointType::Commit,
-                                _ => TraceabilityEndpointType::Candidate,
-                            };
-                            Some(TraceabilityEndpoint { endpoint_type: ep_type, endpoint_id: id })
-                        },
-                        _ => None,
-                    };
-
-                    let tgt_ep_type_str: Option<String> = row.get(19).unwrap_or(None);
-                    let tgt_ep_id_str: Option<String> = row.get(20).unwrap_or(None);
-                    let target_endpoint = match (tgt_ep_type_str, tgt_ep_id_str) {
-                        (Some(t), Some(id)) => {
-                            let ep_type = match t.as_str() {
-                                "Candidate" => TraceabilityEndpointType::Candidate,
-                                "GraphNode" => TraceabilityEndpointType::GraphNode,
-                                "File" => TraceabilityEndpointType::File,
-                                "Commit" => TraceabilityEndpointType::Commit,
-                                _ => TraceabilityEndpointType::Candidate,
-                            };
-                            Some(TraceabilityEndpoint { endpoint_type: ep_type, endpoint_id: id })
-                        },
-                        _ => None,
-                    };
-
-                    let trace_strength_str: Option<String> = row.get(21).unwrap_or(None);
-                    let traceability_strength = trace_strength_str.and_then(|s| match s.as_str() {
-                        "Weak" => Some(TraceabilityStrength::Weak),
-                        "Moderate" => Some(TraceabilityStrength::Moderate),
-                        "Strong" => Some(TraceabilityStrength::Strong),
-                        "Definitive" => Some(TraceabilityStrength::Definitive),
-                        _ => None,
-                    });
-
-                    Ok(Candidate {
+                Ok(Candidate {
                     id: row.get(0)?,
                     project_id: row.get(1)?,
                     title: row.get(2)?,
@@ -582,7 +589,11 @@ impl CandidateRepository for SqliteCandidateRepository {
         Ok(())
     }
 
-    async fn get_sources(&self, project_id: &str, candidate_id: &str) -> Result<Vec<CandidateSource>, String> {
+    async fn get_sources(
+        &self,
+        project_id: &str,
+        candidate_id: &str,
+    ) -> Result<Vec<CandidateSource>, String> {
         let conn = self.store.get_conn().map_err(|e| e.to_string())?;
         let mut stmt = conn
             .prepare(
@@ -634,7 +645,11 @@ impl CandidateRepository for SqliteCandidateRepository {
         Ok(())
     }
 
-    async fn get_reviews(&self, project_id: &str, candidate_id: &str) -> Result<Vec<CandidateReview>, String> {
+    async fn get_reviews(
+        &self,
+        project_id: &str,
+        candidate_id: &str,
+    ) -> Result<Vec<CandidateReview>, String> {
         let conn = self.store.get_conn().map_err(|e| e.to_string())?;
         let mut stmt = conn
             .prepare(
@@ -687,7 +702,11 @@ impl CandidateRepository for SqliteCandidateRepository {
         Ok(())
     }
 
-    async fn get_promotion(&self, project_id: &str, candidate_id: &str) -> Result<Option<CandidatePromotion>, String> {
+    async fn get_promotion(
+        &self,
+        project_id: &str,
+        candidate_id: &str,
+    ) -> Result<Option<CandidatePromotion>, String> {
         let conn = self.store.get_conn().map_err(|e| e.to_string())?;
         let promotion = conn
             .query_row(
@@ -724,17 +743,22 @@ impl CandidateRepository for SqliteCandidateRepository {
         edges: &[GraphEdge],
     ) -> Result<(), String> {
         if candidate.project_id != node.project_id.as_str() {
-            return Err("Repository mismatch: Candidate and Node must belong to the same repository.".to_string());
+            return Err(
+                "Repository mismatch: Candidate and Node must belong to the same repository."
+                    .to_string(),
+            );
         }
 
         let mut conn = self.store.get_conn().map_err(|e| e.to_string())?;
 
         // Candidate Evidence Completeness Rule
-        let evidence_count: i64 = conn.query_row(
-            "SELECT count(*) FROM candidate_sources WHERE candidate_id = ?1",
-            params![candidate.id],
-            |row| row.get(0)
-        ).unwrap_or(0);
+        let evidence_count: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM candidate_sources WHERE candidate_id = ?1",
+                params![candidate.id],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
 
         if evidence_count == 0 {
             return Err("Promotion rejected: Candidate has no evidence sources. ARES requires evidence for all memory promotions.".to_string());

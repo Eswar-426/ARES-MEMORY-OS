@@ -1,8 +1,11 @@
 use super::GapDetector;
 use crate::models::{DetectionMethod, Gap, GapSeverity, GapType};
-use ares_core::{AresError, id::{ProjectId, new_id}};
-use ares_requirements::storage::RequirementStore;
+use ares_core::{
+    id::{new_id, ProjectId},
+    AresError,
+};
 use ares_requirements::models::{RequirementFilter, RequirementStatus};
+use ares_requirements::storage::RequirementStore;
 use ares_store::Store;
 use async_trait::async_trait;
 use chrono::Utc;
@@ -21,7 +24,11 @@ impl GapDetector for RequirementGapDetector {
         ]
     }
 
-    async fn detect(&self, project_id: &ProjectId, store: Arc<Store>) -> Result<Vec<Gap>, AresError> {
+    async fn detect(
+        &self,
+        project_id: &ProjectId,
+        store: Arc<Store>,
+    ) -> Result<Vec<Gap>, AresError> {
         let req_store = RequirementStore::new((*store).clone());
         let mut gaps = Vec::new();
 
@@ -43,12 +50,18 @@ impl GapDetector for RequirementGapDetector {
             let links = req_store.count_links_by_type(&req.id)?;
 
             // Check MissingDecision
-            if links.decision_links == 0 && req.status != RequirementStatus::Draft && req.status != RequirementStatus::Rejected {
+            if links.decision_links == 0
+                && req.status != RequirementStatus::Draft
+                && req.status != RequirementStatus::Rejected
+            {
                 gaps.push(Gap {
                     id: format!("gap_req_dec_{}", new_id()),
                     project_id: project_id.clone(),
                     gap_type: GapType::MissingDecision,
-                    description: format!("Requirement '{}' is not linked to any decisions.", req.title),
+                    description: format!(
+                        "Requirement '{}' is not linked to any decisions.",
+                        req.title
+                    ),
                     source_id: req.id.as_str().to_string(),
                     detection_method: DetectionMethod::Deterministic,
                     evidence_score: 1.0,
@@ -68,7 +81,10 @@ impl GapDetector for RequirementGapDetector {
                     id: format!("gap_req_impl_{}", new_id()),
                     project_id: project_id.clone(),
                     gap_type: GapType::MissingImplementation,
-                    description: format!("Requirement '{}' is marked Implemented but lacks code links.", req.title),
+                    description: format!(
+                        "Requirement '{}' is marked Implemented but lacks code links.",
+                        req.title
+                    ),
                     source_id: req.id.as_str().to_string(),
                     detection_method: DetectionMethod::Deterministic,
                     evidence_score: 1.0,
@@ -88,7 +104,10 @@ impl GapDetector for RequirementGapDetector {
                     id: format!("gap_req_stale_{}", new_id()),
                     project_id: project_id.clone(),
                     gap_type: GapType::StaleRequirement,
-                    description: format!("Requirement '{}' has not been updated in 6 months.", req.title),
+                    description: format!(
+                        "Requirement '{}' has not been updated in 6 months.",
+                        req.title
+                    ),
                     source_id: req.id.as_str().to_string(),
                     detection_method: DetectionMethod::RuleBased,
                     evidence_score: 0.8,

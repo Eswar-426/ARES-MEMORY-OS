@@ -1,23 +1,28 @@
 use ares_core::AresError;
-use ares_store::Store;
-use ares_knowledge_graph::store::KnowledgeGraphStore;
-use ares_knowledge_graph::projection::{ProjectionEngine, ProjectionMode};
 use ares_knowledge_graph::models::{DomainEvent, DomainEventType, ProjectionMetrics};
+use ares_knowledge_graph::projection::{ProjectionEngine, ProjectionMode};
 use ares_knowledge_graph::projector_registry::*;
+use ares_knowledge_graph::store::KnowledgeGraphStore;
 use ares_knowledge_graph::traversal::{MemoryTraversal, TraversalEngine};
-use std::sync::Arc;
+use ares_store::Store;
 use serde_json::json;
+use std::sync::Arc;
 use tempfile::tempdir;
 
-async fn setup_test_engine() -> (Arc<KnowledgeGraphStore>, ProjectionEngine, ProjectorRegistry, TraversalEngine) {
+async fn setup_test_engine() -> (
+    Arc<KnowledgeGraphStore>,
+    ProjectionEngine,
+    ProjectorRegistry,
+    TraversalEngine,
+) {
     let dir = tempdir().unwrap();
     let db_path = dir.path().join("test_lineage_expansion.db");
     let store = Store::open(&db_path).unwrap();
     let kg_store = Arc::new(KnowledgeGraphStore::new(Arc::new(store)));
-    
+
     let engine = ProjectionEngine::new(kg_store.clone());
     let traversal = TraversalEngine::new(kg_store.clone());
-    
+
     let mut registry = ProjectorRegistry::new();
     registry.register(Box::new(RequirementProjector));
     registry.register(Box::new(DecisionProjector));
@@ -27,7 +32,7 @@ async fn setup_test_engine() -> (Arc<KnowledgeGraphStore>, ProjectionEngine, Pro
     registry.register(Box::new(RuntimeSignalProjector));
     registry.register(Box::new(OutcomeProjector));
     registry.register(Box::new(OwnerProjector));
-    
+
     (kg_store, engine, registry, traversal)
 }
 
@@ -91,13 +96,20 @@ async fn test_forward_lineage_and_reverse_causality() {
     ];
 
     for event in &events {
-        engine.process_event(event, ProjectionMode::Incremental, &registry.projectors, &mut metrics).unwrap();
+        engine
+            .process_event(
+                event,
+                ProjectionMode::Incremental,
+                &registry.projectors,
+                &mut metrics,
+            )
+            .unwrap();
     }
 
     // Nodes: 7 core nodes + 3 owners (OWNER-ALICE, OWNER-BOB, OWNER-CHARLIE) = 10 nodes
     assert_eq!(store.count_nodes().unwrap(), 10);
-    
-    // Edges: 
+
+    // Edges:
     // REQ->DEC, DEC->ARCH, ARCH->CODE, CODE->TEST, TEST->SIGNAL, SIGNAL->OUTCOME (6 edges)
     // REQ->ALICE, DEC->BOB, ARCH->CHARLIE (3 edges)
     // Total = 9 edges
@@ -105,8 +117,9 @@ async fn test_forward_lineage_and_reverse_causality() {
 
     // Forward Lineage Test
     let downstream = traversal.downstream("REQ-1", 10).unwrap();
-    let downstream_ids: std::collections::HashSet<_> = downstream.nodes.iter().map(|n| n.id.clone()).collect();
-    
+    let downstream_ids: std::collections::HashSet<_> =
+        downstream.nodes.iter().map(|n| n.id.clone()).collect();
+
     assert!(downstream_ids.contains("DEC-1"));
     assert!(downstream_ids.contains("ARCH-1"));
     assert!(downstream_ids.contains("CODE-1"));
@@ -114,12 +127,13 @@ async fn test_forward_lineage_and_reverse_causality() {
     assert!(downstream_ids.contains("SIGNAL-1"));
     assert!(downstream_ids.contains("OUTCOME-1"));
     assert!(downstream_ids.contains("OWNER-ALICE")); // Owner of REQ-1
-    // Wait, are owners downstream of REQ? Yes, REQ -> OwnedBy -> ALICE
-    
+                                                     // Wait, are owners downstream of REQ? Yes, REQ -> OwnedBy -> ALICE
+
     // Reverse Causality Test (What caused the User Dropoff?)
     let upstream = traversal.upstream("OUTCOME-1", 10).unwrap();
-    let upstream_ids: std::collections::HashSet<_> = upstream.nodes.iter().map(|n| n.id.clone()).collect();
-    
+    let upstream_ids: std::collections::HashSet<_> =
+        upstream.nodes.iter().map(|n| n.id.clone()).collect();
+
     assert!(upstream_ids.contains("SIGNAL-1"));
     assert!(upstream_ids.contains("TEST-1"));
     assert!(upstream_ids.contains("CODE-1"));
@@ -131,7 +145,18 @@ async fn test_forward_lineage_and_reverse_causality() {
     let path_opt = traversal.shortest_path("REQ-1", "OUTCOME-1").unwrap();
     assert!(path_opt.is_some());
     let path = path_opt.unwrap();
-    
+
     let path_ids: Vec<_> = path.nodes.iter().map(|n| n.id.clone()).collect();
-    assert_eq!(path_ids, vec!["REQ-1", "DEC-1", "ARCH-1", "CODE-1", "TEST-1", "SIGNAL-1", "OUTCOME-1"]);
+    assert_eq!(
+        path_ids,
+        vec![
+            "REQ-1",
+            "DEC-1",
+            "ARCH-1",
+            "CODE-1",
+            "TEST-1",
+            "SIGNAL-1",
+            "OUTCOME-1"
+        ]
+    );
 }

@@ -1,17 +1,61 @@
-use super::intent::QueryIntent;
 
 pub struct QueryParser;
 
 /// Common English words that should never be treated as code symbols
 const STOP_WORDS: &[&str] = &[
-    "explain", "provide", "trace", "find", "locate", "summarize", "identify",
-    "describe", "analyze", "impact", "analysis", "list", "show", "what", "where",
-    "which", "that", "from", "with", "this", "have", "does", "about", "into",
-    "would", "could", "should", "including", "affected", "responsible",
-    "comprehensive", "high", "level", "internal", "external", "downstream",
-    "components", "steps", "sequence", "initial", "utilized", "coordinates",
-    "execution", "extraction", "interfaces", "generating",
+    "explain",
+    "provide",
+    "trace",
+    "find",
+    "locate",
+    "summarize",
+    "identify",
+    "describe",
+    "analyze",
+    "impact",
+    "analysis",
+    "list",
+    "show",
+    "what",
+    "where",
+    "which",
+    "that",
+    "from",
+    "with",
+    "this",
+    "have",
+    "does",
+    "about",
+    "into",
+    "would",
+    "could",
+    "should",
+    "including",
+    "affected",
+    "responsible",
+    "comprehensive",
+    "high",
+    "level",
+    "internal",
+    "external",
+    "downstream",
+    "components",
+    "steps",
+    "sequence",
+    "initial",
+    "utilized",
+    "coordinates",
+    "execution",
+    "extraction",
+    "interfaces",
+    "generating",
 ];
+
+impl Default for QueryParser {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl QueryParser {
     pub fn new() -> Self {
@@ -41,20 +85,21 @@ impl QueryParser {
             // 1. Contains a path separator (., ::, /)
             // 2. Contains an underscore (snake_case)
             // 3. Has a mid-word uppercase letter (true CamelCase/PascalCase, not just "Explain")
-            let has_path_sep = word_clean.contains('.') || word_clean.contains("::") || word_clean.contains('/');
+            let has_path_sep =
+                word_clean.contains('.') || word_clean.contains("::") || word_clean.contains('/');
             let has_underscore = word_clean.contains('_');
             let is_true_camel_case = Self::is_camel_or_pascal_case(word_clean);
 
-            if has_path_sep || has_underscore || is_true_camel_case {
-                if seen.insert(word_clean.to_string()) {
+            if (has_path_sep || has_underscore || is_true_camel_case)
+                && seen.insert(word_clean.to_string()) {
                     targets.push(word_clean.to_string());
                 }
-            }
         }
 
         // Fallback: if no strict technical symbols found, extract long non-stop words
         if targets.is_empty() {
-            let mut long_words: Vec<&str> = words.iter()
+            let mut long_words: Vec<&str> = words
+                .iter()
                 .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()))
                 .filter(|w| w.len() > 5)
                 .filter(|w| !STOP_WORDS.contains(&w.to_lowercase().as_str()))

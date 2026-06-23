@@ -1,8 +1,9 @@
-use std::sync::Arc;
-use ares_core::AresError;
-use ares_store::Store;
-use ares_memory_intelligence::assembler::MemoryContextAssembler;
+#![allow(dead_code)]
 use crate::models::MemoryCertificationReport;
+use ares_core::AresError;
+use ares_memory_intelligence::assembler::MemoryContextAssembler;
+use ares_store::Store;
+use std::sync::Arc;
 
 pub struct ValidationRunner {
     store: Arc<Store>,
@@ -21,7 +22,7 @@ impl ValidationRunner {
     pub async fn run_certification(&self) -> Result<MemoryCertificationReport, AresError> {
         // Evaluate the canonical questions logic and metrics.
         let graph_integrity_passed = self.validate_graph_integrity()?;
-        
+
         let mut policy_score = 100.0;
         let mut governance_certified = true;
         let mut policy_drift = None;
@@ -39,7 +40,7 @@ impl ValidationRunner {
 
         let governance = ares_governance::GovernanceFacade::new(
             (*self.store).clone(),
-            std::path::PathBuf::from(project_path)
+            std::path::PathBuf::from(project_path),
         );
 
         if let Ok(cert) = governance.get_certification(&project_id).await {
@@ -53,17 +54,18 @@ impl ValidationRunner {
         }
 
         if let Ok(results) = governance.evaluate_project(&project_id).await {
-            let blocking_count = results.iter()
+            let blocking_count = results
+                .iter()
                 .flat_map(|r| &r.violations)
                 .filter(|v| v.enforcement == ares_governance::models::EnforcementAction::Block)
                 .count();
-            
+
             enforcement = Some(ares_governance::models::EnforcementReadiness {
                 ready: blocking_count == 0,
                 blocking_violations: blocking_count,
             });
         }
-        
+
         let mut report = MemoryCertificationReport {
             canonical_questions_passed: 10, // Assuming tests pass in CI, we evaluate platform capabilities
             total_questions: 10,
@@ -86,8 +88,8 @@ impl ValidationRunner {
         let no_drift = policy_drift.map(|d| !d.drift_detected).unwrap_or(true);
         let is_enforcement_ready = enforcement.map(|e| e.ready).unwrap_or(true);
 
-        report.certified = report.canonical_questions_passed == report.total_questions 
-            && report.replay_safe 
+        report.certified = report.canonical_questions_passed == report.total_questions
+            && report.replay_safe
             && report.graph_integrity_passed
             && report.governance_certified
             && no_drift
@@ -98,12 +100,13 @@ impl ValidationRunner {
 
     fn validate_graph_integrity(&self) -> Result<bool, AresError> {
         let conn = self.store.get_conn()?;
-        
+
         // Check for orphan edges
         let mut stmt = conn.prepare("SELECT COUNT(*) FROM graph_relationships WHERE source_entity NOT IN (SELECT id FROM graph_entities) OR target_entity NOT IN (SELECT id FROM graph_entities)")
             .map_err(|e| AresError::Database(e.to_string()))?;
-        
-        let orphan_count: i64 = stmt.query_row([], |row| row.get(0))
+
+        let orphan_count: i64 = stmt
+            .query_row([], |row| row.get(0))
             .map_err(|e| AresError::Database(e.to_string()))?;
 
         if orphan_count > 0 {
@@ -111,7 +114,7 @@ impl ValidationRunner {
         }
 
         // Add more integrity checks as requested: duplicate semantic edges, hierarchy violations.
-        
+
         Ok(true)
     }
 }

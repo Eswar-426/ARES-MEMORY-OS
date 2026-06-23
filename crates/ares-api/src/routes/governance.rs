@@ -21,19 +21,22 @@ pub async fn compliance(
     Path((project_id, node_id)): Path<(String, String)>,
 ) -> Result<Json<Vec<ares_governance::models::ComplianceResult>>, axum::http::StatusCode> {
     info!(%project_id, %node_id, "Compliance evaluation requested");
-    
+
     // In a real app we'd get MemoryFacade from state, but currently AppState might not have GovernanceFacade inside it.
     // Wait, the user's codebase creates MemoryFacade inline in create_router and doesn't store it in AppState.
     // I'll need to instantiate GovernanceFacade here OR add it to AppState.
     // It's better to add MemoryFacade or GovernanceFacade to AppState or create it on the fly.
     // Let's create it on the fly for now, as AppState just has `store` and `config`.
-    
+
     let governance = ares_governance::GovernanceFacade::new(
-        state.store.clone(), 
-        std::path::PathBuf::from(state.config.project_path.clone())
+        state.store.clone(),
+        std::path::PathBuf::from(state.config.project_path.clone()),
     );
-    
-    match governance.is_compliant(&ProjectId::from(project_id), &NodeId::from(node_id)).await {
+
+    match governance
+        .is_compliant(&ProjectId::from(project_id), &NodeId::from(node_id))
+        .await
+    {
         Ok(results) => Ok(Json(results)),
         Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
     }
@@ -52,11 +55,14 @@ pub async fn certification(
     Path(project_id): Path<String>,
 ) -> Result<Json<ares_governance::models::GovernanceCertification>, axum::http::StatusCode> {
     let governance = ares_governance::GovernanceFacade::new(
-        state.store.clone(), 
-        std::path::PathBuf::from(state.config.project_path.clone())
+        state.store.clone(),
+        std::path::PathBuf::from(state.config.project_path.clone()),
     );
-    
-    match governance.get_certification(&ProjectId::from(project_id)).await {
+
+    match governance
+        .get_certification(&ProjectId::from(project_id))
+        .await
+    {
         Ok(cert) => Ok(Json(cert)),
         Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
     }
@@ -75,10 +81,10 @@ pub async fn scorecard(
     Path(project_id): Path<String>,
 ) -> Result<Json<ares_governance::models::GovernanceScorecard>, axum::http::StatusCode> {
     let governance = ares_governance::GovernanceFacade::new(
-        state.store.clone(), 
-        std::path::PathBuf::from(state.config.project_path.clone())
+        state.store.clone(),
+        std::path::PathBuf::from(state.config.project_path.clone()),
     );
-    
+
     match governance.get_scorecard(&ProjectId::from(project_id)).await {
         Ok(scorecard) => Ok(Json(scorecard)),
         Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
@@ -98,10 +104,10 @@ pub async fn policies(
     Path(_project_id): Path<String>,
 ) -> Result<Json<Vec<ares_governance::models::PolicyVersion>>, axum::http::StatusCode> {
     let governance = ares_governance::GovernanceFacade::new(
-        state.store.clone(), 
-        std::path::PathBuf::from(state.config.project_path.clone())
+        state.store.clone(),
+        std::path::PathBuf::from(state.config.project_path.clone()),
     );
-    
+
     Ok(Json(governance.get_policies().await))
 }
 
@@ -118,10 +124,10 @@ pub async fn dashboard(
     Path(project_id): Path<String>,
 ) -> Result<Json<ares_governance::models::GovernanceDashboard>, axum::http::StatusCode> {
     let governance = ares_governance::GovernanceFacade::new(
-        state.store.clone(), 
-        std::path::PathBuf::from(state.config.project_path.clone())
+        state.store.clone(),
+        std::path::PathBuf::from(state.config.project_path.clone()),
     );
-    
+
     match governance.get_dashboard(&ProjectId::from(project_id)).await {
         Ok(dash) => Ok(Json(dash)),
         Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
@@ -141,10 +147,10 @@ pub async fn drift(
     Path(project_id): Path<String>,
 ) -> Result<Json<ares_governance::models::PolicyDriftStatus>, axum::http::StatusCode> {
     let governance = ares_governance::GovernanceFacade::new(
-        state.store.clone(), 
-        std::path::PathBuf::from(state.config.project_path.clone())
+        state.store.clone(),
+        std::path::PathBuf::from(state.config.project_path.clone()),
     );
-    
+
     match governance.detect_drift(&ProjectId::from(project_id)).await {
         Ok(status) => Ok(Json(status)),
         Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
@@ -164,10 +170,10 @@ pub async fn exemptions(
     Path(_project_id): Path<String>,
 ) -> Result<Json<Vec<ares_governance::models::PolicyExemption>>, axum::http::StatusCode> {
     let governance = ares_governance::GovernanceFacade::new(
-        state.store.clone(), 
-        std::path::PathBuf::from(state.config.project_path.clone())
+        state.store.clone(),
+        std::path::PathBuf::from(state.config.project_path.clone()),
     );
-    
+
     match governance.get_exemptions().await {
         Ok(exemptions) => Ok(Json(exemptions)),
         Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
@@ -198,9 +204,10 @@ pub async fn explain(
         enforcement: ares_governance::models::EnforcementAction::Block,
         category: ares_governance::models::PolicyCategory::Architecture,
     };
-    
+
     // In the future this might pull the actual stored violation if it has dynamic evidence.
-    let explanation = ares_governance::explainability::explainer::GovernanceExplainer::explain(&fake_violation);
-    
+    let explanation =
+        ares_governance::explainability::explainer::GovernanceExplainer::explain(&fake_violation);
+
     Ok(Json(explanation))
 }

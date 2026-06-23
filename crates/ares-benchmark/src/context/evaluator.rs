@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
-use ares_context::models::pack::ContextPack;
 use super::dataset::BenchmarkQuery;
+use ares_context::models::pack::ContextPack;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -43,7 +43,11 @@ impl ContextEvaluator {
 
         // Calculate Precision
         let precision = if actual_set.is_empty() {
-            if expected_set.is_empty() { 1.0 } else { 0.0 }
+            if expected_set.is_empty() {
+                1.0
+            } else {
+                0.0
+            }
         } else {
             let intersection = expected_set.intersection(&actual_set).count();
             intersection as f32 / actual_set.len() as f32

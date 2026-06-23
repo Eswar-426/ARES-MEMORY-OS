@@ -19,11 +19,11 @@ fn mock_node() -> GraphNode {
 fn test_distance_scoring() {
     let scorer = DistanceScorer::new();
     let node = mock_node();
-    
+
     let d0 = scorer.score(&node, 0);
     let d1 = scorer.score(&node, 1);
     let d2 = scorer.score(&node, 2);
-    
+
     assert_eq!(d0, 1.0);
     assert_eq!(d1, 0.5);
     assert_eq!(d2, 0.25);

@@ -1,4 +1,4 @@
-use super::models::{Worker, WorkerStatus, WorkerResources};
+use super::models::{Worker, WorkerResources, WorkerStatus};
 use ares_core::AresError;
 use ares_store::db::Store;
 use rusqlite::params;
@@ -54,14 +54,13 @@ impl WorkerRepository {
             let labels = serde_json::from_str(&labels_json).unwrap_or_default();
             let status = serde_json::from_str(&format!("\"{}\"", status_str))
                 .unwrap_or(WorkerStatus::Offline);
-            let resources =
-                serde_json::from_str(&resources_json).unwrap_or(WorkerResources {
-                    cpu: 0.0,
-                    memory: 0,
-                    disk: 0,
-                    available_cpu: 0.0,
-                    available_memory: 0,
-                });
+            let resources = serde_json::from_str(&resources_json).unwrap_or(WorkerResources {
+                cpu: 0.0,
+                memory: 0,
+                disk: 0,
+                available_cpu: 0.0,
+                available_memory: 0,
+            });
 
             Ok(Some(Worker {
                 id: row.get(0).map_err(AresError::db)?,
@@ -113,15 +112,13 @@ impl WorkerRepository {
                 let labels = serde_json::from_str(&labels_json).unwrap_or_default();
                 let status = serde_json::from_str(&format!("\"{}\"", status_str))
                     .unwrap_or(WorkerStatus::Offline);
-                let resources = serde_json::from_str(&resources_json).unwrap_or(
-                    WorkerResources {
-                        cpu: 0.0,
-                        memory: 0,
-                        disk: 0,
-                        available_cpu: 0.0,
-                        available_memory: 0,
-                    },
-                );
+                let resources = serde_json::from_str(&resources_json).unwrap_or(WorkerResources {
+                    cpu: 0.0,
+                    memory: 0,
+                    disk: 0,
+                    available_cpu: 0.0,
+                    available_memory: 0,
+                });
 
                 Ok(Worker {
                     id: row.get(0)?,

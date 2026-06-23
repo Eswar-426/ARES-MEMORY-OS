@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
+use super::{DependencyTrace, FileExplanation, ImpactReport, RepositoryInsight};
 use ares_core::GraphNode;
-use super::{ImpactReport, DependencyTrace, FileExplanation, RepositoryInsight};
+use serde::{Deserialize, Serialize};
 
 /// A ContextBundle aggregates various context objects for consumption.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

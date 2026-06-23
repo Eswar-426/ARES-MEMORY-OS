@@ -1,8 +1,8 @@
+use crate::models::BreakageReport;
+use crate::path_engine::PathEngine;
 use ares_core::types::node::NodeType;
 use ares_core::AresError;
 use ares_store::Store;
-use crate::models::BreakageReport;
-use crate::path_engine::PathEngine;
 
 pub struct BreakageEngine {
     path_engine: PathEngine,

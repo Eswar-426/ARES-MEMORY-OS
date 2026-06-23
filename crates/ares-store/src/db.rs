@@ -69,21 +69,27 @@ impl Store {
     pub fn graph_metrics(&self) -> Result<crate::metrics::GraphMetrics, AresError> {
         let conn = self.get_conn()?;
 
-        let total_nodes: usize = conn.query_row(
-            "SELECT COUNT(*) FROM graph_nodes WHERE deleted_at IS NULL",
-            (),
-            |row| row.get(0),
-        ).map_err(|e| AresError::db(e.to_string()))?;
+        let total_nodes: usize = conn
+            .query_row(
+                "SELECT COUNT(*) FROM graph_nodes WHERE deleted_at IS NULL",
+                (),
+                |row| row.get(0),
+            )
+            .map_err(|e| AresError::db(e.to_string()))?;
 
-        let total_edges: usize = conn.query_row(
-            "SELECT COUNT(*) FROM graph_edges WHERE valid_until IS NULL",
-            (),
-            |row| row.get(0),
-        ).map_err(|e| AresError::db(e.to_string()))?;
+        let total_edges: usize = conn
+            .query_row(
+                "SELECT COUNT(*) FROM graph_edges WHERE valid_until IS NULL",
+                (),
+                |row| row.get(0),
+            )
+            .map_err(|e| AresError::db(e.to_string()))?;
 
         // Calculate orphans efficiently in Rust instead of a nested loop in SQL without index
         let mut all_nodes = std::collections::HashSet::new();
-        let mut stmt = conn.prepare("SELECT id FROM graph_nodes WHERE deleted_at IS NULL").unwrap();
+        let mut stmt = conn
+            .prepare("SELECT id FROM graph_nodes WHERE deleted_at IS NULL")
+            .unwrap();
         let mut rows = stmt.query(()).unwrap();
         while let Some(row) = rows.next().unwrap() {
             let id: String = row.get(0).unwrap();
@@ -91,7 +97,9 @@ impl Store {
         }
 
         let mut connected_nodes = std::collections::HashSet::new();
-        let mut stmt = conn.prepare("SELECT from_node_id, to_node_id FROM graph_edges WHERE valid_until IS NULL").unwrap();
+        let mut stmt = conn
+            .prepare("SELECT from_node_id, to_node_id FROM graph_edges WHERE valid_until IS NULL")
+            .unwrap();
         let mut rows = stmt.query(()).unwrap();
         while let Some(row) = rows.next().unwrap() {
             let from: String = row.get(0).unwrap();
@@ -121,10 +129,13 @@ impl Store {
         }
 
         // Compute largest connected component in memory using BFS/Union-Find
-        let mut parent: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        let mut parent: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
         let mut size: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
-        
-        let mut stmt = conn.prepare("SELECT id FROM graph_nodes WHERE deleted_at IS NULL").map_err(|e| AresError::db(e.to_string()))?;
+
+        let mut stmt = conn
+            .prepare("SELECT id FROM graph_nodes WHERE deleted_at IS NULL")
+            .map_err(|e| AresError::db(e.to_string()))?;
         let mut rows = stmt.query(()).map_err(|e| AresError::db(e.to_string()))?;
         while let Some(row) = rows.next().map_err(|e| AresError::db(e.to_string()))? {
             let id: String = row.get(0).unwrap();
@@ -143,7 +154,9 @@ impl Store {
             curr
         }
 
-        let mut stmt = conn.prepare("SELECT from_node_id, to_node_id FROM graph_edges WHERE valid_until IS NULL").map_err(|e| AresError::db(e.to_string()))?;
+        let mut stmt = conn
+            .prepare("SELECT from_node_id, to_node_id FROM graph_edges WHERE valid_until IS NULL")
+            .map_err(|e| AresError::db(e.to_string()))?;
         let mut rows = stmt.query(()).map_err(|e| AresError::db(e.to_string()))?;
         while let Some(row) = rows.next().map_err(|e| AresError::db(e.to_string()))? {
             let s: String = row.get(0).unwrap();
@@ -166,7 +179,7 @@ impl Store {
         }
 
         let largest_connected_component = size.values().copied().max().unwrap_or(0);
-        
+
         let average_degree = if total_nodes > 0 {
             (total_edges as f64 * 2.0) / (total_nodes as f64)
         } else {

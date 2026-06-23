@@ -1,8 +1,8 @@
+use crate::models::WhyReport;
+use crate::path_engine::PathEngine;
 use ares_core::types::node::NodeType;
 use ares_core::AresError;
 use ares_store::Store;
-use crate::models::WhyReport;
-use crate::path_engine::PathEngine;
 
 pub struct WhyEngine {
     path_engine: PathEngine,
@@ -51,17 +51,29 @@ impl WhyEngine {
             crate::models::TraceStatus::Complete => 0.95,
             crate::models::TraceStatus::Partial => {
                 let mut score = 0.30;
-                if !requirements.is_empty() { score += 0.25; }
-                if !decisions.is_empty() { score += 0.20; }
-                if !architectures.is_empty() { score += 0.15; }
+                if !requirements.is_empty() {
+                    score += 0.25;
+                }
+                if !decisions.is_empty() {
+                    score += 0.20;
+                }
+                if !architectures.is_empty() {
+                    score += 0.15;
+                }
                 score
             }
             crate::models::TraceStatus::Orphaned => 0.10,
             crate::models::TraceStatus::GapDetected => {
                 let mut score = 0.20;
-                if !requirements.is_empty() { score += 0.25; }
-                if !decisions.is_empty() { score += 0.15; }
-                if !architectures.is_empty() { score += 0.10; }
+                if !requirements.is_empty() {
+                    score += 0.25;
+                }
+                if !decisions.is_empty() {
+                    score += 0.15;
+                }
+                if !architectures.is_empty() {
+                    score += 0.10;
+                }
                 score
             }
         };

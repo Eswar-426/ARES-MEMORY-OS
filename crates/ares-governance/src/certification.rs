@@ -1,4 +1,4 @@
-use crate::models::{ComplianceResult, GovernanceCertification, GovernanceScorecard};
+use crate::models::{ComplianceResult, GovernanceCertification};
 use crate::scorecard::calculate_scorecard;
 use chrono::Utc;
 use uuid::Uuid;
@@ -15,7 +15,7 @@ pub fn compute_certification(
     }
 
     let policy_score = scorecard.overall_score;
-    
+
     // Find the minimum category score
     let min_score = [
         scorecard.ownership_score,

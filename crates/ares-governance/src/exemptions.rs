@@ -1,8 +1,8 @@
-use std::path::{Path, PathBuf};
-use serde::{Deserialize, Serialize};
-use crate::models::{PolicyExemption, ComplianceViolation};
+use crate::models::{ComplianceViolation, PolicyExemption};
 use ares_core::AresError;
-use tracing::{info, warn, error};
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use tracing::{error, info, warn};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct ExemptionWrapper {
@@ -29,8 +29,9 @@ impl ExemptionEngine {
         }
 
         let mut exemptions = Vec::new();
-        let mut entries = tokio::fs::read_dir(&dir).await
-            .map_err(|e| AresError::Io(e))?;
+        let mut entries = tokio::fs::read_dir(&dir)
+            .await
+            .map_err(AresError::Io)?;
 
         let now = chrono::Utc::now();
 
@@ -46,7 +47,10 @@ impl ExemptionEngine {
                                 if ex.expires_at > now {
                                     exemptions.push(ex);
                                 } else {
-                                    info!("Exemption {} expired on {}, skipping.", ex.id, ex.expires_at);
+                                    info!(
+                                        "Exemption {} expired on {}, skipping.",
+                                        ex.id, ex.expires_at
+                                    );
                                 }
                             }
                             Err(e) => {
@@ -64,23 +68,32 @@ impl ExemptionEngine {
         Ok(exemptions)
     }
 
-    pub fn filter_violations(&self, violations: Vec<ComplianceViolation>, exemptions: &[PolicyExemption]) -> Vec<ComplianceViolation> {
-        violations.into_iter().filter(|v| {
-            // Check if violation is exempted
-            let is_exempted = exemptions.iter().any(|ex| {
-                let matches_rule = ex.target_rules.is_empty() || ex.target_rules.contains(&v.policy_name);
-                let matches_node = ex.target_nodes.is_empty() || ex.target_nodes.contains(&v.node_id);
-                
-                // If both rule and node constraints are empty, it's a global exemption (unlikely, but handled).
-                // Usually an exemption targets specific rules or specific nodes or both.
-                if ex.target_rules.is_empty() && ex.target_nodes.is_empty() {
-                    false // Don't allow blank exemptions to bypass everything
-                } else {
-                    matches_rule && matches_node
-                }
-            });
+    pub fn filter_violations(
+        &self,
+        violations: Vec<ComplianceViolation>,
+        exemptions: &[PolicyExemption],
+    ) -> Vec<ComplianceViolation> {
+        violations
+            .into_iter()
+            .filter(|v| {
+                // Check if violation is exempted
+                let is_exempted = exemptions.iter().any(|ex| {
+                    let matches_rule =
+                        ex.target_rules.is_empty() || ex.target_rules.contains(&v.policy_name);
+                    let matches_node =
+                        ex.target_nodes.is_empty() || ex.target_nodes.contains(&v.node_id);
 
-            !is_exempted
-        }).collect()
+                    // If both rule and node constraints are empty, it's a global exemption (unlikely, but handled).
+                    // Usually an exemption targets specific rules or specific nodes or both.
+                    if ex.target_rules.is_empty() && ex.target_nodes.is_empty() {
+                        false // Don't allow blank exemptions to bypass everything
+                    } else {
+                        matches_rule && matches_node
+                    }
+                });
+
+                !is_exempted
+            })
+            .collect()
     }
 }

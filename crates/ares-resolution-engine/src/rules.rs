@@ -12,7 +12,7 @@ impl ResolutionRuleEngine {
     pub fn get_template(&self, gap_type: &GapType, root_cause: &RootCause) -> ResolutionTemplate {
         // Deterministic mapping based on RootCause and GapType.
         // As defined by architecture guidelines.
-        
+
         let actions = match root_cause {
             RootCause::GovernanceFailure => vec![
                 ResolutionActionType::AssignOwner,
@@ -27,19 +27,13 @@ impl ResolutionRuleEngine {
                 ResolutionActionType::UpdateDocumentation,
                 ResolutionActionType::AddEvidence,
             ],
-            RootCause::ValidationFailure => vec![
-                ResolutionActionType::CreateValidation,
-            ],
-            RootCause::OwnershipFailure => vec![
-                ResolutionActionType::AssignOwner,
-            ],
+            RootCause::ValidationFailure => vec![ResolutionActionType::CreateValidation],
+            RootCause::OwnershipFailure => vec![ResolutionActionType::AssignOwner],
             RootCause::MemoryDecay => vec![
                 ResolutionActionType::ReviewEntity,
                 ResolutionActionType::UpdateDocumentation,
             ],
-            RootCause::ProcessDrift => vec![
-                ResolutionActionType::GovernanceReview,
-            ],
+            RootCause::ProcessDrift => vec![ResolutionActionType::GovernanceReview],
         };
 
         // Customise template title based on GapType

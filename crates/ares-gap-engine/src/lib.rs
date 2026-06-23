@@ -1,7 +1,7 @@
-pub mod models;
-pub mod detectors;
-pub mod reasoning;
-pub mod prioritization;
 pub mod clustering;
-pub mod trends;
+pub mod detectors;
 pub mod engine;
+pub mod models;
+pub mod prioritization;
+pub mod reasoning;
+pub mod trends;

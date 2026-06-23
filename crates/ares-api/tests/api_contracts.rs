@@ -1,4 +1,4 @@
-use ares_api::models::{ApiResponse, ApiErrorEnvelope};
+use ares_api::models::{ApiErrorEnvelope, ApiResponse};
 use serde_json::Value;
 
 #[test]

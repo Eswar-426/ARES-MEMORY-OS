@@ -14,7 +14,7 @@ impl AgentRunner for PlannerAgentStub {
         // Stub simulates task decomposition and perfectly finding the expected files
         let mut retrieved_files = task.expected_files.clone();
         let retrieved_components = task.expected_components.clone();
-        
+
         // Add a little bit of noise just to make it realistic (a planner isn't 100% perfect always, but for now we mock it as very high performing)
         if !retrieved_files.contains(&"src/lib.rs".to_string()) {
             retrieved_files.push("src/lib.rs".to_string());
@@ -33,8 +33,8 @@ impl AgentRunner for PlannerAgentStub {
             recall_score: 0.0,
             confidence_score: 0.0,
             overall_score: 0.0,
-            graph_coverage: 1.0, 
-            context_efficiency: 1.0, 
+            graph_coverage: 1.0,
+            context_efficiency: 1.0,
             reasoning_accuracy: 1.0,
             reasoning_coverage: 1.0,
             reasoning_precision: 1.0,
