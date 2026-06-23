@@ -1,0 +1,90 @@
+[
+  {
+    "name": "ARES",
+    "tier": "A",
+    "success": true,
+    "time_ms": 1786,
+    "rss_mb": 19.89453125,
+    "node_count": 0,
+    "edge_count": 0,
+    "gap_count": 0,
+    "traceability_score": 0.0
+  },
+  {
+    "name": "Automyra",
+    "tier": "A",
+    "success": true,
+    "time_ms": 158,
+    "rss_mb": 8.68359375,
+    "node_count": 0,
+    "edge_count": 0,
+    "gap_count": 0,
+    "traceability_score": 0.0
+  },
+  {
+    "name": "ripgrep",
+    "tier": "B",
+    "success": true,
+    "time_ms": 194,
+    "rss_mb": 12.2890625,
+    "node_count": 0,
+    "edge_count": 0,
+    "gap_count": 0,
+    "traceability_score": 0.0
+  },
+  {
+    "name": "cargo-watch",
+    "tier": "B",
+    "success": true,
+    "time_ms": 139,
+    "rss_mb": 9.31640625,
+    "node_count": 0,
+    "edge_count": 0,
+    "gap_count": 0,
+    "traceability_score": 0.0
+  },
+  {
+    "name": "Next.js",
+    "tier": "B",
+    "success": true,
+    "time_ms": 21907,
+    "rss_mb": 71.20703125,
+    "node_count": 0,
+    "edge_count": 0,
+    "gap_count": 0,
+    "traceability_score": 0.0
+  },
+  {
+    "name": "NestJS",
+    "tier": "B",
+    "success": true,
+    "time_ms": 814,
+    "rss_mb": 23.0625,
+    "node_count": 0,
+    "edge_count": 0,
+    "gap_count": 0,
+    "traceability_score": 0.0
+  },
+  {
+    "name": "Turborepo",
+    "tier": "B",
+    "success": true,
+    "time_ms": 2587,
+    "rss_mb": 29.5703125,
+    "node_count": 0,
+    "edge_count": 0,
+    "gap_count": 0,
+    "traceability_score": 0.0
+  },
+  {
+    "name": "Nx Workspace",
+    "tier": "B",
+    "success": true,
+    "time_ms": 5829,
+    "rss_mb": 37.98046875,
+    "node_count": 0,
+    "edge_count": 0,
+    "gap_count": 0,
+    "traceability_score": 0.0
+  }
+]

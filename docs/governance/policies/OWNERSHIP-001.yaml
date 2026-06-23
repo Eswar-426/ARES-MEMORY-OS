@@ -1,0 +1,16 @@
+api_version: v1
+kind: Policy
+metadata:
+  name: OWNERSHIP-001
+  version: "1.0"
+  description: "Blocks missing owner"
+  category: Ownership
+  enforcement: Block
+spec:
+  rules:
+    - name: "Require Owner for Requirements"
+      severity: Critical
+      condition: missing_owner
+      target:
+        - requirement
+      enforcement: Block
