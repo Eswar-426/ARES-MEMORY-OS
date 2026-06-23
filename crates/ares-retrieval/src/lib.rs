@@ -1,7 +1,5 @@
-#[deprecated(
-    since = "0.1.0",
-    note = "Legacy retrieval layer. Use `memory` instead."
-)]
-pub mod legacy;
-
-pub mod memory;
+pub mod context_builder;
+pub mod memory_retrieval_engine;
+pub mod models;
+pub mod query_engine;
+pub mod retrieval_ranking_engine;

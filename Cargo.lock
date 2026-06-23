@@ -888,24 +888,15 @@ name = "ares-retrieval"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "ares-agent",
  "ares-core",
- "ares-decision-intelligence",
- "ares-embeddings",
- "ares-gap-engine",
- "ares-knowledge",
- "ares-memory-intelligence",
- "ares-project-memory",
- "ares-requirements",
- "ares-resolution-engine",
  "ares-store",
- "ares-traceability",
  "chrono",
  "serde",
  "serde_json",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
+ "tracing",
  "uuid",
 ]
 
