@@ -28,3 +28,22 @@ pub use conflict::{ConflictType, DecisionConflict};
 pub use decision_dna::DecisionDNA;
 pub use review_trigger::ReviewTriggerNode;
 pub use risk::RiskNode;
+
+// Legacy Test Shims
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Decision { pub id: String }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DecisionConfidence {}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DecisionEvidence {}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DecisionOutcome {}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct EvidenceSource {}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct OutcomeType {}

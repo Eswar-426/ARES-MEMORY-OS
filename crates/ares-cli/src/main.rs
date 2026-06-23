@@ -2,6 +2,11 @@
 pub mod commands;
 use ares_core::AresError;
 use clap::{Parser, Subcommand};
+use ares_memory_server::initializer::RepositoryInitializer;
+use ares_memory_server::scanner::RepositoryScanner;
+use ares_memory_server::builder::RepositoryBuilder;
+use ares_memory_server::server::RepositoryServer;
+use std::env;
 // We would initialize full dependencies here
 
 #[derive(Parser)]
@@ -68,6 +73,16 @@ enum Commands {
     WhatBreaks { target_id: String },
     /// Memory Gap Detection
     Gaps,
+
+    // --- P11 Production Memory Server ---
+    /// Initialize ARES for this repository
+    Init,
+    /// Scan the repository
+    Scan,
+    /// Build the memory graph
+    Build,
+    /// Serve the API
+    Serve,
 }
 
 #[derive(Subcommand)]
@@ -362,6 +377,26 @@ async fn main() -> Result<(), AresError> {
         }
         Commands::Gaps => {
             commands::reasoning::handle_gaps().await?;
+        }
+        Commands::Init => {
+            let path = env::current_dir().unwrap();
+            RepositoryInitializer::init(&path)?;
+            println!("Initialized ARES Repository Memory Operating System in {:?}", path);
+        }
+        Commands::Scan => {
+            let path = env::current_dir().unwrap();
+            RepositoryScanner::scan(&path)?;
+            println!("Repository scanning completed.");
+        }
+        Commands::Build => {
+            let path = env::current_dir().unwrap();
+            RepositoryBuilder::build(&path)?;
+            println!("Memory building completed.");
+        }
+        Commands::Serve => {
+            let path = env::current_dir().unwrap();
+            RepositoryServer::serve(&path)?;
+            println!("API Server started on port 3000.");
         }
     }
 

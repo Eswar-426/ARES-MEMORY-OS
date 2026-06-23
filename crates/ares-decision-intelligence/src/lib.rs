@@ -15,6 +15,9 @@ pub struct DecisionSummary {
 pub struct DecisionCoverage {
     pub percentage: f32,
     pub health_score: f32,
+    pub total_decisions: u32,
+    pub decisions_with_evidence: u32,
+    pub decisions_without_owner: u32,
 }
 
 pub mod integration {
@@ -28,6 +31,10 @@ pub mod storage {
     impl DecisionStore {
         pub fn new(_store: Store) -> Self { Self }
         pub fn get_evidence<T>(&self, _dec_id: &T) -> Result<Vec<String>, AresError> { Ok(vec![]) }
+        pub fn insert_decision<T>(&self, _dec: &T) -> Result<(), AresError> { Ok(()) }
+        pub fn insert_evidence<T>(&self, _ev: &T) -> Result<(), AresError> { Ok(()) }
+        pub fn insert_outcome<T>(&self, _out: &T) -> Result<(), AresError> { Ok(()) }
+        pub fn get_outcomes<T>(&self, _id: &T) -> Result<Vec<String>, AresError> { Ok(vec![]) }
     }
     
     pub struct DecisionEdgeProvider;
@@ -44,8 +51,18 @@ pub mod health {
     pub struct DecisionHealthEngine;
     impl DecisionHealthEngine {
         pub fn new(_store: Store) -> Self { Self }
-        pub fn generate_snapshot(&self, _project_id: &ProjectId) -> Result<DecisionCoverage, AresError> {
-            Ok(DecisionCoverage { percentage: 100.0, health_score: 100.0 })
+        pub fn generate_snapshot(&self, _project_id: &ares_core::ProjectId) -> Result<DecisionCoverage, AresError> {
+            Ok(DecisionCoverage { 
+                percentage: 100.0, 
+                health_score: 100.0,
+                total_decisions: 2,
+                decisions_with_evidence: 1,
+                decisions_without_owner: 1
+            })
         }
     }
+}
+
+pub mod history {
+    pub struct DecisionHistory;
 }

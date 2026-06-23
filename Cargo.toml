@@ -37,7 +37,7 @@ members = [
     "crates/ares-memory-evolution",
     "crates/ares-validation",
     "crates/ares-cli"
-, "crates/ares-governance", "crates/ares-pr-engine", "crates/ares-ingestion", "crates/ares-candidates", "crates/ares-evolution", "crates/ares-completeness", "crates/ares-knowledge-gap", "crates/ares-repository-intelligence", "crates/ares-query"]
+, "crates/ares-governance", "crates/ares-pr-engine", "crates/ares-ingestion", "crates/ares-candidates", "crates/ares-evolution", "crates/ares-completeness", "crates/ares-knowledge-gap", "crates/ares-repository-intelligence", "crates/ares-query", "crates/ares-memory-server"]
 resolver = "2"
 
 [workspace.package]

@@ -324,6 +324,7 @@ dependencies = [
  "ares-ingestion",
  "ares-knowledge-graph",
  "ares-memory-intelligence",
+ "ares-memory-server",
  "ares-pr-engine",
  "ares-reasoning",
  "ares-requirements",
@@ -727,6 +728,32 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "ares-memory-server"
+version = "0.1.0"
+dependencies = [
+ "ares-completeness",
+ "ares-core",
+ "ares-decision-intelligence",
+ "ares-evolution",
+ "ares-governance",
+ "ares-knowledge-gap",
+ "ares-query",
+ "ares-reasoning",
+ "ares-repository-intelligence",
+ "ares-retrieval",
+ "ares-scanner",
+ "ares-store",
+ "ares-traceability",
+ "chrono",
+ "serde",
+ "serde_json",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
