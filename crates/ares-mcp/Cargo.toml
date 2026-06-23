@@ -34,3 +34,4 @@ ares-traceability = { version = "0.1.0", path = "../ares-traceability" }
 
 [dev-dependencies]
 tempfile   = { workspace = true }
+ares-query = { path = "../ares-query" }

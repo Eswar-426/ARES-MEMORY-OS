@@ -34,3 +34,4 @@ ares-git-memory = { version = "0.1.0", path = "../ares-git-memory" }
 [[bin]]
 name = "ares"
 path = "src/main.rs"
+ares-query = { path = "../ares-query" }

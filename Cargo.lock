@@ -217,6 +217,7 @@ dependencies = [
  "ares-orchestrator",
  "ares-planner",
  "ares-project-memory",
+ "ares-query",
  "ares-requirements",
  "ares-store",
  "ares-validation",
@@ -461,10 +462,12 @@ dependencies = [
  "ares-evolution",
  "ares-retrieval",
  "ares-store",
+ "ares-traceability",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
  "tokio",
+ "utoipa",
  "uuid",
 ]
 
@@ -670,6 +673,7 @@ dependencies = [
  "ares-memory-intelligence",
  "ares-planner",
  "ares-project-memory",
+ "ares-query",
  "ares-requirements",
  "ares-store",
  "ares-traceability",
@@ -849,6 +853,27 @@ dependencies = [
  "utoipa",
  "uuid",
  "walkdir",
+]
+
+[[package]]
+name = "ares-query"
+version = "0.1.0"
+dependencies = [
+ "ares-completeness",
+ "ares-core",
+ "ares-decision-intelligence",
+ "ares-governance",
+ "ares-knowledge-gap",
+ "ares-repository-intelligence",
+ "ares-retrieval",
+ "ares-store",
+ "ares-traceability",
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]

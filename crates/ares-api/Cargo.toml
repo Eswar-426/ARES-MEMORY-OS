@@ -53,3 +53,4 @@ tower = { workspace = true, features = ["util"] }
 tempfile = { workspace = true }
 rusqlite = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+ares-query = { path = "../ares-query" }

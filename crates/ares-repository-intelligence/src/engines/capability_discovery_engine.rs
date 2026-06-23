@@ -15,7 +15,9 @@ impl<'a> CapabilityDiscoveryEngine<'a> {
         &self,
         project_id: &ProjectId,
     ) -> Result<CapabilityMap, AresError> {
-        let reqs = self.retrieval.find_by_type(project_id, NodeType::Requirement)?;
+        let reqs = self
+            .retrieval
+            .find_by_type(project_id, NodeType::Requirement)?;
         let mut caps = Vec::new();
 
         for req in reqs.into_iter() {
