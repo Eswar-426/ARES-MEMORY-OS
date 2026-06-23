@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use ares_core::NodeId;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ConflictType {

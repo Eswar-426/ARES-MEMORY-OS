@@ -1,11 +1,11 @@
-pub mod decision_dna;
-pub mod conflict;
 pub mod assumption;
-pub mod risk;
+pub mod conflict;
+pub mod decision_dna;
 pub mod review_trigger;
+pub mod risk;
 
-pub use decision_dna::DecisionDNA;
-pub use conflict::{DecisionConflict, ConflictType};
 pub use assumption::AssumptionNode;
-pub use risk::RiskNode;
+pub use conflict::{ConflictType, DecisionConflict};
+pub use decision_dna::DecisionDNA;
 pub use review_trigger::ReviewTriggerNode;
+pub use risk::RiskNode;

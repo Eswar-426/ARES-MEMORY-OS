@@ -1,5 +1,5 @@
-use ares_core::types::node::GraphNode;
 use crate::models::{RankingWeights, RetrievalResult};
+use ares_core::types::node::GraphNode;
 
 pub struct RetrievalRankingEngine {
     weights: RankingWeights,
@@ -12,16 +12,23 @@ impl RetrievalRankingEngine {
 
     /// Ranks a list of nodes based on deterministic graph scoring factors
     pub fn rank_nodes(&self, nodes: &[GraphNode]) -> Vec<RetrievalResult> {
-        let mut results: Vec<RetrievalResult> = nodes.iter().map(|n| {
-            let score = self.calculate_node_score(n);
-            RetrievalResult {
-                node: n.clone(),
-                score,
-            }
-        }).collect();
+        let mut results: Vec<RetrievalResult> = nodes
+            .iter()
+            .map(|n| {
+                let score = self.calculate_node_score(n);
+                RetrievalResult {
+                    node: n.clone(),
+                    score,
+                }
+            })
+            .collect();
 
         // Sort descending by score
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         results
     }
 
@@ -35,7 +42,7 @@ impl RetrievalRankingEngine {
             }
         }
 
-        // Traceability factor: just a mock representation. 
+        // Traceability factor: just a mock representation.
         // Real implementation would look at edge count in a memory-cached graph view.
         if node.properties.get("traceability_score").is_some() {
             total += self.weights.traceability;

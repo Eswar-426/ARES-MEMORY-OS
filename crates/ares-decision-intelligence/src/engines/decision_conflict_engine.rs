@@ -1,6 +1,6 @@
-use ares_core::{AresError, NodeId, EdgeDirection, EdgeType};
+use crate::models::{ConflictType, DecisionConflict};
+use ares_core::{AresError, EdgeDirection, EdgeType, NodeId};
 use ares_retrieval::memory_retrieval_engine::MemoryRetrievalEngine;
-use crate::models::{DecisionConflict, ConflictType};
 
 pub struct DecisionConflictEngine<'a> {
     retrieval_engine: &'a MemoryRetrievalEngine,
@@ -11,9 +11,12 @@ impl<'a> DecisionConflictEngine<'a> {
         Self { retrieval_engine }
     }
 
-    pub fn detect_conflicts(&self, decision_id: &NodeId) -> Result<Vec<DecisionConflict>, AresError> {
+    pub fn detect_conflicts(
+        &self,
+        decision_id: &NodeId,
+    ) -> Result<Vec<DecisionConflict>, AresError> {
         let mut conflicts = Vec::new();
-        
+
         let contradictions = self.retrieval_engine.get_neighborhood(
             &decision_id.to_string(),
             EdgeDirection::Both,
@@ -28,16 +31,19 @@ impl<'a> DecisionConflictEngine<'a> {
                 rationale: "Decisions have a direct contradicts edge".into(),
             });
         }
-        
+
         let superseded_by = self.retrieval_engine.get_neighborhood(
             &decision_id.to_string(),
             EdgeDirection::Incoming,
             &[EdgeType::Supersedes],
         )?;
-        
-        let node = self.retrieval_engine.get_node(&decision_id.to_string())?.unwrap();
+
+        let node = self
+            .retrieval_engine
+            .get_node(&decision_id.to_string())?
+            .unwrap();
         let is_active = node.properties.get("status").and_then(|v| v.as_str()) == Some("active");
-        
+
         if !superseded_by.is_empty() && is_active {
             conflicts.push(DecisionConflict {
                 source_decision_id: decision_id.clone(),

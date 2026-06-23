@@ -867,6 +867,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "ares-repository-intelligence"
+version = "0.1.0"
+dependencies = [
+ "ares-core",
+ "ares-retrieval",
+ "ares-store",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "ares-requirements"
 version = "0.1.0"
 dependencies = [

@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use ares_core::types::node::GraphNode;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssumptionNode {

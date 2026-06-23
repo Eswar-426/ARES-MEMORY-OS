@@ -1,14 +1,14 @@
+use ares_core::types::event::now_micros;
 use ares_core::types::node::{EdgeType, GraphEdge, GraphNode, NodeType};
 use ares_core::{NodeId, Project, ProjectId, ProjectMaturity};
-use ares_core::types::event::now_micros;
+use ares_decision_intelligence::engines::*;
+use ares_decision_intelligence::models::*;
 use ares_retrieval::memory_retrieval_engine::MemoryRetrievalEngine;
 use ares_store::repositories::graph::SqliteGraphRepository;
 use ares_store::repositories::project::SqliteProjectRepository;
 use ares_store::Store;
 use std::sync::Arc;
 use uuid::Uuid;
-use ares_decision_intelligence::engines::*;
-use ares_decision_intelligence::models::*;
 
 fn create_store() -> Arc<Store> {
     let db_path = std::env::temp_dir().join(format!("test_db_{}.sqlite", Uuid::new_v4()));
@@ -31,11 +31,18 @@ fn create_project(store: &Arc<Store>, id: &str) -> ProjectId {
         created_at: now,
         updated_at: now,
         deleted_at: None,
-    }).unwrap();
+    })
+    .unwrap();
     p_id
 }
 
-fn create_node(store: &Arc<Store>, project_id: &ProjectId, node_type: NodeType, label: &str, props: serde_json::Value) -> String {
+fn create_node(
+    store: &Arc<Store>,
+    project_id: &ProjectId,
+    node_type: NodeType,
+    label: &str,
+    props: serde_json::Value,
+) -> String {
     let repo = SqliteGraphRepository::new((**store).clone());
     let id = Uuid::new_v4().to_string();
     let now = now_micros();
@@ -49,11 +56,18 @@ fn create_node(store: &Arc<Store>, project_id: &ProjectId, node_type: NodeType, 
         created_at: now,
         updated_at: now,
         deleted_at: None,
-    }).unwrap();
+    })
+    .unwrap();
     id
 }
 
-fn create_edge(store: &Arc<Store>, project_id: &ProjectId, from: &str, to: &str, edge_type: EdgeType) {
+fn create_edge(
+    store: &Arc<Store>,
+    project_id: &ProjectId,
+    from: &str,
+    to: &str,
+    edge_type: EdgeType,
+) {
     let repo = SqliteGraphRepository::new((**store).clone());
     let id = Uuid::new_v4().to_string();
     let now = now_micros();
@@ -69,7 +83,8 @@ fn create_edge(store: &Arc<Store>, project_id: &ProjectId, from: &str, to: &str,
         valid_from: now,
         valid_until: None,
         created_at: now,
-    }).unwrap();
+    })
+    .unwrap();
 }
 
 #[test]
@@ -77,11 +92,19 @@ fn cert_1_decision_traceability() {
     let store = create_store();
     let p = create_project(&store, "p1");
     let dec = create_node(&store, &p, NodeType::Decision, "Dec", serde_json::json!({}));
-    let arch = create_node(&store, &p, NodeType::Architecture, "Arch", serde_json::json!({}));
+    let arch = create_node(
+        &store,
+        &p,
+        NodeType::Architecture,
+        "Arch",
+        serde_json::json!({}),
+    );
     create_edge(&store, &p, &dec, &arch, EdgeType::Drives);
     let ret = MemoryRetrievalEngine::new(store.clone());
     let q = DecisionQueryEngine::new(&ret);
-    let decs = q.get_decisions_for_architecture(&p, &NodeId::from(arch)).unwrap();
+    let decs = q
+        .get_decisions_for_architecture(&p, &NodeId::from(arch))
+        .unwrap();
     assert_eq!(decs.len(), 1);
 }
 
@@ -89,7 +112,13 @@ fn cert_1_decision_traceability() {
 fn cert_2_decision_reasoning_chain() {
     let store = create_store();
     let p = create_project(&store, "p2");
-    let dec = create_node(&store, &p, NodeType::Decision, "Dec", serde_json::json!({"reasoning_chain": "Reasoning"}));
+    let dec = create_node(
+        &store,
+        &p,
+        NodeType::Decision,
+        "Dec",
+        serde_json::json!({"reasoning_chain": "Reasoning"}),
+    );
     let ret = MemoryRetrievalEngine::new(store.clone());
     let q = DecisionQueryEngine::new(&ret);
     let dna = q.get_decision_dna(&p, &NodeId::from(dec)).unwrap();
@@ -100,7 +129,13 @@ fn cert_2_decision_reasoning_chain() {
 fn cert_3_assumption_validation() {
     let store = create_store();
     let p = create_project(&store, "p3");
-    let assum = create_node(&store, &p, NodeType::Assumption, "Assum", serde_json::json!({"is_valid": true, "is_stale": false, "description": "Desc"}));
+    let assum = create_node(
+        &store,
+        &p,
+        NodeType::Assumption,
+        "Assum",
+        serde_json::json!({"is_valid": true, "is_stale": false, "description": "Desc"}),
+    );
     let ret = MemoryRetrievalEngine::new(store.clone());
     let a = AssumptionValidationEngine::new(&ret);
     let n = a.validate_assumption(&NodeId::from(assum)).unwrap();
@@ -111,14 +146,29 @@ fn cert_3_assumption_validation() {
 fn cert_4_conflict_detection() {
     let store = create_store();
     let p = create_project(&store, "p4");
-    let dec1 = create_node(&store, &p, NodeType::Decision, "Dec1", serde_json::json!({}));
-    let dec2 = create_node(&store, &p, NodeType::Decision, "Dec2", serde_json::json!({}));
+    let dec1 = create_node(
+        &store,
+        &p,
+        NodeType::Decision,
+        "Dec1",
+        serde_json::json!({}),
+    );
+    let dec2 = create_node(
+        &store,
+        &p,
+        NodeType::Decision,
+        "Dec2",
+        serde_json::json!({}),
+    );
     create_edge(&store, &p, &dec1, &dec2, EdgeType::Contradicts);
     let ret = MemoryRetrievalEngine::new(store.clone());
     let c = DecisionConflictEngine::new(&ret);
     let conflicts = c.detect_conflicts(&NodeId::from(dec1)).unwrap();
     assert_eq!(conflicts.len(), 1);
-    assert_eq!(conflicts[0].conflict_type, ConflictType::ContradictoryDecision);
+    assert_eq!(
+        conflicts[0].conflict_type,
+        ConflictType::ContradictoryDecision
+    );
 }
 
 #[test]
@@ -126,7 +176,13 @@ fn cert_5_review_detection() {
     let store = create_store();
     let p = create_project(&store, "p5");
     let dec = create_node(&store, &p, NodeType::Decision, "Dec", serde_json::json!({}));
-    let trigger = create_node(&store, &p, NodeType::ReviewTrigger, "Trigger", serde_json::json!({"is_triggered": true}));
+    let trigger = create_node(
+        &store,
+        &p,
+        NodeType::ReviewTrigger,
+        "Trigger",
+        serde_json::json!({"is_triggered": true}),
+    );
     create_edge(&store, &p, &dec, &trigger, EdgeType::HasReviewTrigger);
     let ret = MemoryRetrievalEngine::new(store.clone());
     let r = DecisionReviewEngine::new(&ret);
@@ -146,7 +202,13 @@ fn cert_7_stale_decision_detection() {
     // Validates that assumption engine correctly reads stale properties
     let store = create_store();
     let p = create_project(&store, "p7");
-    let assum = create_node(&store, &p, NodeType::Assumption, "Assum", serde_json::json!({"is_valid": true, "is_stale": true, "description": "Desc"}));
+    let assum = create_node(
+        &store,
+        &p,
+        NodeType::Assumption,
+        "Assum",
+        serde_json::json!({"is_valid": true, "is_stale": true, "description": "Desc"}),
+    );
     let ret = MemoryRetrievalEngine::new(store.clone());
     let a = AssumptionValidationEngine::new(&ret);
     let n = a.validate_assumption(&NodeId::from(assum)).unwrap();
@@ -157,7 +219,13 @@ fn cert_7_stale_decision_detection() {
 fn cert_8_decision_determinism() {
     let store = create_store();
     let p = create_project(&store, "p8");
-    let dec = create_node(&store, &p, NodeType::Decision, "Dec", serde_json::json!({"reasoning_chain": "Reasoning"}));
+    let dec = create_node(
+        &store,
+        &p,
+        NodeType::Decision,
+        "Dec",
+        serde_json::json!({"reasoning_chain": "Reasoning"}),
+    );
     let ret = MemoryRetrievalEngine::new(store.clone());
     let q = DecisionQueryEngine::new(&ret);
     let dna1 = q.get_decision_dna(&p, &NodeId::from(dec.clone())).unwrap();
@@ -170,8 +238,20 @@ fn cert_9_repository_isolation() {
     let store = create_store();
     let p9a = create_project(&store, "p9a");
     let p9b = create_project(&store, "p9b");
-    let dec_a = create_node(&store, &p9a, NodeType::Decision, "DecA", serde_json::json!({}));
-    let dec_b = create_node(&store, &p9b, NodeType::Decision, "DecB", serde_json::json!({}));
+    let dec_a = create_node(
+        &store,
+        &p9a,
+        NodeType::Decision,
+        "DecA",
+        serde_json::json!({}),
+    );
+    let dec_b = create_node(
+        &store,
+        &p9b,
+        NodeType::Decision,
+        "DecB",
+        serde_json::json!({}),
+    );
     let ret = MemoryRetrievalEngine::new(store.clone());
     let q = DecisionQueryEngine::new(&ret);
     assert!(q.get_decision_dna(&p9a, &NodeId::from(dec_a)).is_ok());
@@ -182,8 +262,20 @@ fn cert_9_repository_isolation() {
 fn cert_10_explainability() {
     let store = create_store();
     let p = create_project(&store, "p10");
-    let dec1 = create_node(&store, &p, NodeType::Decision, "Dec1", serde_json::json!({}));
-    let dec2 = create_node(&store, &p, NodeType::Decision, "Dec2", serde_json::json!({}));
+    let dec1 = create_node(
+        &store,
+        &p,
+        NodeType::Decision,
+        "Dec1",
+        serde_json::json!({}),
+    );
+    let dec2 = create_node(
+        &store,
+        &p,
+        NodeType::Decision,
+        "Dec2",
+        serde_json::json!({}),
+    );
     create_edge(&store, &p, &dec1, &dec2, EdgeType::Contradicts);
     let ret = MemoryRetrievalEngine::new(store.clone());
     let c = DecisionConflictEngine::new(&ret);
@@ -196,14 +288,23 @@ fn cert_11_originating_decision_lookup() {
     let store = create_store();
     let p = create_project(&store, "p11");
     let dec = create_node(&store, &p, NodeType::Decision, "Dec", serde_json::json!({}));
-    let arch = create_node(&store, &p, NodeType::Architecture, "Arch", serde_json::json!({}));
+    let arch = create_node(
+        &store,
+        &p,
+        NodeType::Architecture,
+        "Arch",
+        serde_json::json!({}),
+    );
     let code = create_node(&store, &p, NodeType::File, "Code", serde_json::json!({}));
     create_edge(&store, &p, &dec, &arch, EdgeType::Drives);
     create_edge(&store, &p, &arch, &code, EdgeType::Drives);
-    
+
     let ret = MemoryRetrievalEngine::new(store.clone());
     let l = DecisionLineageEngine::new(&ret);
-    let orig_dec = l.get_originating_decision(&NodeId::from(code)).unwrap().unwrap();
+    let orig_dec = l
+        .get_originating_decision(&NodeId::from(code))
+        .unwrap()
+        .unwrap();
     assert_eq!(orig_dec.id.to_string(), dec);
 }
 
@@ -211,16 +312,28 @@ fn cert_11_originating_decision_lookup() {
 fn cert_12_supersession_chain_integrity() {
     let store = create_store();
     let p = create_project(&store, "p12");
-    let dec1 = create_node(&store, &p, NodeType::Decision, "Dec1", serde_json::json!({}));
-    let dec2 = create_node(&store, &p, NodeType::Decision, "Dec2", serde_json::json!({}));
+    let dec1 = create_node(
+        &store,
+        &p,
+        NodeType::Decision,
+        "Dec1",
+        serde_json::json!({}),
+    );
+    let dec2 = create_node(
+        &store,
+        &p,
+        NodeType::Decision,
+        "Dec2",
+        serde_json::json!({}),
+    );
     create_edge(&store, &p, &dec2, &dec1, EdgeType::Supersedes);
-    
+
     let ret = MemoryRetrievalEngine::new(store.clone());
     let q = DecisionQueryEngine::new(&ret);
     let dna1 = q.get_decision_dna(&p, &NodeId::from(dec1.clone())).unwrap();
     assert_eq!(dna1.superseded_by.len(), 1);
     assert_eq!(dna1.superseded_by[0].id.to_string(), dec2);
-    
+
     let dna2 = q.get_decision_dna(&p, &NodeId::from(dec2)).unwrap();
     assert_eq!(dna2.supersedes.len(), 1);
     assert_eq!(dna2.supersedes[0].id.to_string(), dec1);
@@ -231,9 +344,15 @@ fn cert_13_assumption_queryability() {
     let store = create_store();
     let p = create_project(&store, "p13");
     let dec = create_node(&store, &p, NodeType::Decision, "Dec", serde_json::json!({}));
-    let assum = create_node(&store, &p, NodeType::Assumption, "Assum", serde_json::json!({}));
+    let assum = create_node(
+        &store,
+        &p,
+        NodeType::Assumption,
+        "Assum",
+        serde_json::json!({}),
+    );
     create_edge(&store, &p, &dec, &assum, EdgeType::HasAssumption);
-    
+
     let ret = MemoryRetrievalEngine::new(store.clone());
     let q = DecisionQueryEngine::new(&ret);
     let dna = q.get_decision_dna(&p, &NodeId::from(dec)).unwrap();
@@ -245,10 +364,22 @@ fn cert_13_assumption_queryability() {
 fn cert_14_decision_dna_explainability() {
     let store = create_store();
     let p = create_project(&store, "p14");
-    let dec = create_node(&store, &p, NodeType::Decision, "Dec", serde_json::json!({"reasoning_chain": "R"}));
-    let alt = create_node(&store, &p, NodeType::Alternative, "Alt", serde_json::json!({}));
+    let dec = create_node(
+        &store,
+        &p,
+        NodeType::Decision,
+        "Dec",
+        serde_json::json!({"reasoning_chain": "R"}),
+    );
+    let alt = create_node(
+        &store,
+        &p,
+        NodeType::Alternative,
+        "Alt",
+        serde_json::json!({}),
+    );
     create_edge(&store, &p, &dec, &alt, EdgeType::HasAlternative);
-    
+
     let ret = MemoryRetrievalEngine::new(store.clone());
     let q = DecisionQueryEngine::new(&ret);
     let dna = q.get_decision_dna(&p, &NodeId::from(dec)).unwrap();
@@ -264,7 +395,7 @@ fn cert_15_decision_dna_ownership() {
     let dec = create_node(&store, &p, NodeType::Decision, "Dec", serde_json::json!({}));
     let team = create_node(&store, &p, NodeType::Team, "Team", serde_json::json!({}));
     create_edge(&store, &p, &dec, &team, EdgeType::OwnedBy);
-    
+
     let ret = MemoryRetrievalEngine::new(store.clone());
     let q = DecisionQueryEngine::new(&ret);
     let dna = q.get_decision_dna(&p, &NodeId::from(dec)).unwrap();
@@ -276,9 +407,21 @@ fn cert_15_decision_dna_ownership() {
 fn cert_16_hierarchy_constraints() {
     let store = create_store();
     let p = create_project(&store, "p16");
-    let arch = create_node(&store, &p, NodeType::Architecture, "Arch", serde_json::json!({}));
-    let assum = create_node(&store, &p, NodeType::Assumption, "Assum", serde_json::json!({}));
-    
+    let arch = create_node(
+        &store,
+        &p,
+        NodeType::Architecture,
+        "Arch",
+        serde_json::json!({}),
+    );
+    let assum = create_node(
+        &store,
+        &p,
+        NodeType::Assumption,
+        "Assum",
+        serde_json::json!({}),
+    );
+
     // This should fail
     let repo = SqliteGraphRepository::new((*store).clone());
     let id = Uuid::new_v4().to_string();
@@ -296,7 +439,7 @@ fn cert_16_hierarchy_constraints() {
         valid_until: None,
         created_at: now,
     });
-    
+
     assert!(res.is_err());
     if let Err(e) = res {
         assert!(e.to_string().contains("Hierarchy constraint failed"));

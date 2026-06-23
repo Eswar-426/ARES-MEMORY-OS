@@ -1,6 +1,6 @@
-use ares_core::{AresError, ProjectId, NodeId, EdgeDirection, EdgeType, types::node::NodeType};
-use ares_retrieval::memory_retrieval_engine::MemoryRetrievalEngine;
 use crate::models::DecisionDNA;
+use ares_core::{types::node::NodeType, AresError, EdgeDirection, EdgeType, NodeId, ProjectId};
+use ares_retrieval::memory_retrieval_engine::MemoryRetrievalEngine;
 
 pub struct DecisionQueryEngine<'a> {
     retrieval_engine: &'a MemoryRetrievalEngine,
@@ -11,7 +11,11 @@ impl<'a> DecisionQueryEngine<'a> {
         Self { retrieval_engine }
     }
 
-    pub fn get_decisions_for_file(&self, project_id: &ProjectId, file_id: &NodeId) -> Result<Vec<DecisionDNA>, AresError> {
+    pub fn get_decisions_for_file(
+        &self,
+        project_id: &ProjectId,
+        file_id: &NodeId,
+    ) -> Result<Vec<DecisionDNA>, AresError> {
         let upstream = self.retrieval_engine.get_neighborhood(
             &file_id.to_string(),
             EdgeDirection::Incoming,
@@ -35,11 +39,15 @@ impl<'a> DecisionQueryEngine<'a> {
                 }
             }
         }
-        
+
         Ok(decisions)
     }
 
-    pub fn get_decisions_for_feature(&self, project_id: &ProjectId, feature_id: &NodeId) -> Result<Vec<DecisionDNA>, AresError> {
+    pub fn get_decisions_for_feature(
+        &self,
+        project_id: &ProjectId,
+        feature_id: &NodeId,
+    ) -> Result<Vec<DecisionDNA>, AresError> {
         let upstream = self.retrieval_engine.get_neighborhood(
             &feature_id.to_string(),
             EdgeDirection::Incoming,
@@ -55,7 +63,11 @@ impl<'a> DecisionQueryEngine<'a> {
         Ok(decisions)
     }
 
-    pub fn get_decisions_for_architecture(&self, project_id: &ProjectId, arch_id: &NodeId) -> Result<Vec<DecisionDNA>, AresError> {
+    pub fn get_decisions_for_architecture(
+        &self,
+        project_id: &ProjectId,
+        arch_id: &NodeId,
+    ) -> Result<Vec<DecisionDNA>, AresError> {
         let upstream = self.retrieval_engine.get_neighborhood(
             &arch_id.to_string(),
             EdgeDirection::Incoming,
@@ -71,7 +83,11 @@ impl<'a> DecisionQueryEngine<'a> {
         Ok(decisions)
     }
 
-    pub fn get_related_decisions(&self, project_id: &ProjectId, decision_id: &NodeId) -> Result<Vec<DecisionDNA>, AresError> {
+    pub fn get_related_decisions(
+        &self,
+        project_id: &ProjectId,
+        decision_id: &NodeId,
+    ) -> Result<Vec<DecisionDNA>, AresError> {
         let related = self.retrieval_engine.get_neighborhood(
             &decision_id.to_string(),
             EdgeDirection::Both,
@@ -87,21 +103,63 @@ impl<'a> DecisionQueryEngine<'a> {
         Ok(decisions)
     }
 
-    pub fn get_decision_dna(&self, _project_id: &ProjectId, decision_id: &NodeId) -> Result<DecisionDNA, AresError> {
-        let decision_node = self.retrieval_engine.get_node(&decision_id.to_string())?
-            .ok_or_else(|| AresError::NotFound { resource_type: "Decision".into(), id: decision_id.to_string() })?;
+    pub fn get_decision_dna(
+        &self,
+        _project_id: &ProjectId,
+        decision_id: &NodeId,
+    ) -> Result<DecisionDNA, AresError> {
+        let decision_node = self
+            .retrieval_engine
+            .get_node(&decision_id.to_string())?
+            .ok_or_else(|| AresError::NotFound {
+                resource_type: "Decision".into(),
+                id: decision_id.to_string(),
+            })?;
 
-        let reasoning_chain = decision_node.properties.get("reasoning_chain").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let reasoning_chain = decision_node
+            .properties
+            .get("reasoning_chain")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
 
-        let assumptions = self.retrieval_engine.get_neighborhood(&decision_id.to_string(), EdgeDirection::Outgoing, &[EdgeType::HasAssumption])?;
-        let alternatives = self.retrieval_engine.get_neighborhood(&decision_id.to_string(), EdgeDirection::Outgoing, &[EdgeType::HasAlternative])?;
-        let risks = self.retrieval_engine.get_neighborhood(&decision_id.to_string(), EdgeDirection::Outgoing, &[EdgeType::HasRisk])?;
-        let review_triggers = self.retrieval_engine.get_neighborhood(&decision_id.to_string(), EdgeDirection::Outgoing, &[EdgeType::HasReviewTrigger])?;
-        
-        let impacted_artifacts = self.retrieval_engine.get_neighborhood(&decision_id.to_string(), EdgeDirection::Outgoing, &[EdgeType::Impacts, EdgeType::Drives])?;
-        
-        let supersedes = self.retrieval_engine.get_neighborhood(&decision_id.to_string(), EdgeDirection::Outgoing, &[EdgeType::Supersedes])?;
-        let superseded_by = self.retrieval_engine.get_neighborhood(&decision_id.to_string(), EdgeDirection::Incoming, &[EdgeType::Supersedes])?;
+        let assumptions = self.retrieval_engine.get_neighborhood(
+            &decision_id.to_string(),
+            EdgeDirection::Outgoing,
+            &[EdgeType::HasAssumption],
+        )?;
+        let alternatives = self.retrieval_engine.get_neighborhood(
+            &decision_id.to_string(),
+            EdgeDirection::Outgoing,
+            &[EdgeType::HasAlternative],
+        )?;
+        let risks = self.retrieval_engine.get_neighborhood(
+            &decision_id.to_string(),
+            EdgeDirection::Outgoing,
+            &[EdgeType::HasRisk],
+        )?;
+        let review_triggers = self.retrieval_engine.get_neighborhood(
+            &decision_id.to_string(),
+            EdgeDirection::Outgoing,
+            &[EdgeType::HasReviewTrigger],
+        )?;
+
+        let impacted_artifacts = self.retrieval_engine.get_neighborhood(
+            &decision_id.to_string(),
+            EdgeDirection::Outgoing,
+            &[EdgeType::Impacts, EdgeType::Drives],
+        )?;
+
+        let supersedes = self.retrieval_engine.get_neighborhood(
+            &decision_id.to_string(),
+            EdgeDirection::Outgoing,
+            &[EdgeType::Supersedes],
+        )?;
+        let superseded_by = self.retrieval_engine.get_neighborhood(
+            &decision_id.to_string(),
+            EdgeDirection::Incoming,
+            &[EdgeType::Supersedes],
+        )?;
 
         Ok(DecisionDNA {
             decision_node,

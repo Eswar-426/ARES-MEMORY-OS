@@ -1,9 +1,12 @@
 use crate::detectors::KnowledgeGapDetector;
-use crate::models::{GapSeverity, KnowledgeGap, KnowledgeGapType, GapEvidence, RemediationRecommendation};
+use crate::models::{
+    GapEvidence, GapSeverity, KnowledgeGap, KnowledgeGapType, RemediationRecommendation,
+};
 use ares_core::{AresError, ProjectId};
 use ares_retrieval::memory_retrieval_engine::MemoryRetrievalEngine;
 
 pub struct KnowledgeGapEngine<'a> {
+    #[allow(dead_code)]
     retrieval_engine: &'a MemoryRetrievalEngine,
     detector: KnowledgeGapDetector<'a>,
 }
@@ -28,8 +31,12 @@ impl<'a> KnowledgeGapEngine<'a> {
 
         for gap in &gaps {
             match gap.gap_type {
-                KnowledgeGapType::MissingOwnership | KnowledgeGapType::MissingDecision => gov_penalty += 5.0,
-                KnowledgeGapType::MissingRequirement | KnowledgeGapType::MissingArchitecture => comp_penalty += 5.0,
+                KnowledgeGapType::MissingOwnership | KnowledgeGapType::MissingDecision => {
+                    gov_penalty += 5.0
+                }
+                KnowledgeGapType::MissingRequirement | KnowledgeGapType::MissingArchitecture => {
+                    comp_penalty += 5.0
+                }
                 KnowledgeGapType::MissingTraceability => trace_penalty += 10.0,
                 _ => {}
             }
@@ -45,16 +52,25 @@ impl<'a> KnowledgeGapEngine<'a> {
         if debt_score > 0.0 {
             gaps.push(KnowledgeGap {
                 gap_type: KnowledgeGapType::KnowledgeDebt,
-                severity: if debt_score > 50.0 { GapSeverity::Critical } else { GapSeverity::High },
+                severity: if debt_score > 50.0 {
+                    GapSeverity::Critical
+                } else {
+                    GapSeverity::High
+                },
                 evidence: GapEvidence {
                     source_nodes: vec![],
                     missing_nodes: vec![],
-                    rationale: format!("Repository has accrued a Knowledge Debt score of {}.", debt_score),
+                    rationale: format!(
+                        "Repository has accrued a Knowledge Debt score of {}.",
+                        debt_score
+                    ),
                 },
                 remediation: RemediationRecommendation {
                     priority: GapSeverity::High,
                     owner: None,
-                    recommended_action: "Dedicate a sprint to paying down memory debt by fixing structural gaps.".to_string(),
+                    recommended_action:
+                        "Dedicate a sprint to paying down memory debt by fixing structural gaps."
+                            .to_string(),
                 },
             });
         }

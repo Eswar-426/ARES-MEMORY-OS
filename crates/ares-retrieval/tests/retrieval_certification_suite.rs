@@ -1,6 +1,6 @@
+use ares_core::types::event::now_micros;
 use ares_core::types::node::{EdgeType, GraphEdge, GraphNode, NodeType};
 use ares_core::{NodeId, Project, ProjectId, ProjectMaturity};
-use ares_core::types::event::now_micros;
 use ares_retrieval::context_builder::ContextBuilder;
 use ares_retrieval::memory_retrieval_engine::MemoryRetrievalEngine;
 use ares_retrieval::models::RankingWeights;
@@ -39,7 +39,13 @@ fn create_project(store: &Arc<Store>, id: &str) -> ProjectId {
     p_id
 }
 
-fn create_node(store: &Arc<Store>, project_id: &ProjectId, node_type: NodeType, label: &str, props: serde_json::Value) -> String {
+fn create_node(
+    store: &Arc<Store>,
+    project_id: &ProjectId,
+    node_type: NodeType,
+    label: &str,
+    props: serde_json::Value,
+) -> String {
     let repo = SqliteGraphRepository::new((**store).clone());
     let id = Uuid::new_v4().to_string();
     let now = now_micros();
@@ -58,7 +64,13 @@ fn create_node(store: &Arc<Store>, project_id: &ProjectId, node_type: NodeType, 
     id
 }
 
-fn create_edge(store: &Arc<Store>, project_id: &ProjectId, from: &str, to: &str, edge_type: EdgeType) {
+fn create_edge(
+    store: &Arc<Store>,
+    project_id: &ProjectId,
+    from: &str,
+    to: &str,
+    edge_type: EdgeType,
+) {
     let repo = SqliteGraphRepository::new((**store).clone());
     let id = Uuid::new_v4().to_string();
     let now = now_micros();
@@ -83,11 +95,23 @@ fn cert_1_retrieval_determinism() {
     let store = create_store();
     let p_id = create_project(&store, "proj_1");
 
-    create_node(&store, &p_id, NodeType::Requirement, "Req 1", serde_json::json!({}));
-    create_node(&store, &p_id, NodeType::Requirement, "Req 2", serde_json::json!({}));
-    
+    create_node(
+        &store,
+        &p_id,
+        NodeType::Requirement,
+        "Req 1",
+        serde_json::json!({}),
+    );
+    create_node(
+        &store,
+        &p_id,
+        NodeType::Requirement,
+        "Req 2",
+        serde_json::json!({}),
+    );
+
     let engine = MemoryRetrievalEngine::new(store.clone());
-    
+
     let run1 = engine.find_by_type(&p_id, NodeType::Requirement).unwrap();
     let run2 = engine.find_by_type(&p_id, NodeType::Requirement).unwrap();
     let run3 = engine.find_by_type(&p_id, NodeType::Requirement).unwrap();
@@ -106,8 +130,20 @@ fn cert_2_repository_isolation() {
     let p1 = create_project(&store, "proj_a");
     let p2 = create_project(&store, "proj_b");
 
-    create_node(&store, &p1, NodeType::Feature, "Feat A", serde_json::json!({ "has_drift": true }));
-    create_node(&store, &p2, NodeType::Feature, "Feat B", serde_json::json!({ "has_drift": true }));
+    create_node(
+        &store,
+        &p1,
+        NodeType::Feature,
+        "Feat A",
+        serde_json::json!({ "has_drift": true }),
+    );
+    create_node(
+        &store,
+        &p2,
+        NodeType::Feature,
+        "Feat B",
+        serde_json::json!({ "has_drift": true }),
+    );
 
     let engine = MemoryRetrievalEngine::new(store.clone());
     let query = QueryEngine::new(&engine);
@@ -127,8 +163,20 @@ fn cert_3_context_completeness() {
     let store = create_store();
     let p = create_project(&store, "proj_ctx");
 
-    let req = create_node(&store, &p, NodeType::Requirement, "Req", serde_json::json!({ "owners": ["Team A"] }));
-    let dec = create_node(&store, &p, NodeType::Decision, "Dec", serde_json::json!({ "approvers": ["John", "Jane"] }));
+    let req = create_node(
+        &store,
+        &p,
+        NodeType::Requirement,
+        "Req",
+        serde_json::json!({ "owners": ["Team A"] }),
+    );
+    let dec = create_node(
+        &store,
+        &p,
+        NodeType::Decision,
+        "Dec",
+        serde_json::json!({ "approvers": ["John", "Jane"] }),
+    );
 
     create_edge(&store, &p, &req, &dec, EdgeType::Drives);
 
@@ -141,7 +189,7 @@ fn cert_3_context_completeness() {
     assert_eq!(pack.requirement.unwrap().id.to_string(), req);
     assert_eq!(pack.decisions.len(), 1);
     assert_eq!(pack.decisions[0].id.to_string(), dec);
-    
+
     // Check governance
     assert_eq!(pack.governance.approvers.len(), 2);
 }
@@ -153,18 +201,30 @@ fn cert_4_deep_graph_retrieval() {
 
     let mut nodes = vec![];
     for i in 0..10 {
-        nodes.push(create_node(&store, &p, NodeType::Architecture, &format!("Node {}", i), serde_json::json!({})));
+        nodes.push(create_node(
+            &store,
+            &p,
+            NodeType::Architecture,
+            &format!("Node {}", i),
+            serde_json::json!({}),
+        ));
     }
 
     // Chain them: 0 -> 1 -> 2 ... -> 9
     for i in 0..9 {
-        create_edge(&store, &p, &nodes[i], &nodes[i+1], EdgeType::DependsOn);
+        create_edge(&store, &p, &nodes[i], &nodes[i + 1], EdgeType::DependsOn);
     }
 
     let engine = MemoryRetrievalEngine::new(store.clone());
-    
-    let neighbors = engine.get_neighborhood(&nodes[0], ares_core::EdgeDirection::Outgoing, &[EdgeType::DependsOn]).unwrap();
-    
+
+    let neighbors = engine
+        .get_neighborhood(
+            &nodes[0],
+            ares_core::EdgeDirection::Outgoing,
+            &[EdgeType::DependsOn],
+        )
+        .unwrap();
+
     assert_eq!(neighbors.len(), 1);
     assert_eq!(neighbors[0].id.to_string(), nodes[1]);
 }
@@ -174,9 +234,27 @@ fn cert_5_ranking_stability() {
     let store = create_store();
     let p = create_project(&store, "proj_rank");
 
-    let _n1 = create_node(&store, &p, NodeType::Decision, "Dec 1", serde_json::json!({ "owners": ["Team A"], "approvers": ["John"] }));
-    let _n2 = create_node(&store, &p, NodeType::Decision, "Dec 2", serde_json::json!({ "owners": ["Team A"] }));
-    let _n3 = create_node(&store, &p, NodeType::Decision, "Dec 3", serde_json::json!({}));
+    let _n1 = create_node(
+        &store,
+        &p,
+        NodeType::Decision,
+        "Dec 1",
+        serde_json::json!({ "owners": ["Team A"], "approvers": ["John"] }),
+    );
+    let _n2 = create_node(
+        &store,
+        &p,
+        NodeType::Decision,
+        "Dec 2",
+        serde_json::json!({ "owners": ["Team A"] }),
+    );
+    let _n3 = create_node(
+        &store,
+        &p,
+        NodeType::Decision,
+        "Dec 3",
+        serde_json::json!({}),
+    );
 
     let engine = MemoryRetrievalEngine::new(store.clone());
     let nodes = engine.find_by_type(&p, NodeType::Decision).unwrap();
@@ -208,14 +286,24 @@ fn cert_6_large_graph_performance() {
     // but we can create 1000 nodes and ensure the retrieval is fast enough.
     let start = std::time::Instant::now();
     for i in 0..1000 {
-        create_node(&store, &p, NodeType::File, &format!("File {}", i), serde_json::json!({}));
+        create_node(
+            &store,
+            &p,
+            NodeType::File,
+            &format!("File {}", i),
+            serde_json::json!({}),
+        );
     }
-    
+
     let engine = MemoryRetrievalEngine::new(store.clone());
     let nodes = engine.find_by_type(&p, NodeType::File).unwrap();
-    
+
     let elapsed = start.elapsed();
-    
+
     assert_eq!(nodes.len(), 1000);
-    assert!(elapsed.as_secs_f64() < 5.0, "Large graph creation and query took too long: {:?}", elapsed);
+    assert!(
+        elapsed.as_secs_f64() < 5.0,
+        "Large graph creation and query took too long: {:?}",
+        elapsed
+    );
 }

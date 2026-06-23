@@ -1,6 +1,6 @@
-use ares_evolution::impact_engine::MemoryImpactEngine;
 use ares_core::types::impact::ChangeImpactReport;
 use ares_core::types::staleness::StalenessFinding;
+use ares_evolution::impact_engine::MemoryImpactEngine;
 
 pub struct DecisionImpactEngine {
     impact_engine: MemoryImpactEngine,
@@ -20,13 +20,15 @@ impl DecisionImpactEngine {
         impacted_owners: Vec<String>,
         staleness_findings: &[StalenessFinding],
     ) -> Result<ChangeImpactReport, String> {
-        self.impact_engine.analyze_impact(
-            project_id,
-            decision_id,
-            impacted_graph_nodes,
-            impacted_files,
-            impacted_owners,
-            staleness_findings,
-        ).await
+        self.impact_engine
+            .analyze_impact(
+                project_id,
+                decision_id,
+                impacted_graph_nodes,
+                impacted_files,
+                impacted_owners,
+                staleness_findings,
+            )
+            .await
     }
 }

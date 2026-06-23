@@ -99,7 +99,11 @@ impl<'a> ContextBuilder<'a> {
             .is_some_and(|v| v.as_bool().unwrap_or(false));
 
         // Extract Drift
-        if node.properties.get("has_drift").is_some_and(|v| v.as_bool().unwrap_or(false)) {
+        if node
+            .properties
+            .get("has_drift")
+            .is_some_and(|v| v.as_bool().unwrap_or(false))
+        {
             pack.drift.push(node.clone());
         }
 

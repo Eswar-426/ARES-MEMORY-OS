@@ -1,4 +1,4 @@
-use ares_core::{AresError, NodeId, EdgeDirection, EdgeType};
+use ares_core::{AresError, EdgeDirection, EdgeType, NodeId};
 use ares_retrieval::memory_retrieval_engine::MemoryRetrievalEngine;
 
 pub struct DecisionReviewEngine<'a> {
@@ -18,7 +18,12 @@ impl<'a> DecisionReviewEngine<'a> {
         )?;
 
         for trigger in triggers {
-            if trigger.properties.get("is_triggered").and_then(|v| v.as_bool()).unwrap_or(false) {
+            if trigger
+                .properties
+                .get("is_triggered")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+            {
                 return Ok(true);
             }
         }

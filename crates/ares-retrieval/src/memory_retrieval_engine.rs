@@ -1,8 +1,8 @@
 use ares_core::types::node::{GraphNode, NodeType};
 use ares_core::{AresError, EdgeDirection, EdgeType, NodeId, ProjectId};
 use ares_store::repositories::graph::SqliteGraphRepository;
-use std::sync::Arc;
 use ares_store::Store;
+use std::sync::Arc;
 
 pub struct MemoryRetrievalEngine {
     store: Arc<Store>,
@@ -56,11 +56,11 @@ impl MemoryRetrievalEngine {
     ) -> Result<Vec<GraphNode>, AresError> {
         let graph = SqliteGraphRepository::new((*self.store).clone());
         let owner_node_id = NodeId::from(owner_id.to_string());
-        
+
         // Find nodes where owner_id is the target of an OwnedBy edge,
         // or the source of an Owns edge.
         let mut owned_nodes = Vec::new();
-        
+
         let owns_edges = graph.get_edges_from(&owner_node_id)?;
         for edge in owns_edges {
             if edge.edge_type == EdgeType::Owns {
@@ -76,23 +76,31 @@ impl MemoryRetrievalEngine {
         for edge in owned_by_edges {
             if edge.edge_type == EdgeType::OwnedBy {
                 if let Some(n) = graph.get_node(&edge.from_node_id)? {
-                    if &n.project_id == project_id && !owned_nodes.iter().any(|existing| existing.id == n.id) {
+                    if &n.project_id == project_id
+                        && !owned_nodes.iter().any(|existing| existing.id == n.id)
+                    {
                         owned_nodes.push(n);
                     }
                 }
             }
         }
-        
+
         Ok(owned_nodes)
     }
 
-    pub fn get_all_edges_from(&self, id: &str) -> Result<Vec<ares_core::types::node::GraphEdge>, AresError> {
+    pub fn get_all_edges_from(
+        &self,
+        id: &str,
+    ) -> Result<Vec<ares_core::types::node::GraphEdge>, AresError> {
         let graph = SqliteGraphRepository::new((*self.store).clone());
         let node_id = NodeId::from(id.to_string());
         graph.get_edges_from(&node_id)
     }
 
-    pub fn get_all_edges_to(&self, id: &str) -> Result<Vec<ares_core::types::node::GraphEdge>, AresError> {
+    pub fn get_all_edges_to(
+        &self,
+        id: &str,
+    ) -> Result<Vec<ares_core::types::node::GraphEdge>, AresError> {
         let graph = SqliteGraphRepository::new((*self.store).clone());
         let node_id = NodeId::from(id.to_string());
         graph.get_edges_to(&node_id)

@@ -1,4 +1,7 @@
-use ares_core::{AresError, NodeId, EdgeDirection, EdgeType, types::node::{GraphNode, NodeType}};
+use ares_core::{
+    types::node::{GraphNode, NodeType},
+    AresError, EdgeDirection, EdgeType, NodeId,
+};
 use ares_retrieval::memory_retrieval_engine::MemoryRetrievalEngine;
 
 pub struct DecisionLineageEngine<'a> {
@@ -10,21 +13,36 @@ impl<'a> DecisionLineageEngine<'a> {
         Self { retrieval_engine }
     }
 
-    pub fn get_originating_decision(&self, file_id: &NodeId) -> Result<Option<GraphNode>, AresError> {
+    pub fn get_originating_decision(
+        &self,
+        file_id: &NodeId,
+    ) -> Result<Option<GraphNode>, AresError> {
         let lineage = self.get_decision_lineage(file_id)?;
-        Ok(lineage.into_iter().find(|n| n.node_type == NodeType::Decision))
+        Ok(lineage
+            .into_iter()
+            .find(|n| n.node_type == NodeType::Decision))
     }
 
-    pub fn get_originating_requirement(&self, file_id: &NodeId) -> Result<Option<GraphNode>, AresError> {
+    pub fn get_originating_requirement(
+        &self,
+        file_id: &NodeId,
+    ) -> Result<Option<GraphNode>, AresError> {
         let lineage = self.get_decision_lineage(file_id)?;
-        Ok(lineage.into_iter().find(|n| n.node_type == NodeType::Requirement))
+        Ok(lineage
+            .into_iter()
+            .find(|n| n.node_type == NodeType::Requirement))
     }
 
     pub fn get_decision_lineage(&self, node_id: &NodeId) -> Result<Vec<GraphNode>, AresError> {
         let mut lineage = Vec::new();
-        let initial_node = self.retrieval_engine.get_node(&node_id.to_string())?
-            .ok_or_else(|| AresError::NotFound { resource_type: "Node".into(), id: node_id.to_string() })?;
-        
+        let initial_node = self
+            .retrieval_engine
+            .get_node(&node_id.to_string())?
+            .ok_or_else(|| AresError::NotFound {
+                resource_type: "Node".into(),
+                id: node_id.to_string(),
+            })?;
+
         let mut current_nodes = vec![initial_node];
 
         while !current_nodes.is_empty() {
