@@ -1,4 +1,3 @@
-
 pub struct QueryParser;
 
 /// Common English words that should never be treated as code symbols
@@ -91,9 +90,10 @@ impl QueryParser {
             let is_true_camel_case = Self::is_camel_or_pascal_case(word_clean);
 
             if (has_path_sep || has_underscore || is_true_camel_case)
-                && seen.insert(word_clean.to_string()) {
-                    targets.push(word_clean.to_string());
-                }
+                && seen.insert(word_clean.to_string())
+            {
+                targets.push(word_clean.to_string());
+            }
         }
 
         // Fallback: if no strict technical symbols found, extract long non-stop words

@@ -3,9 +3,8 @@ use std::collections::HashSet;
 use uuid::Uuid;
 
 use ares_candidates::{
-    Candidate, CandidateConfidence, CandidateStatus,
-    CandidateThresholds, CandidateType, TraceabilityCategory,
-    TraceabilityEndpoint, TraceabilityEndpointType,
+    Candidate, CandidateConfidence, CandidateStatus, CandidateThresholds, CandidateType,
+    TraceabilityCategory, TraceabilityEndpoint, TraceabilityEndpointType,
 };
 
 /// Evidence types that support traceability linkages.
@@ -338,13 +337,13 @@ mod tests {
             "dec-1",
             "repo-test",
             CandidateType::Decision,
-            "User Authentication Adopt OAuth2",
+            "User Authentication OAuth2",
         );
         let arch = dummy_candidate(
             "arch-1",
             "repo-test",
             CandidateType::Architecture,
-            "User Authentication Adopt OAuth2 Auth Service",
+            "User Authentication OAuth2 Service",
         );
 
         let candidates = vec![req, dec, arch];

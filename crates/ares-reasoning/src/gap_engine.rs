@@ -34,6 +34,9 @@ impl GapEngine {
                 NodeType::Decision => Some("Requirement"),
                 NodeType::Architecture => Some("Decision"),
                 NodeType::File | NodeType::Folder => Some("Architecture"),
+                NodeType::Test => Some("Code"),
+                NodeType::RuntimeSignal => Some("Test"),
+                NodeType::Outcome => Some("RuntimeSignal"),
                 _ => None,
             };
 
@@ -47,6 +50,19 @@ impl GapEngine {
                             (NodeType::Architecture, NodeType::Decision) => true,
                             (NodeType::File, NodeType::Architecture) => true,
                             (NodeType::Folder, NodeType::Architecture) => true,
+                            (
+                                NodeType::Test,
+                                NodeType::File
+                                | NodeType::Function
+                                | NodeType::Method
+                                | NodeType::Class
+                                | NodeType::Struct
+                                | NodeType::Enum
+                                | NodeType::Trait
+                                | NodeType::Module,
+                            ) => true,
+                            (NodeType::RuntimeSignal, NodeType::Test) => true,
+                            (NodeType::Outcome, NodeType::RuntimeSignal) => true,
                             _ => false,
                         }
                     } else {

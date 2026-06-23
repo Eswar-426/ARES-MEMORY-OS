@@ -1,5 +1,8 @@
 #![allow(clippy::too_many_arguments)]
 pub mod approval;
+pub mod approval_graph_engine;
+pub mod audit_engine;
+pub mod capability_engine;
 pub mod certification;
 pub mod compliance_engine;
 pub mod dashboard;
@@ -11,6 +14,7 @@ pub mod explainability;
 pub mod facade;
 pub mod models;
 pub mod mutation_simulator;
+pub mod ownership_engine;
 pub mod policy_loader;
 pub mod risk_engine;
 pub mod sarif;
@@ -23,6 +27,8 @@ pub use models::*;
 pub mod classifier;
 pub mod confidence_engine;
 pub mod coverage_engine;
+pub mod governance_gap_engine;
+pub mod governance_health_engine;
 pub mod memory_debt_engine;
 pub mod memory_drift_engine;
 pub mod memory_gatekeeper;

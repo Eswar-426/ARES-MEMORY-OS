@@ -13,6 +13,13 @@ pub enum EvolutionEventType {
     Deprecated,
     Restored,
     Deleted,
+    // P5 Governance Intelligence
+    ApprovalGranted,
+    ApprovalRevoked,
+    ReviewCompleted,
+    OwnershipAssigned,
+    OwnershipTransferred,
+    PolicyExceptionGranted,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

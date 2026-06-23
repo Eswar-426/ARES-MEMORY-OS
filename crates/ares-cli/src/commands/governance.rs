@@ -71,10 +71,8 @@ pub async fn execute_pr_check(base_report_path: Option<String>) -> Result<(), Ar
         .await
         .unwrap_or_else(|_| vec![]);
 
-    let head_scorecard = governance
-        .get_scorecard(&project_id)
-        .await
-        .unwrap_or(ares_governance::models::GovernanceScorecard {
+    let head_scorecard = governance.get_scorecard(&project_id).await.unwrap_or(
+        ares_governance::models::GovernanceScorecard {
             ownership_score: 0.0,
             traceability_score: 0.0,
             evidence_score: 0.0,
@@ -83,7 +81,8 @@ pub async fn execute_pr_check(base_report_path: Option<String>) -> Result<(), Ar
             security_score: 0.0,
             architecture_score: 0.0,
             overall_score: 0.0,
-        });
+        },
+    );
 
     let head_snapshot = ares_pr_engine::models::MemorySnapshot {
         graph: head_graph,

@@ -51,11 +51,7 @@ impl GovernanceInterceptor {
                 GovernanceOutcome::RequireApproval => {
                     let request = self
                         .approval_engine
-                        .create_request(
-                            project_id.as_ref(),
-                            workflow_id,
-                            result.violations.clone(),
-                        )
+                        .create_request(project_id.as_ref(), workflow_id, result.violations.clone())
                         .await
                         .map_err(|e| e.to_string())?;
 

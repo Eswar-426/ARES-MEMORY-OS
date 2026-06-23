@@ -5,9 +5,7 @@ use crate::extractors::tests::TestResolutionEngine;
 use crate::extractors::typescript::TypeScriptDependencyExtractor;
 use crate::scanner::RepositoryScanner;
 use ares_knowledge_graph::models::GraphEvent;
-use ares_knowledge_graph::models::{
-    EdgeType, KnowledgeEdge, KnowledgeNode, NodeType,
-};
+use ares_knowledge_graph::models::{EdgeType, KnowledgeEdge, KnowledgeNode, NodeType};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;

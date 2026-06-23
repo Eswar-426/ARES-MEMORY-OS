@@ -86,31 +86,33 @@ impl EvidenceEngine {
 
         // Fact 2: Imports
         if (filename.ends_with(".rs") || filename.ends_with(".ts") || filename.ends_with(".go"))
-            && (content.contains("use oauth2::") || content.contains("import oauth2")) {
-                evidence.push(Evidence {
-                    id: NodeId::new(),
-                    evidence_type: EvidenceType::ScannerFact,
-                    source_node: source_node.clone(),
-                    observed_value: "OAuth2 capability detected".to_string(),
-                    observed_at: Utc::now(),
-                    confidence: 0.95,
-                    source: EvidenceSource::Scanner,
-                });
-            }
+            && (content.contains("use oauth2::") || content.contains("import oauth2"))
+        {
+            evidence.push(Evidence {
+                id: NodeId::new(),
+                evidence_type: EvidenceType::ScannerFact,
+                source_node: source_node.clone(),
+                observed_value: "OAuth2 capability detected".to_string(),
+                observed_at: Utc::now(),
+                confidence: 0.95,
+                source: EvidenceSource::Scanner,
+            });
+        }
 
         // Fact 3: Configuration
         if (filename.ends_with(".env") || filename.ends_with(".yaml") || filename.ends_with(".yml"))
-            && (content.contains("OIDC_ENABLED=true") || content.contains("oidc_enabled: true")) {
-                evidence.push(Evidence {
-                    id: NodeId::new(),
-                    evidence_type: EvidenceType::ConfigurationFact,
-                    source_node: source_node.clone(),
-                    observed_value: "OIDC capability detected".to_string(),
-                    observed_at: Utc::now(),
-                    confidence: 1.0,
-                    source: EvidenceSource::Scanner,
-                });
-            }
+            && (content.contains("OIDC_ENABLED=true") || content.contains("oidc_enabled: true"))
+        {
+            evidence.push(Evidence {
+                id: NodeId::new(),
+                evidence_type: EvidenceType::ConfigurationFact,
+                source_node: source_node.clone(),
+                observed_value: "OIDC capability detected".to_string(),
+                observed_at: Utc::now(),
+                confidence: 1.0,
+                source: EvidenceSource::Scanner,
+            });
+        }
 
         // Fact 4: Ownership
         if filename == "CODEOWNERS" {

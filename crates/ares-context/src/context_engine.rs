@@ -5,9 +5,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::impact::ImpactAnalyzer;
-use crate::models::{
-    ContextBundle, ContextMetrics, FileExplanation, RepositoryInsight,
-};
+use crate::models::{ContextBundle, ContextMetrics, FileExplanation, RepositoryInsight};
 use crate::query::{IntentDetector, QueryIntent, QueryParser};
 use crate::ranking::{HybridRanker, RankingStrategy};
 use crate::retrieval::{BundleBuilder, GraphRetriever, MemoryRetriever, SummaryRetriever};

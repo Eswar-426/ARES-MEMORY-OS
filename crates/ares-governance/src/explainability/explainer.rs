@@ -1,6 +1,4 @@
-use crate::models::{
-    ComplianceViolation, GovernanceExplanation, GovernanceExplanationSummary,
-};
+use crate::models::{ComplianceViolation, GovernanceExplanation, GovernanceExplanationSummary};
 
 pub struct GovernanceExplainer;
 

@@ -9,8 +9,7 @@ pub enum ViolationSeverity {
     Critical,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema, Default)]
 pub enum EnforcementAction {
     Allow,
     #[default]
@@ -36,9 +35,7 @@ pub enum CertificationLevel {
     Platinum,
 }
 
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, Default)]
 pub enum PolicyCategory {
     Ownership,
     Approval,
@@ -49,7 +46,6 @@ pub enum PolicyCategory {
     #[default]
     Architecture,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PolicyVersion {

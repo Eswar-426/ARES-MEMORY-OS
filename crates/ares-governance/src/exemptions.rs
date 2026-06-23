@@ -29,9 +29,7 @@ impl ExemptionEngine {
         }
 
         let mut exemptions = Vec::new();
-        let mut entries = tokio::fs::read_dir(&dir)
-            .await
-            .map_err(AresError::Io)?;
+        let mut entries = tokio::fs::read_dir(&dir).await.map_err(AresError::Io)?;
 
         let now = chrono::Utc::now();
 

@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 use crate::models::DecisionPageResponse;
 use crate::models::GraphNodePageResponse;
 use crate::models::TimelinePageResponse;

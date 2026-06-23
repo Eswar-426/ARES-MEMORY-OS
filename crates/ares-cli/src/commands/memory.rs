@@ -158,10 +158,8 @@ pub async fn execute_export(out_path: &String) -> Result<(), AresError> {
         .await
         .unwrap_or_else(|_| vec![]);
 
-    let scorecard = governance
-        .get_scorecard(&project_id)
-        .await
-        .unwrap_or(ares_governance::models::GovernanceScorecard {
+    let scorecard = governance.get_scorecard(&project_id).await.unwrap_or(
+        ares_governance::models::GovernanceScorecard {
             ownership_score: 0.0,
             traceability_score: 0.0,
             evidence_score: 0.0,
@@ -170,7 +168,8 @@ pub async fn execute_export(out_path: &String) -> Result<(), AresError> {
             security_score: 0.0,
             architecture_score: 0.0,
             overall_score: 0.0,
-        });
+        },
+    );
 
     let snapshot = ares_pr_engine::models::MemorySnapshot {
         graph,

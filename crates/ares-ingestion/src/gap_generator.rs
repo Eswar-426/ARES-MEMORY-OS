@@ -111,10 +111,11 @@ impl GapGenerator {
                         if let Some(impls) = out_degree.get(id) {
                             for (etype, target) in impls {
                                 if **etype == EdgeType::ImplementedBy
-                                    && code_has_test.contains(target) {
-                                        all_impls_untested = false;
-                                        break;
-                                    }
+                                    && code_has_test.contains(target)
+                                {
+                                    all_impls_untested = false;
+                                    break;
+                                }
                             }
                         }
                         if all_impls_untested {

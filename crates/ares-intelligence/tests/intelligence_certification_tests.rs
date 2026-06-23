@@ -1,6 +1,5 @@
 use ares_candidates::{
     Candidate, CandidateConfidence, CandidateStatus, CandidateType, TraceabilityCategory,
-    TraceabilityEndpoint, TraceabilityEndpointType, TraceabilityStrength,
 };
 use ares_intelligence::engines::traceability_engine::TraceabilityCandidateEngine;
 use std::collections::{HashMap, HashSet};

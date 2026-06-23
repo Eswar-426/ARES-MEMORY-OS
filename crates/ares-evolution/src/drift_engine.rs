@@ -69,7 +69,8 @@ impl DriftEngine {
                 drift_type,
                 confidence: 1.0,
                 evidence_ids: {
-                    let mut ids: Vec<String> = evidence.iter().map(|e| e.id.as_str().to_string()).collect();
+                    let mut ids: Vec<String> =
+                        evidence.iter().map(|e| e.id.as_str().to_string()).collect();
                     ids.sort();
                     ids
                 },

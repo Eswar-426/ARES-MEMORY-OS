@@ -50,10 +50,10 @@ impl ReportGenerator {
             let mut best_precision = -1.0;
 
             let process_agent = |name: &str,
-                                     res: &Option<AgentRunResult>,
-                                     md_str: &mut String,
-                                     best_a: &mut String,
-                                     best_p: &mut f32| {
+                                 res: &Option<AgentRunResult>,
+                                 md_str: &mut String,
+                                 best_a: &mut String,
+                                 best_p: &mut f32| {
                 if let Some(r) = res {
                     md_str.push_str(&format!("### {}\n", name));
                     md_str.push_str(&format!("- **Precision**: {:.2}\n", r.precision_score));

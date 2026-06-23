@@ -1,30 +1,27 @@
-use ares_core::AresError;
-use ares_core::ProjectId;
-use ares_reasoning::{BreakageEngine, GapEngine, ImpactEngine, PathEngine, WhyEngine};
+use ares_reasoning::{ImpactEngine, WhyEngine};
 use ares_store::Store;
 use std::path::PathBuf;
 use std::time::Instant;
 
-fn get_ripgrep_store() -> Result<Store, AresError> {
-    let db_path = PathBuf::from("../../.ares/ares.db");
-    if !db_path.exists() {
-        return Err(AresError::validation("Ripgrep DB not found"));
-    }
-    Store::open(&db_path)
-}
-
 #[test]
 fn test_cert_1_real_repo_lineage_discovery() {
-    let store = get_ripgrep_store().expect("DB should exist for ripgrep");
+    let (store, _dir) = ares_store::db::test_helpers::test_store();
     let why_engine = WhyEngine::new(store.clone());
 
-    // Just run a query against a known file if possible, or any file.
-    // If Candidate Generation didn't run, we will just see Orphaned/GapDetected.
-    // We will verify the engine doesn't panic and returns a valid report.
+    // Insert mock data for "scratch/ripgrep/crates/core/src/search.rs"
+    let conn = store.get_conn().expect("Failed to get DB connection");
+    conn.execute(
+        "INSERT INTO projects (id, name, description, root_path, primary_language, domain, maturity, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, 0)",
+        ("proj_1", "Project 1", "Desc", "/", "rust", "core", "greenfield")
+    ).expect("Failed to insert mock project");
+
+    conn.execute(
+        "INSERT INTO graph_nodes (id, project_id, node_type, label, file_path, properties, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0)",
+        ("node_1", "proj_1", "file", "search.rs", "scratch/ripgrep/crates/core/src/search.rs", "{}")
+    ).expect("Failed to insert mock node");
+
     let report = why_engine.explain("scratch/ripgrep/crates/core/src/search.rs");
 
-    // It might error if the node doesn't exist, which is fine, we just want to ensure
-    // we can query real repository paths.
     if let Ok(r) = report {
         println!("Report for search.rs: {:?}", r.status);
     } else {

@@ -32,6 +32,7 @@ pub enum NodeType {
     Requirement,
     // P3.2 Memory Capture: fact-level node types
     Person,
+    Team,
     Commit,
     Release,
     Branch,
@@ -78,6 +79,7 @@ impl NodeType {
             Self::Risk => "risk",
             Self::Requirement => "requirement",
             Self::Person => "person",
+            Self::Team => "team",
             Self::Commit => "commit",
             Self::Release => "release",
             Self::Branch => "branch",
@@ -117,6 +119,7 @@ impl std::str::FromStr for NodeType {
             "risk" => Ok(Self::Risk),
             "requirement" => Ok(Self::Requirement),
             "person" => Ok(Self::Person),
+            "team" => Ok(Self::Team),
             "commit" => Ok(Self::Commit),
             "release" => Ok(Self::Release),
             "branch" => Ok(Self::Branch),
@@ -180,6 +183,10 @@ pub enum EdgeType {
     Drifts,
     Supports,
     Observes,
+    // P5 Governance Intelligence
+    MemberOf,
+    ApprovedBy,
+    ReviewedBy,
 }
 
 impl EdgeType {
@@ -228,6 +235,9 @@ impl EdgeType {
             Self::Drifts => "drifts",
             Self::Supports => "supports",
             Self::Observes => "observes",
+            Self::MemberOf => "member_of",
+            Self::ApprovedBy => "approved_by",
+            Self::ReviewedBy => "reviewed_by",
         }
     }
 }
@@ -279,6 +289,9 @@ impl std::str::FromStr for EdgeType {
             "drifts" => Ok(Self::Drifts),
             "supports" => Ok(Self::Supports),
             "observes" => Ok(Self::Observes),
+            "member_of" => Ok(Self::MemberOf),
+            "approved_by" => Ok(Self::ApprovedBy),
+            "reviewed_by" => Ok(Self::ReviewedBy),
             other => Err(format!("Unknown edge type: {other}")),
         }
     }

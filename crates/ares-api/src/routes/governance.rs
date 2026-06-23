@@ -5,7 +5,6 @@ use axum::{
     Json,
 };
 use tracing::info;
-use utoipa::ToSchema;
 
 #[utoipa::path(
     get,

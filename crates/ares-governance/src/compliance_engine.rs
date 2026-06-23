@@ -1,6 +1,4 @@
-use crate::models::{
-    ComplianceResult, ComplianceViolation, PolicyDefinition, PolicyVersion,
-};
+use crate::models::{ComplianceResult, ComplianceViolation, PolicyDefinition, PolicyVersion};
 use ares_core::types::node::GraphNode;
 use ares_core::{AresError, EdgeDirection, EdgeType, NodeId, ProjectId};
 use chrono::Utc;

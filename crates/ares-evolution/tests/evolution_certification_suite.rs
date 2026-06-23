@@ -66,7 +66,9 @@ async fn cert_01_evidence_gated_drift() {
     let drift_engine = DriftEngine::new(drift_repo.clone());
 
     // Without evidence, detect_drift should fail
-    let res = drift_engine.detect_drift("proj_1", "node_1", "postgresql", &[]).await;
+    let res = drift_engine
+        .detect_drift("proj_1", "node_1", "postgresql", &[])
+        .await;
     assert!(res.is_err(), "Drift must fail without evidence");
 
     // Test with evidence
@@ -468,7 +470,10 @@ async fn cert_09_knowledge_retention() {
     // Lineage reconstruction: The event still exists pointing to d1.
     let events = evo_repo.get_events_for_node("p1", "d1").await.unwrap();
     assert_eq!(events.len(), 1);
-    assert_eq!(events[0].rationale.as_deref().unwrap_or(""), "OIDC changed by Team B");
+    assert_eq!(
+        events[0].rationale.as_deref().unwrap_or(""),
+        "OIDC changed by Team B"
+    );
     // This proves ARES preserves historical lineage even if current state is deleted/stale
 }
 
