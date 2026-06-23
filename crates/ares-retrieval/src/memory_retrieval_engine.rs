@@ -85,4 +85,16 @@ impl MemoryRetrievalEngine {
         
         Ok(owned_nodes)
     }
+
+    pub fn get_all_edges_from(&self, id: &str) -> Result<Vec<ares_core::types::node::GraphEdge>, AresError> {
+        let graph = SqliteGraphRepository::new((*self.store).clone());
+        let node_id = NodeId::from(id.to_string());
+        graph.get_edges_from(&node_id)
+    }
+
+    pub fn get_all_edges_to(&self, id: &str) -> Result<Vec<ares_core::types::node::GraphEdge>, AresError> {
+        let graph = SqliteGraphRepository::new((*self.store).clone());
+        let node_id = NodeId::from(id.to_string());
+        graph.get_edges_to(&node_id)
+    }
 }

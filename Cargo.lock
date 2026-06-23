@@ -458,14 +458,13 @@ name = "ares-decision-intelligence"
 version = "0.1.0"
 dependencies = [
  "ares-core",
+ "ares-evolution",
+ "ares-retrieval",
  "ares-store",
- "ares-traceability",
- "chrono",
- "rusqlite",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
- "utoipa",
+ "tokio",
  "uuid",
 ]
 
@@ -620,6 +619,23 @@ dependencies = [
  "tokio",
  "tracing",
  "utoipa",
+ "uuid",
+]
+
+[[package]]
+name = "ares-knowledge-gap"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ares-core",
+ "ares-retrieval",
+ "ares-store",
+ "chrono",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
  "uuid",
 ]
 

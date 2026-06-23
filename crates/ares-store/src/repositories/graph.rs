@@ -56,6 +56,25 @@ impl SqliteGraphRepository {
         let conn = self.store.get_conn()?;
         let now = now_micros();
 
+        // Enforce P8 Hierarchy Constraints
+        if matches!(
+            edge.edge_type,
+            EdgeType::HasAssumption
+                | EdgeType::HasAlternative
+                | EdgeType::HasRisk
+                | EdgeType::HasReviewTrigger
+        ) {
+            let mut stmt = conn.prepare("SELECT node_type FROM graph_nodes WHERE id = ?1").map_err(AresError::db)?;
+            let nt: String = stmt.query_row(params![edge.from_node_id.as_str()], |row| row.get(0)).map_err(AresError::db)?;
+            let nt_parsed: NodeType = nt.parse().unwrap_or(NodeType::Concept);
+            if nt_parsed != NodeType::Decision {
+                return Err(AresError::Validation(format!(
+                    "Hierarchy constraint failed: DNA edge {:?} is only allowed from Decision nodes, got {:?}",
+                    edge.edge_type, nt_parsed
+                )));
+            }
+        }
+
         // Expire existing active edge of same (from, to, type) before inserting new
         conn.execute(
             "UPDATE graph_edges SET valid_until = ?1
