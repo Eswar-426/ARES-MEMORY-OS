@@ -8,7 +8,7 @@ pub struct RepositoryBuilder;
 impl RepositoryBuilder {
     pub fn build(path: &Path) -> Result<(), AresError> {
         let mut manifest = Self::load_manifest(path)?;
-        
+
         let stages = vec![
             "Build Stage 1: Scanner",
             "Build Stage 2: Storage",
@@ -38,7 +38,8 @@ impl RepositoryBuilder {
 
     fn load_manifest(path: &Path) -> Result<BuildManifest, AresError> {
         let manifest_path = path.join(".ares/build_manifest.json");
-        let manifest_str = fs::read_to_string(&manifest_path).map_err(|e| AresError::validation(e.to_string()))?;
+        let manifest_str =
+            fs::read_to_string(&manifest_path).map_err(|e| AresError::validation(e.to_string()))?;
         serde_json::from_str(&manifest_str).map_err(|e| AresError::validation(e.to_string()))
     }
 

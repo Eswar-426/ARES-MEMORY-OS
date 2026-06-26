@@ -11,10 +11,10 @@ impl RepositoryInitializer {
         if !ares_dir.exists() {
             fs::create_dir_all(&ares_dir).map_err(|e| AresError::validation(e.to_string()))?;
         }
-        
+
         let config_path = ares_dir.join("config.toml");
         if !config_path.exists() {
-            let default_config = AresConfig::default();
+            let _default_config = AresConfig::default();
             // We just use a hardcoded string here if toml isn't available to keep dependencies simple
             let config_str = r#"
 [repository]
@@ -27,10 +27,11 @@ path = ".ares/memory.db"
 
 [scanners]
 exclude = ["node_modules", "target", ".git"]
-            "#.trim();
+            "#
+            .trim();
             fs::write(config_path, config_str).map_err(|e| AresError::validation(e.to_string()))?;
         }
-        
+
         let manifest_path = ares_dir.join("build_manifest.json");
         if !manifest_path.exists() {
             let manifest = BuildManifest {
@@ -38,9 +39,10 @@ exclude = ["node_modules", "target", ".git"]
                 ..Default::default()
             };
             let manifest_str = serde_json::to_string_pretty(&manifest).unwrap();
-            fs::write(manifest_path, manifest_str).map_err(|e| AresError::validation(e.to_string()))?;
+            fs::write(manifest_path, manifest_str)
+                .map_err(|e| AresError::validation(e.to_string()))?;
         }
-        
+
         Ok(())
     }
 }
