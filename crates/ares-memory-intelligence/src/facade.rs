@@ -2,10 +2,10 @@ use crate::assembler::MemoryContextAssembler;
 use ares_core::AresError;
 use std::sync::Arc;
 
-use ares_governance::GovernanceFacade;
-use ares_context_injector::{ContextPackage, build_context_with_store, TokenBudget};
-use ares_knowledge_graph::queries::WhyResult;
+use ares_context_injector::{build_context_with_store, ContextPackage, TokenBudget};
 use ares_core::ProjectId;
+use ares_governance::GovernanceFacade;
+use ares_knowledge_graph::queries::WhyResult;
 
 pub struct WhyWithContextResult {
     pub graph: WhyResult,
@@ -44,21 +44,28 @@ impl MemoryFacade {
         project_id: &ProjectId,
     ) -> Result<WhyWithContextResult, AresError> {
         let entity_id = ares_core::canonicalize_node_id(file_path);
-        
-        let graph = self.assembler.graph.why_does_this_exist(&entity_id).unwrap_or_else(|_| WhyResult {
-            requirements: vec![],
-            decisions: vec![],
-            evidence: vec![],
-        });
+
+        let graph = self
+            .assembler
+            .graph
+            .why_does_this_exist(&entity_id)
+            .unwrap_or_else(|_| WhyResult {
+                requirements: vec![],
+                decisions: vec![],
+                evidence: vec![],
+            });
 
         let context = build_context_with_store(
-            query, file_path, &self.assembler.store, project_id, TokenBudget::Small
-        ).await.map_err(|e| AresError::Database(e.to_string()))?; // AresError doesn't have Internal out of the box? We can use Database or similar
+            query,
+            file_path,
+            &self.assembler.store,
+            project_id,
+            TokenBudget::Small,
+        )
+        .await
+        .map_err(|e| AresError::Database(e.to_string()))?; // AresError doesn't have Internal out of the box? We can use Database or similar
 
-        Ok(WhyWithContextResult {
-            graph,
-            context,
-        })
+        Ok(WhyWithContextResult { graph, context })
     }
 
     pub fn who(&self, entity_id: &str) -> Result<serde_json::Value, AresError> {

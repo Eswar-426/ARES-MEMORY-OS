@@ -9,7 +9,6 @@ use ares_core::{Decision, DecisionId, GraphNode, NodeId, NodeType, ProjectId};
 use async_trait::async_trait;
 use std::sync::Arc;
 
-
 struct MockRetriever {
     decisions_ret: DecisionContext,
     git_ret: GitContext,
@@ -110,15 +109,45 @@ async fn test_determinism() {
     let retriever = Arc::new(default_mock_retriever());
     let project_id = ProjectId::new();
 
-    let mut res1 = build_context("query", "file.rs", retriever.clone(), &project_id, TokenBudget::Maximum).await.unwrap();
-    let mut res2 = build_context("query", "file.rs", retriever.clone(), &project_id, TokenBudget::Maximum).await.unwrap();
-    
+    let mut res1 = build_context(
+        "query",
+        "file.rs",
+        retriever.clone(),
+        &project_id,
+        TokenBudget::Maximum,
+    )
+    .await
+    .unwrap();
+    let mut res2 = build_context(
+        "query",
+        "file.rs",
+        retriever.clone(),
+        &project_id,
+        TokenBudget::Maximum,
+    )
+    .await
+    .unwrap();
+
     // Normalize dynamic timestamp
-    let generated_line1 = res1.assembled_prompt.lines().find(|l| l.starts_with("Generated:")).unwrap().to_string();
-    let generated_line2 = res2.assembled_prompt.lines().find(|l| l.starts_with("Generated:")).unwrap().to_string();
-    res1.assembled_prompt = res1.assembled_prompt.replace(&generated_line1, "Generated: TIME");
-    res2.assembled_prompt = res2.assembled_prompt.replace(&generated_line2, "Generated: TIME");
-    
+    let generated_line1 = res1
+        .assembled_prompt
+        .lines()
+        .find(|l| l.starts_with("Generated:"))
+        .unwrap()
+        .to_string();
+    let generated_line2 = res2
+        .assembled_prompt
+        .lines()
+        .find(|l| l.starts_with("Generated:"))
+        .unwrap()
+        .to_string();
+    res1.assembled_prompt = res1
+        .assembled_prompt
+        .replace(&generated_line1, "Generated: TIME");
+    res2.assembled_prompt = res2
+        .assembled_prompt
+        .replace(&generated_line2, "Generated: TIME");
+
     assert_eq!(res1.assembled_prompt, res2.assembled_prompt);
     assert_eq!(res1.sources, res2.sources);
     assert_eq!(res1.estimated_tokens, res2.estimated_tokens);
@@ -163,7 +192,7 @@ async fn test_large_repository_trimming() {
 
     let retriever = Arc::new(large_retriever);
     let project_id = ProjectId::new();
-    
+
     let assembler = PromptAssembler::new(TokenBudget::Small);
 
     let mut ast_nodes = Vec::new();

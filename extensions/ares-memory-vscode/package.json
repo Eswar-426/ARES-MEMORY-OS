@@ -38,6 +38,10 @@
       {
         "command": "ares.simulateChange",
         "title": "ARES: Simulate Change"
+      },
+      {
+        "command": "ares.driftAnalysis",
+        "title": "ARES: Drift Analysis"
       }
     ],
     "menus": {
@@ -53,6 +57,10 @@
         {
           "command": "ares.simulateChange",
           "group": "ares@3"
+        },
+        {
+          "command": "ares.driftAnalysis",
+          "group": "ares@4"
         }
       ]
     },

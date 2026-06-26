@@ -396,9 +396,13 @@ dependencies = [
 name = "ares-context-injector"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "ares-context-generator",
  "ares-core",
+ "ares-git-memory",
  "ares-store",
+ "async-trait",
+ "chrono",
  "serde",
  "serde_json",
  "tempfile",
@@ -594,6 +598,7 @@ dependencies = [
  "ares-candidates",
  "ares-core",
  "ares-git-memory",
+ "ares-knowledge-graph",
  "ares-store",
  "async-trait",
  "chrono",
@@ -601,6 +606,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
@@ -674,6 +680,7 @@ dependencies = [
  "ares-core",
  "ares-extractor",
  "ares-governance",
+ "ares-intelligence",
  "ares-knowledge-graph",
  "ares-memory-intelligence",
  "ares-planner",
@@ -740,9 +747,12 @@ dependencies = [
 name = "ares-memory-intelligence"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "ares-context-injector",
  "ares-core",
  "ares-decision-intelligence",
  "ares-gap-engine",
+ "ares-git-memory",
  "ares-governance",
  "ares-knowledge-graph",
  "ares-memory-evolution",

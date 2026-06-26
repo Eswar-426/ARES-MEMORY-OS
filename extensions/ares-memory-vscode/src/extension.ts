@@ -48,6 +48,7 @@ function parseAresResponse(result: any, filePath?: string): AresResponse {
         related_decisions: Array.isArray(raw.related_decisions) ? raw.related_decisions : [],
         query_type: raw.query_type ?? '',
         file_path: filePath ?? raw.file_path,
+        ...raw,
     };
 }
 
@@ -241,6 +242,13 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('ares.impactAnalysis', (uri?: vscode.Uri) => {
             runToolCommand('Impact Analysis', 'ares_impact', uri);
+        })
+    );
+
+    // ARES: Drift Analysis
+    context.subscriptions.push(
+        vscode.commands.registerCommand('ares.driftAnalysis', (uri?: vscode.Uri) => {
+            runToolCommand('Drift Analysis', 'ares_drift', uri);
         })
     );
 

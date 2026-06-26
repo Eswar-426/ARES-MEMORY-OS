@@ -28,7 +28,9 @@ impl PromptAssembler {
         mut neighbors: NeighborContext,
     ) -> ContextPackage {
         // 1. Stable sorting
-        decisions.decisions.sort_by_key(|b| std::cmp::Reverse(b.created_at));
+        decisions
+            .decisions
+            .sort_by_key(|b| std::cmp::Reverse(b.created_at));
         git.commits.sort_by_key(|b| std::cmp::Reverse(b.timestamp));
 
         let type_rank = |nt: &NodeType| match nt {
@@ -117,7 +119,10 @@ impl PromptAssembler {
         let levels = [20, 15, 10, 5, 3, 1, 0];
 
         loop {
-            let total_tokens: usize = sections.iter().map(|s| Self::estimate_tokens(&s.content)).sum();
+            let total_tokens: usize = sections
+                .iter()
+                .map(|s| Self::estimate_tokens(&s.content))
+                .sum();
             if total_tokens <= *budget_left {
                 break;
             }
@@ -132,7 +137,7 @@ impl PromptAssembler {
                             break;
                         }
                     }
-                    
+
                     sec.item_count = next_level;
                     Self::rebuild_section(sec);
                     trimmed_something = true;

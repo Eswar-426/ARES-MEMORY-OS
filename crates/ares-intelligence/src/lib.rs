@@ -30,6 +30,7 @@ pub mod sandbox;
 pub mod security;
 pub mod selection;
 pub mod session;
+pub mod simulation;
 pub mod state;
 pub mod telemetry;
 pub mod tokens;

@@ -48,6 +48,7 @@ struct SimulationInput {
     action: String,
     target_id: String,
     target_type: Option<String>,
+    related_id: Option<String>,
 }
 
 #[tokio::main]
@@ -442,16 +443,20 @@ async fn main() -> Result<(), BoxError> {
         .handler(move |input: SimulationInput| {
             let store = store_sim.clone();
             async move {
-                let project_id = ares_core::ProjectId::from(input.project_id);
-                let engine = ares_requirements::simulation::RequirementSimulationEngine::new(std::sync::Arc::new(store));
                 let target_id = ares_core::canonicalize_node_id(&input.target_id);
-                let change = if input.action == "remove" {
-                    ares_requirements::simulation::ProposedChange::RemoveNode { id: target_id }
-                } else {
-                    return Err(tower_mcp::Error::internal(format_mcp_error("Unsupported action", "Only 'remove' is supported")));
+                let related = input.related_id.as_deref().map(ares_core::canonicalize_node_id);
+                
+                let action_enum = match input.action.parse::<ares_intelligence::simulation::SimulationAction>() {
+                    Ok(a) => a,
+                    Err(_) => return Err(tower_mcp::Error::internal(format_mcp_error("Unsupported action", "Unsupported simulation action"))),
                 };
-                let graph = ares_traceability::TraceabilityGraph::new();
-                match engine.simulate_change(&project_id, &graph, change) {
+                
+                match ares_intelligence::simulation::simulate(
+                    action_enum,
+                    &target_id,
+                    related.as_deref(),
+                    &store,
+                ).await {
                     Ok(report) => serde_json::to_string(&report)
                         .map(CallToolResult::text)
                         .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize simulation report", &e.to_string()))),

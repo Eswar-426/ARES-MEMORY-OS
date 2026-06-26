@@ -22,8 +22,9 @@ export interface AresResponse {
     confidence: number;
     evidence: AresEvidence[];
     related_decisions: AresDecision[];
-    query_type: string;
+    query_type?: string;
     file_path?: string;
+    [key: string]: any;
 }
 
 export interface AresError {
@@ -405,6 +406,18 @@ body{
             <div class="section-header">Related Decisions</div>
             <div id="decisionsList" class="section-body"></div>
         </div>
+
+        <!-- Drift Analysis -->
+        <div id="driftSection" class="section animate-slide hidden" style="animation-delay:.25s">
+            <div class="section-header">Drift Analysis</div>
+            <div id="driftList" class="section-body"></div>
+        </div>
+
+        <!-- Simulation Result -->
+        <div id="simulationSection" class="section animate-slide hidden" style="animation-delay:.3s">
+            <div class="section-header">Simulation Result</div>
+            <div id="simulationList" class="section-body"></div>
+        </div>
     </div>
 
     <!-- Empty state -->
@@ -444,6 +457,10 @@ body{
         evidenceList:     document.getElementById('evidenceList'),
         decisionsSection: document.getElementById('decisionsSection'),
         decisionsList:    document.getElementById('decisionsList'),
+        driftSection:     document.getElementById('driftSection'),
+        driftList:        document.getElementById('driftList'),
+        simulationSection: document.getElementById('simulationSection'),
+        simulationList:   document.getElementById('simulationList'),
         emptyState:       document.getElementById('emptyState'),
     };
 
@@ -582,6 +599,126 @@ body{
         });
     }
 
+    function renderDrift(data) {
+        dom.driftList.innerHTML = '';
+        if (data.has_drift === undefined && !data.summary) {
+            dom.driftSection.classList.add('hidden');
+            return;
+        }
+        dom.driftSection.classList.remove('hidden');
+
+        var card = document.createElement('div');
+        card.className = 'decision-card';
+        
+        var title = document.createElement('div');
+        title.className = 'decision-meta';
+        
+        var status = document.createElement('span');
+        status.className = 'decision-author';
+        status.textContent = data.has_drift ? "Drift Detected" : "No Drift";
+        status.style.color = data.has_drift ? "#f48771" : "#89d185";
+        
+        var score = document.createElement('span');
+        score.className = 'decision-date';
+        score.textContent = "Score: " + (data.drift_score !== undefined ? data.drift_score.toFixed(2) : "0.00");
+        
+        title.appendChild(status);
+        title.appendChild(score);
+        
+        var summary = document.createElement('div');
+        summary.className = 'decision-summary';
+        summary.textContent = data.summary || "No summary available.";
+        
+        card.appendChild(title);
+        card.appendChild(summary);
+        
+        if (data.decision_orphans && data.decision_orphans.length > 0) {
+            var orphansTitle = document.createElement('div');
+            orphansTitle.className = 'section-header';
+            orphansTitle.style.marginTop = '10px';
+            orphansTitle.style.fontSize = '12px';
+            orphansTitle.textContent = "Orphaned Decisions:";
+            card.appendChild(orphansTitle);
+            
+            data.decision_orphans.forEach(function(orphan) {
+                var orphanItem = document.createElement('div');
+                orphanItem.className = 'evidence-source';
+                orphanItem.textContent = orphan;
+                card.appendChild(orphanItem);
+            });
+        }
+        
+        dom.driftList.appendChild(card);
+    }
+
+    function renderSimulation(data) {
+        dom.simulationList.innerHTML = '';
+        if (data.action === undefined || data.impact_radius === undefined) {
+            dom.simulationSection.classList.add('hidden');
+            return;
+        }
+        dom.simulationSection.classList.remove('hidden');
+
+        var card = document.createElement('div');
+        card.className = 'decision-card';
+        
+        var title = document.createElement('div');
+        title.className = 'decision-meta';
+        
+        var status = document.createElement('span');
+        status.className = 'decision-author';
+        status.textContent = data.reversible ? "Reversible" : "Irreversible";
+        status.style.color = data.reversible ? "#89d185" : "#f48771";
+        
+        var score = document.createElement('span');
+        score.className = 'decision-date';
+        score.textContent = "Risk Score: " + (data.risk_score !== undefined ? data.risk_score.toFixed(2) : "0.00");
+        
+        title.appendChild(status);
+        title.appendChild(score);
+        
+        var summary = document.createElement('div');
+        summary.className = 'decision-summary';
+        summary.textContent = data.summary || "No summary available.";
+        
+        card.appendChild(title);
+        card.appendChild(summary);
+        
+        if (data.impact_radius && data.impact_radius.length > 0) {
+            var impactTitle = document.createElement('div');
+            impactTitle.className = 'section-header';
+            impactTitle.style.marginTop = '10px';
+            impactTitle.style.fontSize = '12px';
+            impactTitle.textContent = "Impact Radius (" + data.impact_radius.length + "):";
+            card.appendChild(impactTitle);
+            
+            data.impact_radius.forEach(function(item) {
+                var it = document.createElement('div');
+                it.className = 'evidence-source';
+                it.textContent = item;
+                card.appendChild(it);
+            });
+        }
+        
+        if (data.decision_conflicts && data.decision_conflicts.length > 0) {
+            var conflictTitle = document.createElement('div');
+            conflictTitle.className = 'section-header';
+            conflictTitle.style.marginTop = '10px';
+            conflictTitle.style.fontSize = '12px';
+            conflictTitle.textContent = "Decision Conflicts (" + data.decision_conflicts.length + "):";
+            card.appendChild(conflictTitle);
+            
+            data.decision_conflicts.forEach(function(item) {
+                var it = document.createElement('div');
+                it.className = 'evidence-source';
+                it.textContent = item;
+                card.appendChild(it);
+            });
+        }
+        
+        dom.simulationList.appendChild(card);
+    }
+
     function renderEmptyState() {
         dom.resultContent.classList.add('hidden');
         dom.emptyState.classList.remove('hidden');
@@ -619,6 +756,8 @@ body{
         renderConfidence(data);
         renderEvidence(data);
         renderDecisions(data);
+        renderDrift(data);
+        renderSimulation(data);
     }
 
     // --- Message listener ---

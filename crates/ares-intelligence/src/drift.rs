@@ -1,7 +1,5 @@
 use ares_core::ProjectId;
-use ares_store::repositories::{
-    decision::SqliteDecisionRepository, graph::SqliteGraphRepository,
-};
+use ares_store::repositories::{decision::SqliteDecisionRepository, graph::SqliteGraphRepository};
 use ares_store::Store;
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
@@ -269,11 +267,11 @@ mod tests {
         let db_path = dir.path().join("test.db");
         let store = Store::open(&db_path).unwrap();
         let conn = store.get_conn().unwrap();
-        
+
         conn.execute("INSERT INTO projects (id, name, root_path, primary_language, domain, maturity, created_at, updated_at) VALUES (?1, 'test', '/test', 'rust', 'domain', 'greenfield', 0, 0)", [project_id.as_str()]).unwrap();
 
         let file_node_id = ares_core::canonicalize_node_id(file_path);
-        
+
         conn.execute("INSERT INTO graph_nodes (id, project_id, node_type, label, properties, file_path, created_at, updated_at) VALUES (?1, ?2, 'file', ?3, '{}', ?3, 0, 0)", 
             [&file_node_id, project_id.as_str(), file_path]).unwrap();
 
