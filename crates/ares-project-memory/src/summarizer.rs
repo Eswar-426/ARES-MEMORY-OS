@@ -148,7 +148,7 @@ mod tests {
 
     #[test]
     fn test_compute_fingerprint() {
-        let mut snapshot = ProjectSnapshot {
+        let snapshot = ProjectSnapshot {
             project_id: "test".to_string(),
             name: "Test Project".to_string(),
             description: "".to_string(),
@@ -225,9 +225,6 @@ mod tests {
             RepositorySummarizer::should_regenerate(Some(&fp1), &fp2),
             Some(SummaryTrigger::SignificantChange)
         ));
-        assert!(matches!(
-            RepositorySummarizer::should_regenerate(Some(&fp1), &fp3),
-            None
-        ));
+        assert!(RepositorySummarizer::should_regenerate(Some(&fp1), &fp3).is_none());
     }
 }

@@ -6,7 +6,7 @@ use ares_core::{
 };
 use ares_decision_intelligence::storage::DecisionEdgeProvider;
 use ares_store::Store;
-use ares_traceability::{EdgeProvider, TraceTargetType};
+use ares_traceability::TraceTargetType;
 use async_trait::async_trait;
 use chrono::Utc;
 use std::collections::HashMap;

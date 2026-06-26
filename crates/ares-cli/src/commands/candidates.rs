@@ -42,6 +42,8 @@ pub async fn execute_list() -> Result<(), AresError> {
             CandidateType::Decision => "Decision",
             CandidateType::Architecture => "Architecture",
             CandidateType::Traceability => "Traceability",
+            CandidateType::Capability => "Capability",
+            CandidateType::Ownership => "Ownership",
         };
         let s_str = match c.status {
             CandidateStatus::Proposed => "Proposed",
@@ -83,6 +85,8 @@ pub async fn execute_show(id: String) -> Result<(), AresError> {
         CandidateType::Decision => "Decision",
         CandidateType::Architecture => "Architecture",
         CandidateType::Traceability => "Traceability",
+        CandidateType::Capability => "Capability",
+        CandidateType::Ownership => "Ownership",
     };
     println!("Type: {}", t_str);
 
@@ -124,8 +128,10 @@ pub async fn execute_accept(id: String) -> Result<(), AresError> {
     let node_type = match candidate.candidate_type {
         CandidateType::Requirement => NodeType::Requirement,
         CandidateType::Decision => NodeType::Decision,
-        CandidateType::Architecture => NodeType::Concept,
+        CandidateType::Architecture => NodeType::Architecture,
         CandidateType::Traceability => NodeType::Feature,
+        CandidateType::Capability => NodeType::Capability,
+        CandidateType::Ownership => NodeType::Owner,
     };
 
     let node_id = NodeId::from(format!("node:{}", Uuid::new_v4()));

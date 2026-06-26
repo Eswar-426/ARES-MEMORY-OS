@@ -12,3 +12,4 @@ ares-core = { version = "0.1.0", path = "../ares-core" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 ignore = "0.4"
+rayon = "1.10"

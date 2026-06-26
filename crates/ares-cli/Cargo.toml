@@ -31,6 +31,7 @@ uuid.workspace = true
 ares-scanner = { version = "0.1.0", path = "../ares-scanner" }
 ares-git-memory = { version = "0.1.0", path = "../ares-git-memory" }
 ares-memory-server = { version = "0.1.0", path = "../ares-memory-server" }
+ares-memory-bootstrap = { path = "../ares-memory-bootstrap" }
 
 [[bin]]
 name = "ares"

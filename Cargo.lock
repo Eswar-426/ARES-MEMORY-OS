@@ -323,6 +323,7 @@ dependencies = [
  "ares-governance",
  "ares-ingestion",
  "ares-knowledge-graph",
+ "ares-memory-bootstrap",
  "ares-memory-intelligence",
  "ares-memory-server",
  "ares-pr-engine",
@@ -542,6 +543,7 @@ version = "0.1.0"
 dependencies = [
  "ares-core",
  "ignore",
+ "rayon",
  "serde",
  "serde_json",
 ]
@@ -551,6 +553,7 @@ name = "ares-governance"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "ares-candidates",
  "ares-core",
  "ares-knowledge-graph",
  "ares-memory-evolution",
@@ -591,6 +594,7 @@ dependencies = [
  "ares-candidates",
  "ares-core",
  "ares-git-memory",
+ "ares-store",
  "async-trait",
  "chrono",
  "proptest",
@@ -691,6 +695,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "ares-memory-bootstrap"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ares-candidates",
+ "ares-core",
+ "ares-gap-engine",
+ "ares-governance",
+ "ares-repository-intelligence",
+ "ares-retrieval",
+ "ares-store",
+ "chrono",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "ares-memory-evolution"
 version = "0.1.0"
 dependencies = [
@@ -735,28 +762,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "ares-memory-lifecycle"
+version = "0.1.0"
+dependencies = [
+ "ares-candidates",
+ "ares-core",
+ "ares-decision-intelligence",
+ "ares-repository-intelligence",
+ "ares-retrieval",
+ "ares-store",
+ "chrono",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
 name = "ares-memory-server"
 version = "0.1.0"
 dependencies = [
- "ares-completeness",
+ "anyhow",
  "ares-core",
- "ares-decision-intelligence",
- "ares-evolution",
- "ares-governance",
- "ares-knowledge-gap",
  "ares-query",
- "ares-reasoning",
- "ares-repository-intelligence",
- "ares-retrieval",
- "ares-scanner",
- "ares-store",
- "ares-traceability",
+ "axum",
  "chrono",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
  "tokio",
+ "tower-http 0.5.2",
  "tracing",
+ "tracing-subscriber",
  "uuid",
 ]
 
@@ -891,6 +929,8 @@ dependencies = [
  "ares-decision-intelligence",
  "ares-governance",
  "ares-knowledge-gap",
+ "ares-memory-bootstrap",
+ "ares-memory-lifecycle",
  "ares-repository-intelligence",
  "ares-retrieval",
  "ares-store",
@@ -1015,7 +1055,6 @@ dependencies = [
  "anyhow",
  "ares-candidates",
  "ares-core",
- "ares-intelligence",
  "async-trait",
  "byteorder",
  "chrono",

@@ -51,15 +51,24 @@ impl CandidateThresholds {
         0.75
     }
 
+    pub fn capability() -> f64 {
+        0.85
+    }
+
+    pub fn ownership() -> f64 {
+        0.90
+    }
+
     pub fn for_type(candidate_type: &crate::models::CandidateType) -> f64 {
         match candidate_type {
             crate::models::CandidateType::Requirement => Self::requirement(),
             crate::models::CandidateType::Decision => Self::decision(),
             crate::models::CandidateType::Architecture => Self::architecture(),
             crate::models::CandidateType::Traceability => Self::traceability(),
+            crate::models::CandidateType::Capability => Self::capability(),
+            crate::models::CandidateType::Ownership => Self::ownership(),
         }
     }
-
     pub fn get_traceability_strength(score: f64) -> crate::models::TraceabilityStrength {
         if score >= 0.95 {
             crate::models::TraceabilityStrength::Definitive
@@ -69,6 +78,17 @@ impl CandidateThresholds {
             crate::models::TraceabilityStrength::Moderate
         } else {
             crate::models::TraceabilityStrength::Weak
+        }
+    }
+}
+
+impl From<f64> for CandidateConfidence {
+    fn from(score: f64) -> Self {
+        Self {
+            evidence_count: 1,
+            source_diversity: 1,
+            temporal_consistency: score,
+            cluster_strength: score,
         }
     }
 }

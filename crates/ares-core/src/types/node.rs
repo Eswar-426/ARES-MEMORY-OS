@@ -45,6 +45,9 @@ pub enum NodeType {
     // P3.5 Evolution Engine
     EvolutionEvent,
     Evidence,
+    // P12 Additions
+    Capability,
+    Owner,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -91,6 +94,8 @@ impl NodeType {
             Self::Outcome => "outcome",
             Self::EvolutionEvent => "evolution_event",
             Self::Evidence => "evidence",
+            Self::Capability => "capability",
+            Self::Owner => "owner",
         }
     }
 }
@@ -132,6 +137,8 @@ impl std::str::FromStr for NodeType {
             "outcome" => Ok(Self::Outcome),
             "evolution_event" => Ok(Self::EvolutionEvent),
             "evidence" => Ok(Self::Evidence),
+            "capability" => Ok(Self::Capability),
+            "owner" => Ok(Self::Owner),
             other => Err(format!("Unknown node type: {other}")),
         }
     }

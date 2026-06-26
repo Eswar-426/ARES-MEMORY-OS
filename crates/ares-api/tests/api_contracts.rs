@@ -1,5 +1,4 @@
 use ares_api::models::{ApiErrorEnvelope, ApiResponse};
-use serde_json::Value;
 
 #[test]
 fn test_api_response_envelope() {

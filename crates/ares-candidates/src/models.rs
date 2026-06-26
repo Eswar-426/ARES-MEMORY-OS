@@ -14,6 +14,8 @@ pub enum CandidateType {
     Decision,
     Architecture,
     Traceability,
+    Capability,
+    Ownership,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -69,6 +71,15 @@ pub use crate::confidence::CandidateConfidence;
 pub use crate::promotion::{CandidatePromotion, CandidateReview};
 pub use crate::sources::CandidateSource;
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BootstrapMetadata {
+    pub commit_hash: String,
+    pub repository_id: String,
+    pub rule_id: String,
+    pub engine_version: String,
+    pub generated_at: i64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Candidate {
     pub id: String,
@@ -86,6 +97,7 @@ pub struct Candidate {
     pub dependent_components: Vec<String>,
     pub status: CandidateStatus,
     pub confidence: CandidateConfidence,
+    pub bootstrap_metadata: Option<BootstrapMetadata>,
     pub created_at: i64,
     pub updated_at: i64,
 }

@@ -1,0 +1,252 @@
+﻿[
+    {
+        "Name":  "ares-agent",
+        "Description":  "No description",
+        "LOC":  3959
+    },
+    {
+        "Name":  "ares-agent-arena",
+        "Description":  "No description",
+        "LOC":  1063
+    },
+    {
+        "Name":  "ares-agent-runtime",
+        "Description":  "No description",
+        "LOC":  4832
+    },
+    {
+        "Name":  "ares-api",
+        "Description":  "No description",
+        "LOC":  3152
+    },
+    {
+        "Name":  "ares-app",
+        "Description":  "No description",
+        "LOC":  164
+    },
+    {
+        "Name":  "ares-benchmark",
+        "Description":  "No description",
+        "LOC":  791
+    },
+    {
+        "Name":  "ares-candidates",
+        "Description":  "No description",
+        "LOC":  254
+    },
+    {
+        "Name":  "ares-chat-import",
+        "Description":  "No description",
+        "LOC":  511
+    },
+    {
+        "Name":  "ares-cli",
+        "Description":  "No description",
+        "LOC":  2472
+    },
+    {
+        "Name":  "ares-completeness",
+        "Description":  "No description",
+        "LOC":  812
+    },
+    {
+        "Name":  "ares-context",
+        "Description":  "No description",
+        "LOC":  1593
+    },
+    {
+        "Name":  "ares-context-generator",
+        "Description":  "Context Generator â€” produces portable, AI-context-window-friendly output from project memory",
+        "LOC":  684
+    },
+    {
+        "Name":  "ares-context-injector",
+        "Description":  "Context Injector â€” selects, ranks, budgets, and injects context into AI prompts",
+        "LOC":  246
+    },
+    {
+        "Name":  "ares-coordination",
+        "Description":  "No description",
+        "LOC":  6508
+    },
+    {
+        "Name":  "ares-core",
+        "Description":  "No description",
+        "LOC":  3161
+    },
+    {
+        "Name":  "ares-decision-dna",
+        "Description":  "No description",
+        "LOC":  921
+    },
+    {
+        "Name":  "ares-decision-intelligence",
+        "Description":  "Decision Intelligence Engine for ARES MemoryOS",
+        "LOC":  974
+    },
+    {
+        "Name":  "ares-embeddings",
+        "Description":  "No description",
+        "LOC":  413
+    },
+    {
+        "Name":  "ares-evolution",
+        "Description":  "No description",
+        "LOC":  1654
+    },
+    {
+        "Name":  "ares-extractor",
+        "Description":  "No description",
+        "LOC":  584
+    },
+    {
+        "Name":  "ares-gap-engine",
+        "Description":  "No description",
+        "LOC":  880
+    },
+    {
+        "Name":  "ares-git-memory",
+        "Description":  "No description",
+        "LOC":  819
+    },
+    {
+        "Name":  "ares-governance",
+        "Description":  "No description",
+        "LOC":  3730
+    },
+    {
+        "Name":  "ares-ingestion",
+        "Description":  "No description",
+        "LOC":  891
+    },
+    {
+        "Name":  "ares-intelligence",
+        "Description":  "No description",
+        "LOC":  6776
+    },
+    {
+        "Name":  "ares-knowledge",
+        "Description":  "No description",
+        "LOC":  1995
+    },
+    {
+        "Name":  "ares-knowledge-gap",
+        "Description":  "No description",
+        "LOC":  712
+    },
+    {
+        "Name":  "ares-knowledge-graph",
+        "Description":  "No description",
+        "LOC":  2247
+    },
+    {
+        "Name":  "ares-mcp",
+        "Description":  "No description",
+        "LOC":  419
+    },
+    {
+        "Name":  "ares-memory-bootstrap",
+        "Description":  "No description",
+        "LOC":  709
+    },
+    {
+        "Name":  "ares-memory-evolution",
+        "Description":  "No description",
+        "LOC":  654
+    },
+    {
+        "Name":  "ares-memory-intelligence",
+        "Description":  "No description",
+        "LOC":  7085
+    },
+    {
+        "Name":  "ares-memory-lifecycle",
+        "Description":  "No description",
+        "LOC":  642
+    },
+    {
+        "Name":  "ares-memory-server",
+        "Description":  "Production Repository Memory Server for ARES",
+        "LOC":  381
+    },
+    {
+        "Name":  "ares-model-testing",
+        "Description":  "No description",
+        "LOC":  1514
+    },
+    {
+        "Name":  "ares-orchestrator",
+        "Description":  "No description",
+        "LOC":  3795
+    },
+    {
+        "Name":  "ares-planner",
+        "Description":  "No description",
+        "LOC":  5866
+    },
+    {
+        "Name":  "ares-pr-engine",
+        "Description":  "No description",
+        "LOC":  257
+    },
+    {
+        "Name":  "ares-project-memory",
+        "Description":  "Project Memory Engine â€” builds comprehensive project snapshots for ARES MemoryOS",
+        "LOC":  1492
+    },
+    {
+        "Name":  "ares-query",
+        "Description":  "ARES Orchestrated Query Layer",
+        "LOC":  618
+    },
+    {
+        "Name":  "ares-reasoning",
+        "Description":  "No description",
+        "LOC":  940
+    },
+    {
+        "Name":  "ares-repository-intelligence",
+        "Description":  "Repository Intelligence Engine - synthesizes capabilities and repository state",
+        "LOC":  320
+    },
+    {
+        "Name":  "ares-requirements",
+        "Description":  "Requirement Intelligence Engine â€” graph-first requirement memory for ARES MemoryOS",
+        "LOC":  2615
+    },
+    {
+        "Name":  "ares-resolution-engine",
+        "Description":  "No description",
+        "LOC":  438
+    },
+    {
+        "Name":  "ares-retrieval",
+        "Description":  "No description",
+        "LOC":  1394
+    },
+    {
+        "Name":  "ares-scanner",
+        "Description":  "No description",
+        "LOC":  1962
+    },
+    {
+        "Name":  "ares-store",
+        "Description":  "No description",
+        "LOC":  6593
+    },
+    {
+        "Name":  "ares-traceability",
+        "Description":  "Graph Traceability Engine for ARES MemoryOS",
+        "LOC":  294
+    },
+    {
+        "Name":  "ares-validation",
+        "Description":  "No description",
+        "LOC":  702
+    },
+    {
+        "Name":  "ares-world-model",
+        "Description":  "No description",
+        "LOC":  6484
+    }
+]

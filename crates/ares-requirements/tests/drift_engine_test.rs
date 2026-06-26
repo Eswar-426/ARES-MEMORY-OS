@@ -25,7 +25,7 @@ fn test_structural_drift_missing_decision() {
     let report = report_opt.unwrap();
 
     assert_eq!(report.requirement_id, "REQ-1");
-    assert!(report.drift_types.len() >= 1);
+    assert!(!report.drift_types.is_empty());
 
     assert!(report
         .drift_types
@@ -57,7 +57,7 @@ fn test_structural_drift_missing_code() {
     let report = report_opt.unwrap();
 
     assert_eq!(report.requirement_id, "REQ-2");
-    assert!(report.drift_types.len() >= 1);
+    assert!(!report.drift_types.is_empty());
 
     assert!(report
         .drift_types
