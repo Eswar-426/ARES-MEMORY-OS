@@ -1,0 +1,5 @@
+candidate_governance:
+  expiration_days: 90
+  revalidation_days: 30
+  auto_expire_low_confidence: true
+  bulk_promotion_threshold: 0.95

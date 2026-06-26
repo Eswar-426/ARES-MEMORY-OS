@@ -2,6 +2,7 @@
 pub mod approval;
 pub mod approval_graph_engine;
 pub mod audit_engine;
+pub mod candidate_governance_engine;
 pub mod capability_engine;
 pub mod certification;
 pub mod compliance_engine;

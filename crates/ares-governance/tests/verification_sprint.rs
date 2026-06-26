@@ -3,12 +3,10 @@ use ares_core::types::node::{EdgeType, GraphEdge, GraphNode, NodeType};
 use ares_governance::classifier::{
     ArtifactCategory, ArtifactClassifier, ClassificationConfidence, MemoryEligibility,
 };
-use ares_governance::coverage_engine::{
-    CoverageEngine, CoverageMetric, MemoryCaptureRate, MemoryCoverageMetrics,
-};
-use ares_governance::memory_debt_engine::{MemoryDebtEngine, MemoryDebtLevel, MemoryDebtMetrics};
+use ares_governance::coverage_engine::{CoverageMetric, MemoryCaptureRate, MemoryCoverageMetrics};
+use ares_governance::memory_debt_engine::{MemoryDebtLevel, MemoryDebtMetrics};
 use ares_governance::memory_gatekeeper::{GatekeeperStatus, MemoryGatekeeper};
-use ares_governance::memory_health_engine::{MemoryHealthEngine, MemoryHealthScore};
+use ares_governance::memory_health_engine::MemoryHealthScore;
 
 fn default_coverage() -> MemoryCoverageMetrics {
     let empty = CoverageMetric {
@@ -199,8 +197,8 @@ fn test_5_gatekeeper_thresholds() {
     let mut after_cov = default_coverage();
     let before_debt = default_debt();
     let after_debt = default_debt();
-    let mut before_health = default_health();
-    let mut after_health = default_health();
+    let before_health = default_health();
+    let after_health = default_health();
 
     // Test 1: Soft Fail (-3% coverage regression)
     before_cov.overall.percentage = 85.0;

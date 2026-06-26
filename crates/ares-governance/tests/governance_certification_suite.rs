@@ -106,11 +106,11 @@ fn cert_1_ownership_inheritance() {
 
     let req_owner = ownership.resolve_owner(&req_1).unwrap().unwrap();
     assert_eq!(req_owner.owner_id, team_a);
-    assert_eq!(req_owner.is_explicit, true);
+    assert!(req_owner.is_explicit);
 
     let dec_owner = ownership.resolve_owner(&dec_1).unwrap().unwrap();
     assert_eq!(dec_owner.owner_id, team_a);
-    assert_eq!(dec_owner.is_explicit, false); // Inherited
+    assert!(!dec_owner.is_explicit); // Inherited
 }
 
 #[test]
@@ -137,7 +137,7 @@ fn cert_2_ownership_override() {
     let dec_owner = ownership.resolve_owner(&dec_1).unwrap().unwrap();
     // Team B explicit override
     assert_eq!(dec_owner.owner_id, team_b);
-    assert_eq!(dec_owner.is_explicit, true);
+    assert!(dec_owner.is_explicit);
 
     // If person C also owns it, Team B is authoritative
     create_edge(&store, &p_id, &person_c, &dec_1, EdgeType::Owns);

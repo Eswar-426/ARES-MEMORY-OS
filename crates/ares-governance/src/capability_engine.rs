@@ -60,7 +60,7 @@ impl CapabilityEngine {
         let all_nodes = graph.get_all_nodes(project_id)?;
         for node in all_nodes {
             if node.node_type == NodeType::Feature {
-                let owner = self.get_capability_owner(&node.id.to_string())?;
+                let owner = self.get_capability_owner(node.id.as_ref())?;
                 mapping.push(CapabilityOwnership {
                     capability_node_id: node.id.to_string(),
                     capability_name: node.label,

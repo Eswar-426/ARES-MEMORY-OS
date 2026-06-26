@@ -99,16 +99,14 @@ impl GovernanceGapEngine {
                         });
                     }
                 }
-                NodeType::Feature => {
-                    if owner.is_none() {
-                        gaps.push(GovernanceGap {
-                            node_id: node_id.to_string(),
-                            node_type: node.node_type.clone(),
-                            gap_type: GovernanceGapType::MissingCapabilityOwner,
-                            severity: GovernanceSeverity::Low,
-                            description: "Capability/Feature has no mapped owner.".to_string(),
-                        });
-                    }
+                NodeType::Feature if owner.is_none() => {
+                    gaps.push(GovernanceGap {
+                        node_id: node_id.to_string(),
+                        node_type: node.node_type.clone(),
+                        gap_type: GovernanceGapType::MissingCapabilityOwner,
+                        severity: GovernanceSeverity::Low,
+                        description: "Capability/Feature has no mapped owner.".to_string(),
+                    });
                 }
                 _ => {
                     // Other types might have gaps too, but prioritizing the main memory tiers.
@@ -125,7 +123,7 @@ impl GovernanceGapEngine {
         let mut all_gaps = Vec::new();
 
         for node in nodes {
-            let gaps = self.analyze_node(&node.id.to_string())?;
+            let gaps = self.analyze_node(node.id.as_ref())?;
             all_gaps.extend(gaps);
         }
 
