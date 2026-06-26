@@ -98,7 +98,7 @@ async fn main() -> Result<(), BoxError> {
             let facade = facade_why.clone();
             let engine = engine_clone.clone();
             let project_id = ares_core::ProjectId::from(project_id_str.clone());
-            
+
             async move {
                 let id = ares_core::canonicalize_node_id(&input.id);
                 match facade.why_with_context(&id, "Why does this exist?", &project_id).await {
@@ -106,7 +106,7 @@ async fn main() -> Result<(), BoxError> {
                         let inference = engine.complete(&result.context.assembled_prompt).await.unwrap_or_else(|e| {
                             serde_json::json!({ "error": e.to_string(), "status": "failed" })
                         });
-                        
+
                         let response = serde_json::json!({
                             "entity": input.id,
                             "requirements": result.graph.requirements,
@@ -116,7 +116,7 @@ async fn main() -> Result<(), BoxError> {
                             "sources_used": result.context.sources,
                             "estimated_tokens": result.context.estimated_tokens,
                         });
-                        
+
                         Ok(CallToolResult::text(serde_json::to_string(&response).unwrap()))
                     },
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
@@ -450,12 +450,12 @@ async fn main() -> Result<(), BoxError> {
             async move {
                 let target_id = ares_core::canonicalize_node_id(&input.target_id);
                 let related = input.related_id.as_deref().map(ares_core::canonicalize_node_id);
-                
+
                 let action_enum = match input.action.parse::<ares_intelligence::simulation::SimulationAction>() {
                     Ok(a) => a,
                     Err(_) => return Err(tower_mcp::Error::internal(format_mcp_error("Unsupported action", "Unsupported simulation action"))),
                 };
-                
+
                 match ares_intelligence::simulation::simulate(
                     action_enum,
                     &target_id,

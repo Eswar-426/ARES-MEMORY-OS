@@ -265,7 +265,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(result.action, "remove");
-        assert_eq!(result.reversible, false);
+        assert!(!result.reversible);
         assert!(result.impact_radius.contains(&"file1".to_string()));
     }
 

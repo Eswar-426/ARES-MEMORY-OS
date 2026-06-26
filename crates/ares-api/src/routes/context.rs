@@ -1,6 +1,6 @@
 use ares_agent::services::context_builder::{ContextBudget, ContextSnapshot};
 use ares_app::AppState;
-use ares_context_injector::{ContextInjector, ContextPackage, TokenBudget};
+use ares_context_injector::{build_context_with_store, ContextPackage, TokenBudget};
 use ares_core::Project;
 use axum::{extract::State, Json};
 use serde::Deserialize;
@@ -78,8 +78,8 @@ pub async fn inject_context(
         _ => TokenBudget::Medium,
     };
 
-    let injector = ContextInjector::new(state.store.clone());
-    match injector.inject(&req.project_id, &req.prompt, budget).await {
+    let project_id = ares_core::ProjectId::from(req.project_id.clone());
+    match build_context_with_store(&req.prompt, "", &state.store, &project_id, budget).await {
         Ok(package) => Ok(Json(package)),
         Err(e) => Err((axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
     }

@@ -190,7 +190,7 @@ async fn test_large_repository_trimming() {
         ));
     }
 
-    let retriever = Arc::new(large_retriever);
+    let _retriever = Arc::new(large_retriever);
     let project_id = ProjectId::new();
 
     let assembler = PromptAssembler::new(TokenBudget::Small);
