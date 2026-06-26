@@ -2,7 +2,7 @@ use ares_core::id::NodeId;
 use ares_core::types::evidence::{Evidence, EvidenceSource, EvidenceType};
 use ares_evolution::EvidenceEngine;
 use ares_store::db::test_helpers::test_store;
-use ares_store::repositories::evidence::{EvidenceRepository, SqliteEvidenceRepository};
+use ares_store::repositories::evidence::SqliteEvidenceRepository;
 use std::sync::Arc;
 
 #[tokio::test]

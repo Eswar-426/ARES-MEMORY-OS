@@ -1,5 +1,5 @@
 use ares_core::id::NodeId;
-use ares_core::types::drift::{DriftCandidate, DriftType};
+use ares_core::types::drift::DriftType;
 use ares_core::types::evidence::{Evidence, EvidenceSource, EvidenceType};
 use ares_evolution::DriftEngine;
 use ares_store::db::test_helpers::test_store;
@@ -257,7 +257,7 @@ async fn test_determinism() {
         source: EvidenceSource::Scanner,
     }];
 
-    let mut first_id = String::new();
+    let mut _first_id = String::new();
 
     // Run 10 times to ensure determinism in outcome
     for i in 0..10 {
@@ -273,7 +273,7 @@ async fn test_determinism() {
         let candidate = result.unwrap();
 
         if i == 0 {
-            first_id = candidate.id.clone();
+            _first_id = candidate.id.clone();
         } else {
             // Because we create new IDs inside detect_drift, the candidate IDs will be different,
             // but the drift_type and rationale must be strictly identical.

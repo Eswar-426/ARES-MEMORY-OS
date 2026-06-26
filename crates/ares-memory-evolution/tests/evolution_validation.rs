@@ -1,4 +1,3 @@
-use ares_core::AresError;
 use ares_knowledge_graph::models::{DomainEvent, DomainEventType};
 use ares_memory_evolution::engine::MemoryEvolutionEngine;
 use ares_memory_evolution::models::ChangeType;

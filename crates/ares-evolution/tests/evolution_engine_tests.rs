@@ -2,7 +2,7 @@ use ares_core::id::NodeId;
 use ares_core::types::evolution::{EvolutionEvent, EvolutionEventType};
 use ares_evolution::EvolutionEngine;
 use ares_store::db::test_helpers::test_store;
-use ares_store::repositories::evolution::{EvolutionRepository, SqliteEvolutionRepository};
+use ares_store::repositories::evolution::SqliteEvolutionRepository;
 use std::sync::Arc;
 
 #[tokio::test]
