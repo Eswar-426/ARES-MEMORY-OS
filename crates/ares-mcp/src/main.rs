@@ -47,8 +47,13 @@ struct SimulationInput {
     project_id: String,
     action: String,
     target_id: String,
-    target_type: Option<String>,
     related_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct TraceabilityInput {
+    entity_id: String,
+    depth: Option<usize>,
 }
 
 #[tokio::main]
@@ -466,6 +471,37 @@ async fn main() -> Result<(), BoxError> {
         })
         .build();
 
+    let store_trace = app_state.store.clone();
+    let traceability_tool = ToolBuilder::new("ares_traceability")
+        .description("Evaluates traceability relationships upstream and downstream")
+        .handler(move |input: TraceabilityInput| {
+            let store = store_trace.clone();
+            async move {
+                let entity_id = ares_core::canonicalize_node_id(&input.entity_id);
+                match ares_intelligence::traceability::trace(
+                    &entity_id,
+                    input.depth.unwrap_or(3),
+                    &store,
+                )
+                .await
+                {
+                    Ok(report) => serde_json::to_string(&report)
+                        .map(CallToolResult::text)
+                        .map_err(|e| {
+                            tower_mcp::Error::internal(format_mcp_error(
+                                "Failed to serialize traceability report",
+                                &e.to_string(),
+                            ))
+                        }),
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
+                        "Failed to trace entity",
+                        &e.to_string(),
+                    ))),
+                }
+            }
+        })
+        .build();
+
     let router = McpRouter::new()
         .server_info("ares-mcp", env!("CARGO_PKG_VERSION"))
         .tool(why_tool)
@@ -478,6 +514,7 @@ async fn main() -> Result<(), BoxError> {
         .tool(drift_tool)
         .tool(gaps_tool)
         .tool(simulate_tool)
+        .tool(traceability_tool)
         .resource(cert_resource)
         .resource_template(context_resource)
         .resource_template(summary_resource);

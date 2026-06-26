@@ -418,6 +418,12 @@ body{
             <div class="section-header">Simulation Result</div>
             <div id="simulationList" class="section-body"></div>
         </div>
+
+        <!-- Traceability -->
+        <div id="traceabilitySection" class="section animate-slide hidden" style="animation-delay:.35s">
+            <div class="section-header">Traceability</div>
+            <div id="traceabilityList" class="section-body"></div>
+        </div>
     </div>
 
     <!-- Empty state -->
@@ -461,6 +467,8 @@ body{
         driftList:        document.getElementById('driftList'),
         simulationSection: document.getElementById('simulationSection'),
         simulationList:   document.getElementById('simulationList'),
+        traceabilitySection: document.getElementById('traceabilitySection'),
+        traceabilityList: document.getElementById('traceabilityList'),
         emptyState:       document.getElementById('emptyState'),
     };
 
@@ -719,6 +727,117 @@ body{
         dom.simulationList.appendChild(card);
     }
 
+    function renderTraceability(data) {
+        dom.traceabilityList.innerHTML = '';
+        if (data.traversal_depth === undefined || data.trace_paths === undefined) {
+            dom.traceabilitySection.classList.add('hidden');
+            return;
+        }
+        dom.traceabilitySection.classList.remove('hidden');
+
+        var card = document.createElement('div');
+        card.className = 'decision-card';
+        
+        var title = document.createElement('div');
+        title.className = 'decision-meta';
+        var depthSpan = document.createElement('span');
+        depthSpan.className = 'decision-author';
+        depthSpan.textContent = "Depth: " + data.traversal_depth + " | Nodes Visited: " + (data.nodes_visited || 0) + " | Edges Traversed: " + (data.edges_traversed || 0);
+        title.appendChild(depthSpan);
+        card.appendChild(title);
+
+        var summary = document.createElement('div');
+        summary.className = 'decision-summary';
+        summary.textContent = data.summary || "No summary available.";
+        card.appendChild(summary);
+
+        const categories = [
+            { name: "Requirements", items: data.requirements },
+            { name: "Decisions", items: data.decisions },
+            { name: "Files", items: data.files },
+            { name: "Functions", items: data.functions },
+            { name: "Tests", items: data.tests }
+        ];
+
+        categories.forEach(cat => {
+            if (cat.items && cat.items.length > 0) {
+                var hr = document.createElement('hr');
+                hr.style.borderColor = 'var(--vscode-panel-border)';
+                hr.style.borderStyle = 'solid';
+                hr.style.borderWidth = '1px 0 0 0';
+                hr.style.margin = '15px 0';
+                card.appendChild(hr);
+
+                var catTitle = document.createElement('div');
+                catTitle.className = 'section-header';
+                catTitle.style.marginTop = '10px';
+                catTitle.style.fontSize = '12px';
+                catTitle.textContent = cat.name + " (" + cat.items.length + ")";
+                card.appendChild(catTitle);
+                
+                cat.items.forEach(function(item) {
+                    var it = document.createElement('div');
+                    it.className = 'evidence-source';
+                    it.textContent = item;
+                    card.appendChild(it);
+                });
+            }
+        });
+
+        if (data.trace_paths && data.trace_paths.length > 0) {
+            var hr = document.createElement('hr');
+            hr.style.borderColor = 'var(--vscode-panel-border)';
+            hr.style.borderStyle = 'solid';
+            hr.style.borderWidth = '1px 0 0 0';
+            hr.style.margin = '15px 0';
+            card.appendChild(hr);
+
+            var pathTitle = document.createElement('div');
+            pathTitle.className = 'section-header';
+            pathTitle.style.marginTop = '10px';
+            pathTitle.style.fontSize = '12px';
+            pathTitle.textContent = "Traversal Paths";
+            card.appendChild(pathTitle);
+
+            data.trace_paths.forEach(function(path) {
+                var pathDiv = document.createElement('div');
+                pathDiv.className = 'evidence-source';
+                pathDiv.style.fontFamily = 'var(--vscode-editor-font-family)';
+                pathDiv.style.marginTop = '5px';
+                pathDiv.style.color = 'var(--vscode-descriptionForeground)';
+                pathDiv.innerHTML = path.nodes.join(' <br/>&darr;<br/> ');
+                card.appendChild(pathDiv);
+            });
+        }
+
+        var hrCycle = document.createElement('hr');
+        hrCycle.style.borderColor = 'var(--vscode-panel-border)';
+        hrCycle.style.borderStyle = 'solid';
+        hrCycle.style.borderWidth = '1px 0 0 0';
+        hrCycle.style.margin = '15px 0';
+        card.appendChild(hrCycle);
+
+        var cycleTitle = document.createElement('div');
+        cycleTitle.className = 'section-header';
+        cycleTitle.style.marginTop = '10px';
+        cycleTitle.style.fontSize = '12px';
+        cycleTitle.textContent = "Cycles";
+        card.appendChild(cycleTitle);
+
+        var cycleResult = document.createElement('div');
+        cycleResult.className = 'evidence-source';
+        if (data.cycles_detected) {
+            cycleResult.textContent = "⚠ Cycle detected";
+            cycleResult.style.color = "#d29922";
+        } else {
+            cycleResult.textContent = "✓ None";
+            cycleResult.style.color = "#89d185";
+        }
+        card.appendChild(cycleResult);
+
+        dom.traceabilityList.appendChild(card);
+    }
+
     function renderEmptyState() {
         dom.resultContent.classList.add('hidden');
         dom.emptyState.classList.remove('hidden');
@@ -758,6 +877,7 @@ body{
         renderDecisions(data);
         renderDrift(data);
         renderSimulation(data);
+        renderTraceability(data);
     }
 
     // --- Message listener ---

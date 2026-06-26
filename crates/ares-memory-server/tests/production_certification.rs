@@ -3,5 +3,5 @@
 // These tests should be rewritten against the HTTP interface.
 #[test]
 fn dummy_cert_pass() {
-    assert!(true);
+    // assert!(true);
 }

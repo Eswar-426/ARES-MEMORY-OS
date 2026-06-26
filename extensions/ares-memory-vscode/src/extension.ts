@@ -252,6 +252,87 @@ export async function activate(context: vscode.ExtensionContext) {
         })
     );
 
+    // ARES: Traceability Analysis
+    context.subscriptions.push(
+        vscode.commands.registerCommand('ares.traceabilityAnalysis', async (uri?: vscode.Uri) => {
+            // For trace, we'll use a modified runToolCommand logic or simply pass a wrapper since input structure is different.
+            // But TraceabilityInput expects entity_id, let's use the generic flow but construct correct arguments.
+            aresOutput.appendLine(`\n--- Traceability Analysis ---`);
+            logEnvironment();
+
+            let targetId = "";
+            if (uri) {
+                const workspaceFolders = vscode.workspace.workspaceFolders;
+                if (workspaceFolders) {
+                    const rootPath = workspaceFolders[0].uri.fsPath;
+                    if (uri.fsPath.startsWith(rootPath)) {
+                        targetId = path.relative(rootPath, uri.fsPath).replace(/\\/g, '/');
+                    } else {
+                        targetId = uri.fsPath;
+                    }
+                } else {
+                    targetId = uri.fsPath;
+                }
+            } else {
+                const input = await vscode.window.showInputBox({
+                    prompt: `Enter Target ID for Traceability`,
+                    placeHolder: "e.g., src/main.rs or PROJ-001"
+                });
+                if (!input) return;
+                targetId = input;
+            }
+
+            const depthInput = await vscode.window.showInputBox({
+                prompt: `Enter traversal depth (default 3)`,
+                placeHolder: "3"
+            });
+            let depth = 3;
+            if (depthInput && !isNaN(parseInt(depthInput))) {
+                depth = parseInt(depthInput);
+            }
+
+            const panel = AresQueryPanel.showLoading(context);
+            
+            panel.webview.onDidReceiveMessage(
+                (message: { command: string; path: string; line?: number; column?: number }) => {
+                    if (message.command === 'openFile') {
+                        const workspaceFolders = vscode.workspace.workspaceFolders;
+                        let fileUri: vscode.Uri;
+                        if (workspaceFolders && !path.isAbsolute(message.path)) {
+                            fileUri = vscode.Uri.file(
+                                path.join(workspaceFolders[0].uri.fsPath, message.path)
+                            );
+                        } else {
+                            fileUri = vscode.Uri.file(message.path);
+                        }
+    
+                        const options: vscode.TextDocumentShowOptions = { preview: true };
+                        if (typeof message.line === 'number') {
+                            const line = Math.max(0, message.line - 1);
+                            const col = typeof message.column === 'number' ? Math.max(0, message.column - 1) : 0;
+                            options.selection = new vscode.Range(line, col, line, col);
+                        }
+                        vscode.window.showTextDocument(fileUri, options);
+                    }
+                },
+                undefined,
+                context.subscriptions
+            );
+
+            try {
+                const result = await mcpClient.callTool('ares_traceability', { entity_id: targetId, depth: depth });
+                const response = parseAresResponse(result, targetId);
+                AresQueryPanel.show(context, response);
+            } catch (e: any) {
+                const aresError: AresError = {
+                    message: 'Unable to trace entity',
+                    detail: e.message || 'An unexpected error occurred.',
+                };
+                AresQueryPanel.showError(context, aresError);
+            }
+        })
+    );
+
     // ARES: Coverage Analysis
     context.subscriptions.push(
         vscode.commands.registerCommand('ares.coverageAnalysis', async (uri?: vscode.Uri) => {

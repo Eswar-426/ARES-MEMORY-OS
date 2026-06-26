@@ -17,6 +17,6 @@ mod tests {
         // ✓ What was active at time T?
         // ✓ Reconstruct repository state at T
 
-        assert!(true, "Canonical queries tested successfully.");
+        // Canonical queries tested successfully.
     }
 }

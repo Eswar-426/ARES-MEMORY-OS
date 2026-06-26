@@ -42,6 +42,10 @@
       {
         "command": "ares.driftAnalysis",
         "title": "ARES: Drift Analysis"
+      },
+      {
+        "command": "ares.traceabilityAnalysis",
+        "title": "ARES: Traceability Analysis"
       }
     ],
     "menus": {
@@ -55,12 +59,46 @@
           "group": "ares@2"
         },
         {
+          "command": "ares.traceabilityAnalysis",
+          "when": "explorerResourceIsFolder || explorerResourceIsFile",
+          "group": "ares@4"
+        },
+        {
           "command": "ares.simulateChange",
-          "group": "ares@3"
+          "when": "explorerResourceIsFolder || explorerResourceIsFile",
+          "group": "ares@5"
         },
         {
           "command": "ares.driftAnalysis",
           "group": "ares@4"
+        },
+        {
+          "command": "ares.traceabilityAnalysis",
+          "group": "ares@5"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "ares.whyExists",
+          "group": "ares@1"
+        },
+        {
+          "command": "ares.impactAnalysis",
+          "group": "ares@2"
+        },
+        {
+          "command": "ares.driftAnalysis",
+          "group": "ares@4"
+        },
+        {
+          "command": "ares.traceabilityAnalysis",
+          "when": "explorerResourceIsFolder || explorerResourceIsFile",
+          "group": "ares@5"
+        },
+        {
+          "command": "ares.simulateChange",
+          "when": "explorerResourceIsFolder || explorerResourceIsFile",
+          "group": "ares@6"
         }
       ]
     },

@@ -105,11 +105,10 @@ pub async fn simulate(
 
     let mut impact = ImpactGraph::default();
     let mut risk_score = 0.0;
-    let reversible;
 
     let factors = RiskFactors::default();
 
-    match action {
+    let reversible = match action {
         SimulationAction::Remove => {
             if let Ok(down) = traversal.downstream(target, 10) {
                 for node in down.nodes {
@@ -127,7 +126,7 @@ pub async fn simulate(
                 (impact.affected_files.len() as f32 * 0.05).clamp(0.0, factors.dependency_weight);
             risk_score +=
                 (impact.affected_decisions.len() as f32 * 0.1).clamp(0.0, factors.decision_weight);
-            reversible = false;
+            false
         }
         SimulationAction::Add => {
             if let Ok(up) = traversal.upstream(target, 5) {
@@ -146,7 +145,7 @@ pub async fn simulate(
                 (impact.affected_files.len() as f32 * 0.05).clamp(0.0, factors.dependency_weight);
             risk_score += (impact.affected_decisions.len() as f32 * 0.15)
                 .clamp(0.0, factors.architecture_weight + factors.decision_weight);
-            reversible = impact.affected_decisions.is_empty();
+            impact.affected_decisions.is_empty()
         }
         SimulationAction::Modify => {
             if let Ok(down) = traversal.downstream(target, 5) {
@@ -176,7 +175,7 @@ pub async fn simulate(
                 (impact.affected_functions.len() as f32 * 0.05).clamp(0.0, factors.caller_weight);
             risk_score +=
                 (impact.affected_decisions.len() as f32 * 0.1).clamp(0.0, factors.decision_weight);
-            reversible = false;
+            false
         }
         SimulationAction::Replace => {
             if let Ok(down) = traversal.downstream(target, 10) {
@@ -194,9 +193,9 @@ pub async fn simulate(
                 (impact.affected_files.len() as f32 * 0.02).clamp(0.0, factors.dependency_weight);
             risk_score += (impact.affected_decisions.len() as f32 * 0.1)
                 .clamp(0.0, factors.decision_weight + factors.architecture_weight);
-            reversible = false;
+            false
         }
-    }
+    };
 
     let mut impact_radius = impact.affected_files.clone();
     impact_radius.extend(impact.affected_functions.clone());
@@ -247,11 +246,11 @@ mod tests {
         conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('target', 'CodeArtifact', 'target', '{}', 0, 0)", []).unwrap();
         conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('file1', 'CodeArtifact', 'file1', '{}', 0, 0)", []).unwrap();
         conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('decision1', 'Decision', 'decision1', '{}', 0, 0)", []).unwrap();
-        
+
         // Target -> File1 -> Decision1 (downstream)
         conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, created_at, updated_at, properties) VALUES ('e1', 'target', 'file1', 'depends_on', 1.0, 0, 0, '{}')", []).unwrap();
         conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, created_at, updated_at, properties) VALUES ('e2', 'file1', 'decision1', 'motivated_by', 1.0, 0, 0, '{}')", []).unwrap();
-        
+
         // Target <- Test1 (upstream)
         conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('test1', 'Test', 'test1', '{}', 0, 0)", []).unwrap();
         conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, created_at, updated_at, properties) VALUES ('e3', 'test1', 'target', 'references', 1.0, 0, 0, '{}')", []).unwrap();
