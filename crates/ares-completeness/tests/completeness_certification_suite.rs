@@ -64,14 +64,12 @@ fn setup_test_data(store: &Store) {
         ("D2", "A2"),
     ];
 
-    let mut edge_id = 1;
-    for (from, to) in edges {
+    for (edge_id, (from, to)) in (1..).zip(edges) {
         conn.execute(
             "INSERT INTO graph_edges (id, project_id, from_node_id, to_node_id, edge_type, valid_from, created_at) VALUES (?1, 'proj_1', ?2, ?3, 'evolves', 0, 0)",
             rusqlite::params![format!("e{}", edge_id), from, to],
         )
         .unwrap();
-        edge_id += 1;
     }
 }
 
@@ -239,13 +237,11 @@ async fn cert_07_topology_determinism() {
     ];
     edges.reverse(); // Insert edges backwards
 
-    let mut edge_id = 1;
-    for (from, to) in edges {
+    for (edge_id, (from, to)) in (1..).zip(edges) {
         conn.execute(
             "INSERT INTO graph_edges (id, project_id, from_node_id, to_node_id, edge_type, valid_from, created_at) VALUES (?1, 'proj_1', ?2, ?3, 'evolves', 0, 0)",
             rusqlite::params![format!("e{}", edge_id), from, to],
         ).unwrap();
-        edge_id += 1;
     }
 
     let topology_engine1 = TopologyEngine::new(store1.clone());

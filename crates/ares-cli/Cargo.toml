@@ -36,4 +36,4 @@ ares-memory-bootstrap = { path = "../ares-memory-bootstrap" }
 [[bin]]
 name = "ares"
 path = "src/main.rs"
-ares-query = { path = "../ares-query" }
+

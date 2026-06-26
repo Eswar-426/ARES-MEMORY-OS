@@ -312,7 +312,7 @@ mod tests {
         };
         let historical_available =
             !hist.functions.is_empty() || !hist.decisions.is_empty() || hist.owner.is_some();
-        assert_eq!(historical_available, false);
+        assert!(!historical_available);
     }
 
     #[tokio::test]

@@ -96,7 +96,7 @@ fn main() {
             .filter(|w| w.len() > 5)
             .filter(|w| !stop_words.contains(&w.to_lowercase().as_str()))
             .collect();
-        long_words.sort_by(|a, b| b.len().cmp(&a.len()));
+        long_words.sort_by_key(|b| std::cmp::Reverse(b.len()));
         long_words.dedup();
         for w in long_words.into_iter().take(2) {
             targets.push(w.to_string());
