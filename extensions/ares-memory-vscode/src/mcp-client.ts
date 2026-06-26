@@ -48,16 +48,21 @@ export class McpClient {
     }
 
     async callTool(name: string, args: any): Promise<any> {
-        this.outputChannel.appendLine(`Calling MCP tool ${name} with args: ${JSON.stringify(args)}`);
+        const ts = new Date().toISOString();
+        this.outputChannel.appendLine(`\n[${ts}] MCP Request: ${name}`);
+        this.outputChannel.appendLine(`  Args: ${JSON.stringify(args)}`);
+        const start = Date.now();
         try {
             const result = await this.client.callTool({
                 name,
                 arguments: args
             });
-            this.outputChannel.appendLine(`MCP Output: ${JSON.stringify(result, null, 2)}`);
+            const elapsed = Date.now() - start;
+            this.outputChannel.appendLine(`  Response (${elapsed}ms): ${JSON.stringify(result, null, 2)}`);
             return result;
         } catch (e: any) {
-            this.outputChannel.appendLine(`MCP Error: ${e.message}`);
+            const elapsed = Date.now() - start;
+            this.outputChannel.appendLine(`  Error (${elapsed}ms): ${e.message}`);
             throw e;
         }
     }

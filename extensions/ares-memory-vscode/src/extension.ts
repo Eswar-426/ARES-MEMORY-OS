@@ -4,11 +4,52 @@ import { execFile } from 'child_process';
 import * as path from 'path';
 import { resolveAresCli, resolveAresMcp, ResolvedBinary } from './binary-discovery';
 import { RepositoryWatcher } from './watcher';
+import { AresQueryPanel, AresResponse, AresError } from './queryPanel';
 
 let mcpClient: McpClient;
 let aresOutput: vscode.OutputChannel;
 let aresCliCache: ResolvedBinary | undefined;
 let aresMcpCache: ResolvedBinary | undefined;
+
+/**
+ * Parse the raw MCP tool result into an AresResponse.
+ * The MCP SDK returns { content: [{ type: "text", text: "..." }] }.
+ * The text payload is expected to be JSON matching AresResponse.
+ */
+function parseAresResponse(result: any, filePath?: string): AresResponse {
+    let raw: any = {};
+
+    if (result && result.content && Array.isArray(result.content)) {
+        for (const block of result.content) {
+            if (block.type === 'text' && typeof block.text === 'string') {
+                try {
+                    raw = JSON.parse(block.text);
+                } catch {
+                    // If the text isn't JSON, treat it as the answer
+                    raw = { answer: block.text };
+                }
+                break;
+            }
+        }
+    } else if (typeof result === 'string') {
+        try {
+            raw = JSON.parse(result);
+        } catch {
+            raw = { answer: result };
+        }
+    } else if (result && typeof result === 'object') {
+        raw = result;
+    }
+
+    return {
+        answer: raw.answer ?? raw.explanation ?? '',
+        confidence: typeof raw.confidence === 'number' ? raw.confidence : 0,
+        evidence: Array.isArray(raw.evidence) ? raw.evidence : [],
+        related_decisions: Array.isArray(raw.related_decisions) ? raw.related_decisions : [],
+        query_type: raw.query_type ?? '',
+        file_path: filePath ?? raw.file_path,
+    };
+}
 
 export async function activate(context: vscode.ExtensionContext) {
     aresOutput = vscode.window.createOutputChannel("ARES");
@@ -120,18 +161,14 @@ export async function activate(context: vscode.ExtensionContext) {
     );
 
     const runToolCommand = async (commandName: string, toolName: string, uri?: vscode.Uri) => {
-        aresOutput.show(true);
         aresOutput.appendLine(`\n--- ${commandName} ---`);
-        
         logEnvironment();
 
         let targetId = "";
         
         if (uri) {
-            // Invoked from context menu
             const workspaceFolders = vscode.workspace.workspaceFolders;
             if (workspaceFolders) {
-                // Try to get relative path
                 const rootPath = workspaceFolders[0].uri.fsPath;
                 if (uri.fsPath.startsWith(rootPath)) {
                     targetId = path.relative(rootPath, uri.fsPath).replace(/\\/g, '/');
@@ -142,7 +179,6 @@ export async function activate(context: vscode.ExtensionContext) {
                 targetId = uri.fsPath;
             }
         } else {
-            // Invoked from command palette
             const input = await vscode.window.showInputBox({
                 prompt: `Enter Target ID for ${commandName}`,
                 placeHolder: "e.g., src/main.rs or PROJ-001"
@@ -151,10 +187,46 @@ export async function activate(context: vscode.ExtensionContext) {
             targetId = input;
         }
 
+        // Open panel immediately with loading state
+        const panel = AresQueryPanel.showLoading(context);
+
+        // Register the message handler for this panel
+        panel.webview.onDidReceiveMessage(
+            (message: { command: string; path: string; line?: number; column?: number }) => {
+                if (message.command === 'openFile') {
+                    const workspaceFolders = vscode.workspace.workspaceFolders;
+                    let fileUri: vscode.Uri;
+                    if (workspaceFolders && !path.isAbsolute(message.path)) {
+                        fileUri = vscode.Uri.file(
+                            path.join(workspaceFolders[0].uri.fsPath, message.path)
+                        );
+                    } else {
+                        fileUri = vscode.Uri.file(message.path);
+                    }
+
+                    const options: vscode.TextDocumentShowOptions = { preview: true };
+                    if (typeof message.line === 'number') {
+                        const line = Math.max(0, message.line - 1);
+                        const col = typeof message.column === 'number' ? Math.max(0, message.column - 1) : 0;
+                        options.selection = new vscode.Range(line, col, line, col);
+                    }
+                    vscode.window.showTextDocument(fileUri, options);
+                }
+            },
+            undefined,
+            context.subscriptions
+        );
+
         try {
-            await mcpClient.callTool(toolName, { id: targetId });
+            const result = await mcpClient.callTool(toolName, { id: targetId });
+            const response = parseAresResponse(result, targetId);
+            AresQueryPanel.show(context, response);
         } catch (e: any) {
-            vscode.window.showErrorMessage(`ARES MCP Error: ${e.message}`);
+            const aresError: AresError = {
+                message: 'Unable to retrieve repository memory',
+                detail: e.message || 'An unexpected error occurred.',
+            };
+            AresQueryPanel.showError(context, aresError);
         }
     };
 
