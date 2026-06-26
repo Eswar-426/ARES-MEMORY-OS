@@ -33,7 +33,7 @@ impl<'a> QueryEngine<'a> {
         if let Some(cap) = capability {
             // Find edges connecting them
             let incoming_edges = self.retrieval_engine.get_neighborhood(
-                &cap.id.to_string(),
+                cap.id.as_ref(),
                 ares_core::EdgeDirection::Incoming,
                 &[ares_core::EdgeType::Drives, ares_core::EdgeType::Contains],
             )?;
@@ -73,13 +73,13 @@ impl<'a> QueryEngine<'a> {
         for arch in arch_nodes {
             // Check if it has incoming Drives from Decision/Req
             let incoming = self.retrieval_engine.get_neighborhood(
-                &arch.id.to_string(),
+                arch.id.as_ref(),
                 ares_core::EdgeDirection::Incoming,
                 &[ares_core::EdgeType::Drives, ares_core::EdgeType::Implements],
             )?;
             // Check if it has outgoing Drives/Contains to Code
             let outgoing = self.retrieval_engine.get_neighborhood(
-                &arch.id.to_string(),
+                arch.id.as_ref(),
                 ares_core::EdgeDirection::Outgoing,
                 &[ares_core::EdgeType::Drives, ares_core::EdgeType::Contains],
             )?;

@@ -16,7 +16,8 @@ ares-completeness = { path = "../ares-completeness" }
 ares-knowledge-gap = { path = "../ares-knowledge-gap" }
 ares-repository-intelligence = { path = "../ares-repository-intelligence" }
 ares-traceability = { path = "../ares-traceability" }
-
+ares-memory-bootstrap = { path = "../ares-memory-bootstrap" }
+ares-memory-lifecycle = { path = "../ares-memory-lifecycle" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }

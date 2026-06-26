@@ -1,5 +1,3 @@
-use ares_core::ProjectId;
-
 #[test]
 fn cert_1_why_query() {
     assert!(true);
