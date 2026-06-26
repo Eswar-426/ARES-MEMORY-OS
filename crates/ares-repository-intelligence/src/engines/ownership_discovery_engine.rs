@@ -2,6 +2,7 @@ use crate::models::OwnershipMap;
 use ares_core::{AresError, ProjectId};
 use ares_retrieval::memory_retrieval_engine::MemoryRetrievalEngine;
 
+#[allow(dead_code)]
 pub struct OwnershipDiscoveryEngine<'a> {
     retrieval: &'a MemoryRetrievalEngine,
 }

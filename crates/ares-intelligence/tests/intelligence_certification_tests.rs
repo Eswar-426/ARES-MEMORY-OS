@@ -21,11 +21,12 @@ fn dummy_candidate(id: &str, project_id: &str, t: CandidateType, title: &str) ->
         dependent_components: vec![],
         status: CandidateStatus::Proposed,
         confidence: CandidateConfidence {
-            evidence_count: 50,
-            source_diversity: 10,
-            temporal_consistency: 1.0,
-            cluster_strength: 1.0,
+            cluster_strength: 0.5,
+            evidence_count: 0,
+            temporal_consistency: 0.5,
+            source_diversity: 1,
         },
+        bootstrap_metadata: None,
         created_at: 0,
         updated_at: 0,
     }

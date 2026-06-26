@@ -112,6 +112,7 @@ impl ArchitectureCandidateBuilder {
             dependent_components: self.dependent_components,
             status: CandidateStatus::Proposed,
             confidence,
+            bootstrap_metadata: None,
             created_at: now,
             updated_at: now,
         })

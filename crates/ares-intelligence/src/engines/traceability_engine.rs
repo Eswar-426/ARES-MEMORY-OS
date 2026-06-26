@@ -257,6 +257,7 @@ impl TraceabilityCandidateBuilder {
             dependent_components: Vec::new(),
             status: CandidateStatus::Proposed,
             confidence,
+            bootstrap_metadata: None,
             created_at: Utc::now().timestamp_millis(),
             updated_at: Utc::now().timestamp_millis(),
         })
@@ -289,6 +290,7 @@ mod tests {
                 temporal_consistency: 1.0,
                 cluster_strength: 1.0,
             },
+            bootstrap_metadata: None,
             created_at: 0,
             updated_at: 0,
         }

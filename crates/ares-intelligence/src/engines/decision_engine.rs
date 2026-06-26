@@ -250,6 +250,7 @@ impl DecisionCandidateBuilder {
             dependent_components: Vec::new(),
             status: CandidateStatus::Proposed,
             confidence,
+            bootstrap_metadata: None,
             created_at: now,
             updated_at: now,
         }
