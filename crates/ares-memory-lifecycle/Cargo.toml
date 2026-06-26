@@ -1,0 +1,21 @@
+[package]
+name = "ares-memory-lifecycle"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ares-core = { path = "../ares-core" }
+ares-store = { path = "../ares-store" }
+ares-retrieval = { path = "../ares-retrieval" }
+ares-decision-intelligence = { path = "../ares-decision-intelligence" }
+ares-repository-intelligence = { path = "../ares-repository-intelligence" }
+ares-candidates = { path = "../ares-candidates" }
+
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+tempfile = { workspace = true }

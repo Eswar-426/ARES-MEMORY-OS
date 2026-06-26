@@ -1,0 +1,10 @@
+freshness:
+  strategy: adaptive
+  stale_multiplier: 3
+  decay_multiplier: 6
+
+trust:
+  minimum_evidence: 2
+
+archive:
+  superseded_after_days: 180
