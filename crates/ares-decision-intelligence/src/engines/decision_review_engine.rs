@@ -12,7 +12,7 @@ impl<'a> DecisionReviewEngine<'a> {
 
     pub fn requires_review(&self, decision_id: &NodeId) -> Result<bool, AresError> {
         let triggers = self.retrieval_engine.get_neighborhood(
-            &decision_id.to_string(),
+            decision_id.as_ref(),
             EdgeDirection::Outgoing,
             &[EdgeType::HasReviewTrigger],
         )?;

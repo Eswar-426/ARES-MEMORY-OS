@@ -31,7 +31,9 @@ pub use risk::RiskNode;
 
 // Legacy Test Shims
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Decision { pub id: String }
+pub struct Decision {
+    pub id: String,
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DecisionConfidence {}

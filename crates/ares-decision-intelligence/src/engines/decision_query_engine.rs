@@ -17,7 +17,7 @@ impl<'a> DecisionQueryEngine<'a> {
         file_id: &NodeId,
     ) -> Result<Vec<DecisionDNA>, AresError> {
         let upstream = self.retrieval_engine.get_neighborhood(
-            &file_id.to_string(),
+            file_id.as_ref(),
             EdgeDirection::Incoming,
             &[EdgeType::Drives, EdgeType::Implements],
         )?;
@@ -28,7 +28,7 @@ impl<'a> DecisionQueryEngine<'a> {
                 decisions.push(self.get_decision_dna(project_id, &node.id)?);
             } else if node.node_type == NodeType::Architecture {
                 let arch_upstream = self.retrieval_engine.get_neighborhood(
-                    &node.id.to_string(),
+                    node.id.as_ref(),
                     EdgeDirection::Incoming,
                     &[EdgeType::Drives],
                 )?;
@@ -49,7 +49,7 @@ impl<'a> DecisionQueryEngine<'a> {
         feature_id: &NodeId,
     ) -> Result<Vec<DecisionDNA>, AresError> {
         let upstream = self.retrieval_engine.get_neighborhood(
-            &feature_id.to_string(),
+            feature_id.as_ref(),
             EdgeDirection::Incoming,
             &[EdgeType::MotivatedBy, EdgeType::Drives],
         )?;
@@ -69,7 +69,7 @@ impl<'a> DecisionQueryEngine<'a> {
         arch_id: &NodeId,
     ) -> Result<Vec<DecisionDNA>, AresError> {
         let upstream = self.retrieval_engine.get_neighborhood(
-            &arch_id.to_string(),
+            arch_id.as_ref(),
             EdgeDirection::Incoming,
             &[EdgeType::Drives],
         )?;
@@ -89,7 +89,7 @@ impl<'a> DecisionQueryEngine<'a> {
         decision_id: &NodeId,
     ) -> Result<Vec<DecisionDNA>, AresError> {
         let related = self.retrieval_engine.get_neighborhood(
-            &decision_id.to_string(),
+            decision_id.as_ref(),
             EdgeDirection::Both,
             &[EdgeType::RelatedTo],
         )?;
@@ -110,9 +110,9 @@ impl<'a> DecisionQueryEngine<'a> {
     ) -> Result<DecisionDNA, AresError> {
         let decision_node = self
             .retrieval_engine
-            .get_node(&decision_id.to_string())?
+            .get_node(decision_id.as_ref())?
             .ok_or_else(|| AresError::NotFound {
-                resource_type: "Decision".into(),
+                resource_type: "Decision",
                 id: decision_id.to_string(),
             })?;
 
@@ -124,39 +124,39 @@ impl<'a> DecisionQueryEngine<'a> {
             .to_string();
 
         let assumptions = self.retrieval_engine.get_neighborhood(
-            &decision_id.to_string(),
+            decision_id.as_ref(),
             EdgeDirection::Outgoing,
             &[EdgeType::HasAssumption],
         )?;
         let alternatives = self.retrieval_engine.get_neighborhood(
-            &decision_id.to_string(),
+            decision_id.as_ref(),
             EdgeDirection::Outgoing,
             &[EdgeType::HasAlternative],
         )?;
         let risks = self.retrieval_engine.get_neighborhood(
-            &decision_id.to_string(),
+            decision_id.as_ref(),
             EdgeDirection::Outgoing,
             &[EdgeType::HasRisk],
         )?;
         let review_triggers = self.retrieval_engine.get_neighborhood(
-            &decision_id.to_string(),
+            decision_id.as_ref(),
             EdgeDirection::Outgoing,
             &[EdgeType::HasReviewTrigger],
         )?;
 
         let impacted_artifacts = self.retrieval_engine.get_neighborhood(
-            &decision_id.to_string(),
+            decision_id.as_ref(),
             EdgeDirection::Outgoing,
             &[EdgeType::Impacts, EdgeType::Drives],
         )?;
 
         let supersedes = self.retrieval_engine.get_neighborhood(
-            &decision_id.to_string(),
+            decision_id.as_ref(),
             EdgeDirection::Outgoing,
             &[EdgeType::Supersedes],
         )?;
         let superseded_by = self.retrieval_engine.get_neighborhood(
-            &decision_id.to_string(),
+            decision_id.as_ref(),
             EdgeDirection::Incoming,
             &[EdgeType::Supersedes],
         )?;

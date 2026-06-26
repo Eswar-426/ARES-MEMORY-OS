@@ -37,9 +37,9 @@ impl<'a> DecisionLineageEngine<'a> {
         let mut lineage = Vec::new();
         let initial_node = self
             .retrieval_engine
-            .get_node(&node_id.to_string())?
+            .get_node(node_id.as_ref())?
             .ok_or_else(|| AresError::NotFound {
-                resource_type: "Node".into(),
+                resource_type: "Node",
                 id: node_id.to_string(),
             })?;
 
@@ -51,7 +51,7 @@ impl<'a> DecisionLineageEngine<'a> {
                 lineage.push(node.clone());
 
                 let upstream = self.retrieval_engine.get_neighborhood(
-                    &node.id.to_string(),
+                    node.id.as_ref(),
                     EdgeDirection::Incoming,
                     &[EdgeType::Drives, EdgeType::Implements],
                 )?;

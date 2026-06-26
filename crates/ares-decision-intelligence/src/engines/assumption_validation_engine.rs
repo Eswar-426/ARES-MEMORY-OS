@@ -14,9 +14,9 @@ impl<'a> AssumptionValidationEngine<'a> {
     pub fn validate_assumption(&self, assumption_id: &NodeId) -> Result<AssumptionNode, AresError> {
         let node = self
             .retrieval_engine
-            .get_node(&assumption_id.to_string())?
+            .get_node(assumption_id.as_ref())?
             .ok_or_else(|| AresError::NotFound {
-                resource_type: "Assumption".into(),
+                resource_type: "Assumption",
                 id: assumption_id.to_string(),
             })?;
 

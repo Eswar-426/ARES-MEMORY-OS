@@ -18,7 +18,7 @@ impl<'a> DecisionConflictEngine<'a> {
         let mut conflicts = Vec::new();
 
         let contradictions = self.retrieval_engine.get_neighborhood(
-            &decision_id.to_string(),
+            decision_id.as_ref(),
             EdgeDirection::Both,
             &[EdgeType::Contradicts],
         )?;
@@ -33,14 +33,14 @@ impl<'a> DecisionConflictEngine<'a> {
         }
 
         let superseded_by = self.retrieval_engine.get_neighborhood(
-            &decision_id.to_string(),
+            decision_id.as_ref(),
             EdgeDirection::Incoming,
             &[EdgeType::Supersedes],
         )?;
 
         let node = self
             .retrieval_engine
-            .get_node(&decision_id.to_string())?
+            .get_node(decision_id.as_ref())?
             .unwrap();
         let is_active = node.properties.get("status").and_then(|v| v.as_str()) == Some("active");
 
