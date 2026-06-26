@@ -22,6 +22,9 @@ ares-core = { path = "../ares-core" }
 ares-store = { path = "../ares-store" }
 ares-candidates = { path = "../ares-candidates" }
 ares-git-memory = { path = "../ares-git-memory" }
+ares-knowledge-graph = { path = "../ares-knowledge-graph" }
+
 [dev-dependencies]
 tokio = { workspace = true }
 proptest = "1.4"
+tempfile = { workspace = true }

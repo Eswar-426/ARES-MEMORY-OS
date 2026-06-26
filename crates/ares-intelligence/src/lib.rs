@@ -8,6 +8,7 @@ pub mod collaboration;
 pub mod context;
 pub mod coordinator;
 pub mod cost;
+pub mod drift;
 pub mod engines;
 pub mod ensemble;
 pub mod evaluation;

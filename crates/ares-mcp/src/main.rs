@@ -78,7 +78,8 @@ async fn main() -> Result<(), BoxError> {
     let facade = Arc::new(MemoryFacade::new(assembler.clone(), governance.clone()));
 
     // Initialize Inference Engine
-    let inference_engine: Arc<dyn ares_agent::inference::ContextInferenceEngine> = Arc::new(ares_agent::inference::MockInferenceEngine);
+    let inference_engine: Arc<dyn ares_agent::inference::ContextInferenceEngine> =
+        Arc::new(ares_agent::inference::MockInferenceEngine);
 
     // Create the Why tool
     let facade_why = facade.clone();
@@ -388,22 +389,32 @@ async fn main() -> Result<(), BoxError> {
         .build();
 
     let store_drift = app_state.store.clone();
+    let project_id_str = project_path.clone();
     let drift_tool = ToolBuilder::new("ares_drift")
-        .description("Evaluates structural drift for requirements")
-        .handler(move |_input: ProjectQueryInput| {
-            let _store = store_drift.clone();
+        .description("Evaluates structural drift for a given file")
+        .handler(move |input: MemoryQueryInput| {
+            let store = store_drift.clone();
+            let project_id = ares_core::ProjectId::from(project_id_str.clone());
             async move {
-                // Mapped to graph traversal
-                serde_json::to_string(
-                    "Drift calculation requires historic baseline. Not fully implemented.",
-                )
-                .map(CallToolResult::text)
-                .map_err(|e| {
-                    tower_mcp::Error::internal(format_mcp_error(
-                        "Failed to serialize drift message",
+                let id = ares_core::canonicalize_node_id(&input.id);
+                let provider =
+                    ares_intelligence::drift::GitMemoryHistoricalProvider::new(store.clone());
+                match ares_intelligence::drift::analyze_drift(&id, &store, &project_id, &provider)
+                    .await
+                {
+                    Ok(report) => serde_json::to_string(&report)
+                        .map(CallToolResult::text)
+                        .map_err(|e| {
+                            tower_mcp::Error::internal(format_mcp_error(
+                                "Failed to serialize drift report",
+                                &e.to_string(),
+                            ))
+                        }),
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
+                        "Failed to analyze drift",
                         &e.to_string(),
-                    ))
-                })
+                    ))),
+                }
             }
         })
         .build();
