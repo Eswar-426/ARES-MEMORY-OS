@@ -1,0 +1,28 @@
+[package]
+name = "ares-memory-bootstrap"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+ares-core = { path = "../ares-core" }
+ares-store = { path = "../ares-store" }
+ares-candidates = { path = "../ares-candidates" }
+ares-repository-intelligence = { path = "../ares-repository-intelligence" }
+ares-gap-engine = { path = "../ares-gap-engine" }
+ares-retrieval = { path = "../ares-retrieval" }
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+tracing.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+ares-governance = { path = "../ares-governance" }
+tokio = { workspace = true, features = ["full"] }
+tempfile = { workspace = true }

@@ -1,0 +1,12 @@
+repositories:
+  - name: ares_memory_os
+    url: local
+    commit: workspace_current
+
+  - name: ripgrep
+    url: https://github.com/BurntSushi/ripgrep
+    commit: 14.1.0
+
+  - name: tokio
+    url: https://github.com/tokio-rs/tokio
+    commit: tokio-1.36.0

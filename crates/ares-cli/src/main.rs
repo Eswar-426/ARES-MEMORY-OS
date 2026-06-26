@@ -1,11 +1,10 @@
 #![allow(unused_assignments)]
 pub mod commands;
 use ares_core::AresError;
-use clap::{Parser, Subcommand};
+use ares_memory_server::builder::RepositoryBuilder;
 use ares_memory_server::initializer::RepositoryInitializer;
 use ares_memory_server::scanner::RepositoryScanner;
-use ares_memory_server::builder::RepositoryBuilder;
-use ares_memory_server::server::RepositoryServer;
+use clap::{Parser, Subcommand};
 use std::env;
 // We would initialize full dependencies here
 
@@ -81,6 +80,8 @@ enum Commands {
     Scan,
     /// Build the memory graph
     Build,
+    /// Bootstrap missing memory candidates
+    Bootstrap,
     /// Serve the API
     Serve,
 }
@@ -381,7 +382,10 @@ async fn main() -> Result<(), AresError> {
         Commands::Init => {
             let path = env::current_dir().unwrap();
             RepositoryInitializer::init(&path)?;
-            println!("Initialized ARES Repository Memory Operating System in {:?}", path);
+            println!(
+                "Initialized ARES Repository Memory Operating System in {:?}",
+                path
+            );
         }
         Commands::Scan => {
             let path = env::current_dir().unwrap();
@@ -393,10 +397,19 @@ async fn main() -> Result<(), AresError> {
             RepositoryBuilder::build(&path)?;
             println!("Memory building completed.");
         }
-        Commands::Serve => {
+        Commands::Bootstrap => {
             let path = env::current_dir().unwrap();
-            RepositoryServer::serve(&path)?;
-            println!("API Server started on port 3000.");
+            println!("Bootstrapping memory candidates...");
+            // Execute bootstrap logic
+            commands::bootstrap::execute_bootstrap(&path).await?;
+            println!("Memory bootstrap completed.");
+        }
+        Commands::Serve => {
+            let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 3000));
+            println!("API Server starting on http://{}", addr);
+            ares_memory_server::server::serve(addr)
+                .await
+                .map_err(|e| AresError::validation(e.to_string()))?;
         }
     }
 

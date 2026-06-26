@@ -1,4 +1,5 @@
 pub mod benchmark;
+pub mod bootstrap;
 pub mod candidates;
 pub mod doctor;
 pub mod governance;
