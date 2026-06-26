@@ -172,11 +172,92 @@ impl SqliteIntelligenceRepository {
     }
 }
 
-use ares_intelligence::repository::intelligence_repository::{
-    CircuitBreakerState, CostEvent, ExecutionTrace, IntelligenceRepository, LearningEvent,
-    ProviderHealthEvent, RoutingDecision, SelectionExplanation,
-};
-use chrono::{TimeZone, Utc};
+use chrono::{DateTime, TimeZone, Utc};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SelectionExplanation {
+    pub id: Uuid,
+    pub task_id: String,
+    pub decision_type: String,
+    pub model_id: String,
+    pub explanation: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RoutingDecision {
+    pub id: Uuid,
+    pub task_id: String,
+    pub selected_model_id: String,
+    pub fallback_model_id: Option<String>,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExecutionTrace {
+    pub id: Uuid,
+    pub task_id: String,
+    pub model_id: String,
+    pub start_time: DateTime<Utc>,
+    pub end_time: DateTime<Utc>,
+    pub latency_ms: i64,
+    pub success: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CostEvent {
+    pub id: Uuid,
+    pub model_id: String,
+    pub input_tokens: i64,
+    pub output_tokens: i64,
+    pub total_cost: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProviderHealthEvent {
+    pub provider_id: String,
+    pub status: String,
+    pub last_checked_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CircuitBreakerState {
+    pub provider_id: String,
+    pub state: String,
+    pub failure_count: i64,
+    pub opened_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LearningEvent {
+    pub id: Uuid,
+    pub model_id: String,
+    pub success_rate: f64,
+    pub latency_ms: i64,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[async_trait::async_trait]
+pub trait IntelligenceRepository: Send + Sync {
+    async fn save_selection_explanation(
+        &self,
+        explanation: SelectionExplanation,
+    ) -> anyhow::Result<()>;
+    async fn save_routing_decision(&self, decision: RoutingDecision) -> anyhow::Result<()>;
+    async fn save_execution_trace(&self, trace: ExecutionTrace) -> anyhow::Result<()>;
+    async fn save_cost_event(&self, event: CostEvent) -> anyhow::Result<()>;
+    async fn save_learning_event(&self, event: LearningEvent) -> anyhow::Result<()>;
+    async fn save_provider_health(&self, health: ProviderHealthEvent) -> anyhow::Result<()>;
+    async fn get_provider_health(
+        &self,
+        provider_id: &str,
+    ) -> anyhow::Result<Option<ProviderHealthEvent>>;
+    async fn save_circuit_breaker_state(&self, state: CircuitBreakerState) -> anyhow::Result<()>;
+    async fn get_circuit_breaker_state(
+        &self,
+        provider_id: &str,
+    ) -> anyhow::Result<Option<CircuitBreakerState>>;
+}
 
 #[async_trait::async_trait]
 impl IntelligenceRepository for SqliteIntelligenceRepository {

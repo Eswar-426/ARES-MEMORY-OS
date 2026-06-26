@@ -41,7 +41,7 @@ impl<'a> KnowledgeGapDetector<'a> {
 
         for dec in decisions {
             let upstream = self.retrieval_engine.get_neighborhood(
-                &dec.id.to_string(),
+                dec.id.as_ref(),
                 EdgeDirection::Incoming,
                 &[EdgeType::Drives],
             )?;
@@ -84,7 +84,7 @@ impl<'a> KnowledgeGapDetector<'a> {
 
         for arch in architectures {
             let upstream = self.retrieval_engine.get_neighborhood(
-                &arch.id.to_string(),
+                arch.id.as_ref(),
                 EdgeDirection::Incoming,
                 &[EdgeType::Drives],
             )?;
@@ -126,7 +126,7 @@ impl<'a> KnowledgeGapDetector<'a> {
 
         for code in code_nodes {
             let upstream = self.retrieval_engine.get_neighborhood(
-                &code.id.to_string(),
+                code.id.as_ref(),
                 EdgeDirection::Incoming,
                 &[EdgeType::Drives, EdgeType::Implements, EdgeType::Contains],
             )?;
@@ -202,7 +202,7 @@ impl<'a> KnowledgeGapDetector<'a> {
 
         for code in code_nodes {
             let downstream = self.retrieval_engine.get_neighborhood(
-                &code.id.to_string(),
+                code.id.as_ref(),
                 EdgeDirection::Incoming,
                 &[EdgeType::ValidatedBy],
             )?;
@@ -259,12 +259,8 @@ impl<'a> KnowledgeGapDetector<'a> {
         let mut gaps = Vec::new();
 
         for node in all_nodes {
-            let in_edges = self
-                .retrieval_engine
-                .get_all_edges_to(&node.id.to_string())?;
-            let out_edges = self
-                .retrieval_engine
-                .get_all_edges_from(&node.id.to_string())?;
+            let in_edges = self.retrieval_engine.get_all_edges_to(node.id.as_ref())?;
+            let out_edges = self.retrieval_engine.get_all_edges_from(node.id.as_ref())?;
 
             if in_edges.is_empty() && out_edges.is_empty() {
                 gaps.push(KnowledgeGap {
@@ -296,12 +292,8 @@ impl<'a> KnowledgeGapDetector<'a> {
         let mut gaps = Vec::new();
 
         for feat in features {
-            let in_edges = self
-                .retrieval_engine
-                .get_all_edges_to(&feat.id.to_string())?;
-            let out_edges = self
-                .retrieval_engine
-                .get_all_edges_from(&feat.id.to_string())?;
+            let in_edges = self.retrieval_engine.get_all_edges_to(feat.id.as_ref())?;
+            let out_edges = self.retrieval_engine.get_all_edges_from(feat.id.as_ref())?;
 
             let connectivity_weight = (in_edges.len() + out_edges.len()) as f32;
             let ownership_risk = if feat.properties.get("owners").is_some() {

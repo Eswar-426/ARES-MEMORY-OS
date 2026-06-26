@@ -1,4 +1,3 @@
-use ares_core::AresError;
 use ares_knowledge_graph::models::{DomainEvent, DomainEventType, ProjectionMetrics};
 use ares_knowledge_graph::projection::{ProjectionEngine, ProjectionMode};
 use ares_knowledge_graph::projector_registry::{

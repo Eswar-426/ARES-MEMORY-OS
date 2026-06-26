@@ -7,7 +7,6 @@ use ares_retrieval::memory_retrieval_engine::MemoryRetrievalEngine;
 use ares_store::repositories::graph::SqliteGraphRepository;
 use ares_store::repositories::project::SqliteProjectRepository;
 use ares_store::Store;
-use std::path::PathBuf;
 use std::sync::Arc;
 use uuid::Uuid;
 

@@ -34,6 +34,8 @@ impl CandidateRepository for SqliteCandidateRepository {
             CandidateType::Decision => "Decision",
             CandidateType::Architecture => "Architecture",
             CandidateType::Traceability => "Traceability",
+            CandidateType::Capability => "Capability",
+            CandidateType::Ownership => "Ownership",
         };
 
         let status_str = match candidate.status {
@@ -185,7 +187,6 @@ impl CandidateRepository for SqliteCandidateRepository {
                         _ => None,
                     });
 
-                    
                     let arch_cat_str: Option<String> = row.get(13)?;
                     let architecture_category = arch_cat_str.and_then(|s| match s.as_str() {
                         "Service" => Some(ArchitectureCategory::Service),
@@ -274,6 +275,7 @@ impl CandidateRepository for SqliteCandidateRepository {
                             temporal_consistency: row.get(8)?,
                             cluster_strength: row.get(9)?,
                         },
+                        bootstrap_metadata: None,
                         created_at: row.get(10)?,
                         updated_at: row.get(11)?,
                     })
@@ -293,6 +295,8 @@ impl CandidateRepository for SqliteCandidateRepository {
             CandidateType::Decision => "Decision",
             CandidateType::Architecture => "Architecture",
             CandidateType::Traceability => "Traceability",
+            CandidateType::Capability => "Capability",
+            CandidateType::Ownership => "Ownership",
         };
 
         let status_str = match candidate.status {
@@ -555,6 +559,7 @@ impl CandidateRepository for SqliteCandidateRepository {
                         temporal_consistency: row.get(8)?,
                         cluster_strength: row.get(9)?,
                     },
+                    bootstrap_metadata: None,
                     created_at: row.get(10)?,
                     updated_at: row.get(11)?,
                 })

@@ -1,4 +1,3 @@
-use ares_core::AresError;
 use ares_knowledge_graph::impact::ImpactEngine;
 use ares_knowledge_graph::models::{DomainEvent, DomainEventType, ProjectionMetrics};
 use ares_knowledge_graph::projection::{ProjectionEngine, ProjectionMode};
@@ -9,7 +8,6 @@ use ares_knowledge_graph::queries::CanonicalQueries;
 use ares_knowledge_graph::store::KnowledgeGraphStore;
 use ares_knowledge_graph::traversal::TraversalEngine;
 use ares_store::Store;
-use serde_json::json;
 use std::sync::Arc;
 use tempfile::tempdir;
 

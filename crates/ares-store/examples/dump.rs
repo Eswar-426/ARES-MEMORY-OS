@@ -82,10 +82,10 @@ fn main() {
             res
         };
 
-        if has_path_sep || has_underscore || is_true_camel_case {
-            if seen.insert(word_clean.to_string()) {
-                targets.push(word_clean.to_string());
-            }
+        if (has_path_sep || has_underscore || is_true_camel_case)
+            && seen.insert(word_clean.to_string())
+        {
+            targets.push(word_clean.to_string());
         }
     }
 

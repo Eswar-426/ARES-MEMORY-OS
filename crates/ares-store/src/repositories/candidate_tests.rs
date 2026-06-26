@@ -28,6 +28,7 @@ mod tests {
                 temporal_consistency: 0.8,
                 cluster_strength: 0.9,
             },
+            bootstrap_metadata: None,
             created_at: now_micros(),
             updated_at: now_micros(),
         }
