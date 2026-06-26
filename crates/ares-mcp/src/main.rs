@@ -77,16 +77,41 @@ async fn main() -> Result<(), BoxError> {
     ));
     let facade = Arc::new(MemoryFacade::new(assembler.clone(), governance.clone()));
 
+    // Initialize Inference Engine
+    let inference_engine: Arc<dyn ares_agent::inference::ContextInferenceEngine> = Arc::new(ares_agent::inference::MockInferenceEngine);
+
     // Create the Why tool
     let facade_why = facade.clone();
+    let engine_clone = inference_engine.clone();
+    let project_id_str = project_path.clone();
+
     let why_tool = ToolBuilder::new("ares_why_exists")
         .description("Explains why a specific entity exists in the ARES memory graph")
         .handler(move |input: MemoryQueryInput| {
             let facade = facade_why.clone();
+            let engine = engine_clone.clone();
+            let project_id = ares_core::ProjectId::from(project_id_str.clone());
+            
             async move {
                 let id = ares_core::canonicalize_node_id(&input.id);
-                match facade.why(&id) {
-                    Ok(result) => Ok(CallToolResult::text(result.to_string())),
+                match facade.why_with_context(&id, "Why does this exist?", &project_id).await {
+                    Ok(result) => {
+                        let inference = engine.complete(&result.context.assembled_prompt).await.unwrap_or_else(|e| {
+                            serde_json::json!({ "error": e.to_string(), "status": "failed" })
+                        });
+                        
+                        let response = serde_json::json!({
+                            "entity": input.id,
+                            "requirements": result.graph.requirements,
+                            "decisions": result.graph.decisions,
+                            "evidence": result.graph.evidence,
+                            "inference": inference,
+                            "sources_used": result.context.sources,
+                            "estimated_tokens": result.context.estimated_tokens,
+                        });
+                        
+                        Ok(CallToolResult::text(serde_json::to_string(&response).unwrap()))
+                    },
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
                         "Failed to explain why entity exists",
                         &e.to_string(),

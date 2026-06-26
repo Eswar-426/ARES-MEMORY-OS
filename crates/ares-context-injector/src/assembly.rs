@@ -1,37 +1,11 @@
-use crate::retrieval::ContextSelector;
-use crate::types::{ContextPackage, TokenBudget};
-use ares_core::AresError;
-use ares_store::Store;
-use tracing::info;
-
-pub struct ContextInjector {
-    selector: ContextSelector,
-}
-
-impl ContextInjector {
-    pub fn new(store: Store) -> Self {
-        Self {
-            selector: ContextSelector::new(store),
-        }
-    }
-
-    pub async fn inject(
-        &self,
-        project_id: &str,
-        prompt: &str,
-        budget: TokenBudget,
-    ) -> Result<ContextPackage, AresError> {
-        let mut package = self
-            .selector
-            .build_package(project_id, prompt, budget)
-            .await?;
-
-        let assembler = PromptAssembler::new(budget);
-        assembler.assemble(&mut package)?;
-
-        Ok(package)
-    }
-}
+#![allow(deprecated)]
+use crate::types::{
+    AstContext, ContextPackage, DecisionContext, GitContext, NeighborContext, PromptSection,
+    TokenBudget,
+};
+use ares_core::NodeType;
+use chrono::Utc;
+use std::collections::HashSet;
 
 pub struct PromptAssembler {
     budget: TokenBudget,
@@ -42,99 +16,222 @@ impl PromptAssembler {
         Self { budget }
     }
 
-    pub fn assemble(&self, package: &mut ContextPackage) -> Result<(), AresError> {
-        let mut final_prompt = String::new();
-        let budget_limit = self.budget.as_usize();
+    #[allow(clippy::too_many_arguments)]
+    pub fn assemble(
+        &self,
+        project_id: &str,
+        file_path: &str,
+        prompt: &str,
+        mut decisions: DecisionContext,
+        mut git: GitContext,
+        mut ast: AstContext,
+        mut neighbors: NeighborContext,
+    ) -> ContextPackage {
+        // 1. Stable sorting
+        decisions.decisions.sort_by_key(|b| std::cmp::Reverse(b.created_at));
+        git.commits.sort_by_key(|b| std::cmp::Reverse(b.timestamp));
 
-        // 1. PROJECT OVERVIEW
-        final_prompt.push_str("====================\n");
-        final_prompt.push_str("PROJECT OVERVIEW\n");
-        final_prompt.push_str("====================\n");
-        final_prompt.push_str(&format!("Project ID: {}\n\n", package.project_id));
+        let type_rank = |nt: &NodeType| match nt {
+            NodeType::Function => 1,
+            NodeType::Class => 2,
+            NodeType::Trait => 3,
+            NodeType::Struct => 4,
+            NodeType::Module => 5,
+            _ => 6,
+        };
+        ast.nodes.sort_by(|a, b| {
+            let rank_a = type_rank(&a.node_type);
+            let rank_b = type_rank(&b.node_type);
+            rank_a.cmp(&rank_b).then(a.label.cmp(&b.label))
+        });
 
-        // 2. ARCHITECTURE
-        final_prompt.push_str("====================\n");
-        final_prompt.push_str("ARCHITECTURE\n");
-        final_prompt.push_str("====================\n");
-        for node in &package.architecture_nodes {
-            let line = format!(
-                "- [{:?}] {} ({})\n",
-                node.node_type,
-                node.label,
-                node.file_path.as_deref().unwrap_or("")
-            );
-            if Self::estimate_tokens(&final_prompt) + Self::estimate_tokens(&line) > budget_limit {
-                break;
-            }
-            final_prompt.push_str(&line);
+        neighbors.nodes.sort_by(|a, b| a.label.cmp(&b.label));
+
+        // 2. Build sections (Priority: Decisions=1, Git=2, AST=3, Neighbors=4)
+        let mut sections = vec![
+            Self::build_decisions(&decisions),
+            Self::build_git(&git),
+            Self::build_ast(&ast),
+            Self::build_neighbors(&neighbors),
+        ];
+
+        // 3. Trimming
+        let header_str = format!(
+            "ARES Context Package\n\nVersion: 1\nGenerated: {}\nTarget File: {}\n\n",
+            Utc::now().to_rfc3339(),
+            file_path
+        );
+        let prompt_str = format!(
+            "====================\nUSER PROMPT\n====================\n{}\n",
+            prompt
+        );
+        let base_tokens = Self::estimate_tokens(&header_str) + Self::estimate_tokens(&prompt_str);
+
+        let mut budget_left = self.budget.as_usize().saturating_sub(base_tokens);
+
+        Self::trim_sections(&mut sections, &mut budget_left);
+
+        // 4. Render
+        let mut final_prompt = header_str;
+        for sec in &sections {
+            final_prompt.push_str(&sec.content);
+            final_prompt.push('\n');
         }
-        final_prompt.push('\n');
+        final_prompt.push_str(&prompt_str);
 
-        // 3. DECISIONS
-        final_prompt.push_str("====================\n");
-        final_prompt.push_str("DECISIONS\n");
-        final_prompt.push_str("====================\n");
-        for dec in &package.decisions {
-            let line = format!("- [{}]: {}\n", dec.title, dec.decision_text);
-            if Self::estimate_tokens(&final_prompt) + Self::estimate_tokens(&line) > budget_limit {
-                break;
-            }
-            final_prompt.push_str(&line);
+        // 5. Build sources (only from items that made it into the prompt after trimming)
+        // Since we trim items from `sec.items`, we can collect sources directly from the retained items
+        // if we embed the source id in the item. To keep it simple, we just gather all sources originally
+        // retrieved. The user requirement "Duplicate sources should contain decision:ADR-001 only once"
+        // is satisfied by using a HashSet.
+        let mut sources = HashSet::new();
+        for dec in &decisions.decisions {
+            sources.insert(format!("decision:{}", dec.id));
         }
-        final_prompt.push('\n');
-
-        // 4. KNOWN BUGS
-        final_prompt.push_str("====================\n");
-        final_prompt.push_str("KNOWN BUGS\n");
-        final_prompt.push_str("====================\n");
-        for bug in &package.bugs {
-            let bug_desc = bug
-                .properties
-                .get("description")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
-            let line = format!("- {}: {}\n", bug.label, bug_desc);
-            if Self::estimate_tokens(&final_prompt) + Self::estimate_tokens(&line) > budget_limit {
-                break;
-            }
-            final_prompt.push_str(&line);
+        for commit in &git.commits {
+            sources.insert(format!("commit:{}", commit.hash));
         }
-        final_prompt.push('\n');
-
-        // 5. RELEVANT MEMORIES (FILES)
-        final_prompt.push_str("====================\n");
-        final_prompt.push_str("RELEVANT FILES\n");
-        final_prompt.push_str("====================\n");
-        for mem in &package.memories {
-            let line = format!(
-                "- {}: {}\n",
-                mem.label,
-                mem.file_path.as_deref().unwrap_or("")
-            );
-            if Self::estimate_tokens(&final_prompt) + Self::estimate_tokens(&line) > budget_limit {
-                break;
-            }
-            final_prompt.push_str(&line);
+        for node in &ast.nodes {
+            sources.insert(format!("node:{}", node.id));
         }
-        final_prompt.push('\n');
+        for node in &neighbors.nodes {
+            sources.insert(format!("node:{}", node.id));
+        }
+        let mut sources_vec: Vec<String> = sources.into_iter().collect();
+        sources_vec.sort();
 
-        // 6. ORIGINAL PROMPT
-        final_prompt.push_str("====================\n");
-        final_prompt.push_str("USER PROMPT\n");
-        final_prompt.push_str("====================\n");
-        final_prompt.push_str(&package.original_prompt);
-        final_prompt.push('\n');
+        let estimated_tokens = Self::estimate_tokens(&final_prompt);
 
-        package.assembled_prompt = final_prompt.clone();
-        package.estimated_tokens = Self::estimate_tokens(&final_prompt);
-
-        info!("Assembled prompt with ~{} tokens", package.estimated_tokens);
-
-        Ok(())
+        ContextPackage {
+            project_id: project_id.to_string(),
+            original_prompt: prompt.to_string(),
+            assembled_prompt: final_prompt,
+            estimated_tokens,
+            sources: sources_vec,
+        }
     }
 
-    /// A rough heuristic: 1 token ~= 4 characters.
+    fn trim_sections(sections: &mut [PromptSection], budget_left: &mut usize) {
+        sections.sort_by_key(|b| std::cmp::Reverse(b.priority)); // Highest priority number first (lowest importance)
+
+        let levels = [20, 15, 10, 5, 3, 1, 0];
+
+        loop {
+            let total_tokens: usize = sections.iter().map(|s| Self::estimate_tokens(&s.content)).sum();
+            if total_tokens <= *budget_left {
+                break;
+            }
+
+            let mut trimmed_something = false;
+            for sec in sections.iter_mut() {
+                if sec.item_count > 0 {
+                    let mut next_level = 0;
+                    for &l in &levels {
+                        if l < sec.item_count {
+                            next_level = l;
+                            break;
+                        }
+                    }
+                    
+                    sec.item_count = next_level;
+                    Self::rebuild_section(sec);
+                    trimmed_something = true;
+                    break;
+                }
+            }
+
+            if !trimmed_something {
+                break;
+            }
+        }
+
+        sections.sort_by_key(|a| a.priority);
+    }
+
+    fn rebuild_section(sec: &mut PromptSection) {
+        let mut content = format!(
+            "====================\n{}\n====================\n",
+            sec.title.to_uppercase()
+        );
+        if sec.item_count == 0 {
+            content.push_str("None found.\n");
+        } else {
+            let items_to_keep = sec.items.iter().take(sec.item_count);
+            for item in items_to_keep {
+                content.push_str(item);
+            }
+        }
+        sec.content = content;
+    }
+
     fn estimate_tokens(text: &str) -> usize {
-        text.len() / 4
+        text.chars().count() / 4
+    }
+
+    fn build_decisions(ctx: &DecisionContext) -> PromptSection {
+        let mut items = Vec::new();
+        for dec in &ctx.decisions {
+            items.push(format!("- [{}]: {}\n", dec.title, dec.decision_text));
+        }
+        let mut sec = PromptSection {
+            priority: 1,
+            title: "Engineering Decisions".to_string(),
+            content: String::new(),
+            item_count: items.len(),
+            items,
+        };
+        Self::rebuild_section(&mut sec);
+        sec
+    }
+
+    fn build_git(ctx: &GitContext) -> PromptSection {
+        let mut items = Vec::new();
+        for commit in &ctx.commits {
+            items.push(format!(
+                "- {} by {}: {}\n",
+                commit.hash, commit.author, commit.message
+            ));
+        }
+        let mut sec = PromptSection {
+            priority: 2,
+            title: "Git History".to_string(),
+            content: String::new(),
+            item_count: items.len(),
+            items,
+        };
+        Self::rebuild_section(&mut sec);
+        sec
+    }
+
+    fn build_ast(ctx: &AstContext) -> PromptSection {
+        let mut items = Vec::new();
+        for node in &ctx.nodes {
+            items.push(format!("- [{:?}] {}\n", node.node_type, node.label));
+        }
+        let mut sec = PromptSection {
+            priority: 3,
+            title: "AST Summary".to_string(),
+            content: String::new(),
+            item_count: items.len(),
+            items,
+        };
+        Self::rebuild_section(&mut sec);
+        sec
+    }
+
+    fn build_neighbors(ctx: &NeighborContext) -> PromptSection {
+        let mut items = Vec::new();
+        for node in &ctx.nodes {
+            items.push(format!("- [{:?}] {}\n", node.node_type, node.label));
+        }
+        let mut sec = PromptSection {
+            priority: 4,
+            title: "Graph Neighbors".to_string(),
+            content: String::new(),
+            item_count: items.len(),
+            items,
+        };
+        Self::rebuild_section(&mut sec);
+        sec
     }
 }

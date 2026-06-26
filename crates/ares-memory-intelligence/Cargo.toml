@@ -26,6 +26,10 @@ ares-traceability = { path = "../ares-traceability" }
 ares-governance = { path = "../ares-governance" }
 ares-gap-engine = { path = "../ares-gap-engine" }
 ares-resolution-engine = { path = "../ares-resolution-engine" }
+ares-context-injector = { path = "../ares-context-injector" }
+ares-git-memory = { path = "../ares-git-memory" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+anyhow = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

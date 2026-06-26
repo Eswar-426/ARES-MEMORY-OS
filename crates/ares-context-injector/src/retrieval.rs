@@ -1,81 +1,182 @@
-use crate::types::{ContextPackage, TokenBudget};
-use ares_core::types::pagination::Pagination;
-use ares_core::{AresError, DecisionFilter, NodeType, ProjectId};
-use ares_store::{
-    repositories::{
-        decision::SqliteDecisionRepository, graph::SqliteGraphRepository,
-        project::SqliteProjectRepository,
-    },
-    Store,
+#![allow(deprecated)]
+use crate::types::{AstContext, DecisionContext, GitCommit, GitContext, NeighborContext};
+use ares_core::{DecisionFilter, EdgeDirection, EdgeType, NodeType, ProjectId};
+use ares_store::repositories::{
+    decision::SqliteDecisionRepository, graph::SqliteGraphRepository,
+    project::SqliteProjectRepository,
 };
-use tracing::info;
+use ares_store::Store;
+use async_trait::async_trait;
+use std::collections::HashSet;
+use std::path::PathBuf;
 
-pub struct ContextSelector {
+#[async_trait]
+pub trait ContextRetriever: Send + Sync {
+    async fn decisions(
+        &self,
+        project_id: &ProjectId,
+        file_path: &str,
+    ) -> anyhow::Result<DecisionContext>;
+    async fn git_history(
+        &self,
+        project_id: &ProjectId,
+        file_path: &str,
+    ) -> anyhow::Result<GitContext>;
+    async fn ast(&self, project_id: &ProjectId, file_path: &str) -> anyhow::Result<AstContext>;
+    async fn neighbors(
+        &self,
+        project_id: &ProjectId,
+        file_path: &str,
+    ) -> anyhow::Result<NeighborContext>;
+}
+
+pub struct StoreContextRetriever {
     store: Store,
 }
 
-impl ContextSelector {
+impl StoreContextRetriever {
     pub fn new(store: Store) -> Self {
         Self { store }
     }
 
-    pub async fn build_package(
+    fn get_project_path(&self, project_id: &ProjectId) -> anyhow::Result<PathBuf> {
+        let repo = SqliteProjectRepository::new(self.store.clone());
+        let project = repo
+            .get_by_id(project_id)?
+            .ok_or_else(|| anyhow::anyhow!("Project not found"))?;
+        Ok(PathBuf::from(project.root_path))
+    }
+}
+
+#[async_trait]
+impl ContextRetriever for StoreContextRetriever {
+    #[tracing::instrument(skip(self))]
+    async fn decisions(
         &self,
-        project_id: &str,
-        prompt: &str,
-        _budget: TokenBudget,
-    ) -> Result<ContextPackage, AresError> {
-        info!("Building context package for project_id={}", project_id);
-
-        let p_id = ProjectId::from(project_id.to_string());
-
-        // 1. Snapshot retrieval
-        let project_repo = SqliteProjectRepository::new(self.store.clone());
-        let _project = project_repo.get_by_id(&p_id)?;
-
-        // 2. Architecture retrieval
-        let graph_repo = SqliteGraphRepository::new(self.store.clone());
-
-        let pagination = Pagination {
-            page: 1,
-            page_size: 50,
+        project_id: &ProjectId,
+        file_path: &str,
+    ) -> anyhow::Result<DecisionContext> {
+        let repo = SqliteDecisionRepository::new(self.store.clone());
+        let filter = DecisionFilter {
+            file_path: Some(file_path.to_string()),
+            ..Default::default()
         };
 
-        // We will fetch crates and modules to simulate architecture retrieval
-        let arch_page =
-            graph_repo.list_nodes_paginated(&p_id, Some(NodeType::Module), None, &pagination)?;
-        let mut architecture_nodes = arch_page.items;
+        let decisions = repo.list(project_id, filter)?;
+        Ok(DecisionContext { decisions })
+    }
 
-        if let Ok(crate_page) =
-            graph_repo.list_nodes_paginated(&p_id, Some(NodeType::Service), None, &pagination)
-        {
-            architecture_nodes.extend(crate_page.items);
+    #[tracing::instrument(skip(self))]
+    async fn git_history(
+        &self,
+        project_id: &ProjectId,
+        file_path: &str,
+    ) -> anyhow::Result<GitContext> {
+        let project_path = self.get_project_path(project_id)?;
+        let captured_at = ares_core::types::event::now_micros();
+
+        let (nodes, edges) = tokio::task::block_in_place(|| {
+            ares_git_memory::commits::CommitExtractor::extract(
+                &project_path,
+                project_id,
+                500,
+                captured_at,
+            )
+        })
+        .map_err(|e| anyhow::anyhow!("Git extraction failed: {}", e))?;
+
+        let file_node_id = ares_core::canonicalize_node_id(file_path);
+
+        let touching_commits: HashSet<String> = edges
+            .into_iter()
+            .filter(|e| e.edge_type == EdgeType::Touches && e.to_node_id.as_str() == file_node_id)
+            .map(|e| e.from_node_id.as_str().to_string())
+            .collect();
+
+        let mut commits = Vec::new();
+        for node in nodes {
+            if node.node_type == NodeType::Commit && touching_commits.contains(node.id.as_str()) {
+                let props = &node.properties;
+                let hash = props
+                    .get("hash")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let author = props
+                    .get("author")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let message = props
+                    .get("subject")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+
+                commits.push(GitCommit {
+                    hash,
+                    author,
+                    message,
+                    timestamp: node.created_at,
+                });
+            }
         }
 
-        // 3. Decision retrieval
-        let decision_repo = SqliteDecisionRepository::new(self.store.clone());
-        let decision_filter = DecisionFilter::default();
-        let decisions = decision_repo.list(&p_id, decision_filter)?;
+        commits.sort_by_key(|b| std::cmp::Reverse(b.timestamp));
+        commits.truncate(5);
 
-        // 4. Bug history retrieval
-        let bug_page =
-            graph_repo.list_nodes_paginated(&p_id, Some(NodeType::Bug), None, &pagination)?;
-        let bugs = bug_page.items;
+        Ok(GitContext { commits })
+    }
 
-        // 5. Semantic / Memory retrieval (Generic context matching prompt)
-        let memory_page =
-            graph_repo.list_nodes_paginated(&p_id, None, Some(prompt), &pagination)?;
-        let memories = memory_page.items;
+    #[tracing::instrument(skip(self))]
+    async fn ast(&self, project_id: &ProjectId, file_path: &str) -> anyhow::Result<AstContext> {
+        let repo = SqliteGraphRepository::new(self.store.clone());
+        let nodes = repo.get_by_file_path(project_id, file_path)?;
 
-        Ok(ContextPackage {
-            project_id: project_id.to_string(),
-            original_prompt: prompt.to_string(),
-            architecture_nodes,
-            decisions,
-            bugs,
-            memories,
-            assembled_prompt: String::new(),
-            estimated_tokens: 0,
-        })
+        let mut ast_nodes = Vec::new();
+        for node in nodes {
+            match node.node_type {
+                NodeType::Function
+                | NodeType::Class
+                | NodeType::Trait
+                | NodeType::Struct
+                | NodeType::Module => {
+                    ast_nodes.push(node);
+                }
+                _ => {}
+            }
+        }
+        Ok(AstContext { nodes: ast_nodes })
+    }
+
+    #[tracing::instrument(skip(self))]
+    async fn neighbors(
+        &self,
+        project_id: &ProjectId,
+        file_path: &str,
+    ) -> anyhow::Result<NeighborContext> {
+        let repo = SqliteGraphRepository::new(self.store.clone());
+        let file_node_id = ares_core::NodeId::from(ares_core::canonicalize_node_id(file_path));
+
+        let edge_types = vec![
+            EdgeType::Imports,
+            EdgeType::Defines,
+            EdgeType::Calls,
+            EdgeType::Extends,
+            EdgeType::DependsOn,
+            EdgeType::Implements,
+            EdgeType::Uses,
+            EdgeType::Contains,
+            EdgeType::ContainedIn,
+            EdgeType::References,
+            EdgeType::Touches,
+        ];
+
+        let mut nodes = repo
+            .get_neighbors(&file_node_id, EdgeDirection::Both, &edge_types)
+            .unwrap_or_default();
+        // Remove the file itself from neighbors
+        nodes.retain(|n| n.id != file_node_id);
+        Ok(NeighborContext { nodes })
     }
 }

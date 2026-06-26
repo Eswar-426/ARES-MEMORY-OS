@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 use ares_core::{Decision, GraphNode};
 use serde::{Deserialize, Serialize};
 
@@ -16,14 +17,48 @@ impl TokenBudget {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DecisionContext {
+    pub decisions: Vec<Decision>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitCommit {
+    pub hash: String,
+    pub author: String,
+    pub message: String,
+    pub timestamp: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitContext {
+    pub commits: Vec<GitCommit>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AstContext {
+    pub nodes: Vec<GraphNode>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NeighborContext {
+    pub nodes: Vec<GraphNode>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct ContextPackage {
     pub project_id: String,
     pub original_prompt: String,
-    pub architecture_nodes: Vec<GraphNode>,
-    pub decisions: Vec<Decision>,
-    pub bugs: Vec<GraphNode>,
-    pub memories: Vec<GraphNode>,
     pub assembled_prompt: String,
     pub estimated_tokens: usize,
+    pub sources: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PromptSection {
+    pub priority: u32,
+    pub title: String,
+    pub content: String,
+    pub item_count: usize,
+    pub items: Vec<String>,
 }
