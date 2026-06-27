@@ -99,7 +99,7 @@ impl ReleaseExtractor {
                 edge_type: EdgeType::Contains,
                 weight: 1.0,
                 confidence: 0.8, // Repository tier confidence
-                source: "git_tag".to_string(),
+                source: "git_releases".to_string(),
                 valid_from: timestamp,
                 valid_until: None,
                 created_at: captured_at,

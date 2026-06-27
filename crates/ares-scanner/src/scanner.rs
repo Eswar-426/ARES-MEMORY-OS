@@ -138,7 +138,10 @@ impl Scanner {
                                     .to_string_lossy()
                                     .to_string(),
                                 properties: serde_json::json!({}),
-                                file_path: Some(path.to_string_lossy().to_string()),
+                                file_path: Some(ares_core::canonical_repo_path(
+                                    &root_path.to_string_lossy(),
+                                    &path.to_string_lossy(),
+                                )),
                                 created_at: ares_core::types::event::now_micros(),
                                 updated_at: ares_core::types::event::now_micros(),
                                 deleted_at: None,
@@ -230,7 +233,10 @@ impl Scanner {
             if done.is_multiple_of(50) {
                 eprintln!("[scanner] Progress: {}/{}", done, total);
             }
-            let path_str = path.to_string_lossy().to_string();
+            let path_str = ares_core::canonical_repo_path(
+                &root_path.to_string_lossy(),
+                &path.to_string_lossy(),
+            );
 
             let current_hash = match hash_file(path) {
                 Ok(h) => h,

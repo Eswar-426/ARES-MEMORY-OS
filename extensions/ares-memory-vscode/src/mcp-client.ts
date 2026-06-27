@@ -19,7 +19,14 @@ export class McpClient {
     }
 
     async connect(mcpPath: string, source: string): Promise<boolean> {
-        this.outputChannel.appendLine(`Starting ARES MCP from ${mcpPath} (Source: ${source})...`);
+        const workspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        
+        this.outputChannel.appendLine("========== ARES MCP ==========");
+        this.outputChannel.appendLine(`Executable : ${mcpPath}`);
+        this.outputChannel.appendLine(`Exists     : ${fs.existsSync(mcpPath)}`);
+        this.outputChannel.appendLine(`Workspace  : ${workspace}`);
+        this.outputChannel.appendLine(`Source     : ${source}`);
+        this.outputChannel.appendLine("==============================");
         
         if (source !== 'PATH' && !fs.existsSync(mcpPath)) {
             this.outputChannel.appendLine(`ARES MCP binary not found:\n${mcpPath}`);
@@ -29,7 +36,9 @@ export class McpClient {
         try {
             this.transport = new StdioClientTransport({
                 command: mcpPath,
-                args: []
+                args: [],
+                cwd: workspace,
+                env: process.env as Record<string, string>
             });
 
             await this.client.connect(this.transport);

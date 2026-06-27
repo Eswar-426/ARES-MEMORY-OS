@@ -71,8 +71,17 @@ async fn main() -> Result<(), BoxError> {
         .to_string_lossy()
         .to_string();
 
-    let config = AgentConfig::load(&project_path)?;
-    let app_state = AppState::new(config).await?;
+    info!("Project path = {}", project_path);
+    info!("Loading AgentConfig...");
+
+    let config = AgentConfig::load(&project_path).map_err(|e| {
+        tracing::error!("Failed to load config: {e:?}");
+        e
+    })?;
+    let app_state = AppState::new(config).await.map_err(|e| {
+        tracing::error!("Failed to initialize AppState: {e:?}");
+        e
+    })?;
 
     let assembler = Arc::new(MemoryContextAssembler::default_from_store(
         app_state.store.clone(),

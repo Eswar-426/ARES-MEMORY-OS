@@ -114,6 +114,86 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         let scanner = ares_scanner::Scanner::new(repo.clone());
         let _ = scanner.scan_project(&project_id, &args.path);
 
+        // --- File Inventory: create lightweight File nodes for ALL tracked files ---
+        // The scanner only parses supported extensions (rs, ts, js, etc.), but git history
+        // creates edges for every file. We need a File node to exist for every tracked
+        // repository file so that edge insertion doesn't violate FK constraints.
+        {
+            let root_str = args.path.to_string_lossy();
+            let existing_nodes = repo.get_all_nodes(&project_id).unwrap_or_default();
+            let existing_paths: std::collections::HashSet<String> = existing_nodes
+                .iter()
+                .filter(|n| n.node_type == ares_core::NodeType::File)
+                .filter_map(|n| n.file_path.clone())
+                .collect();
+
+            let walker = ignore::WalkBuilder::new(&args.path)
+                .hidden(false)
+                .filter_entry(|e| {
+                    let name = e.file_name().to_string_lossy();
+                    !matches!(
+                        name.as_ref(),
+                        ".git" | "target" | ".gemini" | "artifacts"
+                            | "node_modules" | "dist" | ".turbo" | ".ares" | "scratch"
+                    )
+                })
+                .build();
+
+            let mut inventory_count = 0u32;
+            let now = ares_core::types::event::now_micros();
+            for result in walker {
+                if let Ok(entry) = result {
+                    if !entry.file_type().is_some_and(|ft| ft.is_file()) {
+                        continue;
+                    }
+                    let rel_path = ares_core::canonical_repo_path(
+                        &root_str,
+                        &entry.path().to_string_lossy(),
+                    );
+                    if rel_path.is_empty() || existing_paths.contains(&rel_path) {
+                        continue;
+                    }
+                    let node_id = ares_core::NodeId::new();
+                    let label = entry
+                        .path()
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
+                    let file_node = ares_core::GraphNode {
+                        id: node_id,
+                        project_id: project_id.clone(),
+                        node_type: ares_core::NodeType::File,
+                        label,
+                        properties: serde_json::json!({}),
+                        file_path: Some(rel_path),
+                        created_at: now,
+                        updated_at: now,
+                        deleted_at: None,
+                    };
+                    let _ = repo.upsert_node(file_node);
+                    inventory_count += 1;
+                }
+            }
+            println!("File inventory: created {} additional File nodes", inventory_count);
+        }
+
+        // Bridge KG memory-artifact nodes/edges into ares-store graph tables
+        // First, build a mapping from KG path-based IDs to scanner UUID IDs
+        // so we can remap edges to scanner nodes.
+        let all_scanner_nodes = repo.get_all_nodes(&project_id).unwrap_or_default();
+        let mut path_to_scanner_id: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
+        for sn in &all_scanner_nodes {
+            if sn.node_type != ares_core::NodeType::File {
+                continue;
+            }
+            if let Some(fp) = &sn.file_path {
+                let canonical = ares_core::canonicalize_node_id(fp);
+                path_to_scanner_id.insert(canonical, sn.id.as_str().to_string());
+            }
+        }
+
         // --- P3.2 Git Fact Capture ---
         println!("Extracting Git Memory (depth: {})...", args.git_depth);
         let mut git_extractor = ares_git_memory::GitMemoryExtractor::new(&args.path);
@@ -152,9 +232,24 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                         println!("DEBUG: Failed to upsert git node: {:?}", e);
                     }
                 }
-                for edge in git_memory.edges {
-                    if let Err(e) = repo.upsert_edge(edge) {
-                        println!("DEBUG: Failed to upsert git edge: {:?}", e);
+                for mut edge in git_memory.edges {
+                    if matches!(
+                        edge.edge_type,
+                        ares_core::EdgeType::AuthoredBy
+                            | ares_core::EdgeType::Touches
+                            | ares_core::EdgeType::Owns
+                            | ares_core::EdgeType::ContributedTo
+                    ) {
+                        if let Some(scanner_id) = path_to_scanner_id.get(edge.to_node_id.as_str()) {
+                            edge.to_node_id = ares_core::NodeId::from(scanner_id.as_str());
+                        } else {
+                            // File not found in current repository (e.g., deleted in history).
+                            // Skip this edge to avoid FOREIGN KEY constraint failure.
+                            continue;
+                        }
+                    }
+                    if let Err(e) = repo.upsert_edge(edge.clone()) {
+                        println!("DEBUG: Failed to upsert git edge {:?} -> {:?} : {:?}", edge.from_node_id, edge.to_node_id, e);
                     }
                 }
             }
@@ -167,28 +262,15 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
             }
         }
 
-        // Bridge KG memory-artifact nodes/edges into ares-store graph tables
-        // so governance/coverage engines can see them.
-        // First, build a mapping from KG path-based IDs to scanner UUID IDs
-        // so we can remap OwnedBy edges to scanner nodes.
-        let all_scanner_nodes = repo.get_all_nodes(&project_id).unwrap_or_default();
-        let mut path_to_scanner_id: std::collections::HashMap<String, String> =
-            std::collections::HashMap::new();
-        for sn in &all_scanner_nodes {
-            // Only map File nodes — Function/symbol nodes share the same file_path
-            // but OwnedBy edges must point to the File node for coverage to work.
-            if sn.node_type != ares_core::NodeType::File {
-                continue;
-            }
-            if let Some(fp) = &sn.file_path {
-                let canonical = ares_core::canonicalize_node_id(fp);
-                path_to_scanner_id.insert(canonical, sn.id.as_str().to_string());
-            }
-        }
-
         for node in &kg_nodes {
             let ntype = match &node.node_type {
-                NodeType::CodeArtifact => continue, // Scanner already creates these as File nodes
+                NodeType::CodeArtifact => {
+                    if node.id.starts_with("DEP-") {
+                        ares_core::NodeType::Tag
+                    } else {
+                        continue // Scanner already creates file nodes
+                    }
+                },
                 NodeType::Requirement => continue, // Scanner creates File nodes, classifier maps them
                 NodeType::Decision => continue, // Scanner creates File nodes, classifier maps them
                 NodeType::Owner => ares_core::NodeType::Tag, // Only Owner nodes need bridging
@@ -240,7 +322,10 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
             let to_id = path_to_scanner_id
                 .get(&edge.target_id)
                 .cloned()
-                .unwrap_or_else(|| edge.target_id.clone());
+                .unwrap_or_else(|| {
+                    println!("DEBUG: to_id MISSING for target_id: {:?}", edge.target_id);
+                    edge.target_id.clone()
+                });
             let ge = ares_core::GraphEdge {
                 id: edge.id.clone(),
                 project_id: project_id.clone(),

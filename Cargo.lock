@@ -334,6 +334,7 @@ dependencies = [
  "ares-traceability",
  "ares-validation",
  "clap",
+ "ignore",
  "rusqlite",
  "serde_json",
  "thiserror 1.0.69",

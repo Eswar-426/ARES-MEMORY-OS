@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { execFile } from 'child_process';
+import { spawn } from 'child_process';
 import { ResolvedBinary } from './binary-discovery';
 
 export class RepositoryWatcher {
@@ -68,11 +68,19 @@ export class RepositoryWatcher {
 
         const args = ['ingest', '.', '--incremental', '--files', filesToProcess.join(',')];
 
-        execFile(this.aresCli.path, args, { cwd }, (error, stdout, stderr) => {
-            if (stdout) this.aresOutput.append(stdout);
-            if (stderr) this.aresOutput.append(stderr);
-            if (error) {
-                this.aresOutput.appendLine(`Incremental ingest failed: ${error.message}`);
+        const child = spawn(this.aresCli.path, args, { cwd });
+
+        child.stdout.on("data", (data) => {
+            this.aresOutput.append(data.toString());
+        });
+
+        child.stderr.on("data", (data) => {
+            this.aresOutput.appendLine(`[stderr] ${data.toString()}`);
+        });
+
+        child.on("close", (code) => {
+            if (code !== 0) {
+                this.aresOutput.appendLine(`Incremental ingest failed with code ${code}`);
             } else {
                 this.aresOutput.appendLine(`Incremental ingest completed successfully.`);
             }

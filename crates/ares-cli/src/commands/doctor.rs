@@ -41,7 +41,7 @@ pub async fn execute_doctor() -> Result<(), AresError> {
     }
 
     println!("\nDatabase Layer");
-    let db_path = current_dir.join("ares_memory.db");
+    let db_path = ares_dir.join("ares.db");
     if db_path.exists() {
         println!("  ✓ database exists");
 

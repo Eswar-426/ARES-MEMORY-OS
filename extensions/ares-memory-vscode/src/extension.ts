@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { McpClient } from './mcp-client';
-import { execFile } from 'child_process';
+import { execFile, spawn } from 'child_process';
 import * as path from 'path';
 import { resolveAresCli, resolveAresMcp, ResolvedBinary } from './binary-discovery';
 import { RepositoryWatcher } from './watcher';
@@ -122,11 +122,20 @@ export async function activate(context: vscode.ExtensionContext) {
             const workspaceFolders = vscode.workspace.workspaceFolders;
             const cwd = workspaceFolders ? workspaceFolders[0].uri.fsPath : process.cwd();
             
-            execFile(aresCliCache!.path, ['doctor'], { cwd }, (error, stdout, stderr) => {
-                if (stdout) aresOutput.append(stdout);
-                if (stderr) aresOutput.append(stderr);
-                if (error) {
-                    aresOutput.appendLine(`\nError running ares doctor: ${error.message}`);
+            const child = spawn(aresCliCache!.path, ['doctor'], { cwd });
+
+            child.stdout.on("data", (data) => {
+                aresOutput.append(data.toString());
+            });
+
+            child.stderr.on("data", (data) => {
+                aresOutput.appendLine(`[stderr] ${data.toString()}`);
+            });
+
+            child.on("close", (code) => {
+                aresOutput.appendLine(`ARES exited with code ${code}`);
+                if (code !== 0) {
+                    aresOutput.appendLine(`\nError running ares doctor (exit code ${code})`);
                 }
             });
         })
@@ -148,12 +157,20 @@ export async function activate(context: vscode.ExtensionContext) {
             const cwd = workspaceFolders[0].uri.fsPath;
             
             vscode.window.showInformationMessage('ARES: Ingesting Repository...');
-            execFile(aresCliCache!.path, ['ingest', '.'], { cwd }, (error, stdout, stderr) => {
-                if (stdout) aresOutput.append(stdout);
-                if (stderr) aresOutput.append(stderr);
-                if (error) {
+            const child = spawn(aresCliCache!.path, ['ingest', '.'], { cwd });
+
+            child.stdout.on("data", (data) => {
+                aresOutput.append(data.toString());
+            });
+
+            child.stderr.on("data", (data) => {
+                aresOutput.appendLine(`[stderr] ${data.toString()}`);
+            });
+
+            child.on("close", (code) => {
+                aresOutput.appendLine(`ARES exited with code ${code}`);
+                if (code !== 0) {
                     vscode.window.showErrorMessage(`ARES Error: Failed to ingest. See ARES Output for details.`);
-                    aresOutput.appendLine(`\nError running ares ingest: ${error.message}`);
                 } else {
                     vscode.window.showInformationMessage('ARES: Repository Ingested Successfully!');
                 }

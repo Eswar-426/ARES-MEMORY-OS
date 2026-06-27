@@ -203,6 +203,63 @@ pub fn canonicalize_node_id(path: &str) -> String {
     normalized
 }
 
+/// Converts an absolute or relative path into a **workspace-relative** canonical path.
+///
+/// This is the single source of truth for path normalization across all ARES crates.
+/// Every crate (scanner, git-memory, ingestion, knowledge-graph, MCP) should call
+/// this function instead of doing ad-hoc path normalization.
+///
+/// Rules:
+/// 1. If `path` starts with `workspace_root`, strip the prefix.
+/// 2. Normalize separators (`\` → `/`).
+/// 3. Collapse duplicate separators.
+/// 4. Strip leading `./`.
+///
+/// # Examples
+/// ```
+/// use ares_core::canonical_repo_path;
+/// let result = canonical_repo_path("E:\\My Projects\\repo", "E:\\My Projects\\repo\\src\\main.rs");
+/// assert_eq!(result, "src/main.rs");
+///
+/// // Already relative — passes through unchanged after normalization
+/// let result = canonical_repo_path("E:\\My Projects\\repo", "src/main.rs");
+/// assert_eq!(result, "src/main.rs");
+/// ```
+pub fn canonical_repo_path(workspace_root: &str, path: &str) -> String {
+    // Normalize both to forward slashes for comparison
+    let norm_root = workspace_root.replace('\\', "/");
+    let mut norm_path = path.replace('\\', "/");
+
+    // Collapse duplicate slashes
+    while norm_path.contains("//") {
+        norm_path = norm_path.replace("//", "/");
+    }
+
+    // Strip the workspace root prefix (with or without trailing slash)
+    let root_prefix = if norm_root.ends_with('/') {
+        norm_root.clone()
+    } else {
+        format!("{}/", norm_root)
+    };
+
+    if norm_path.starts_with(&root_prefix) {
+        norm_path = norm_path[root_prefix.len()..].to_string();
+    } else if norm_path == norm_root || norm_path == norm_root.trim_end_matches('/') {
+        // Path IS the workspace root
+        return String::new();
+    }
+
+    // Strip leading ./
+    if norm_path.starts_with("./") {
+        norm_path = norm_path[2..].to_string();
+    }
+
+    // Strip leading /
+    norm_path = norm_path.trim_start_matches('/').to_string();
+
+    norm_path
+}
+
 #[cfg(test)]
 mod canonicalization_tests {
     use super::*;
@@ -220,6 +277,55 @@ mod canonicalization_tests {
         assert_eq!(
             canonicalize_node_id("C:\\repo\\src\\main.rs"),
             "repo/src/main.rs"
+        );
+    }
+
+    #[test]
+    fn test_canonical_repo_path_strips_workspace() {
+        assert_eq!(
+            canonical_repo_path(
+                "E:\\My Projects\\ARES_Memory_os",
+                "E:\\My Projects\\ARES_Memory_os\\Cargo.toml"
+            ),
+            "Cargo.toml"
+        );
+        assert_eq!(
+            canonical_repo_path(
+                "E:\\My Projects\\ARES_Memory_os",
+                "E:\\My Projects\\ARES_Memory_os\\src\\main.rs"
+            ),
+            "src/main.rs"
+        );
+    }
+
+    #[test]
+    fn test_canonical_repo_path_already_relative() {
+        assert_eq!(
+            canonical_repo_path("E:\\My Projects\\ARES_Memory_os", "src/main.rs"),
+            "src/main.rs"
+        );
+        assert_eq!(
+            canonical_repo_path("E:\\My Projects\\ARES_Memory_os", "Cargo.toml"),
+            "Cargo.toml"
+        );
+    }
+
+    #[test]
+    fn test_canonical_repo_path_forward_slash_root() {
+        assert_eq!(
+            canonical_repo_path(
+                "/home/user/repo",
+                "/home/user/repo/src/lib.rs"
+            ),
+            "src/lib.rs"
+        );
+    }
+
+    #[test]
+    fn test_canonical_repo_path_with_dotslash() {
+        assert_eq!(
+            canonical_repo_path("E:\\repo", ".\\src\\main.rs"),
+            "src/main.rs"
         );
     }
 }

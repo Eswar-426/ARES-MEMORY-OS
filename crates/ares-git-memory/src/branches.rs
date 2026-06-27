@@ -94,7 +94,7 @@ impl BranchExtractor {
                 edge_type: EdgeType::Contains,
                 weight: 1.0,
                 confidence: 0.8, // Repository tier confidence
-                source: "git_branch".to_string(),
+                source: "git_branches".to_string(),
                 valid_from: timestamp,
                 valid_until: None,
                 created_at: captured_at,
