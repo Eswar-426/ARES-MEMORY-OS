@@ -60,10 +60,10 @@ pub async fn execute_doctor() -> Result<(), AresError> {
                 let missing_targets: i64 = conn.query_row("SELECT COUNT(*) FROM graph_edges e LEFT JOIN graph_nodes n ON e.to_node_id = n.id WHERE n.id IS NULL", [], |row| row.get(0)).unwrap_or(0);
                 let missing_endpoints = missing_sources + missing_targets;
 
-                println!("  Entities: {}", entities);
-                println!("  Relationships: {}", relationships);
-                println!("  Orphan Nodes: {}", orphan_nodes);
-                println!("  Missing Endpoints: {}", missing_endpoints);
+                if entities == 0 { println!("  Entities: No entities present"); } else { println!("  Entities: {}", entities); }
+                if relationships == 0 { println!("  Relationships: No edges present"); } else { println!("  Relationships: {}", relationships); }
+                if orphan_nodes == 0 { println!("  Orphan Nodes: None detected"); } else { println!("  Orphan Nodes: {}", orphan_nodes); }
+                if missing_endpoints == 0 { println!("  Missing Endpoints: None detected"); } else { println!("  Missing Endpoints: {}", missing_endpoints); }
                 // Cycle checking in SQL can be very expensive, placeholder for now
                 println!("  Cycles: N/A");
                 if missing_endpoints == 0 {

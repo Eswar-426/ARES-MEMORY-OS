@@ -7,6 +7,18 @@ use clap::Args;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH, Duration};
+
+fn format_duration(d: Duration) -> String {
+    let secs = d.as_secs();
+    if secs >= 60 {
+        format!("{}m {}s", secs / 60, secs % 60)
+    } else if secs > 0 {
+        format!("{}s", secs)
+    } else {
+        format!("{}ms", d.as_millis())
+    }
+}
 
 #[derive(Args, Debug, Clone)]
 pub struct IngestArgs {
@@ -95,6 +107,7 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         let mut kg_nodes: Vec<KnowledgeNode> = Vec::new();
         let mut kg_edges: Vec<KnowledgeEdge> = Vec::new();
 
+        let ast_start = Instant::now();
         builder.build(|event| {
             match &event {
                 ares_knowledge_graph::models::GraphEvent::Node(n) => kg_nodes.push(n.clone()),
@@ -111,10 +124,14 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         if !batch.is_empty() {
             graph_store.upsert_batch(&batch)?;
         }
+        let ast_elapsed = ast_start.elapsed();
 
+        let scan_start = Instant::now();
         let scanner = ares_scanner::Scanner::new(repo.clone());
         let _ = scanner.scan_project(&project_id, &args.path);
+        let scan_elapsed = scan_start.elapsed();
 
+        let inventory_start = Instant::now();
         // --- File Inventory: create lightweight File nodes for ALL tracked files ---
         // The scanner only parses supported extensions (rs, ts, js, etc.), but git history
         // creates edges for every file. We need a File node to exist for every tracked
@@ -184,6 +201,7 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                 inventory_count
             );
         }
+        let inventory_elapsed = inventory_start.elapsed();
 
         // Bridge KG memory-artifact nodes/edges into ares-store graph tables
         // First, build a mapping from KG path-based IDs to scanner UUID IDs
@@ -202,6 +220,7 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         }
 
         // --- P3.2 Git Fact Capture ---
+        let git_start = Instant::now();
         println!("Extracting Git Memory (depth: {})...", args.git_depth);
         let mut git_extractor = ares_git_memory::GitMemoryExtractor::new(&args.path);
         git_extractor.set_depth(args.git_depth);
@@ -271,7 +290,9 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                 println!("Warning: Git memory extraction failed: {}", e);
             }
         }
+        let git_elapsed = git_start.elapsed();
 
+        let bridge_start = Instant::now();
         for node in &kg_nodes {
             let ntype = match &node.node_type {
                 NodeType::CodeArtifact => {
@@ -353,6 +374,7 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                 println!("DEBUG: Failed to upsert edge: {:?}", e);
             }
         }
+        let bridge_elapsed = bridge_start.elapsed();
 
         println!("--------------------------------------------------");
         println!("Memory Source Registry Status:");
@@ -419,16 +441,16 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         let elapsed = start_time.elapsed();
 
         println!("\nARES Ingest Summary\n");
-        println!("Files scanned ............. {}", files);
-        println!("Directories ............... {}", dirs);
-        println!("Functions ................. {}", funcs);
-        println!("Dependencies .............. {}", deps);
-        println!("Decisions ................. {}", decisions);
-        println!("Commits analyzed .......... {}", commits);
+        if files == 0 { println!("Files scanned ............. No files detected"); } else { println!("Files scanned ............. {}", files); }
+        if dirs == 0 { println!("Directories ............... No directories detected"); } else { println!("Directories ............... {}", dirs); }
+        if funcs == 0 { println!("Functions ................. No functions detected"); } else { println!("Functions ................. {}", funcs); }
+        if deps == 0 { println!("Dependencies .............. No dependencies detected"); } else { println!("Dependencies .............. {}", deps); }
+        if decisions == 0 { println!("Decisions ................. No ADRs detected"); } else { println!("Decisions ................. {}", decisions); }
+        if commits == 0 { println!("Commits analyzed .......... No commits detected"); } else { println!("Commits analyzed .......... {}", commits); }
 
         println!("\nGraph\n");
-        println!("Nodes ..................... {}", total_nodes);
-        println!("Edges ..................... {}", total_edges);
+        if total_nodes == 0 { println!("Nodes ..................... No nodes present"); } else { println!("Nodes ..................... {}", total_nodes); }
+        if total_edges == 0 { println!("Edges ..................... No edges present"); } else { println!("Edges ..................... {}", total_edges); }
 
         println!("\nIntegrity\n");
         println!("Missing Sources ........... {}", missing_sources);
@@ -436,7 +458,14 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         println!("FK Errors ................. 0");
         println!("CHECK Errors .............. 0");
 
-        println!("\nCompleted in {:.1}s", elapsed.as_secs_f64());
+        println!("\nTiming Breakdown\n");
+        println!("AST Extraction ............ {}", format_duration(ast_elapsed));
+        println!("Source Scanning ........... {}", format_duration(scan_elapsed));
+        println!("File Inventory ............ {}", format_duration(inventory_elapsed));
+        println!("Git Fact Capture .......... {}", format_duration(git_elapsed));
+        println!("Memory Bridging ........... {}", format_duration(bridge_elapsed));
+
+        println!("\nCompleted in {}", format_duration(elapsed));
     }
 
     Ok(())

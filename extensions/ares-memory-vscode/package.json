@@ -57,6 +57,10 @@
       {
         "command": "ares.traceabilityAnalysis",
         "title": "ARES: Traceability Analysis"
+      },
+      {
+        "command": "ares.repositoryDashboard",
+        "title": "ARES: Repository Dashboard"
       }
     ],
     "menus": {

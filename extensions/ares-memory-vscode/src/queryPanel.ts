@@ -17,6 +17,15 @@ export interface AresDecision {
     author: string;
 }
 
+export interface AresDashboard {
+    coverage: any;
+    health: any;
+    debt: any;
+    drift: any;
+    confidence: any;
+    maturity: any;
+}
+
 export interface AresResponse {
     answer: string;
     confidence: number;
@@ -24,6 +33,7 @@ export interface AresResponse {
     related_decisions: AresDecision[];
     query_type?: string;
     file_path?: string;
+    dashboard?: AresDashboard;
     [key: string]: any;
 }
 
@@ -424,6 +434,12 @@ body{
             <div class="section-header">Traceability</div>
             <div id="traceabilityList" class="section-body"></div>
         </div>
+
+        <!-- Dashboard -->
+        <div id="dashboardSection" class="section animate-slide hidden" style="animation-delay:.40s">
+            <div class="section-header">Project Health Dashboard</div>
+            <div id="dashboardList" class="section-body"></div>
+        </div>
     </div>
 
     <!-- Empty state -->
@@ -469,6 +485,8 @@ body{
         simulationList:   document.getElementById('simulationList'),
         traceabilitySection: document.getElementById('traceabilitySection'),
         traceabilityList: document.getElementById('traceabilityList'),
+        dashboardSection: document.getElementById('dashboardSection'),
+        dashboardList:    document.getElementById('dashboardList'),
         emptyState:       document.getElementById('emptyState'),
     };
 
@@ -485,7 +503,8 @@ body{
     }
     function isEmpty(d) {
         return (!d.answer || d.answer.trim() === '') &&
-               (!d.evidence || d.evidence.length === 0);
+               (!d.evidence || d.evidence.length === 0) &&
+               (!d.dashboard);
     }
     function hideAll() {
         dom.loading.classList.add('hidden');
@@ -838,6 +857,76 @@ body{
         dom.traceabilityList.appendChild(card);
     }
 
+    function renderDashboard(data) {
+        dom.dashboardList.innerHTML = '';
+        if (!data.dashboard) {
+            dom.dashboardSection.classList.add('hidden');
+            return;
+        }
+        dom.dashboardSection.classList.remove('hidden');
+
+        var dash = data.dashboard;
+
+        var card = document.createElement('div');
+        card.className = 'decision-card';
+        card.style.display = 'grid';
+        card.style.gridTemplateColumns = '1fr 1fr';
+        card.style.gap = '16px';
+
+        function addMetric(label, value, suffix, color) {
+            var item = document.createElement('div');
+            item.className = 'decision-summary';
+            item.style.background = 'color-mix(in srgb, var(--vscode-editor-foreground) 4%, transparent)';
+            item.style.padding = '12px';
+            item.style.borderRadius = '6px';
+            item.style.border = '1px solid var(--vscode-panel-border)';
+            item.style.textAlign = 'center';
+
+            var lbl = document.createElement('div');
+            lbl.style.fontSize = '11px';
+            lbl.style.fontWeight = '600';
+            lbl.style.textTransform = 'uppercase';
+            lbl.style.color = 'var(--vscode-descriptionForeground)';
+            lbl.textContent = label;
+
+            var val = document.createElement('div');
+            val.style.fontSize = '24px';
+            val.style.fontWeight = '700';
+            val.style.marginTop = '4px';
+            val.style.color = color || 'var(--vscode-editor-foreground)';
+            val.textContent = value + (suffix || '');
+
+            item.appendChild(lbl);
+            item.appendChild(val);
+            card.appendChild(item);
+        }
+
+        var healthScore = dash.health ? dash.health.health_score : 0;
+        var healthColor = healthScore > 80 ? '#89d185' : (healthScore > 50 ? '#d29922' : '#f48771');
+        addMetric('Health Score', healthScore.toFixed(1), '/100', healthColor);
+
+        var debtScore = dash.debt ? dash.debt.debt_score : 0;
+        var debtColor = debtScore > 80 ? '#f48771' : (debtScore > 50 ? '#d29922' : '#89d185');
+        addMetric('Tech Debt', debtScore.toFixed(1), '/100', debtColor);
+
+        var covScore = dash.coverage ? dash.coverage.coverage_score : 0;
+        var covColor = covScore > 80 ? '#89d185' : (covScore > 50 ? '#d29922' : '#f48771');
+        addMetric('Coverage', covScore.toFixed(1), '/100', covColor);
+
+        var driftScore = dash.drift ? dash.drift.drift_score : 0;
+        var driftColor = driftScore > 80 ? '#f48771' : (driftScore > 50 ? '#d29922' : '#89d185');
+        addMetric('Drift', driftScore.toFixed(1), '/100', driftColor);
+
+        var confScore = dash.confidence ? dash.confidence.confidence_score : 0;
+        var confColor = confScore > 80 ? '#89d185' : (confScore > 50 ? '#d29922' : '#f48771');
+        addMetric('Confidence', confScore.toFixed(1), '/100', confColor);
+
+        var maturityLvl = dash.maturity ? dash.maturity.level : 'Unknown';
+        addMetric('Maturity', maturityLvl, '', 'var(--vscode-editor-foreground)');
+
+        dom.dashboardList.appendChild(card);
+    }
+
     function renderEmptyState() {
         dom.resultContent.classList.add('hidden');
         dom.emptyState.classList.remove('hidden');
@@ -878,6 +967,7 @@ body{
         renderDrift(data);
         renderSimulation(data);
         renderTraceability(data);
+        renderDashboard(data);
     }
 
     // --- Message listener ---

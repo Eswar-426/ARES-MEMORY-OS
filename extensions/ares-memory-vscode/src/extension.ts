@@ -372,6 +372,70 @@ export async function activate(context: vscode.ExtensionContext) {
         })
     );
 
+    // ARES: Repository Dashboard
+    context.subscriptions.push(
+        vscode.commands.registerCommand('ares.repositoryDashboard', async () => {
+            aresOutput.appendLine(`\n--- Repository Dashboard ---`);
+            logEnvironment();
+
+            const panel = AresQueryPanel.showLoading(context);
+            
+            panel.webview.onDidReceiveMessage(
+                (message: { command: string; path: string; line?: number; column?: number }) => {
+                    if (message.command === 'openFile') {
+                        const workspaceFolders = vscode.workspace.workspaceFolders;
+                        let fileUri: vscode.Uri;
+                        if (workspaceFolders && !path.isAbsolute(message.path)) {
+                            fileUri = vscode.Uri.file(
+                                path.join(workspaceFolders[0].uri.fsPath, message.path)
+                            );
+                        } else {
+                            fileUri = vscode.Uri.file(message.path);
+                        }
+    
+                        const options: vscode.TextDocumentShowOptions = { preview: true };
+                        if (typeof message.line === 'number') {
+                            const line = Math.max(0, message.line - 1);
+                            const col = typeof message.column === 'number' ? Math.max(0, message.column - 1) : 0;
+                            options.selection = new vscode.Range(line, col, line, col);
+                        }
+                        vscode.window.showTextDocument(fileUri, options);
+                    }
+                },
+                undefined,
+                context.subscriptions
+            );
+
+            try {
+                // Fetch the dashboard from ares-mcp
+                const result = await mcpClient.callTool('ares_dashboard', { project_id: 'TEST' });
+                
+                let rawResult: any = result;
+                if (result.content && result.content[0] && result.content[0].type === 'text') {
+                    rawResult = JSON.parse(result.content[0].text);
+                }
+
+                // Format as AresResponse so the panel knows how to render it
+                const response: AresResponse = {
+                    answer: "Repository Health & Knowledge Dashboard",
+                    confidence: 1.0,
+                    evidence: [],
+                    related_decisions: [],
+                    query_type: "Repository Dashboard",
+                    dashboard: rawResult
+                };
+                
+                AresQueryPanel.show(context, response);
+            } catch (e: any) {
+                const aresError: AresError = {
+                    message: 'Unable to load Repository Dashboard',
+                    detail: e.message || 'An unexpected error occurred.',
+                };
+                AresQueryPanel.showError(context, aresError);
+            }
+        })
+    );
+
     // ARES: Simulate Change
     context.subscriptions.push(
         vscode.commands.registerCommand('ares.simulateChange', async (uri?: vscode.Uri) => {

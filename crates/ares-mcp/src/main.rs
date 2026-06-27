@@ -357,6 +357,35 @@ async fn main() -> Result<(), BoxError> {
         })
         .build();
 
+    // Create the Dashboard tool
+    let facade_dashboard = facade.clone();
+    let dashboard_tool = ToolBuilder::new("ares_dashboard")
+        .description("Retrieves the comprehensive governance dashboard for a project")
+        .handler(move |input: ProjectQueryInput| {
+            let facade = facade_dashboard.clone();
+            async move {
+                let governance = facade.get_governance();
+                match governance
+                    .get_dashboard(&ares_core::ProjectId::from(input.project_id))
+                    .await
+                {
+                    Ok(result) => serde_json::to_string(&result)
+                        .map(CallToolResult::text)
+                        .map_err(|e| {
+                            tower_mcp::Error::internal(format_mcp_error(
+                                "Failed to serialize dashboard",
+                                &e.to_string(),
+                            ))
+                        }),
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
+                        "Failed to retrieve dashboard",
+                        &e.to_string(),
+                    ))),
+                }
+            }
+        })
+        .build();
+
     // PHASE 1.4.0 Requirement Intelligence Tools
     let store_cov = app_state.store.clone();
     let coverage_tool = ToolBuilder::new("ares_coverage")
@@ -519,6 +548,7 @@ async fn main() -> Result<(), BoxError> {
         .tool(impact_tool)
         .tool(compliance_tool)
         .tool(scorecard_tool)
+        .tool(dashboard_tool)
         .tool(coverage_tool)
         .tool(drift_tool)
         .tool(gaps_tool)
