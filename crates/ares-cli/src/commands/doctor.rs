@@ -61,6 +61,35 @@ pub async fn execute_doctor() -> Result<(), AresError> {
         println!("  ✗ schema version (skipped)");
     }
 
+    if db_path.exists() {
+        println!("\nKnowledge Graph");
+        match rusqlite::Connection::open(&db_path) {
+            Ok(conn) => {
+                let entities: i64 = conn.query_row("SELECT COUNT(*) FROM graph_nodes", [], |row| row.get(0)).unwrap_or(0);
+                let relationships: i64 = conn.query_row("SELECT COUNT(*) FROM graph_edges", [], |row| row.get(0)).unwrap_or(0);
+                let orphan_nodes: i64 = conn.query_row("SELECT COUNT(*) FROM graph_nodes WHERE id NOT IN (SELECT from_node_id FROM graph_edges UNION SELECT to_node_id FROM graph_edges)", [], |row| row.get(0)).unwrap_or(0);
+                let missing_sources: i64 = conn.query_row("SELECT COUNT(*) FROM graph_edges e LEFT JOIN graph_nodes n ON e.from_node_id = n.id WHERE n.id IS NULL", [], |row| row.get(0)).unwrap_or(0);
+                let missing_targets: i64 = conn.query_row("SELECT COUNT(*) FROM graph_edges e LEFT JOIN graph_nodes n ON e.to_node_id = n.id WHERE n.id IS NULL", [], |row| row.get(0)).unwrap_or(0);
+                let missing_endpoints = missing_sources + missing_targets;
+
+                println!("  Entities: {}", entities);
+                println!("  Relationships: {}", relationships);
+                println!("  Orphan Nodes: {}", orphan_nodes);
+                println!("  Missing Endpoints: {}", missing_endpoints);
+                // Cycle checking in SQL can be very expensive, placeholder for now
+                println!("  Cycles: N/A");
+                if missing_endpoints == 0 {
+                    println!("  Integrity: PASS");
+                } else {
+                    println!("  Integrity: FAIL");
+                }
+            }
+            Err(_) => {
+                println!("  ✗ Failed to connect to database for graph stats");
+            }
+        }
+    }
+
     println!("\nCLI Layer");
     if let Ok(exe) = env::current_exe() {
         println!("  ✓ ares binary available ({})", exe.display());

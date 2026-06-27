@@ -222,6 +222,7 @@ impl Scanner {
 
         let parsed = AtomicU32::new(0);
         let failed = AtomicU32::new(0);
+        let skipped = AtomicU32::new(0);
         let symbols_extracted = AtomicU32::new(0);
         let imports_found = AtomicU32::new(0);
         let relationships_created = AtomicU32::new(0);
@@ -229,8 +230,8 @@ impl Scanner {
             std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashSet::new()));
 
         files.iter().for_each(|path| {
-            let done = parsed.load(Ordering::Relaxed) + failed.load(Ordering::Relaxed);
-            if done.is_multiple_of(50) {
+            let done = parsed.load(Ordering::Relaxed) + failed.load(Ordering::Relaxed) + skipped.load(Ordering::Relaxed);
+            if done > 0 && done.is_multiple_of(50) {
                 eprintln!("[scanner] Progress: {}/{}", done, total);
             }
             let path_str = ares_core::canonical_repo_path(
@@ -245,12 +246,13 @@ impl Scanner {
                     return;
                 }
             };
-
+            
             if !force_full {
                 if let Ok(Some(prev_hash)) = self.graph_repo.get_scan_state(project_id, &path_str) {
                     if current_hash == prev_hash {
                         let mut paths = scanned_paths.lock().unwrap();
                         paths.insert(path_str.clone());
+                        skipped.fetch_add(1, Ordering::Relaxed);
                         return; // Unchanged
                     }
                 }
