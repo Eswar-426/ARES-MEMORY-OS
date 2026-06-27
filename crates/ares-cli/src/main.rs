@@ -51,6 +51,9 @@ enum Commands {
 
     /// System Health Check
     Doctor,
+    
+    /// Run real-world engine benchmarks
+    Benchmark,
 
     // --- P3.4 Reasoning Engines ---
     /// Explain decisions and rationale
@@ -356,6 +359,9 @@ async fn main() -> Result<(), AresError> {
         }
         Commands::Doctor => {
             commands::doctor::execute_doctor().await?;
+        }
+        Commands::Benchmark => {
+            commands::benchmark::run_real_benchmark().await?;
         }
         Commands::Explain { action } => match action {
             ExplainCommands::Decision { id } => {
