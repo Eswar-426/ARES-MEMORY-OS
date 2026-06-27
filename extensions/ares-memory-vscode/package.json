@@ -1,13 +1,24 @@
 {
   "name": "ares-memory-vscode",
+  "publisher": "ares",
   "displayName": "ARES Memory OS",
   "description": "Zero-context-loss continuity for ARES Memory OS",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/example/ares-memory-os"
+  },
   "version": "0.1.0",
   "engines": {
     "vscode": "^1.80.0"
   },
   "categories": [
     "Other"
+  ],
+  "files": [
+    "out/**/*",
+    "node_modules/**/*",
+    "package.json",
+    "README.md"
   ],
   "main": "./out/extension.js",
   "activationEvents": [
