@@ -88,3 +88,14 @@ artifacts/
 .ares/
 *.db
 *.sqlite
+evaluation/runs/
+evaluation/reports/history.json
+evaluation/snapshots/
+snapshots/
+datasets/repositories/axum/
+datasets/repositories/corrupted_repo/
+datasets/repositories/empty_repo/
+datasets/repositories/express/
+datasets/repositories/no_git_repo/
+datasets/repositories/serde/
+datasets/repositories/tiny_repo/

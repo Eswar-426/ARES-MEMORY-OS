@@ -7,7 +7,7 @@ fn test_graph_fk_integrity() {
     // In cargo test, current_dir is the crate root. We need to go up to the workspace root.
     let workspace_root = repo_dir.parent().unwrap().parent().unwrap();
     let db_path = workspace_root.join(".ares/ares.db");
-    
+
     // Only run if the database exists (e.g. after a local ingest)
     if !db_path.exists() {
         return;
@@ -31,6 +31,14 @@ fn test_graph_fk_integrity() {
         )
         .unwrap();
 
-    assert_eq!(missing_sources, 0, "Found {} edges with missing source nodes", missing_sources);
-    assert_eq!(missing_targets, 0, "Found {} edges with missing target nodes", missing_targets);
+    assert_eq!(
+        missing_sources, 0,
+        "Found {} edges with missing source nodes",
+        missing_sources
+    );
+    assert_eq!(
+        missing_targets, 0,
+        "Found {} edges with missing target nodes",
+        missing_targets
+    );
 }

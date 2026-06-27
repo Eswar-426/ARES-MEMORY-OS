@@ -661,6 +661,7 @@ dependencies = [
  "ares-core",
  "ares-store",
  "async-trait",
+ "petgraph",
  "rusqlite",
  "serde",
  "serde_json",

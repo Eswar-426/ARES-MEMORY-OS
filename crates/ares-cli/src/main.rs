@@ -51,7 +51,7 @@ enum Commands {
 
     /// System Health Check
     Doctor,
-    
+
     /// Run real-world engine benchmarks
     Benchmark,
 

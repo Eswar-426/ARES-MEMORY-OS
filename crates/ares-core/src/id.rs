@@ -313,10 +313,7 @@ mod canonicalization_tests {
     #[test]
     fn test_canonical_repo_path_forward_slash_root() {
         assert_eq!(
-            canonical_repo_path(
-                "/home/user/repo",
-                "/home/user/repo/src/lib.rs"
-            ),
+            canonical_repo_path("/home/user/repo", "/home/user/repo/src/lib.rs"),
             "src/lib.rs"
         );
     }

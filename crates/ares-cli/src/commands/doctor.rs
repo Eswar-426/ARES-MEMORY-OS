@@ -24,22 +24,6 @@ pub async fn execute_doctor() -> Result<(), AresError> {
         println!("  ✗ .ares directory missing");
     }
 
-    let graph_path = ares_dir.join("knowledge_graph.json");
-    if graph_path.exists() {
-        println!("  ✓ knowledge_graph.json exists");
-
-        match std::fs::read_to_string(&graph_path) {
-            Ok(content) => match serde_json::from_str::<serde_json::Value>(&content) {
-                Ok(_) => println!("  ✓ graph readable"),
-                Err(_) => println!("  ✗ graph is not valid JSON"),
-            },
-            Err(_) => println!("  ✗ graph is not readable"),
-        }
-    } else {
-        println!("  ✗ knowledge_graph.json missing");
-        println!("  ✗ graph readable (skipped)");
-    }
-
     println!("\nDatabase Layer");
     let db_path = ares_dir.join("ares.db");
     if db_path.exists() {
@@ -65,8 +49,12 @@ pub async fn execute_doctor() -> Result<(), AresError> {
         println!("\nKnowledge Graph");
         match rusqlite::Connection::open(&db_path) {
             Ok(conn) => {
-                let entities: i64 = conn.query_row("SELECT COUNT(*) FROM graph_nodes", [], |row| row.get(0)).unwrap_or(0);
-                let relationships: i64 = conn.query_row("SELECT COUNT(*) FROM graph_edges", [], |row| row.get(0)).unwrap_or(0);
+                let entities: i64 = conn
+                    .query_row("SELECT COUNT(*) FROM graph_nodes", [], |row| row.get(0))
+                    .unwrap_or(0);
+                let relationships: i64 = conn
+                    .query_row("SELECT COUNT(*) FROM graph_edges", [], |row| row.get(0))
+                    .unwrap_or(0);
                 let orphan_nodes: i64 = conn.query_row("SELECT COUNT(*) FROM graph_nodes WHERE id NOT IN (SELECT from_node_id FROM graph_edges UNION SELECT to_node_id FROM graph_edges)", [], |row| row.get(0)).unwrap_or(0);
                 let missing_sources: i64 = conn.query_row("SELECT COUNT(*) FROM graph_edges e LEFT JOIN graph_nodes n ON e.from_node_id = n.id WHERE n.id IS NULL", [], |row| row.get(0)).unwrap_or(0);
                 let missing_targets: i64 = conn.query_row("SELECT COUNT(*) FROM graph_edges e LEFT JOIN graph_nodes n ON e.to_node_id = n.id WHERE n.id IS NULL", [], |row| row.get(0)).unwrap_or(0);

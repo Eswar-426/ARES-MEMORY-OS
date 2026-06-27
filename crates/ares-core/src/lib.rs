@@ -12,11 +12,12 @@ pub mod vector;
 
 pub use error::AresError;
 pub use id::{
-    canonical_repo_path, canonicalize_node_id, new_id, AgentId, ArchComponentId, ClusterId, CodeArtifactId, DecisionId,
-    EpisodeId, EventId, EvidenceId, ExecutionId, ExperienceId, ForecastId, LessonId, MemoryId,
-    NodeId, PlanCandidateId, PlanId, PredictionId, PrincipleId, ProjectId, RequirementId,
-    RequirementLinkId, RequirementRevisionId, RiskReportId, RuntimeMetricId, ScanRunId, ScenarioId,
-    SemanticMemoryId, SimulationId, StepId, TaskId, WorkflowId, WorldStateId,
+    canonical_repo_path, canonicalize_node_id, new_id, AgentId, ArchComponentId, ClusterId,
+    CodeArtifactId, DecisionId, EpisodeId, EventId, EvidenceId, ExecutionId, ExperienceId,
+    ForecastId, LessonId, MemoryId, NodeId, PlanCandidateId, PlanId, PredictionId, PrincipleId,
+    ProjectId, RequirementId, RequirementLinkId, RequirementRevisionId, RiskReportId,
+    RuntimeMetricId, ScanRunId, ScenarioId, SemanticMemoryId, SimulationId, StepId, TaskId,
+    WorkflowId, WorldStateId,
 };
 pub use types::{
     decision::{

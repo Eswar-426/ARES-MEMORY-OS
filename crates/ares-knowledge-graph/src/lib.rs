@@ -10,3 +10,5 @@ pub mod versioning;
 
 pub use impact::*;
 pub use models::*;
+pub mod statistics;
+pub use statistics::*;

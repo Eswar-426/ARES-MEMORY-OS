@@ -1,0 +1,7 @@
+[thresholds]
+overall = 0.94
+recall = 0.90
+precision = 0.90
+hallucination = 0.05
+evidence = 0.85
+completeness = 0.85

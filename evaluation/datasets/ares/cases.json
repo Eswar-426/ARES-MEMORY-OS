@@ -1,0 +1,73 @@
+{
+  "dataset_version": 1,
+  "schema": "2.0",
+  "repository": "ares",
+  "cases": [
+    {
+      "engine": "why",
+      "target": "crates/ares-reasoning/src/why_engine.rs",
+      "facts": [
+        {
+          "claim": { "kind": "architecture", "id": "reasoning" },
+          "importance": "required"
+        },
+        {
+          "claim": { "kind": "function", "id": "lineage" },
+          "importance": "major"
+        },
+        {
+          "claim": { "kind": "function", "id": "explain" },
+          "importance": "minor"
+        }
+      ],
+      "expected_evidence": [
+        {
+          "kind": "file",
+          "id": "crates/ares-reasoning/src/why_engine.rs",
+          "importance": "required"
+        }
+      ],
+      "expected_traversal": [
+        "crates/ares-reasoning/src/why_engine.rs",
+        "crates/ares-reasoning/src"
+      ],
+      "acceptable_answers": [
+        "why_exists",
+        "rationale"
+      ],
+      "ideal_answer": "This module implements the Why Exists intelligence engine...",
+      "notes": "Testing why engine on itself"
+    },
+    {
+      "engine": "impact",
+      "target": "crates/ares-store/src/db.rs",
+      "facts": [
+        {
+          "claim": { "kind": "architecture", "id": "database" },
+          "importance": "required"
+        },
+        {
+          "claim": { "kind": "architecture", "id": "schema" },
+          "importance": "major"
+        }
+      ],
+      "expected_evidence": [
+        {
+          "kind": "file",
+          "id": "crates/ares-store/src/db.rs",
+          "importance": "required"
+        }
+      ],
+      "expected_traversal": [
+        "crates/ares-store/src/db.rs",
+        "crates/ares-store/src"
+      ],
+      "acceptable_answers": [
+        "sqlite",
+        "rusqlite"
+      ],
+      "ideal_answer": "Impact analysis on the core database reveals strong coupling...",
+      "notes": "Testing impact analysis on core DB"
+    }
+  ]
+}

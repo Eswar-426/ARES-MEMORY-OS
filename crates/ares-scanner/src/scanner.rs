@@ -230,7 +230,9 @@ impl Scanner {
             std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashSet::new()));
 
         files.iter().for_each(|path| {
-            let done = parsed.load(Ordering::Relaxed) + failed.load(Ordering::Relaxed) + skipped.load(Ordering::Relaxed);
+            let done = parsed.load(Ordering::Relaxed)
+                + failed.load(Ordering::Relaxed)
+                + skipped.load(Ordering::Relaxed);
             if done > 0 && done.is_multiple_of(50) {
                 eprintln!("[scanner] Progress: {}/{}", done, total);
             }
@@ -246,7 +248,7 @@ impl Scanner {
                     return;
                 }
             };
-            
+
             if !force_full {
                 if let Ok(Some(prev_hash)) = self.graph_repo.get_scan_state(project_id, &path_str) {
                     if current_hash == prev_hash {

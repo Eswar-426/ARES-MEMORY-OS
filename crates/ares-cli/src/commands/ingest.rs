@@ -6,7 +6,7 @@ use ares_knowledge_graph::models::{
 use clap::Args;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use std::time::{SystemTime, UNIX_EPOCH, Instant};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 #[derive(Args, Debug, Clone)]
 pub struct IngestArgs {
@@ -134,49 +134,55 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                     let name = e.file_name().to_string_lossy();
                     !matches!(
                         name.as_ref(),
-                        ".git" | "target" | ".gemini" | "artifacts"
-                            | "node_modules" | "dist" | ".turbo" | ".ares" | "scratch"
+                        ".git"
+                            | "target"
+                            | ".gemini"
+                            | "artifacts"
+                            | "node_modules"
+                            | "dist"
+                            | ".turbo"
+                            | ".ares"
+                            | "scratch"
                     )
                 })
                 .build();
 
             let mut inventory_count = 0u32;
             let now = ares_core::types::event::now_micros();
-            for result in walker {
-                if let Ok(entry) = result {
-                    if !entry.file_type().is_some_and(|ft| ft.is_file()) {
-                        continue;
-                    }
-                    let rel_path = ares_core::canonical_repo_path(
-                        &root_str,
-                        &entry.path().to_string_lossy(),
-                    );
-                    if rel_path.is_empty() || existing_paths.contains(&rel_path) {
-                        continue;
-                    }
-                    let node_id = ares_core::NodeId::new();
-                    let label = entry
-                        .path()
-                        .file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .to_string();
-                    let file_node = ares_core::GraphNode {
-                        id: node_id,
-                        project_id: project_id.clone(),
-                        node_type: ares_core::NodeType::File,
-                        label,
-                        properties: serde_json::json!({}),
-                        file_path: Some(rel_path),
-                        created_at: now,
-                        updated_at: now,
-                        deleted_at: None,
-                    };
-                    let _ = repo.upsert_node(file_node);
-                    inventory_count += 1;
+            for entry in walker.flatten() {
+                if !entry.file_type().is_some_and(|ft| ft.is_file()) {
+                    continue;
                 }
+                let rel_path =
+                    ares_core::canonical_repo_path(&root_str, &entry.path().to_string_lossy());
+                if rel_path.is_empty() || existing_paths.contains(&rel_path) {
+                    continue;
+                }
+                let node_id = ares_core::NodeId::new();
+                let label = entry
+                    .path()
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
+                let file_node = ares_core::GraphNode {
+                    id: node_id,
+                    project_id: project_id.clone(),
+                    node_type: ares_core::NodeType::File,
+                    label,
+                    properties: serde_json::json!({}),
+                    file_path: Some(rel_path),
+                    created_at: now,
+                    updated_at: now,
+                    deleted_at: None,
+                };
+                let _ = repo.upsert_node(file_node);
+                inventory_count += 1;
             }
-            println!("File inventory: created {} additional File nodes", inventory_count);
+            println!(
+                "File inventory: created {} additional File nodes",
+                inventory_count
+            );
         }
 
         // Bridge KG memory-artifact nodes/edges into ares-store graph tables
@@ -250,7 +256,10 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                         }
                     }
                     if let Err(e) = repo.upsert_edge(edge.clone()) {
-                        println!("DEBUG: Failed to upsert git edge {:?} -> {:?} : {:?}", edge.from_node_id, edge.to_node_id, e);
+                        println!(
+                            "DEBUG: Failed to upsert git edge {:?} -> {:?} : {:?}",
+                            edge.from_node_id, edge.to_node_id, e
+                        );
                     }
                 }
             }
@@ -269,9 +278,9 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                     if node.id.starts_with("DEP-") {
                         ares_core::NodeType::Tag
                     } else {
-                        continue // Scanner already creates file nodes
+                        continue; // Scanner already creates file nodes
                     }
-                },
+                }
                 NodeType::Requirement => continue, // Scanner creates File nodes, classifier maps them
                 NodeType::Decision => continue, // Scanner creates File nodes, classifier maps them
                 NodeType::Owner => ares_core::NodeType::Tag, // Only Owner nodes need bridging
@@ -352,17 +361,58 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         }
         println!("--------------------------------------------------");
 
-        let conn = rusqlite::Connection::open(&db_path).map_err(|e| AresError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
-        
-        let total_nodes: i64 = conn.query_row("SELECT COUNT(*) FROM graph_nodes", [], |row| row.get(0)).unwrap_or(0);
-        let total_edges: i64 = conn.query_row("SELECT COUNT(*) FROM graph_edges", [], |row| row.get(0)).unwrap_or(0);
-        let files: i64 = conn.query_row("SELECT COUNT(*) FROM graph_nodes WHERE node_type='file'", [], |row| row.get(0)).unwrap_or(0);
-        let dirs: i64 = conn.query_row("SELECT COUNT(*) FROM graph_nodes WHERE node_type='folder'", [], |row| row.get(0)).unwrap_or(0);
-        let funcs: i64 = conn.query_row("SELECT COUNT(*) FROM graph_nodes WHERE node_type='function'", [], |row| row.get(0)).unwrap_or(0);
-        let deps: i64 = conn.query_row("SELECT COUNT(*) FROM graph_nodes WHERE id LIKE 'DEP-%'", [], |row| row.get(0)).unwrap_or(0);
-        let decisions: i64 = conn.query_row("SELECT COUNT(*) FROM graph_nodes WHERE node_type='decision'", [], |row| row.get(0)).unwrap_or(0);
-        let commits: i64 = conn.query_row("SELECT COUNT(*) FROM graph_nodes WHERE node_type='commit'", [], |row| row.get(0)).unwrap_or(0);
-        
+        let conn = rusqlite::Connection::open(&db_path)
+            .map_err(|e| AresError::Io(std::io::Error::other(e.to_string())))?;
+
+        let total_nodes: i64 = conn
+            .query_row("SELECT COUNT(*) FROM graph_nodes", [], |row| row.get(0))
+            .unwrap_or(0);
+        let total_edges: i64 = conn
+            .query_row("SELECT COUNT(*) FROM graph_edges", [], |row| row.get(0))
+            .unwrap_or(0);
+        let files: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM graph_nodes WHERE node_type='file'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+        let dirs: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM graph_nodes WHERE node_type='folder'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+        let funcs: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM graph_nodes WHERE node_type='function'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+        let deps: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM graph_nodes WHERE id LIKE 'DEP-%'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+        let decisions: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM graph_nodes WHERE node_type='decision'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+        let commits: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM graph_nodes WHERE node_type='commit'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+
         let missing_sources: i64 = conn.query_row("SELECT COUNT(*) FROM graph_edges e LEFT JOIN graph_nodes n ON e.from_node_id = n.id WHERE n.id IS NULL", [], |row| row.get(0)).unwrap_or(0);
         let missing_targets: i64 = conn.query_row("SELECT COUNT(*) FROM graph_edges e LEFT JOIN graph_nodes n ON e.to_node_id = n.id WHERE n.id IS NULL", [], |row| row.get(0)).unwrap_or(0);
 
@@ -375,17 +425,17 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         println!("Dependencies .............. {}", deps);
         println!("Decisions ................. {}", decisions);
         println!("Commits analyzed .......... {}", commits);
-        
+
         println!("\nGraph\n");
         println!("Nodes ..................... {}", total_nodes);
         println!("Edges ..................... {}", total_edges);
-        
+
         println!("\nIntegrity\n");
         println!("Missing Sources ........... {}", missing_sources);
         println!("Missing Targets ........... {}", missing_targets);
         println!("FK Errors ................. 0");
         println!("CHECK Errors .............. 0");
-        
+
         println!("\nCompleted in {:.1}s", elapsed.as_secs_f64());
     }
 

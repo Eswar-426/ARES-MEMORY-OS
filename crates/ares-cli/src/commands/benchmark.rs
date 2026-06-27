@@ -337,82 +337,177 @@ async fn fetch_and_evaluate_real(repo: &str) -> Result<(SyntheticMetrics, bool),
 pub async fn run_real_benchmark() -> Result<(), AresError> {
     let current_dir = std::env::current_dir().map_err(AresError::Io)?;
     let db_path = current_dir.join(".ares").join("ares.db");
-    
+
     if !db_path.exists() {
-        return Err(AresError::validation("No ares.db found. Please run `ares ingest` first."));
+        return Err(AresError::validation(
+            "No ares.db found. Please run `ares ingest` first.",
+        ));
     }
-    
-    let conn = rusqlite::Connection::open(&db_path)
-        .map_err(|e| AresError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
-        
-    let files: i64 = conn.query_row("SELECT COUNT(*) FROM graph_nodes WHERE node_type='file'", [], |row| row.get(0)).unwrap_or(0);
-    let funcs: i64 = conn.query_row("SELECT COUNT(*) FROM graph_nodes WHERE node_type='function'", [], |row| row.get(0)).unwrap_or(0);
-    let total_nodes: i64 = conn.query_row("SELECT COUNT(*) FROM graph_nodes", [], |row| row.get(0)).unwrap_or(0);
-    let total_edges: i64 = conn.query_row("SELECT COUNT(*) FROM graph_edges", [], |row| row.get(0)).unwrap_or(0);
-    
-    let db_size = std::fs::metadata(&db_path).map(|m| m.len()).unwrap_or(0) / 1024 / 1024;
-    
+
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| {
+        AresError::Io(std::io::Error::other(e.to_string()))
+    })?;
+
+    let files: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM graph_nodes WHERE node_type='file'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+    let funcs: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM graph_nodes WHERE node_type='function'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+    let _total_nodes: i64 = conn
+        .query_row("SELECT COUNT(*) FROM graph_nodes", [], |row| row.get(0))
+        .unwrap_or(0);
+    let _total_edges: i64 = conn
+        .query_row("SELECT COUNT(*) FROM graph_edges", [], |row| row.get(0))
+        .unwrap_or(0);
+
+    let _db_size = std::fs::metadata(&db_path).map(|m| m.len()).unwrap_or(0) / 1024 / 1024;
+
     println!("\nARES Benchmark");
     println!("Repository");
-    println!("Files ............ {}", files);
-    println!("Functions ........ {}", funcs);
-    println!("Nodes ............ {}", total_nodes);
-    println!("Edges ............ {}", total_edges);
-    println!("Index Time ....... {} sec", 0.0); // We don't track historical index time easily here without checking system logs, leave at 0 or skip
-    println!("DB Size .......... {} MB", db_size);
+    let commits: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM graph_nodes WHERE node_type='commit'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+    let decisions: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM graph_nodes WHERE node_type='decision'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+    let reqs: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM graph_nodes WHERE node_type='requirement'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
 
     let store = Arc::new(Store::open(&db_path)?);
+    let stats = ares_knowledge_graph::compute_statistics(&store).unwrap_or_default();
+
+    let db_size =
+        std::fs::metadata(&db_path).map(|m| m.len()).unwrap_or(0) as f64 / 1024.0 / 1024.0;
+
+    println!("\nARES Benchmark\n");
+
+    println!("Repository");
+    println!("---------------------------------");
+    println!("{:<20} {}", "Files", files);
+    println!("{:<20} {}", "Functions", funcs);
+    println!("{:<20} {}", "Commits", commits);
+    println!("{:<20} {}", "Decisions", decisions);
+    println!("{:<20} {}", "Requirements", reqs);
+    println!();
+
+    println!("Knowledge Graph");
+    println!("---------------------------------");
+    println!("{:<20} {}", "Nodes", stats.node_count);
+    println!("{:<20} {}", "Edges", stats.edge_count);
+    println!("{:<20} {:.2}", "Average Degree", stats.average_degree);
+    println!(
+        "{:<20} {}",
+        "Connected Components", stats.connected_components
+    );
+    println!("{:<20} {}", "Largest Component", stats.largest_component);
+    println!("{:<20} {}", "Max Depth", stats.max_depth);
+    println!();
+
+    println!("Database");
+    println!("---------------------------------");
+    println!("{:<20} {:.2} MB", "Size", db_size);
+    println!("{:<20} N/A", "Index Size");
+    println!();
+
     let pid = ProjectId::from("default");
-    
+
     // Get a real node ID for the engines
-    let dummy_node: String = conn.query_row("SELECT id FROM graph_nodes LIMIT 1", [], |row| row.get(0)).unwrap_or_default();
+    let dummy_node: String = conn
+        .query_row("SELECT id FROM graph_nodes LIMIT 1", [], |row| row.get(0))
+        .unwrap_or_default();
 
     use std::time::Instant;
-    
-    let mut why_ms = 0;
-    let mut impact_ms = 0;
-    let mut drift_ms = 0;
-    let mut sim_ms = 0;
-    let mut trace_ms = 0;
+
+    let mut why_ms = 0.0;
+    let mut impact_ms = 0.0;
+    let mut drift_ms = 0.0;
+    let mut sim_ms = 0.0;
+    let mut trace_ms = 0.0;
 
     if !dummy_node.is_empty() {
         // Why Exists
         let why_engine = ares_reasoning::WhyEngine::new((*store).clone());
         let t0 = Instant::now();
         let _ = why_engine.explain(&dummy_node);
-        why_ms = t0.elapsed().as_millis();
+        why_ms = t0.elapsed().as_micros() as f64 / 1000.0;
 
         // Impact
         let impact_engine = ares_reasoning::ImpactEngine::new((*store).clone());
         let t0 = Instant::now();
         let _ = impact_engine.analyze(&dummy_node);
-        impact_ms = t0.elapsed().as_millis();
+        impact_ms = t0.elapsed().as_micros() as f64 / 1000.0;
 
         // Drift
         let t0 = Instant::now();
         let _ = ares_governance::memory_drift_engine::MemoryDriftEngine::calculate(&store, &pid);
-        drift_ms = t0.elapsed().as_millis();
+        drift_ms = t0.elapsed().as_micros() as f64 / 1000.0;
 
-        // Simulation (Real graph traversal)
+        // Traceability (Using Real Engine)
+        let mut graph = ares_traceability::TraceabilityGraph::new();
+        graph.add_provider(Box::new(ares_requirements::RequirementEdgeProvider::new(
+            (*store).clone(),
+        )));
+        let trace_engine = ares_requirements::TraceAnalysisEngine::new(&graph);
         let t0 = Instant::now();
-        let mut stmt = conn.prepare("WITH RECURSIVE traverse AS (SELECT from_node_id, to_node_id FROM graph_edges WHERE to_node_id = ? UNION SELECT e.from_node_id, e.to_node_id FROM graph_edges e INNER JOIN traverse t ON t.from_node_id = e.to_node_id LIMIT 1000) SELECT count(*) FROM traverse").unwrap();
-        let _ = stmt.query_row([&dummy_node], |row| row.get::<_, i64>(0));
-        sim_ms = t0.elapsed().as_millis();
-        
-        // Traceability (Real graph traversal)
+        let _ = trace_engine.get_downstream_all(&dummy_node);
+        trace_ms = t0.elapsed().as_micros() as f64 / 1000.0;
+
+        // Simulation (Using Real Engine)
+        let sim_engine = ares_requirements::RequirementSimulationEngine::new(store.clone());
         let t0 = Instant::now();
-        let mut stmt = conn.prepare("WITH RECURSIVE trace AS (SELECT from_node_id, to_node_id FROM graph_edges WHERE from_node_id = ? UNION SELECT e.from_node_id, e.to_node_id FROM graph_edges e INNER JOIN trace t ON t.to_node_id = e.from_node_id LIMIT 1000) SELECT count(*) FROM trace").unwrap();
-        let _ = stmt.query_row([&dummy_node], |row| row.get::<_, i64>(0));
-        trace_ms = t0.elapsed().as_millis();
+        let _ = sim_engine.simulate_change(
+            &pid,
+            &graph,
+            ares_requirements::ProposedChange::RemoveNode {
+                id: dummy_node.clone(),
+            },
+        );
+        sim_ms = t0.elapsed().as_micros() as f64 / 1000.0;
     }
 
-    println!("Why Exists ....... {} ms", why_ms);
-    println!("Impact ........... {} ms", impact_ms);
-    println!("Simulation ........{} ms", sim_ms);
-    println!("Drift ............{} ms", drift_ms);
-    println!("Traceability .....{} ms", trace_ms);
-    println!("\nOverall");
+    println!("Performance");
+    println!("---------------------------------");
+    println!("{:<20} N/A", "Scanner");
+    println!("{:<20} N/A", "Parser");
+    println!("{:<20} N/A", "Knowledge Graph Build");
+    println!("{:<20} N/A", "SQLite Write");
+    println!("{:<20} N/A", "Embeddings (future)");
+    println!("{:<20} {:.2} ms", "Why Exists", why_ms);
+    println!("{:<20} {:.2} ms", "Impact", impact_ms);
+    println!("{:<20} {:.2} ms", "Simulation", sim_ms);
+    println!("{:<20} {:.2} ms", "Drift", drift_ms);
+    println!("{:<20} {:.2} ms", "Traceability", trace_ms);
+    println!();
+
+    println!("Memory Usage");
+    println!("---------------------------------");
+    println!("{:<20} N/A", "Peak RSS");
+    println!();
+
+    println!("Overall");
     println!("PASS");
-    
+
     Ok(())
 }
