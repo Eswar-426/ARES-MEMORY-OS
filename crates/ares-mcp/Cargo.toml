@@ -21,6 +21,7 @@ ares-intelligence = { path = "../ares-intelligence" }
 ares-memory-intelligence = { path = "../ares-memory-intelligence" }
 ares-governance = { path = "../ares-governance" }
 ares-validation = { path = "../ares-validation" }
+ares-repository-intelligence = { path = "../ares-repository-intelligence" }
 tokio      = { workspace = true, features = ["io-std", "io-util", "macros", "rt-multi-thread"] }
 serde      = { workspace = true }
 serde_json = { workspace = true }

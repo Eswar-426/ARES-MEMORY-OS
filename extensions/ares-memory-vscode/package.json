@@ -60,7 +60,7 @@
       },
       {
         "command": "ares.repositoryDashboard",
-        "title": "ARES: Repository Dashboard"
+        "title": "ARES: ARES Home"
       }
     ],
     "menus": {

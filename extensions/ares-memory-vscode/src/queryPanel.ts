@@ -18,13 +18,17 @@ export interface AresDecision {
 }
 
 export interface AresDashboard {
+    repository: any;
+    graph: any;
+    integrity: any;
     coverage: any;
+    intelligence: any;
+    performance: any;
     health: any;
-    debt: any;
-    drift: any;
-    confidence: any;
-    maturity: any;
+    activity: any[];
+    version: any;
 }
+
 
 export interface AresResponse {
     answer: string;
@@ -34,6 +38,7 @@ export interface AresResponse {
     query_type?: string;
     file_path?: string;
     dashboard?: AresDashboard;
+    recent_queries?: any[];
     [key: string]: any;
 }
 
@@ -867,64 +872,279 @@ body{
 
         var dash = data.dashboard;
 
-        var card = document.createElement('div');
-        card.className = 'decision-card';
-        card.style.display = 'grid';
-        card.style.gridTemplateColumns = '1fr 1fr';
-        card.style.gap = '16px';
+        // Container
+        var container = document.createElement('div');
+        container.style.display = 'flex';
+        container.style.flexDirection = 'column';
+        container.style.gap = '20px';
 
-        function addMetric(label, value, suffix, color) {
-            var item = document.createElement('div');
-            item.className = 'decision-summary';
-            item.style.background = 'color-mix(in srgb, var(--vscode-editor-foreground) 4%, transparent)';
-            item.style.padding = '12px';
-            item.style.borderRadius = '6px';
-            item.style.border = '1px solid var(--vscode-panel-border)';
-            item.style.textAlign = 'center';
+        // 1. Quick Actions
+        var quickActions = document.createElement('div');
+        quickActions.style.display = 'flex';
+        quickActions.style.gap = '8px';
+        quickActions.style.flexWrap = 'wrap';
+        quickActions.style.marginBottom = '4px';
 
-            var lbl = document.createElement('div');
-            lbl.style.fontSize = '11px';
-            lbl.style.fontWeight = '600';
-            lbl.style.textTransform = 'uppercase';
-            lbl.style.color = 'var(--vscode-descriptionForeground)';
-            lbl.textContent = label;
+        const actions = [
+            { label: 'Ingest', cmd: 'ares.ingest' },
+            { label: 'Doctor', cmd: 'ares.doctor' },
+            { label: 'Benchmark', cmd: 'ares.benchmark' },
+            { label: 'Why Exists', cmd: 'ares.whyExists' },
+            { label: 'Impact', cmd: 'ares.impactAnalysis' },
+            { label: 'Traceability', cmd: 'ares.traceabilityAnalysis' }
+        ];
 
-            var val = document.createElement('div');
-            val.style.fontSize = '24px';
-            val.style.fontWeight = '700';
-            val.style.marginTop = '4px';
-            val.style.color = color || 'var(--vscode-editor-foreground)';
-            val.textContent = value + (suffix || '');
+        actions.forEach(action => {
+            var btn = document.createElement('button');
+            btn.textContent = action.label;
+            btn.className = 'empty-command';
+            btn.style.margin = '0';
+            btn.style.cursor = 'pointer';
+            btn.addEventListener('click', function() {
+                vscode.postMessage({ command: 'executeCommand', args: [action.cmd] });
+            });
+            quickActions.appendChild(btn);
+        });
+        container.appendChild(quickActions);
 
-            item.appendChild(lbl);
-            item.appendChild(val);
-            card.appendChild(item);
+        // 1. Health Banner
+        var healthScore = dash.health ? dash.health.score : 0;
+        var healthColor = healthScore > 90 ? '#89d185' : (healthScore > 70 ? '#d29922' : '#f48771');
+        var healthStatus = dash.health ? dash.health.status : 'Unknown';
+        var banner = document.createElement('div');
+        banner.className = 'decision-card';
+        banner.style.display = 'flex';
+        banner.style.alignItems = 'center';
+        banner.style.justifyContent = 'space-between';
+        banner.style.background = 'color-mix(in srgb, var(--vscode-editor-foreground) 4%, transparent)';
+        banner.style.borderLeft = '4px solid ' + healthColor;
+        
+        var refreshingHtml = dash.refreshing ? '<span style="font-size: 11px; margin-left: 10px; color: var(--vscode-descriptionForeground); font-weight: normal; animation: pulse 1.5s infinite;">↻ Refreshing...</span>' : '';
+        banner.innerHTML = '<div style="font-size: 16px; font-weight: 600;">Repository Health' + refreshingHtml + '</div><div style="font-size: 24px; font-weight: 700; color: ' + healthColor + '">' + healthScore + '/100 (' + healthStatus + ')</div>';
+        container.appendChild(banner);
+
+        // Helper to create a section card
+        function createSectionCard(title, command) {
+            var card = document.createElement('div');
+            card.className = 'decision-card';
+            card.style.cursor = 'pointer';
+            card.addEventListener('click', function() {
+                vscode.postMessage({ command: 'executeCommand', args: [command] });
+            });
+            card.addEventListener('mouseover', function() { card.style.borderColor = 'var(--vscode-button-background)'; });
+            card.addEventListener('mouseout', function() { card.style.borderColor = 'var(--vscode-panel-border)'; });
+
+            var header = document.createElement('div');
+            header.className = 'section-header';
+            header.style.marginBottom = '12px';
+            header.style.border = 'none';
+            header.style.padding = '0';
+            header.style.background = 'transparent';
+            header.textContent = title;
+            card.appendChild(header);
+
+            var grid = document.createElement('div');
+            grid.style.display = 'grid';
+            grid.style.gridTemplateColumns = '1fr 1fr';
+            grid.style.gap = '12px';
+            card.appendChild(grid);
+
+            return { card, grid };
         }
 
-        var healthScore = dash.health ? dash.health.health_score : 0;
-        var healthColor = healthScore > 80 ? '#89d185' : (healthScore > 50 ? '#d29922' : '#f48771');
-        addMetric('Health Score', healthScore.toFixed(1), '/100', healthColor);
+        function addMetricRow(grid, label, value, color) {
+            var row = document.createElement('div');
+            row.style.display = 'flex';
+            row.style.justifyContent = 'space-between';
+            row.style.fontSize = '12px';
+            
+            var lbl = document.createElement('span');
+            lbl.style.color = 'var(--vscode-descriptionForeground)';
+            lbl.textContent = label;
+            
+            var val = document.createElement('span');
+            val.style.fontWeight = '600';
+            val.style.color = color || 'var(--vscode-editor-foreground)';
+            val.textContent = value;
 
-        var debtScore = dash.debt ? dash.debt.debt_score : 0;
-        var debtColor = debtScore > 80 ? '#f48771' : (debtScore > 50 ? '#d29922' : '#89d185');
-        addMetric('Tech Debt', debtScore.toFixed(1), '/100', debtColor);
+            row.appendChild(lbl);
+            row.appendChild(val);
+            grid.appendChild(row);
+        }
 
-        var covScore = dash.coverage ? dash.coverage.coverage_score : 0;
-        var covColor = covScore > 80 ? '#89d185' : (covScore > 50 ? '#d29922' : '#f48771');
-        addMetric('Coverage', covScore.toFixed(1), '/100', covColor);
+        // 2. Repository
+        if (dash.repository) {
+            var repoCard = createSectionCard('Repository', 'ares.doctor');
+            addMetricRow(repoCard.grid, 'Name', dash.repository.name);
+            addMetricRow(repoCard.grid, 'Language', dash.repository.language);
+            addMetricRow(repoCard.grid, 'Branch', dash.repository.branch);
+            addMetricRow(repoCard.grid, 'Commit', dash.repository.commit);
+            addMetricRow(repoCard.grid, 'Indexed', dash.repository.indexed ? '✓' : '✗', dash.repository.indexed ? '#89d185' : '#f48771');
+            addMetricRow(repoCard.grid, 'Last Ingest', dash.repository.last_ingest);
+            addMetricRow(repoCard.grid, 'Dirty', dash.repository.is_dirty ? 'Yes' : 'No', dash.repository.is_dirty ? '#f48771' : 'var(--vscode-editor-foreground)');
+            addMetricRow(repoCard.grid, 'Files', dash.repository.files);
+            addMetricRow(repoCard.grid, 'Functions', dash.repository.functions);
+            addMetricRow(repoCard.grid, 'Modules', dash.repository.modules);
+            container.appendChild(repoCard.card);
+        }
 
-        var driftScore = dash.drift ? dash.drift.drift_score : 0;
-        var driftColor = driftScore > 80 ? '#f48771' : (driftScore > 50 ? '#d29922' : '#89d185');
-        addMetric('Drift', driftScore.toFixed(1), '/100', driftColor);
+        // 3. Knowledge Graph
+        if (dash.graph) {
+            var graphCard = createSectionCard('Knowledge Graph', 'ares.benchmark');
+            addMetricRow(graphCard.grid, 'Nodes', dash.graph.nodes);
+            addMetricRow(graphCard.grid, 'Edges', dash.graph.edges);
+            addMetricRow(graphCard.grid, 'Depth', dash.graph.depth);
+            addMetricRow(graphCard.grid, 'Average Degree', dash.graph.average_degree ? dash.graph.average_degree.toFixed(2) : '0');
+            container.appendChild(graphCard.card);
+        }
 
-        var confScore = dash.confidence ? dash.confidence.confidence_score : 0;
-        var confColor = confScore > 80 ? '#89d185' : (confScore > 50 ? '#d29922' : '#f48771');
-        addMetric('Confidence', confScore.toFixed(1), '/100', confColor);
+        // 4. Intelligence
+        if (dash.intelligence) {
+            var intelCard = createSectionCard('Intelligence', 'ares.whyExists');
+            
+            function getStatusColor(status) {
+                if (!status) return '#d29922';
+                let s = status.toUpperCase();
+                if (s.includes('READY')) return '#89d185';
+                if (s.includes('NOT AVAILABLE') || s.includes('NONE')) return '#f48771';
+                return '#d29922';
+            }
+            
+            addMetricRow(intelCard.grid, 'Why Exists', dash.intelligence.why_exists_status, getStatusColor(dash.intelligence.why_exists_status));
+            addMetricRow(intelCard.grid, 'Graph', dash.intelligence.graph_status, getStatusColor(dash.intelligence.graph_status));
+            addMetricRow(intelCard.grid, 'Git Memory', dash.intelligence.git_memory_status, getStatusColor(dash.intelligence.git_memory_status));
+            addMetricRow(intelCard.grid, 'Ownership', dash.intelligence.ownership_status, getStatusColor(dash.intelligence.ownership_status));
+            addMetricRow(intelCard.grid, 'Requirements', dash.intelligence.requirements_status, getStatusColor(dash.intelligence.requirements_status));
+            addMetricRow(intelCard.grid, 'Governance', dash.intelligence.governance_status, getStatusColor(dash.intelligence.governance_status));
+            addMetricRow(intelCard.grid, 'Impact', dash.intelligence.impact_status, getStatusColor(dash.intelligence.impact_status));
+            addMetricRow(intelCard.grid, 'Traceability', dash.intelligence.traceability_status, getStatusColor(dash.intelligence.traceability_status));
+            addMetricRow(intelCard.grid, 'Simulation', dash.intelligence.simulation_status, getStatusColor(dash.intelligence.simulation_status));
+            addMetricRow(intelCard.grid, 'Drift', dash.intelligence.drift_status, getStatusColor(dash.intelligence.drift_status));
+            container.appendChild(intelCard.card);
+        }
 
-        var maturityLvl = dash.maturity ? dash.maturity.level : 'Unknown';
-        addMetric('Maturity', maturityLvl, '', 'var(--vscode-editor-foreground)');
+        // 5. Integrity
+        if (dash.integrity) {
+            var intCard = createSectionCard('Graph Integrity', 'ares.doctor');
+            var fkColor = dash.integrity.foreign_keys_passed ? '#89d185' : '#f48771';
+            addMetricRow(intCard.grid, 'Foreign Keys', dash.integrity.foreign_keys_passed ? 'PASS' : 'FAIL', fkColor);
+            addMetricRow(intCard.grid, 'Missing Targets', dash.integrity.missing_targets, dash.integrity.missing_targets > 0 ? '#f48771' : '#89d185');
+            addMetricRow(intCard.grid, 'Missing Sources', dash.integrity.missing_sources, dash.integrity.missing_sources > 0 ? '#f48771' : '#89d185');
+            addMetricRow(intCard.grid, 'Orphans', dash.integrity.orphans, dash.integrity.orphans > 0 ? '#d29922' : '#89d185');
+            addMetricRow(intCard.grid, 'Cycles', dash.integrity.cycles, dash.integrity.cycles > 0 ? '#f48771' : '#89d185');
+            container.appendChild(intCard.card);
+        }
 
-        dom.dashboardList.appendChild(card);
+        // 6. Coverage
+        if (dash.coverage) {
+            var covCard = createSectionCard('Coverage', 'ares.coverageAnalysis');
+            addMetricRow(covCard.grid, 'Git History', dash.coverage.git_history_enabled ? '✓' : '✗', dash.coverage.git_history_enabled ? '#89d185' : '#f48771');
+            addMetricRow(covCard.grid, 'Ownership', dash.coverage.ownership_enabled ? 'Enabled' : 'Disabled', dash.coverage.ownership_enabled ? '#89d185' : '#d29922');
+            addMetricRow(covCard.grid, 'Requirements', dash.coverage.requirements);
+            addMetricRow(covCard.grid, 'ADRs', dash.coverage.adrs);
+            addMetricRow(covCard.grid, 'Decisions', dash.coverage.decisions);
+            addMetricRow(covCard.grid, 'Architecture Docs', dash.coverage.architecture_docs);
+            container.appendChild(covCard.card);
+        }
+
+        // 7. Performance
+        if (dash.performance) {
+            var perfCard = createSectionCard('Performance', 'ares.benchmark');
+            addMetricRow(perfCard.grid, 'Scanner', dash.performance.scanner_ms + ' ms');
+            addMetricRow(perfCard.grid, 'AST Parsing', dash.performance.ast_parsing_ms + ' ms');
+            addMetricRow(perfCard.grid, 'Git Memory', dash.performance.git_memory_ms + ' ms');
+            addMetricRow(perfCard.grid, 'Knowledge Graph', dash.performance.knowledge_graph_ms + ' ms');
+            addMetricRow(perfCard.grid, 'Persistence', dash.performance.persistence_ms + ' ms');
+            addMetricRow(perfCard.grid, 'Total Ingest Time', dash.performance.total_time_ms + ' ms');
+            container.appendChild(perfCard.card);
+        }
+
+        // 8. Activity
+        if (dash.activity && dash.activity.length > 0) {
+            var actCard = createSectionCard('Recent Activity', 'ares.ingest');
+            dash.activity.forEach(function(evt) {
+                addMetricRow(actCard.grid, '✔ ' + evt.message, evt.relative_time, '#89d185');
+            });
+            container.appendChild(actCard.card);
+        }
+
+        // 9. Recent Queries
+        if (data.recent_queries && data.recent_queries.length > 0) {
+            var qCard = document.createElement('div');
+            qCard.className = 'decision-card';
+            
+            var qHeader = document.createElement('div');
+            qHeader.className = 'section-header';
+            qHeader.style.marginBottom = '12px';
+            qHeader.style.border = 'none';
+            qHeader.style.padding = '0';
+            qHeader.style.background = 'transparent';
+            qHeader.textContent = 'Recent Queries';
+            qCard.appendChild(qHeader);
+
+            data.recent_queries.forEach(function(q) {
+                var row = document.createElement('div');
+                row.style.display = 'flex';
+                row.style.justifyContent = 'space-between';
+                row.style.fontSize = '12px';
+                row.style.marginBottom = '8px';
+                row.style.cursor = 'pointer';
+                
+                var cmdSpan = document.createElement('span');
+                cmdSpan.style.color = 'var(--vscode-textLink-foreground)';
+                cmdSpan.style.fontWeight = '600';
+                cmdSpan.textContent = q.command + (q.target ? ' (' + q.target + ')' : '');
+
+                var timeSpan = document.createElement('span');
+                timeSpan.style.color = 'var(--vscode-descriptionForeground)';
+                var date = new Date(q.timestamp);
+                var diff = Math.floor((new Date() - date) / 1000 / 60);
+                timeSpan.textContent = diff < 1 ? 'Just now' : (diff < 60 ? diff + 'm ago' : Math.floor(diff/60) + 'h ago');
+
+                row.appendChild(cmdSpan);
+                row.appendChild(timeSpan);
+                
+                row.addEventListener('click', function() {
+                    let cmdId = q.command.toLowerCase().replace(/ /g, '');
+                    if (cmdId === 'whyexists') cmdId = 'whyExists';
+                    if (cmdId === 'impactanalysis') cmdId = 'impactAnalysis';
+                    if (cmdId === 'traceabilityanalysis') cmdId = 'traceabilityAnalysis';
+                    if (cmdId === 'driftanalysis') cmdId = 'driftAnalysis';
+                    
+                    let vscodeCmd = 'ares.' + cmdId;
+                    vscode.postMessage({ command: 'executeCommand', args: [vscodeCmd] });
+                });
+                
+                row.addEventListener('mouseover', function() { cmdSpan.style.textDecoration = 'underline'; });
+                row.addEventListener('mouseout', function() { cmdSpan.style.textDecoration = 'none'; });
+
+                qCard.appendChild(row);
+            });
+            container.appendChild(qCard);
+        }
+
+        // 10. Cache Stats
+        if (dash.cache_stats) {
+            var cacheCard = createSectionCard('Overview Cache', 'ares.benchmark');
+            addMetricRow(cacheCard.grid, 'Hit Rate', dash.cache_stats.hit_rate);
+            addMetricRow(cacheCard.grid, 'Age', dash.cache_stats.age.toFixed(1) + ' seconds');
+            addMetricRow(cacheCard.grid, 'TTL', dash.cache_stats.ttl.toFixed(1) + ' seconds');
+            addMetricRow(cacheCard.grid, 'State', dash.refreshing ? 'Refreshing (tokio::spawn)' : 'Idle');
+            container.appendChild(cacheCard.card);
+        }
+
+        // 11. Version Info
+        if (dash.version) {
+            var versionLabel = document.createElement('div');
+            versionLabel.style.fontSize = '11px';
+            versionLabel.style.color = 'var(--vscode-descriptionForeground)';
+            versionLabel.style.textAlign = 'center';
+            versionLabel.style.marginTop = '10px';
+            versionLabel.textContent = 'ARES MemoryOS v' + dash.version.ares_version + ' | DB Schema v' + dash.version.schema_version;
+            container.appendChild(versionLabel);
+        }
+
+        dom.dashboardList.appendChild(container);
     }
 
     function renderEmptyState() {
@@ -979,6 +1199,13 @@ body{
             case 'error':   showError(msg.error); break;
         }
     });
+    
+    // Background polling for ARES Home
+    setInterval(function() {
+        if (!dom.dashboardSection.classList.contains('hidden')) {
+            vscode.postMessage({ command: 'refreshDashboard' });
+        }
+    }, 5000);
 })();
 </script>
 </body>

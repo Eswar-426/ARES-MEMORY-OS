@@ -358,30 +358,23 @@ async fn main() -> Result<(), BoxError> {
         .build();
 
     // Create the Dashboard tool
-    let facade_dashboard = facade.clone();
+    let store_dashboard = app_state.store.clone();
+    let dashboard_project_path = project_path.clone();
     let dashboard_tool = ToolBuilder::new("ares_dashboard")
-        .description("Retrieves the comprehensive governance dashboard for a project")
-        .handler(move |input: ProjectQueryInput| {
-            let facade = facade_dashboard.clone();
+        .description("Retrieves the comprehensive repository overview dashboard")
+        .handler(move |_input: ProjectQueryInput| {
+            let store = store_dashboard.clone();
+            let path = dashboard_project_path.clone();
             async move {
-                let governance = facade.get_governance();
-                match governance
-                    .get_dashboard(&ares_core::ProjectId::from(input.project_id))
-                    .await
-                {
-                    Ok(result) => serde_json::to_string(&result)
-                        .map(CallToolResult::text)
-                        .map_err(|e| {
-                            tower_mcp::Error::internal(format_mcp_error(
-                                "Failed to serialize dashboard",
-                                &e.to_string(),
-                            ))
-                        }),
-                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
-                        "Failed to retrieve dashboard",
-                        &e.to_string(),
-                    ))),
-                }
+                let result = ares_repository_intelligence::engines::overview::RepositoryOverviewEngine::collect(&store, &path).await;
+                serde_json::to_string(&result)
+                    .map(CallToolResult::text)
+                    .map_err(|e| {
+                        tower_mcp::Error::internal(format_mcp_error(
+                            "Failed to serialize dashboard",
+                            &e.to_string(),
+                        ))
+                    })
             }
         })
         .build();

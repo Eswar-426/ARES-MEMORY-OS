@@ -6,7 +6,6 @@ use ares_knowledge_graph::models::{
 use clap::Args;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use std::time::{Instant, SystemTime, UNIX_EPOCH, Duration};
 
 fn format_duration(d: Duration) -> String {

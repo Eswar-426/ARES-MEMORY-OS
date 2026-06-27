@@ -205,6 +205,15 @@ export async function activate(context: vscode.ExtensionContext) {
             targetId = input;
         }
 
+        // Store recent query
+        const recentQueries: any[] = context.workspaceState.get('ares.recentQueries', []);
+        recentQueries.unshift({
+            command: commandName,
+            target: targetId,
+            timestamp: new Date().toISOString()
+        });
+        context.workspaceState.update('ares.recentQueries', recentQueries.slice(0, 10));
+
         // Open panel immediately with loading state
         const panel = AresQueryPanel.showLoading(context);
 
@@ -372,17 +381,17 @@ export async function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    // ARES: Repository Dashboard
+    // ARES: ARES Home
     context.subscriptions.push(
         vscode.commands.registerCommand('ares.repositoryDashboard', async () => {
-            aresOutput.appendLine(`\n--- Repository Dashboard ---`);
+            aresOutput.appendLine(`\n--- ARES Home ---`);
             logEnvironment();
 
             const panel = AresQueryPanel.showLoading(context);
             
             panel.webview.onDidReceiveMessage(
-                (message: { command: string; path: string; line?: number; column?: number }) => {
-                    if (message.command === 'openFile') {
+                async (message: { command: string; path?: string; line?: number; column?: number; args?: any[] }) => {
+                    if (message.command === 'openFile' && message.path) {
                         const workspaceFolders = vscode.workspace.workspaceFolders;
                         let fileUri: vscode.Uri;
                         if (workspaceFolders && !path.isAbsolute(message.path)) {
@@ -400,6 +409,28 @@ export async function activate(context: vscode.ExtensionContext) {
                             options.selection = new vscode.Range(line, col, line, col);
                         }
                         vscode.window.showTextDocument(fileUri, options);
+                    } else if (message.command === 'executeCommand' && message.args && message.args.length > 0) {
+                        vscode.commands.executeCommand(message.args[0], ...message.args.slice(1));
+                    } else if (message.command === 'refreshDashboard') {
+                        try {
+                            const result = await mcpClient.callTool('ares_dashboard', { project_id: 'TEST' });
+                            let rawResult: any = result;
+                            if (result.content && result.content[0] && result.content[0].type === 'text') {
+                                rawResult = JSON.parse(result.content[0].text);
+                            }
+                            const response: AresResponse = {
+                                answer: "ARES Home",
+                                confidence: 1.0,
+                                evidence: [],
+                                related_decisions: [],
+                                query_type: "ARES Home",
+                                dashboard: rawResult,
+                                recent_queries: context.workspaceState.get('ares.recentQueries', [])
+                            };
+                            panel.webview.postMessage(response);
+                        } catch (e) {
+                            // ignore background errors
+                        }
                     }
                 },
                 undefined,
@@ -417,18 +448,19 @@ export async function activate(context: vscode.ExtensionContext) {
 
                 // Format as AresResponse so the panel knows how to render it
                 const response: AresResponse = {
-                    answer: "Repository Health & Knowledge Dashboard",
+                    answer: "ARES Home",
                     confidence: 1.0,
                     evidence: [],
                     related_decisions: [],
-                    query_type: "Repository Dashboard",
-                    dashboard: rawResult
+                    query_type: "ARES Home",
+                    dashboard: rawResult,
+                    recent_queries: context.workspaceState.get('ares.recentQueries', [])
                 };
                 
                 AresQueryPanel.show(context, response);
             } catch (e: any) {
                 const aresError: AresError = {
-                    message: 'Unable to load Repository Dashboard',
+                    message: 'Unable to load ARES Home',
                     detail: e.message || 'An unexpected error occurred.',
                 };
                 AresQueryPanel.showError(context, aresError);
