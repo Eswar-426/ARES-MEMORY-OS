@@ -1,5 +1,5 @@
 use crate::Store;
-use ares_core::AresError;
+use ares_core::{AresError, NodeType};
 
 pub struct GraphStats {
     pub nodes: usize,
@@ -35,10 +35,10 @@ impl Store {
         let conn = self.get_conn()?;
         let nodes = conn.query_row("SELECT COUNT(*) FROM graph_nodes", [], |r| r.get(0)).unwrap_or(0);
         let edges = conn.query_row("SELECT COUNT(*) FROM graph_edges", [], |r| r.get(0)).unwrap_or(0);
-        let files = conn.query_row("SELECT COUNT(*) FROM graph_nodes WHERE node_type = 'File'", [], |r| r.get(0)).unwrap_or(0);
-        let directories = conn.query_row("SELECT COUNT(*) FROM graph_nodes WHERE node_type = 'Directory'", [], |r| r.get(0)).unwrap_or(0);
-        let commits = conn.query_row("SELECT COUNT(*) FROM graph_nodes WHERE node_type = 'Commit'", [], |r| r.get(0)).unwrap_or(0);
-        let authors = conn.query_row("SELECT COUNT(DISTINCT attributes) FROM graph_nodes WHERE node_type = 'Commit'", [], |r| r.get(0)).unwrap_or(1);
+        let files = conn.query_row(&format!("SELECT COUNT(*) FROM graph_nodes WHERE node_type = '{}'", NodeType::File.as_str()), [], |r| r.get(0)).unwrap_or(0);
+        let directories = conn.query_row(&format!("SELECT COUNT(*) FROM graph_nodes WHERE node_type = '{}'", NodeType::Folder.as_str()), [], |r| r.get(0)).unwrap_or(0);
+        let commits = conn.query_row(&format!("SELECT COUNT(*) FROM graph_nodes WHERE node_type = '{}'", NodeType::Commit.as_str()), [], |r| r.get(0)).unwrap_or(0);
+        let authors = conn.query_row(&format!("SELECT COUNT(DISTINCT properties) FROM graph_nodes WHERE node_type = '{}'", NodeType::Person.as_str()), [], |r| r.get(0)).unwrap_or(1);
         
         Ok(GraphStats { nodes, edges, files, directories, commits, authors })
     }
@@ -58,10 +58,10 @@ impl Store {
 
     pub fn overview_coverage_stats(&self) -> Result<CoverageStats, AresError> {
         let conn = self.get_conn()?;
-        let adrs = conn.query_row("SELECT COUNT(*) FROM graph_nodes WHERE node_type = 'ADR'", [], |r| r.get(0)).unwrap_or(0);
-        let requirements = conn.query_row("SELECT COUNT(*) FROM graph_nodes WHERE node_type = 'Requirement'", [], |r| r.get(0)).unwrap_or(0);
-        let architecture_docs = conn.query_row("SELECT COUNT(*) FROM graph_nodes WHERE node_type = 'Document'", [], |r| r.get(0)).unwrap_or(0);
-        let decisions = conn.query_row("SELECT COUNT(*) FROM graph_nodes WHERE node_type = 'Decision'", [], |r| r.get(0)).unwrap_or(0);
+        let adrs = conn.query_row(&format!("SELECT COUNT(*) FROM graph_nodes WHERE node_type = '{}'", NodeType::Architecture.as_str()), [], |r| r.get(0)).unwrap_or(0);
+        let requirements = conn.query_row(&format!("SELECT COUNT(*) FROM graph_nodes WHERE node_type = '{}'", NodeType::Requirement.as_str()), [], |r| r.get(0)).unwrap_or(0);
+        let architecture_docs = conn.query_row(&format!("SELECT COUNT(*) FROM graph_nodes WHERE node_type = '{}'", NodeType::Architecture.as_str()), [], |r| r.get(0)).unwrap_or(0);
+        let decisions = conn.query_row(&format!("SELECT COUNT(*) FROM graph_nodes WHERE node_type = '{}'", NodeType::Decision.as_str()), [], |r| r.get(0)).unwrap_or(0);
 
         Ok(CoverageStats {
             adrs,
@@ -73,10 +73,10 @@ impl Store {
 
     pub fn overview_repository_stats(&self) -> Result<RepositoryStats, AresError> {
         let conn = self.get_conn()?;
-        let files = conn.query_row("SELECT COUNT(*) FROM graph_nodes WHERE node_type = 'File'", [], |r| r.get(0)).unwrap_or(0);
-        let functions = conn.query_row("SELECT COUNT(*) FROM graph_nodes WHERE node_type = 'Function'", [], |r| r.get(0)).unwrap_or(0);
-        let directories = conn.query_row("SELECT COUNT(*) FROM graph_nodes WHERE node_type = 'Directory'", [], |r| r.get(0)).unwrap_or(0);
-        let modules = conn.query_row("SELECT COUNT(*) FROM graph_nodes WHERE node_type = 'Module'", [], |r| r.get(0)).unwrap_or(0);
+        let files = conn.query_row(&format!("SELECT COUNT(*) FROM graph_nodes WHERE node_type = '{}'", NodeType::File.as_str()), [], |r| r.get(0)).unwrap_or(0);
+        let functions = conn.query_row(&format!("SELECT COUNT(*) FROM graph_nodes WHERE node_type = '{}'", NodeType::Function.as_str()), [], |r| r.get(0)).unwrap_or(0);
+        let directories = conn.query_row(&format!("SELECT COUNT(*) FROM graph_nodes WHERE node_type = '{}'", NodeType::Folder.as_str()), [], |r| r.get(0)).unwrap_or(0);
+        let modules = conn.query_row(&format!("SELECT COUNT(*) FROM graph_nodes WHERE node_type = '{}'", NodeType::Module.as_str()), [], |r| r.get(0)).unwrap_or(0);
         
         Ok(RepositoryStats {
             files,

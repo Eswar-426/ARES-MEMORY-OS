@@ -8,6 +8,7 @@ use ares_core::vector::{
     traits::EmbeddingProvider,
     types::{Embedding, EmbeddingMetadata},
 };
+use ares_core::inference::InferenceEngine;
 use ares_core::AresError;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -22,6 +23,7 @@ pub struct OllamaEmbeddingProvider {
     client: reqwest::Client,
     endpoint: String,
     model: String,
+    completion_model: String,
     dimensions: u32,
 }
 
@@ -36,6 +38,7 @@ impl OllamaEmbeddingProvider {
             client: reqwest::Client::new(),
             endpoint,
             model: DEFAULT_MODEL.to_string(),
+            completion_model: "llama3".to_string(),
             dimensions: DEFAULT_DIMENSIONS,
         }
     }
@@ -44,12 +47,14 @@ impl OllamaEmbeddingProvider {
     pub fn with_config(
         endpoint: impl Into<String>,
         model: impl Into<String>,
+        completion_model: impl Into<String>,
         dimensions: u32,
     ) -> Self {
         Self {
             client: reqwest::Client::new(),
             endpoint: endpoint.into(),
             model: model.into(),
+            completion_model: completion_model.into(),
             dimensions,
         }
     }
@@ -123,5 +128,47 @@ impl EmbeddingProvider for OllamaEmbeddingProvider {
             dimensions: self.dimensions,
             embedding_version: 1,
         }
+    }
+}
+
+#[async_trait]
+impl InferenceEngine for OllamaEmbeddingProvider {
+    async fn complete(&self, prompt: &str) -> Result<serde_json::Value, AresError> {
+        let url = format!("{}/api/generate", self.endpoint);
+        let request = serde_json::json!({
+            "model": self.completion_model,
+            "prompt": prompt,
+            "stream": false,
+            "options": {
+                "temperature": 0.0
+            }
+        });
+
+        let response = self
+            .client
+            .post(&url)
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| AresError::Database(format!("Ollama generate API request failed: {}", e)))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(AresError::Database(format!("Ollama API error ({}): {}", status, body)));
+        }
+
+        let body: serde_json::Value = response.json().await.map_err(|e| AresError::Serialization(format!("JSON error: {e}")))?;
+        
+        let answer = body["response"].as_str().unwrap_or("").to_string();
+        
+        // Match the expected response format from ContextInferenceEngine
+        Ok(serde_json::json!({
+            "provider": "ollama",
+            "model": self.completion_model,
+            "status": "ok",
+            "answer": answer,
+            "raw_response": body
+        }))
     }
 }

@@ -229,6 +229,8 @@ impl Scanner {
         let scanned_paths =
             std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashSet::new()));
 
+        let ext_counts = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new()));
+
         files.iter().for_each(|path| {
             let done = parsed.load(Ordering::Relaxed)
                 + failed.load(Ordering::Relaxed)
@@ -294,6 +296,11 @@ impl Scanner {
             {
                 let mut paths = scanned_paths.lock().unwrap();
                 paths.insert(path_str.clone());
+            }
+
+            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                let mut counts = ext_counts.lock().unwrap();
+                *counts.entry(ext.to_string()).or_insert(0) += 1;
             }
 
             let mut edges_to_insert = Vec::new();
@@ -428,6 +435,35 @@ impl Scanner {
                     node.deleted_at = Some(current_time);
                     let _ = self.graph_repo.upsert_node(node);
                 }
+            }
+        }
+
+        // Determine dominant language
+        let mut dominant_lang = "Unknown".to_string();
+        {
+            let counts = ext_counts.lock().unwrap();
+            let mut max_count = 0;
+            for (ext, count) in counts.iter() {
+                if *count > max_count {
+                    max_count = *count;
+                    dominant_lang = match ext.as_str() {
+                        "rs" => "Rust",
+                        "ts" => "TypeScript",
+                        "js" => "JavaScript",
+                        "py" => "Python",
+                        "go" => "Go",
+                        _ => "Unknown",
+                    }.to_string();
+                }
+            }
+        }
+
+        if dominant_lang != "Unknown" {
+            if let Ok(Some(mut project_node)) = self.graph_repo.get_node(&ares_core::NodeId::from(project_id.as_str())) {
+                let mut props = project_node.properties.as_object().cloned().unwrap_or_default();
+                props.insert("language".to_string(), serde_json::json!(dominant_lang));
+                project_node.properties = serde_json::Value::Object(props);
+                let _ = self.graph_repo.upsert_node(project_node);
             }
         }
 

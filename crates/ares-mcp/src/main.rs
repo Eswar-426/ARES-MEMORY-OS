@@ -58,6 +58,11 @@ struct TraceabilityInput {
 
 #[tokio::main]
 async fn main() -> Result<(), BoxError> {
+    use std::io::Write;
+    let log_path = "C:\\Users\\eswar\\ares_mcp_test.log";
+    let mut file = std::fs::OpenOptions::new().create(true).append(true).open(log_path).unwrap();
+    writeln!(file, "==== Starting ares-mcp ====").unwrap();
+    
     // Basic tracing setup for MCP (use stderr for logs so stdio stdout is free for JSON-RPC)
     tracing_subscriber::fmt()
         .with_writer(std::io::stderr)
@@ -66,22 +71,30 @@ async fn main() -> Result<(), BoxError> {
 
     info!("Starting ARES MCP Server");
 
-    let project_path = std::env::current_dir()
-        .expect("Cannot determine current directory")
-        .to_string_lossy()
-        .to_string();
+    let project_path = match std::env::current_dir() {
+        Ok(dir) => dir.to_string_lossy().to_string(),
+        Err(e) => {
+            writeln!(file, "Failed to get current_dir: {:?}", e).unwrap();
+            return Err(Box::<dyn std::error::Error + Send + Sync>::from(e));
+        }
+    };
 
-    info!("Project path = {}", project_path);
-    info!("Loading AgentConfig...");
+    writeln!(file, "Project path = {}", project_path).unwrap();
+    writeln!(file, "Loading AgentConfig...").unwrap();
 
     let config = AgentConfig::load(&project_path).map_err(|e| {
-        tracing::error!("Failed to load config: {e:?}");
-        e
+        writeln!(file, "Failed to load config: {:?}", e).ok();
+        Box::<dyn std::error::Error + Send + Sync>::from(e)
     })?;
+    
+    writeln!(file, "Config loaded. Initializing AppState...").unwrap();
+    
     let app_state = AppState::new(config).await.map_err(|e| {
-        tracing::error!("Failed to initialize AppState: {e:?}");
-        e
+        writeln!(file, "Failed to initialize AppState: {:?}", e).ok();
+        Box::<dyn std::error::Error + Send + Sync>::from(e)
     })?;
+    
+    writeln!(file, "AppState initialized successfully.").unwrap();
 
     let assembler = Arc::new(MemoryContextAssembler::default_from_store(
         app_state.store.clone(),
@@ -92,9 +105,14 @@ async fn main() -> Result<(), BoxError> {
     ));
     let facade = Arc::new(MemoryFacade::new(assembler.clone(), governance.clone()));
 
-    // Initialize Inference Engine
-    let inference_engine: Arc<dyn ares_agent::inference::ContextInferenceEngine> =
-        Arc::new(ares_agent::inference::MockInferenceEngine);
+    let inference_engine: Arc<dyn ares_core::inference::InferenceEngine> = 
+        if std::env::var("OPENAI_API_KEY").is_ok() {
+            Arc::new(ares_embeddings::providers::openai::OpenAIEmbeddingProvider::new().unwrap())
+        } else if std::env::var("OLLAMA_HOST").is_ok() {
+            Arc::new(ares_embeddings::providers::ollama::OllamaEmbeddingProvider::new())
+        } else {
+            Arc::new(ares_agent::inference::MockInferenceEngine)
+        };
 
     // Create the Why tool
     let facade_why = facade.clone();
@@ -551,9 +569,18 @@ async fn main() -> Result<(), BoxError> {
         .resource_template(context_resource)
         .resource_template(summary_resource);
 
+    writeln!(file, "Router built successfully. Starting StdioTransport...").unwrap();
+    
     info!("ARES MCP Server started on stdio");
 
-    StdioTransport::new(router).run().await?;
-
-    Ok(())
+    match StdioTransport::new(router).run().await {
+        Ok(_) => {
+            writeln!(file, "StdioTransport run finished successfully.").unwrap();
+            Ok(())
+        },
+        Err(e) => {
+            writeln!(file, "StdioTransport run failed: {:?}", e).unwrap();
+            Err(Box::<dyn std::error::Error + Send + Sync>::from(e))
+        }
+    }
 }

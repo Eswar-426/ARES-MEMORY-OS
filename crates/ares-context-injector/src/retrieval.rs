@@ -1,5 +1,8 @@
 #![allow(deprecated)]
-use crate::types::{AstContext, DecisionContext, GitCommit, GitContext, NeighborContext};
+use crate::types::{
+    ArchitectureContext, AstContext, DecisionContext, GitCommit, GitContext, NeighborContext,
+    OwnershipContext, RequirementContext,
+};
 use ares_core::{DecisionFilter, EdgeDirection, EdgeType, NodeType, ProjectId};
 use ares_store::repositories::{
     decision::SqliteDecisionRepository, graph::SqliteGraphRepository,
@@ -28,6 +31,21 @@ pub trait ContextRetriever: Send + Sync {
         project_id: &ProjectId,
         file_path: &str,
     ) -> anyhow::Result<NeighborContext>;
+    async fn ownership(
+        &self,
+        project_id: &ProjectId,
+        file_path: &str,
+    ) -> anyhow::Result<OwnershipContext>;
+    async fn architecture(
+        &self,
+        project_id: &ProjectId,
+        file_path: &str,
+    ) -> anyhow::Result<ArchitectureContext>;
+    async fn requirements(
+        &self,
+        project_id: &ProjectId,
+        file_path: &str,
+    ) -> anyhow::Result<RequirementContext>;
 }
 
 pub struct StoreContextRetriever {
@@ -178,5 +196,62 @@ impl ContextRetriever for StoreContextRetriever {
         // Remove the file itself from neighbors
         nodes.retain(|n| n.id != file_node_id);
         Ok(NeighborContext { nodes })
+    }
+
+    #[tracing::instrument(skip(self))]
+    async fn ownership(
+        &self,
+        project_id: &ProjectId,
+        file_path: &str,
+    ) -> anyhow::Result<OwnershipContext> {
+        let repo = SqliteGraphRepository::new(self.store.clone());
+        let file_node_id = ares_core::NodeId::from(ares_core::canonicalize_node_id(file_path));
+
+        let edge_types = vec![EdgeType::OwnedBy, EdgeType::AuthoredBy, EdgeType::Maintains];
+        let nodes = repo
+            .get_neighbors(&file_node_id, EdgeDirection::Outgoing, &edge_types)
+            .unwrap_or_default();
+        
+        Ok(OwnershipContext { owners: nodes })
+    }
+
+    #[tracing::instrument(skip(self))]
+    async fn architecture(
+        &self,
+        project_id: &ProjectId,
+        file_path: &str,
+    ) -> anyhow::Result<ArchitectureContext> {
+        let repo = SqliteGraphRepository::new(self.store.clone());
+        let file_node_id = ares_core::NodeId::from(ares_core::canonicalize_node_id(file_path));
+
+        let edge_types = vec![EdgeType::References, EdgeType::Contains, EdgeType::ContainedIn];
+        let nodes = repo
+            .get_neighbors(&file_node_id, EdgeDirection::Both, &edge_types)
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|n| n.node_type == NodeType::Architecture || n.node_type == NodeType::Concept)
+            .collect();
+        
+        Ok(ArchitectureContext { docs: nodes })
+    }
+
+    #[tracing::instrument(skip(self))]
+    async fn requirements(
+        &self,
+        project_id: &ProjectId,
+        file_path: &str,
+    ) -> anyhow::Result<RequirementContext> {
+        let repo = SqliteGraphRepository::new(self.store.clone());
+        let file_node_id = ares_core::NodeId::from(ares_core::canonicalize_node_id(file_path));
+
+        let edge_types = vec![EdgeType::Satisfies, EdgeType::References, EdgeType::MotivatedBy];
+        let nodes = repo
+            .get_neighbors(&file_node_id, EdgeDirection::Outgoing, &edge_types)
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|n| n.node_type == NodeType::Requirement || n.node_type == NodeType::Feature)
+            .collect();
+        
+        Ok(RequirementContext { reqs: nodes })
     }
 }

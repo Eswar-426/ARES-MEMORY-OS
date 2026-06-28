@@ -17,9 +17,8 @@ impl CommitExtractor {
         let mut edges = Vec::new();
 
         // Use null bytes as delimiters to avoid parsing issues with messages
-        // %H: hash, %an: author name, %ae: author email, %at: author time, %B: raw body (message)
-        // We'll use a separator like |||ARES||| for body since %B can contain nulls/newlines
-        let format = "--format=[COMMIT]%x00%H%x00%an%x00%ae%x00%at%x00%s";
+        // %H: hash, %an: author name, %ae: author email, %at: author time, %s: subject, %B: body
+        let format = "--format=[COMMIT]%x00%H%x00%an%x00%ae%x00%at%x00%s%x00%B%x00[FILES]";
 
         let mut cmd = Command::new("git");
         cmd.current_dir(project_path).args([
@@ -45,103 +44,149 @@ impl CommitExtractor {
 
         let output_str = String::from_utf8_lossy(&output.stdout);
 
-        let mut current_commit_id = None;
-        let mut current_author_id = None;
         let mut seen_persons = HashSet::new();
+        let commits = output_str.split("[COMMIT]\0").filter(|s| !s.is_empty());
 
-        for line in output_str.lines() {
-            if line.is_empty() {
+        for commit_block in commits {
+            let mut parts = commit_block.splitn(2, "\0[FILES]\n");
+            let metadata_part = parts.next().unwrap_or("");
+            let files_part = parts.next().unwrap_or("");
+
+            let meta_parts: Vec<&str> = metadata_part.split('\0').collect();
+            if meta_parts.len() < 6 {
                 continue;
             }
 
-            if line.starts_with("[COMMIT]\0") {
-                let parts: Vec<&str> = line.split('\0').collect();
-                if parts.len() < 6 {
-                    continue;
-                }
+            let hash = meta_parts[0];
+            let author_name = meta_parts[1];
+            let author_email = meta_parts[2];
+            let timestamp: i64 = meta_parts[3].parse().unwrap_or(captured_at);
+            let subject = meta_parts[4];
+            let body = meta_parts[5];
 
-                let hash = parts[1];
-                let author_name = parts[2];
-                let author_email = parts[3];
-                let timestamp: i64 = parts[4].parse().unwrap_or(captured_at);
-                let subject = parts[5];
+            let commit_id = NodeId::from(format!("commit:{}", hash));
+            let person_id = NodeId::from(format!("person:{}", author_email));
 
-                let commit_id = NodeId::from(format!("commit:{}", hash));
-                let person_id = NodeId::from(format!("person:{}", author_email));
+            let prov = SourceProvenance {
+                source_system: "git_log".to_string(),
+                source_id: hash.to_string(),
+                capture_method: CaptureMethod::Repository,
+                captured_at,
+                confidence: CaptureMethod::Repository.base_confidence(),
+            };
+            let prov_val = serde_json::to_value(&prov).unwrap_or(serde_json::json!({}));
 
-                let prov = SourceProvenance {
-                    source_system: "git_log".to_string(),
-                    source_id: hash.to_string(),
-                    capture_method: CaptureMethod::Repository,
-                    captured_at,
-                    confidence: CaptureMethod::Repository.base_confidence(),
-                };
+            // 1. Create Commit Node
+            let mut props = serde_json::json!({
+                "hash": hash,
+                "author": author_name,
+                "email": author_email,
+                "subject": subject,
+                "body": body,
+            });
+            if let Some(p) = props.as_object_mut() {
+                p.insert("provenance".to_string(), prov_val.clone());
+            }
 
-                let prov_val = serde_json::to_value(&prov).unwrap_or(serde_json::json!({}));
+            nodes.push(GraphNode {
+                id: commit_id.clone(),
+                project_id: project_id.clone(),
+                node_type: NodeType::Commit,
+                label: subject.chars().take(100).collect(),
+                properties: props,
+                file_path: None,
+                created_at: timestamp,
+                updated_at: timestamp,
+                deleted_at: None,
+            });
 
-                // 1. Create Commit Node
-                let mut props = serde_json::json!({
-                    "hash": hash,
-                    "author": author_name,
+            // 2. Create Person Node (if not seen)
+            if !seen_persons.contains(&person_id) {
+                seen_persons.insert(person_id.clone());
+
+                let mut person_props = serde_json::json!({
+                    "name": author_name,
                     "email": author_email,
-                    "subject": subject,
                 });
-                if let Some(p) = props.as_object_mut() {
+                if let Some(p) = person_props.as_object_mut() {
                     p.insert("provenance".to_string(), prov_val.clone());
                 }
 
                 nodes.push(GraphNode {
-                    id: commit_id.clone(),
+                    id: person_id.clone(),
                     project_id: project_id.clone(),
-                    node_type: NodeType::Commit,
-                    label: subject.chars().take(100).collect(),
-                    properties: props,
+                    node_type: NodeType::Person,
+                    label: author_name.to_string(),
+                    properties: person_props,
+                    file_path: None,
+                    created_at: timestamp,
+                    updated_at: timestamp,
+                    deleted_at: None,
+                });
+            }
+
+            // 3. Create AuthoredBy Edge (Commit -> Person)
+            edges.push(GraphEdge {
+                id: format!("{}-authoredby-{}", commit_id.as_str(), person_id.as_str()),
+                project_id: project_id.clone(),
+                from_node_id: commit_id.clone(),
+                to_node_id: person_id.clone(),
+                edge_type: EdgeType::AuthoredBy,
+                weight: 1.0,
+                confidence: 1.0,
+                source: "git_commits".to_string(),
+                valid_from: timestamp,
+                valid_until: None,
+                created_at: captured_at,
+            });
+
+            // 4. Extract Decisions
+            let mut decision_text = String::new();
+            let mut reason_text = String::new();
+            let mut tradeoff_text = String::new();
+
+            for line in body.lines() {
+                if let Some(rest) = line.strip_prefix("Decision:") {
+                    decision_text.push_str(rest.trim());
+                    decision_text.push('\n');
+                } else if let Some(rest) = line.strip_prefix("Reason:") {
+                    reason_text.push_str(rest.trim());
+                    reason_text.push('\n');
+                } else if let Some(rest) = line.strip_prefix("Tradeoff:") {
+                    tradeoff_text.push_str(rest.trim());
+                    tradeoff_text.push('\n');
+                }
+            }
+
+            if !decision_text.is_empty() {
+                let dec_id = NodeId::from(format!("decision:{}", hash));
+                let mut d_props = serde_json::json!({
+                    "decision": decision_text.trim(),
+                    "reason": reason_text.trim(),
+                    "tradeoff": tradeoff_text.trim(),
+                });
+                if let Some(p) = d_props.as_object_mut() {
+                    p.insert("provenance".to_string(), prov_val.clone());
+                }
+
+                nodes.push(GraphNode {
+                    id: dec_id.clone(),
+                    project_id: project_id.clone(),
+                    node_type: NodeType::Decision,
+                    label: decision_text.chars().take(100).collect(),
+                    properties: d_props,
                     file_path: None,
                     created_at: timestamp,
                     updated_at: timestamp,
                     deleted_at: None,
                 });
 
-                // 2. Create Person Node (if not seen)
-                if !seen_persons.contains(&person_id) {
-                    seen_persons.insert(person_id.clone());
-
-                    let mut person_props = serde_json::json!({
-                        "name": author_name,
-                        "email": author_email,
-                    });
-                    if let Some(p) = person_props.as_object_mut() {
-                        p.insert("provenance".to_string(), prov_val.clone());
-                    }
-
-                    nodes.push(GraphNode {
-                        id: person_id.clone(),
-                        project_id: project_id.clone(),
-                        node_type: NodeType::Person,
-                        label: author_name.to_string(),
-                        properties: person_props,
-                        file_path: None,
-                        created_at: timestamp,
-                        updated_at: timestamp,
-                        deleted_at: None,
-                    });
-                }
-
-                // 3. Create AuthoredBy Edge (Commit -> Person)
-                let _edge_prov = SourceProvenance {
-                    source_system: "git_log".to_string(),
-                    source_id: hash.to_string(),
-                    capture_method: CaptureMethod::Explicit, // Authorship is explicit fact
-                    captured_at,
-                    confidence: 1.0,
-                };
-
                 edges.push(GraphEdge {
-                    id: format!("{}-authoredby-{}", commit_id.as_str(), person_id.as_str()),
+                    id: format!("{}-contains-{}", commit_id.as_str(), dec_id.as_str()),
                     project_id: project_id.clone(),
                     from_node_id: commit_id.clone(),
-                    to_node_id: person_id.clone(),
-                    edge_type: EdgeType::AuthoredBy,
+                    to_node_id: dec_id,
+                    edge_type: EdgeType::Contains,
                     weight: 1.0,
                     confidence: 1.0,
                     source: "git_commits".to_string(),
@@ -149,21 +194,20 @@ impl CommitExtractor {
                     valid_until: None,
                     created_at: captured_at,
                 });
+            }
 
-                current_commit_id = Some((commit_id, timestamp, hash.to_string()));
-                current_author_id = Some(person_id);
-            } else if let Some((commit_id, timestamp, _hash)) = &current_commit_id {
-                // Name-status lines: M\tfile.rs or R100\told\tnew
-                let parts: Vec<&str> = line.split('\t').collect();
-                if parts.len() >= 2 {
-                    let status = parts[0];
-                    let file_path = if status.starts_with('R') && parts.len() >= 3 {
-                        parts[2] // Get new name on rename
+            // 5. Process Touched Files
+            for line in files_part.lines() {
+                if line.is_empty() { continue; }
+                let f_parts: Vec<&str> = line.split('\t').collect();
+                if f_parts.len() >= 2 {
+                    let status = f_parts[0];
+                    let file_path = if status.starts_with('R') && f_parts.len() >= 3 {
+                        f_parts[2] // new name on rename
                     } else {
-                        parts[1]
+                        f_parts[1]
                     };
 
-                    // We link Commit -> File
                     let file_node_id = ares_core::canonicalize_node_id(file_path);
 
                     edges.push(GraphEdge {
@@ -175,7 +219,7 @@ impl CommitExtractor {
                         weight: 1.0,
                         confidence: 0.8,
                         source: "git_commits".to_string(),
-                        valid_from: *timestamp,
+                        valid_from: timestamp,
                         valid_until: None,
                         created_at: captured_at,
                     });

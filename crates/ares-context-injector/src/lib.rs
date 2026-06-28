@@ -19,11 +19,14 @@ pub async fn build_context<R: ContextRetriever + ?Sized>(
     project_id: &ProjectId,
     budget: TokenBudget,
 ) -> anyhow::Result<ContextPackage> {
-    let (decisions_res, git_res, ast_res, neighbors_res) = tokio::join!(
+    let (decisions_res, git_res, ast_res, neighbors_res, own_res, arch_res, req_res) = tokio::join!(
         retriever.decisions(project_id, file_path),
         retriever.git_history(project_id, file_path),
         retriever.ast(project_id, file_path),
         retriever.neighbors(project_id, file_path),
+        retriever.ownership(project_id, file_path),
+        retriever.architecture(project_id, file_path),
+        retriever.requirements(project_id, file_path),
     );
 
     // Provide empty defaults if retrieval fails to allow partial context
@@ -33,6 +36,11 @@ pub async fn build_context<R: ContextRetriever + ?Sized>(
     let ast = ast_res.unwrap_or_else(|_| crate::types::AstContext { nodes: vec![] });
     let neighbors =
         neighbors_res.unwrap_or_else(|_| crate::types::NeighborContext { nodes: vec![] });
+    let ownership = own_res.unwrap_or_else(|_| crate::types::OwnershipContext { owners: vec![] });
+    let architecture =
+        arch_res.unwrap_or_else(|_| crate::types::ArchitectureContext { docs: vec![] });
+    let requirements =
+        req_res.unwrap_or_else(|_| crate::types::RequirementContext { reqs: vec![] });
 
     let dec_count = decisions.decisions.len();
     let git_count = git.commits.len();
@@ -44,10 +52,13 @@ pub async fn build_context<R: ContextRetriever + ?Sized>(
         project_id.as_str(),
         file_path,
         query,
-        decisions,
-        git,
         ast,
         neighbors,
+        git,
+        ownership,
+        architecture,
+        requirements,
+        decisions,
     );
 
     let trimmed_sections = if package.estimated_tokens < budget.as_usize() {

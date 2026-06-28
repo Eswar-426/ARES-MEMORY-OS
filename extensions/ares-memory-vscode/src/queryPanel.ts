@@ -39,6 +39,7 @@ export interface AresResponse {
     file_path?: string;
     dashboard?: AresDashboard;
     recent_queries?: any[];
+    execution_time_ms?: number;
     [key: string]: any;
 }
 
@@ -380,6 +381,7 @@ body{
         <div class="header-text">
             <h1>ARES Memory</h1>
             <div id="queryBadge" class="query-badge hidden"></div>
+            <div id="executionTime" class="query-badge hidden" style="background:var(--vscode-editorInfo-background);color:var(--vscode-editorInfo-foreground);margin-left:8px;"></div>
         </div>
     </div>
 
@@ -412,7 +414,7 @@ body{
 
         <!-- Evidence -->
         <div id="evidenceSection" class="section animate-slide hidden" style="animation-delay:.15s">
-            <div class="section-header">Evidence</div>
+            <div class="section-header" id="evidenceHeader">Evidence</div>
             <div id="evidenceList" class="section-body"></div>
         </div>
 
@@ -481,6 +483,7 @@ body{
         confidenceBar:    document.getElementById('confidenceBar'),
         confidencePct:    document.getElementById('confidencePct'),
         evidenceSection:  document.getElementById('evidenceSection'),
+        evidenceHeader:   document.getElementById('evidenceHeader'),
         evidenceList:     document.getElementById('evidenceList'),
         decisionsSection: document.getElementById('decisionsSection'),
         decisionsList:    document.getElementById('decisionsList'),
@@ -493,6 +496,7 @@ body{
         dashboardSection: document.getElementById('dashboardSection'),
         dashboardList:    document.getElementById('dashboardList'),
         emptyState:       document.getElementById('emptyState'),
+        executionTime:    document.getElementById('executionTime'),
     };
 
     // --- Helpers ---
@@ -525,6 +529,13 @@ body{
             dom.queryBadge.classList.remove('hidden');
         } else {
             dom.queryBadge.classList.add('hidden');
+        }
+
+        if (data.execution_time_ms) {
+            dom.executionTime.textContent = data.execution_time_ms + ' ms';
+            dom.executionTime.classList.remove('hidden');
+        } else {
+            dom.executionTime.classList.add('hidden');
         }
 
         if (data.file_path) {
@@ -560,6 +571,7 @@ body{
             return;
         }
         dom.evidenceSection.classList.remove('hidden');
+        dom.evidenceHeader.textContent = 'Evidence (' + data.evidence.length + ')';
 
         data.evidence.forEach(function (ev) {
             var item = document.createElement('div');

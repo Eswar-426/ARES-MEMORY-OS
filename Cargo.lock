@@ -680,6 +680,7 @@ dependencies = [
  "ares-context-generator",
  "ares-context-injector",
  "ares-core",
+ "ares-embeddings",
  "ares-extractor",
  "ares-governance",
  "ares-intelligence",

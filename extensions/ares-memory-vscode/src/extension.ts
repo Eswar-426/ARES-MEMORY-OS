@@ -94,7 +94,7 @@ export async function activate(context: vscode.ExtensionContext) {
     const connected = await mcpClient.connect(mcpBinary!.path, mcpBinary!.source);
     if (!connected) {
         aresOutput.appendLine('\nActivation Status: ABORTED (MCP Connection Failed)');
-        vscode.window.showErrorMessage("ARES MCP failed to connect. See ARES Output for details.");
+        vscode.window.showErrorMessage(`ARES MCP failed to connect: ${mcpClient.lastError}`);
         return;
     }
 
@@ -116,26 +116,150 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('ares.doctor', async () => {
             aresOutput.show(true);
             aresOutput.appendLine('\n--- Running ARES Doctor ---');
-            
             logEnvironment();
 
             const workspaceFolders = vscode.workspace.workspaceFolders;
             const cwd = workspaceFolders ? workspaceFolders[0].uri.fsPath : process.cwd();
             
-            const child = spawn(aresCliCache!.path, ['doctor'], { cwd });
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: "ARES: Running Doctor...",
+                cancellable: false
+            }, async (progress) => {
+                return new Promise<void>((resolve, reject) => {
+                    const child = spawn(aresCliCache!.path, ['doctor'], { cwd });
 
-            child.stdout.on("data", (data) => {
-                aresOutput.append(data.toString());
+                    child.stdout.on("data", (data) => {
+                        aresOutput.append(data.toString());
+                    });
+
+                    child.stderr.on("data", (data) => {
+                        aresOutput.appendLine(`[stderr] ${data.toString()}`);
+                    });
+
+                    child.on("close", (code) => {
+                        aresOutput.appendLine(`ARES exited with code ${code}`);
+                        if (code !== 0) {
+                            vscode.window.showErrorMessage(`ARES Doctor found issues (exit code ${code}). See output.`);
+                            resolve(); // resolve anyway to close progress
+                        } else {
+                            resolve();
+                        }
+                    });
+                });
             });
+        })
+    );
 
-            child.stderr.on("data", (data) => {
-                aresOutput.appendLine(`[stderr] ${data.toString()}`);
-            });
+    // ARES: Self Test
+    context.subscriptions.push(
+        vscode.commands.registerCommand('ares.selfTest', async () => {
+            aresOutput.show(true);
+            aresOutput.appendLine('\n--- Running ARES Self Test ---');
+            
+            let passedChecks = 0;
+            const totalChecks = 11;
+            
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: "ARES Self Test",
+                cancellable: false
+            }, async (progress) => {
+                const reportCheck = (name: string, passed: boolean) => {
+                    if (passed) {
+                        aresOutput.appendLine(`✓ ${name}`);
+                        passedChecks++;
+                    } else {
+                        aresOutput.appendLine(`✗ ${name}`);
+                    }
+                };
 
-            child.on("close", (code) => {
-                aresOutput.appendLine(`ARES exited with code ${code}`);
-                if (code !== 0) {
-                    aresOutput.appendLine(`\nError running ares doctor (exit code ${code})`);
+                // 1. CLI found
+                reportCheck("CLI found", !!aresCliCache?.path);
+                progress.report({ increment: 10, message: "Checking MCP..." });
+
+                // 2. MCP connected
+                reportCheck("MCP connected", !!mcpClient);
+                progress.report({ increment: 10, message: "Checking Database..." });
+
+                // 3. Database found
+                const workspaceFolders = vscode.workspace.workspaceFolders;
+                const cwd = workspaceFolders ? workspaceFolders[0].uri.fsPath : process.cwd();
+                const fs = require('fs');
+                const path = require('path');
+                const dbPath = path.join(cwd, '.ares', 'ares.db');
+                reportCheck("Database found", fs.existsSync(dbPath));
+                progress.report({ increment: 10, message: "Checking Repository Index..." });
+
+                // We can query MCP for the dashboard to check if graph exists & intelligence ready
+                try {
+                    const result = await mcpClient.callTool('ares_dashboard', { project_id: cwd });
+                    const dash = JSON.parse(result.content[0].text);
+                    
+                    reportCheck("Repository indexed", dash.repository.files > 0);
+                    progress.report({ increment: 10, message: "Checking Graph..." });
+                    
+                    reportCheck("Graph exists", dash.knowledge_graph.nodes > 0);
+                    progress.report({ increment: 10, message: "Checking Intelligence..." });
+                    
+                    const intelligenceReady = dash.readiness.find((r: any) => r.engine === "Graph Connectivity")?.status === "Ready";
+                    reportCheck("Intelligence ready", intelligenceReady);
+                    progress.report({ increment: 10, message: "Checking Embeddings..." });
+                    
+                    const embeddingsReady = dash.readiness.find((r: any) => r.engine === "Context Injection")?.status === "Ready";
+                    reportCheck("Embeddings configured", embeddingsReady);
+                    
+                    // Also check dashboard working implicitly
+                    reportCheck("Dashboard working", true);
+                } catch (e) {
+                    aresOutput.appendLine(`Error checking dashboard: ${e}`);
+                    reportCheck("Repository indexed", false);
+                    reportCheck("Graph exists", false);
+                    reportCheck("Intelligence ready", false);
+                    reportCheck("Embeddings configured", false);
+                    reportCheck("Dashboard working", false);
+                }
+                
+                progress.report({ increment: 30, message: "Testing AI Capabilities..." });
+
+                // 9. Why Exists Working
+                try {
+                    const result = await mcpClient.callTool('ares_why_exists', { id: cwd });
+                    reportCheck("Why Exists working", !!result.content);
+                } catch (e) {
+                    reportCheck("Why Exists working", false);
+                }
+                
+                progress.report({ increment: 10, message: "Testing Impact Analysis..." });
+
+                // 10. Impact Working
+                try {
+                    const result = await mcpClient.callTool('ares_impact', { id: cwd });
+                    reportCheck("Impact working", !!result.content);
+                } catch (e) {
+                    reportCheck("Impact working", false);
+                }
+                
+                progress.report({ increment: 10, message: "Testing Traceability..." });
+
+                // 11. Traceability Working
+                try {
+                    const result = await mcpClient.callTool('ares_traceability', { entity_id: cwd, depth: 1 });
+                    reportCheck("Traceability working", !!result.content);
+                } catch (e) {
+                    reportCheck("Traceability working", false);
+                }
+                
+                // Done
+                progress.report({ increment: 10, message: "Done" });
+                
+                aresOutput.appendLine(`\nARES Ready`);
+                aresOutput.appendLine(`${passedChecks}/${totalChecks} checks passed\n`);
+                
+                if (passedChecks === totalChecks) {
+                    vscode.window.showInformationMessage(`ARES Ready: ${passedChecks}/${totalChecks} checks passed.`);
+                } else {
+                    vscode.window.showErrorMessage(`ARES Self Test Failed: ${passedChecks}/${totalChecks} checks passed. See ARES Output for details.`);
                 }
             });
         })
@@ -146,7 +270,6 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('ares.ingest', async () => {
             aresOutput.show(true);
             aresOutput.appendLine('\n--- Ingesting Repository ---');
-            
             logEnvironment();
 
             const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -156,24 +279,83 @@ export async function activate(context: vscode.ExtensionContext) {
             }
             const cwd = workspaceFolders[0].uri.fsPath;
             
-            vscode.window.showInformationMessage('ARES: Ingesting Repository...');
-            const child = spawn(aresCliCache!.path, ['ingest', '.'], { cwd });
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: "ARES: Ingesting Repository...",
+                cancellable: false
+            }, async (progress) => {
+                return new Promise<void>((resolve, reject) => {
+                    const child = spawn(aresCliCache!.path, ['ingest', '.'], { cwd });
 
-            child.stdout.on("data", (data) => {
-                aresOutput.append(data.toString());
+                    child.stdout.on("data", (data) => {
+                        const str = data.toString();
+                        aresOutput.append(str);
+                        // Update progress loosely based on output
+                        if (str.includes("Extracting") || str.includes("Scanning") || str.includes("Building")) {
+                            progress.report({ message: str.trim().split('\n')[0] });
+                        }
+                    });
+
+                    child.stderr.on("data", (data) => {
+                        aresOutput.appendLine(`[stderr] ${data.toString()}`);
+                    });
+
+                    child.on("close", (code) => {
+                        aresOutput.appendLine(`ARES exited with code ${code}`);
+                        if (code !== 0) {
+                            vscode.window.showErrorMessage(`ARES Error: Failed to ingest. See ARES Output for details.`);
+                        } else {
+                            vscode.window.showInformationMessage('ARES: Repository Ingested Successfully!');
+                        }
+                        resolve();
+                    });
+                });
             });
+        })
+    );
 
-            child.stderr.on("data", (data) => {
-                aresOutput.appendLine(`[stderr] ${data.toString()}`);
-            });
+    // ARES: Benchmark Repository
+    context.subscriptions.push(
+        vscode.commands.registerCommand('ares.benchmark', async () => {
+            aresOutput.show(true);
+            aresOutput.appendLine('\n--- Benchmarking Repository ---');
+            logEnvironment();
 
-            child.on("close", (code) => {
-                aresOutput.appendLine(`ARES exited with code ${code}`);
-                if (code !== 0) {
-                    vscode.window.showErrorMessage(`ARES Error: Failed to ingest. See ARES Output for details.`);
-                } else {
-                    vscode.window.showInformationMessage('ARES: Repository Ingested Successfully!');
-                }
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (!workspaceFolders) {
+                vscode.window.showErrorMessage('ARES: No workspace folder open');
+                return;
+            }
+            const cwd = workspaceFolders[0].uri.fsPath;
+            
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: "ARES: Benchmarking Repository...",
+                cancellable: false
+            }, async (progress) => {
+                return new Promise<void>((resolve, reject) => {
+                    const child = spawn(aresCliCache!.path, ['benchmark'], { cwd });
+
+                    child.stdout.on("data", (data) => {
+                        const str = data.toString();
+                        aresOutput.append(str);
+                        progress.report({ message: "Running performance checks..." });
+                    });
+
+                    child.stderr.on("data", (data) => {
+                        aresOutput.appendLine(`[stderr] ${data.toString()}`);
+                    });
+
+                    child.on("close", (code) => {
+                        aresOutput.appendLine(`ARES exited with code ${code}`);
+                        if (code !== 0) {
+                            vscode.window.showErrorMessage(`ARES Benchmark encountered an error.`);
+                        } else {
+                            vscode.window.showInformationMessage('ARES: Benchmark Complete!');
+                        }
+                        resolve();
+                    });
+                });
             });
         })
     );
@@ -245,8 +427,10 @@ export async function activate(context: vscode.ExtensionContext) {
         );
 
         try {
+            const startTime = Date.now();
             const result = await mcpClient.callTool(toolName, { id: targetId });
             const response = parseAresResponse(result, targetId);
+            response.execution_time_ms = Date.now() - startTime;
             AresQueryPanel.show(context, response);
         } catch (e: any) {
             const aresError: AresError = {
@@ -346,8 +530,10 @@ export async function activate(context: vscode.ExtensionContext) {
             );
 
             try {
+                const startTime = Date.now();
                 const result = await mcpClient.callTool('ares_traceability', { entity_id: targetId, depth: depth });
                 const response = parseAresResponse(result, targetId);
+                response.execution_time_ms = Date.now() - startTime;
                 AresQueryPanel.show(context, response);
             } catch (e: any) {
                 const aresError: AresError = {
@@ -362,21 +548,29 @@ export async function activate(context: vscode.ExtensionContext) {
     // ARES: Coverage Analysis
     context.subscriptions.push(
         vscode.commands.registerCommand('ares.coverageAnalysis', async (uri?: vscode.Uri) => {
-            aresOutput.show(true);
-            aresOutput.appendLine('\n--- Coverage Analysis ---');
-            
+            aresOutput.appendLine(`\n--- Coverage Analysis ---`);
             logEnvironment();
 
             const input = await vscode.window.showInputBox({
                 prompt: `Enter Project ID for Coverage Analysis`,
-                placeHolder: "e.g., PROJ-001"
+                placeHolder: "e.g., PROJ-001",
+                value: "TEST"
             });
             if (!input) return;
 
+            const panel = AresQueryPanel.showLoading(context);
             try {
-                await mcpClient.callTool('ares_coverage', { project_id: input });
+                const startTime = Date.now();
+                const result = await mcpClient.callTool('ares_coverage', { project_id: input });
+                const response = parseAresResponse(result, input);
+                response.execution_time_ms = Date.now() - startTime;
+                AresQueryPanel.show(context, response);
             } catch (e: any) {
-                vscode.window.showErrorMessage(`ARES MCP Error: ${e.message}`);
+                const aresError: AresError = {
+                    message: 'Unable to analyze coverage',
+                    detail: e.message || 'An unexpected error occurred.',
+                };
+                AresQueryPanel.showError(context, aresError);
             }
         })
     );
@@ -425,7 +619,8 @@ export async function activate(context: vscode.ExtensionContext) {
                                 related_decisions: [],
                                 query_type: "ARES Home",
                                 dashboard: rawResult,
-                                recent_queries: context.workspaceState.get('ares.recentQueries', [])
+                                recent_queries: context.workspaceState.get('ares.recentQueries', []),
+                                execution_time_ms: 0
                             };
                             panel.webview.postMessage(response);
                         } catch (e) {
@@ -454,7 +649,8 @@ export async function activate(context: vscode.ExtensionContext) {
                     related_decisions: [],
                     query_type: "ARES Home",
                     dashboard: rawResult,
-                    recent_queries: context.workspaceState.get('ares.recentQueries', [])
+                    recent_queries: context.workspaceState.get('ares.recentQueries', []),
+                    execution_time_ms: 0
                 };
                 
                 AresQueryPanel.show(context, response);
@@ -471,9 +667,7 @@ export async function activate(context: vscode.ExtensionContext) {
     // ARES: Simulate Change
     context.subscriptions.push(
         vscode.commands.registerCommand('ares.simulateChange', async (uri?: vscode.Uri) => {
-            aresOutput.show(true);
             aresOutput.appendLine(`\n--- Simulate Change ---`);
-            
             logEnvironment();
 
             let targetId = "";
@@ -501,18 +695,27 @@ export async function activate(context: vscode.ExtensionContext) {
             const projectId = await vscode.window.showInputBox({
                 prompt: `Enter Project ID for Simulation context`,
                 placeHolder: "e.g., PROJ-001",
-                value: "PROJ-001"
+                value: "TEST"
             });
             if (!projectId) return;
 
+            const panel = AresQueryPanel.showLoading(context);
             try {
-                await mcpClient.callTool('ares_simulate', { 
+                const startTime = Date.now();
+                const result = await mcpClient.callTool('ares_simulate', { 
                     project_id: projectId,
                     target_id: targetId,
                     action: "remove" 
                 });
+                const response = parseAresResponse(result, targetId);
+                response.execution_time_ms = Date.now() - startTime;
+                AresQueryPanel.show(context, response);
             } catch (e: any) {
-                vscode.window.showErrorMessage(`ARES MCP Error: ${e.message}`);
+                const aresError: AresError = {
+                    message: 'Unable to simulate change',
+                    detail: e.message || 'An unexpected error occurred.',
+                };
+                AresQueryPanel.showError(context, aresError);
             }
         })
     );

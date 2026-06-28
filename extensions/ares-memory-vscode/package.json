@@ -8,17 +8,16 @@
     "url": "https://github.com/example/ares-memory-os"
   },
   "version": "0.1.0",
+  "license": "MIT",
+  "homepage": "https://github.com/example/ares-memory-os",
+  "bugs": {
+    "url": "https://github.com/example/ares-memory-os/issues"
+  },
   "engines": {
     "vscode": "^1.80.0"
   },
   "categories": [
     "Other"
-  ],
-  "files": [
-    "out/**/*",
-    "node_modules/**/*",
-    "package.json",
-    "README.md"
   ],
   "main": "./out/extension.js",
   "activationEvents": [
@@ -59,8 +58,16 @@
         "title": "ARES: Traceability Analysis"
       },
       {
+        "command": "ares.selfTest",
+        "title": "ARES: Self Test"
+      },
+      {
         "command": "ares.repositoryDashboard",
         "title": "ARES: ARES Home"
+      },
+      {
+        "command": "ares.benchmark",
+        "title": "ARES: Benchmark Repository"
       }
     ],
     "menus": {
@@ -135,15 +142,16 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
+    "compile": "esbuild src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node",
+    "watch": "esbuild src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --watch",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
-    "@types/vscode": "^1.80.0",
     "@types/node": "16.x",
+    "@types/vscode": "^1.80.0",
+    "esbuild": "^0.28.1",
     "typescript": "^5.1.3"
   },
   "dependencies": {

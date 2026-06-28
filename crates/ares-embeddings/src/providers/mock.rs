@@ -7,6 +7,7 @@ use ares_core::vector::{
     traits::EmbeddingProvider,
     types::{Embedding, EmbeddingMetadata},
 };
+use ares_core::inference::InferenceEngine;
 use ares_core::AresError;
 use async_trait::async_trait;
 
@@ -49,6 +50,24 @@ impl EmbeddingProvider for MockEmbeddingProvider {
             dimensions: self.dimensions,
             embedding_version: 1,
         }
+    }
+}
+
+#[async_trait]
+impl InferenceEngine for MockEmbeddingProvider {
+    async fn complete(&self, prompt: &str) -> Result<serde_json::Value, AresError> {
+        let estimated_tokens = prompt.len() / 4;
+        Ok(serde_json::json!({
+            "provider": "mock",
+            "model": "mock-inference",
+            "status": "ok",
+            "answer": "Mock inference completed. The context was successfully assembled.",
+            "usage": {
+                "prompt_tokens": estimated_tokens,
+                "completion_tokens": 18,
+                "total_tokens": estimated_tokens + 18
+            }
+        }))
     }
 }
 

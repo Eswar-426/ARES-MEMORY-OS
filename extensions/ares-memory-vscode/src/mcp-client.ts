@@ -7,6 +7,7 @@ export class McpClient {
     private client: Client;
     private transport?: StdioClientTransport;
     private outputChannel: vscode.OutputChannel;
+    public lastError?: string;
 
     constructor(outputChannel: vscode.OutputChannel) {
         this.outputChannel = outputChannel;
@@ -45,6 +46,7 @@ export class McpClient {
             this.outputChannel.appendLine("Successfully connected to ARES MCP.");
             return true;
         } catch (e: any) {
+            this.lastError = e.message || String(e);
             this.outputChannel.appendLine(`Failed to connect to ARES MCP: ${e.message}`);
             return false;
         }

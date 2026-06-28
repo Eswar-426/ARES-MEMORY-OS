@@ -8,6 +8,7 @@ use ares_core::vector::{
     traits::EmbeddingProvider,
     types::{Embedding, EmbeddingMetadata},
 };
+use ares_core::inference::InferenceEngine;
 use ares_core::AresError;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -22,6 +23,7 @@ pub struct OpenAIEmbeddingProvider {
     client: reqwest::Client,
     api_key: String,
     model: String,
+    completion_model: String,
     dimensions: u32,
 }
 
@@ -36,6 +38,7 @@ impl OpenAIEmbeddingProvider {
             client: reqwest::Client::new(),
             api_key,
             model: DEFAULT_MODEL.to_string(),
+            completion_model: "gpt-4o-mini".to_string(),
             dimensions: DEFAULT_DIMENSIONS,
         })
     }
@@ -44,12 +47,14 @@ impl OpenAIEmbeddingProvider {
     pub fn with_model(
         api_key: impl Into<String>,
         model: impl Into<String>,
+        completion_model: impl Into<String>,
         dimensions: u32,
     ) -> Self {
         Self {
             client: reqwest::Client::new(),
             api_key: api_key.into(),
             model: model.into(),
+            completion_model: completion_model.into(),
             dimensions,
         }
     }
@@ -147,5 +152,46 @@ impl EmbeddingProvider for OpenAIEmbeddingProvider {
             dimensions: self.dimensions,
             embedding_version: 1,
         }
+    }
+}
+
+#[async_trait]
+impl InferenceEngine for OpenAIEmbeddingProvider {
+    async fn complete(&self, prompt: &str) -> Result<serde_json::Value, AresError> {
+        let request = serde_json::json!({
+            "model": self.completion_model,
+            "messages": [
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.0
+        });
+
+        let response = self
+            .client
+            .post("https://api.openai.com/v1/chat/completions")
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| AresError::Database(format!("OpenAI chat API request failed: {}", e)))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(AresError::Database(format!("OpenAI API error ({}): {}", status, body)));
+        }
+
+        let body: serde_json::Value = response.json().await.map_err(|e| AresError::Serialization(format!("JSON error: {e}")))?;
+        
+        let answer = body["choices"][0]["message"]["content"].as_str().unwrap_or("").to_string();
+        
+        // Match the expected response format from ContextInferenceEngine
+        Ok(serde_json::json!({
+            "provider": "openai",
+            "model": self.completion_model,
+            "status": "ok",
+            "answer": answer,
+            "raw_response": body
+        }))
     }
 }

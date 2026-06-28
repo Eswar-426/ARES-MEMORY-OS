@@ -3,7 +3,8 @@ use crate::assembly::PromptAssembler;
 use crate::build_context;
 use crate::retrieval::ContextRetriever;
 use crate::types::{
-    AstContext, DecisionContext, GitCommit, GitContext, NeighborContext, TokenBudget,
+    ArchitectureContext, AstContext, DecisionContext, GitCommit, GitContext, NeighborContext,
+    OwnershipContext, RequirementContext, TokenBudget,
 };
 use ares_core::{Decision, DecisionId, GraphNode, NodeId, NodeType, ProjectId};
 use async_trait::async_trait;
@@ -14,6 +15,9 @@ struct MockRetriever {
     git_ret: GitContext,
     ast_ret: AstContext,
     neighbors_ret: NeighborContext,
+    ownership_ret: OwnershipContext,
+    architecture_ret: ArchitectureContext,
+    requirements_ret: RequirementContext,
 }
 
 #[async_trait]
@@ -41,6 +45,27 @@ impl ContextRetriever for MockRetriever {
         _file_path: &str,
     ) -> anyhow::Result<NeighborContext> {
         Ok(self.neighbors_ret.clone())
+    }
+    async fn ownership(
+        &self,
+        _project_id: &ProjectId,
+        _file_path: &str,
+    ) -> anyhow::Result<OwnershipContext> {
+        Ok(self.ownership_ret.clone())
+    }
+    async fn architecture(
+        &self,
+        _project_id: &ProjectId,
+        _file_path: &str,
+    ) -> anyhow::Result<ArchitectureContext> {
+        Ok(self.architecture_ret.clone())
+    }
+    async fn requirements(
+        &self,
+        _project_id: &ProjectId,
+        _file_path: &str,
+    ) -> anyhow::Result<RequirementContext> {
+        Ok(self.requirements_ret.clone())
     }
 }
 
@@ -101,6 +126,9 @@ fn default_mock_retriever() -> MockRetriever {
         neighbors_ret: NeighborContext {
             nodes: vec![make_node("file2", NodeType::File, "utils.rs")],
         },
+        ownership_ret: OwnershipContext { owners: vec![] },
+        architecture_ret: ArchitectureContext { docs: vec![] },
+        requirements_ret: RequirementContext { reqs: vec![] },
     }
 }
 
@@ -160,6 +188,9 @@ async fn test_empty_repository() {
         git_ret: GitContext { commits: vec![] },
         ast_ret: AstContext { nodes: vec![] },
         neighbors_ret: NeighborContext { nodes: vec![] },
+        ownership_ret: OwnershipContext { owners: vec![] },
+        architecture_ret: ArchitectureContext { docs: vec![] },
+        requirements_ret: RequirementContext { reqs: vec![] },
     });
 
     let project_id = ProjectId::new();
@@ -210,10 +241,13 @@ async fn test_large_repository_trimming() {
         project_id.as_str(),
         "file.rs",
         "query",
-        DecisionContext { decisions: vec![] },
-        GitContext { commits: vec![] },
         ast_context,
         NeighborContext { nodes: vec![] },
+        GitContext { commits: vec![] },
+        OwnershipContext { owners: vec![] },
+        ArchitectureContext { docs: vec![] },
+        RequirementContext { reqs: vec![] },
+        DecisionContext { decisions: vec![] },
     );
 
     assert!(package.estimated_tokens <= TokenBudget::Small.as_usize());

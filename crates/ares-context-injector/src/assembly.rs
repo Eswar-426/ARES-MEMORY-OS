@@ -1,7 +1,7 @@
 #![allow(deprecated)]
 use crate::types::{
-    AstContext, ContextPackage, DecisionContext, GitContext, NeighborContext, PromptSection,
-    TokenBudget,
+    ArchitectureContext, AstContext, ContextPackage, DecisionContext, GitContext, NeighborContext,
+    OwnershipContext, PromptSection, RequirementContext, TokenBudget,
 };
 use ares_core::NodeType;
 use chrono::Utc;
@@ -22,10 +22,13 @@ impl PromptAssembler {
         project_id: &str,
         file_path: &str,
         prompt: &str,
-        mut decisions: DecisionContext,
-        mut git: GitContext,
         mut ast: AstContext,
         mut neighbors: NeighborContext,
+        mut git: GitContext,
+        mut ownership: OwnershipContext,
+        mut architecture: ArchitectureContext,
+        mut requirements: RequirementContext,
+        mut decisions: DecisionContext,
     ) -> ContextPackage {
         // 1. Stable sorting
         decisions
@@ -49,12 +52,15 @@ impl PromptAssembler {
 
         neighbors.nodes.sort_by(|a, b| a.label.cmp(&b.label));
 
-        // 2. Build sections (Priority: Decisions=1, Git=2, AST=3, Neighbors=4)
+        // 2. Build sections
         let mut sections = vec![
-            Self::build_decisions(&decisions),
-            Self::build_git(&git),
             Self::build_ast(&ast),
             Self::build_neighbors(&neighbors),
+            Self::build_git(&git),
+            Self::build_ownership(&ownership),
+            Self::build_architecture(&architecture),
+            Self::build_requirements(&requirements),
+            Self::build_decisions(&decisions),
         ];
 
         // 3. Trimming
@@ -97,6 +103,15 @@ impl PromptAssembler {
             sources.insert(format!("node:{}", node.id));
         }
         for node in &neighbors.nodes {
+            sources.insert(format!("node:{}", node.id));
+        }
+        for node in &ownership.owners {
+            sources.insert(format!("node:{}", node.id));
+        }
+        for node in &architecture.docs {
+            sources.insert(format!("node:{}", node.id));
+        }
+        for node in &requirements.reqs {
             sources.insert(format!("node:{}", node.id));
         }
         let mut sources_vec: Vec<String> = sources.into_iter().collect();
@@ -179,7 +194,7 @@ impl PromptAssembler {
             items.push(format!("- [{}]: {}\n", dec.title, dec.decision_text));
         }
         let mut sec = PromptSection {
-            priority: 1,
+            priority: 7,
             title: "Engineering Decisions".to_string(),
             content: String::new(),
             item_count: items.len(),
@@ -198,7 +213,7 @@ impl PromptAssembler {
             ));
         }
         let mut sec = PromptSection {
-            priority: 2,
+            priority: 3,
             title: "Git History".to_string(),
             content: String::new(),
             item_count: items.len(),
@@ -214,7 +229,7 @@ impl PromptAssembler {
             items.push(format!("- [{:?}] {}\n", node.node_type, node.label));
         }
         let mut sec = PromptSection {
-            priority: 3,
+            priority: 1,
             title: "AST Summary".to_string(),
             content: String::new(),
             item_count: items.len(),
@@ -230,8 +245,56 @@ impl PromptAssembler {
             items.push(format!("- [{:?}] {}\n", node.node_type, node.label));
         }
         let mut sec = PromptSection {
-            priority: 4,
+            priority: 2,
             title: "Graph Neighbors".to_string(),
+            content: String::new(),
+            item_count: items.len(),
+            items,
+        };
+        Self::rebuild_section(&mut sec);
+        sec
+    }
+
+    fn build_ownership(ctx: &OwnershipContext) -> PromptSection {
+        let mut items = Vec::new();
+        for node in &ctx.owners {
+            items.push(format!("- [{:?}] {}\n", node.node_type, node.label));
+        }
+        let mut sec = PromptSection {
+            priority: 4,
+            title: "Ownership".to_string(),
+            content: String::new(),
+            item_count: items.len(),
+            items,
+        };
+        Self::rebuild_section(&mut sec);
+        sec
+    }
+
+    fn build_architecture(ctx: &ArchitectureContext) -> PromptSection {
+        let mut items = Vec::new();
+        for node in &ctx.docs {
+            items.push(format!("- [{:?}] {}\n", node.node_type, node.label));
+        }
+        let mut sec = PromptSection {
+            priority: 5,
+            title: "Architecture Docs".to_string(),
+            content: String::new(),
+            item_count: items.len(),
+            items,
+        };
+        Self::rebuild_section(&mut sec);
+        sec
+    }
+
+    fn build_requirements(ctx: &RequirementContext) -> PromptSection {
+        let mut items = Vec::new();
+        for node in &ctx.reqs {
+            items.push(format!("- [{:?}] {}\n", node.node_type, node.label));
+        }
+        let mut sec = PromptSection {
+            priority: 6,
+            title: "Requirements".to_string(),
             content: String::new(),
             item_count: items.len(),
             items,

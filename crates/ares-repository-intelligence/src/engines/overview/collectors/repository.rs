@@ -38,11 +38,20 @@ pub async fn collect(store: &Store, project_path: &str) -> RepositoryOverview {
         modules: 0,
     });
 
-    let language = if stats.files > 0 {
-        "Rust".to_string()
-    } else {
-        "Unknown".to_string()
-    };
+    let mut language = "Unknown".to_string();
+    if let Ok(conn) = store.get_conn() {
+        if let Ok(props_str) = conn.query_row(
+            &format!("SELECT properties FROM graph_nodes WHERE node_type = '{}' LIMIT 1", ares_core::NodeType::Project.as_str()),
+            [],
+            |row| row.get::<_, String>(0)
+        ) {
+            if let Ok(props) = serde_json::from_str::<serde_json::Value>(&props_str) {
+                if let Some(lang) = props.get("language").and_then(|v| v.as_str()) {
+                    language = lang.to_string();
+                }
+            }
+        }
+    }
 
     RepositoryOverview {
         name,

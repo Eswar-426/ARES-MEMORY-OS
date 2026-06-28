@@ -45,6 +45,21 @@ pub struct NeighborContext {
     pub nodes: Vec<GraphNode>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OwnershipContext {
+    pub owners: Vec<GraphNode>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArchitectureContext {
+    pub docs: Vec<GraphNode>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RequirementContext {
+    pub reqs: Vec<GraphNode>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct ContextPackage {
     pub project_id: String,

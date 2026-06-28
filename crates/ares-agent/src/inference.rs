@@ -1,15 +1,13 @@
 use async_trait::async_trait;
 
-#[async_trait]
-pub trait ContextInferenceEngine: Send + Sync {
-    async fn complete(&self, prompt: &str) -> anyhow::Result<serde_json::Value>;
-}
+use ares_core::inference::InferenceEngine;
+use ares_core::AresError;
 
 pub struct MockInferenceEngine;
 
 #[async_trait]
-impl ContextInferenceEngine for MockInferenceEngine {
-    async fn complete(&self, prompt: &str) -> anyhow::Result<serde_json::Value> {
+impl InferenceEngine for MockInferenceEngine {
+    async fn complete(&self, prompt: &str) -> Result<serde_json::Value, AresError> {
         let estimated_tokens = prompt.len() / 4;
         Ok(serde_json::json!({
             "provider": "mock",

@@ -45,6 +45,7 @@ pub use types::{
         ExecutionPlan, ExecutionState, RetryPolicy, TaskPriority, WorkflowDefinition,
         WorkflowDependency, WorkflowEvent, WorkflowEventType, WorkflowExecutionSnapshot,
         WorkflowStatus, WorkflowStepDef, WORKFLOW_EVENT_SCHEMA_VERSION,
+
     },
 };
 
@@ -53,3 +54,4 @@ pub use vector::{
     cosine_similarity, normalize_vector, Embedding, EmbeddingMetadata, EmbeddingProvider,
     RetrievalDiagnostics, SimilarityResult, StoredEmbedding, VectorRepository,
 };
+pub mod inference;
