@@ -28,8 +28,9 @@ pub async fn execute_bootstrap(path: &Path) -> Result<(), AresError> {
     let rules =
         vec![Box::new(BuiltInRules::new()) as Box<dyn ares_memory_bootstrap::rules::RuleProvider>];
     let capability_engine = CapabilityInferenceEngine::new(rules);
+    let project_id_str = crate::get_default_project_id();
 
-    let candidates = capability_engine.infer("TEST", "workspace_current");
+    let candidates = capability_engine.infer(project_id_str.as_str(), "workspace_current");
 
     let mut count = 0;
     for candidate in candidates {
@@ -43,7 +44,7 @@ pub async fn execute_bootstrap(path: &Path) -> Result<(), AresError> {
     use ares_candidates::{Candidate, CandidateStatus, CandidateType};
     let owner_candidate = Candidate {
         id: uuid::Uuid::now_v7().to_string(),
-        project_id: "TEST".to_string(),
+        project_id: project_id_str.to_string(),
         title: "Inferred Owner: Core Team".to_string(),
         description: "Inferred from git history".to_string(),
         candidate_type: CandidateType::Ownership,

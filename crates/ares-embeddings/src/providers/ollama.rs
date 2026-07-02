@@ -4,11 +4,11 @@
 //! Default model: `nomic-embed-text` (768 dimensions).
 //! Default endpoint: `http://localhost:11434`.
 
+use ares_core::inference::InferenceEngine;
 use ares_core::vector::{
     traits::EmbeddingProvider,
     types::{Embedding, EmbeddingMetadata},
 };
-use ares_core::inference::InferenceEngine;
 use ares_core::AresError;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -150,18 +150,26 @@ impl InferenceEngine for OllamaEmbeddingProvider {
             .json(&request)
             .send()
             .await
-            .map_err(|e| AresError::Database(format!("Ollama generate API request failed: {}", e)))?;
+            .map_err(|e| {
+                AresError::Database(format!("Ollama generate API request failed: {}", e))
+            })?;
 
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(AresError::Database(format!("Ollama API error ({}): {}", status, body)));
+            return Err(AresError::Database(format!(
+                "Ollama API error ({}): {}",
+                status, body
+            )));
         }
 
-        let body: serde_json::Value = response.json().await.map_err(|e| AresError::Serialization(format!("JSON error: {e}")))?;
-        
+        let body: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| AresError::Serialization(format!("JSON error: {e}")))?;
+
         let answer = body["response"].as_str().unwrap_or("").to_string();
-        
+
         // Match the expected response format from ContextInferenceEngine
         Ok(serde_json::json!({
             "provider": "ollama",

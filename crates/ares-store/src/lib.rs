@@ -9,9 +9,9 @@
 pub mod db;
 pub mod metrics;
 pub mod migrations;
+pub mod overview;
 pub mod query;
 pub mod repositories;
-pub mod overview;
 
 pub use db::Store;
 pub use repositories::{

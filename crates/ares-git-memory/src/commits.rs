@@ -198,7 +198,9 @@ impl CommitExtractor {
 
             // 5. Process Touched Files
             for line in files_part.lines() {
-                if line.is_empty() { continue; }
+                if line.is_empty() {
+                    continue;
+                }
                 let f_parts: Vec<&str> = line.split('\t').collect();
                 if f_parts.len() >= 2 {
                     let status = f_parts[0];

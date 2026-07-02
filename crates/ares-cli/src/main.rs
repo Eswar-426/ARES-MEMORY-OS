@@ -55,6 +55,9 @@ enum Commands {
     /// Run real-world engine benchmarks
     Benchmark,
 
+    /// Run the interactive ARES Demo
+    Demo,
+
     // --- P3.4 Reasoning Engines ---
     /// Explain decisions and rationale
     Explain {
@@ -363,6 +366,26 @@ async fn main() -> Result<(), AresError> {
         Commands::Benchmark => {
             commands::benchmark::run_real_benchmark().await?;
         }
+        Commands::Demo => {
+            println!("ARES Demo\n");
+            println!("Step 1\nRepository loaded\n?\n");
+            tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+            println!("Step 2\nQuestion submitted: \"Why does PaymentProvider exist?\"\n?\n");
+            tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+            println!("Step 3\nPlanner executing...\n?\n");
+            tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+            println!("Step 4\nEvidence gathered from 6 engines\n?\n");
+            tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+            println!("Step 5\nAnswer generated\n?\n");
+            tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+            println!("Step 6\nOpen Graph Explorer\n?\n");
+            tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+            println!("Step 7\nOpen Node Inspector for PaymentProvider\n?\n");
+            tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+            println!("Step 8\nRun Impact Analysis\n?\n");
+            tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+            println!("Complete\n\nARES is ready.");
+        }
         Commands::Explain { action } => match action {
             ExplainCommands::Decision { id } => {
                 commands::reasoning::handle_explain_decision(id).await?;
@@ -420,4 +443,18 @@ async fn main() -> Result<(), AresError> {
     }
 
     Ok(())
+}
+
+pub fn get_default_project_id() -> ares_core::ProjectId {
+    // Derive from current working directory
+    let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    if let Some(name) = cwd.file_name().and_then(|n| n.to_str()) {
+        if !name.is_empty() && name != "." && name != ".." {
+            return ares_core::ProjectId::from(name);
+        }
+    }
+
+    // Fallback to project-<uuid> if no valid workspace name
+    let fallback = format!("project-{}", uuid::Uuid::now_v7());
+    ares_core::ProjectId::from(fallback.as_str())
 }

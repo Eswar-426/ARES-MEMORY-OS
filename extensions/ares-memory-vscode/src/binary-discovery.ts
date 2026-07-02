@@ -49,7 +49,11 @@ async function discoverBinary(
     }
 
     // 3. Extension Bundled Binaries
-    const bundledBin = path.join(context.extensionPath, 'bin', executableName);
+    let platformDir = 'linux';
+    if (isWindows) platformDir = 'windows';
+    else if (process.platform === 'darwin') platformDir = 'macos';
+    
+    const bundledBin = path.join(context.extensionPath, 'binaries', platformDir, executableName);
     if (fs.existsSync(bundledBin)) {
         return { path: bundledBin, source: 'Bundled' };
     }

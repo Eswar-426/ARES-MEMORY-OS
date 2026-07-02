@@ -180,6 +180,19 @@ mod tests {
 pub fn canonicalize_node_id(path: &str) -> String {
     let mut normalized = path.replace('\\', "/");
 
+    // Resiliency: if it's an absolute path that starts with the current working directory, strip it
+    if let Ok(cwd) = std::env::current_dir() {
+        let cwd_str = cwd.to_string_lossy().replace('\\', "/");
+        // Case-insensitive check for Windows
+        if normalized
+            .to_lowercase()
+            .starts_with(&cwd_str.to_lowercase())
+        {
+            let prefix_len = cwd_str.len();
+            normalized = normalized[prefix_len..].to_string();
+        }
+    }
+
     // Collapse duplicate slashes
     while normalized.contains("//") {
         normalized = normalized.replace("//", "/");

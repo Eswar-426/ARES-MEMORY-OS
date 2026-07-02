@@ -35,7 +35,7 @@ pub async fn execute_validate(
             (**validation_runner.store()).clone(),
             std::path::PathBuf::from(&project_path),
         );
-        let project_id = ares_core::ProjectId::from("TEST");
+        let project_id = crate::get_default_project_id();
         let results = governance
             .evaluate_project(&project_id)
             .await
@@ -152,7 +152,7 @@ pub async fn execute_export(out_path: &String) -> Result<(), AresError> {
         (*store).clone(),
         std::path::PathBuf::from(&project_path),
     );
-    let project_id = ares_core::ProjectId::from("TEST");
+    let project_id = crate::get_default_project_id();
     let compliance = governance
         .evaluate_project(&project_id)
         .await

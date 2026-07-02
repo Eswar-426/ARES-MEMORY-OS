@@ -211,7 +211,7 @@ impl ContextRetriever for StoreContextRetriever {
         let nodes = repo
             .get_neighbors(&file_node_id, EdgeDirection::Outgoing, &edge_types)
             .unwrap_or_default();
-        
+
         Ok(OwnershipContext { owners: nodes })
     }
 
@@ -224,14 +224,18 @@ impl ContextRetriever for StoreContextRetriever {
         let repo = SqliteGraphRepository::new(self.store.clone());
         let file_node_id = ares_core::NodeId::from(ares_core::canonicalize_node_id(file_path));
 
-        let edge_types = vec![EdgeType::References, EdgeType::Contains, EdgeType::ContainedIn];
+        let edge_types = vec![
+            EdgeType::References,
+            EdgeType::Contains,
+            EdgeType::ContainedIn,
+        ];
         let nodes = repo
             .get_neighbors(&file_node_id, EdgeDirection::Both, &edge_types)
             .unwrap_or_default()
             .into_iter()
             .filter(|n| n.node_type == NodeType::Architecture || n.node_type == NodeType::Concept)
             .collect();
-        
+
         Ok(ArchitectureContext { docs: nodes })
     }
 
@@ -244,14 +248,18 @@ impl ContextRetriever for StoreContextRetriever {
         let repo = SqliteGraphRepository::new(self.store.clone());
         let file_node_id = ares_core::NodeId::from(ares_core::canonicalize_node_id(file_path));
 
-        let edge_types = vec![EdgeType::Satisfies, EdgeType::References, EdgeType::MotivatedBy];
+        let edge_types = vec![
+            EdgeType::Satisfies,
+            EdgeType::References,
+            EdgeType::MotivatedBy,
+        ];
         let nodes = repo
             .get_neighbors(&file_node_id, EdgeDirection::Outgoing, &edge_types)
             .unwrap_or_default()
             .into_iter()
             .filter(|n| n.node_type == NodeType::Requirement || n.node_type == NodeType::Feature)
             .collect();
-        
+
         Ok(RequirementContext { reqs: nodes })
     }
 }

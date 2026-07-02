@@ -10,6 +10,7 @@ import {
   Compass
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+import { Sidebar as AresSidebar } from '@ares/ui';
 
 const NavItem = ({ icon, label, to }: any) => (
   <NavLink 
@@ -28,7 +29,7 @@ const NavItem = ({ icon, label, to }: any) => (
 );
 
 export const Sidebar = () => (
-  <aside className="w-64 border-r border-ares-border bg-ares-panel p-6 flex flex-col gap-6 h-screen sticky top-0">
+  <AresSidebar className="border-ares-border bg-ares-panel p-6 sticky top-0">
     <div className="flex items-center gap-3 text-ares-text font-bold text-xl tracking-wide">
       <BrainCircuit className="text-ares-accent w-8 h-8" />
       ARES OS
@@ -37,6 +38,7 @@ export const Sidebar = () => (
       <NavItem icon={<LayoutDashboard />} label="Dashboard" to="/" />
       <NavItem icon={<Database />} label="Memory Explorer" to="/memory" />
       <NavItem icon={<Network />} label="Architecture" to="/architecture" />
+      <NavItem icon={<Network />} label="Graph Explorer" to="/graph" />
       <NavItem icon={<Clock />} label="Decisions" to="/decisions" />
       <NavItem icon={<Cpu />} label="Context Injection" to="/context" />
       <NavItem icon={<Compass />} label="Autonomous Planner" to="/planner" />
@@ -44,5 +46,5 @@ export const Sidebar = () => (
       <NavItem icon={<ShieldCheck />} label="Provider Health" to="/health" />
       <NavItem icon={<Settings />} label="Settings" to="/settings" />
     </nav>
-  </aside>
+  </AresSidebar>
 );

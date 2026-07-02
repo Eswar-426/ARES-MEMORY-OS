@@ -7,6 +7,8 @@ mod embedded {
     use refinery::embed_migrations;
     embed_migrations!("src/migrations");
 }
+mod manager;
+pub use manager::MigrationManager;
 
 /// Run all pending migrations on the given connection.
 pub fn run(conn: &mut Connection) -> Result<(), AresError> {

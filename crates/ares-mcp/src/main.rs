@@ -2,6 +2,8 @@ use ares_agent::config::AgentConfig;
 use ares_app::AppState;
 use ares_memory_intelligence::assembler::MemoryContextAssembler;
 use ares_memory_intelligence::facade::MemoryFacade;
+use ares_repository_intelligence::facade::IntelligenceFacade;
+use ares_repository_intelligence::models::{EngineeringQuery, QueryType};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -42,6 +44,34 @@ struct ProjectQueryInput {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+struct ChatInput {
+    query: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct BookmarkInput {
+    kind: String,
+    value: String,
+    title: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct PinInput {
+    node_id: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct NavigateInput {
+    direction: String,
+    current_timestamp: i64,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct RecordNavigateInput {
+    node_id: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
 #[allow(dead_code)]
 struct SimulationInput {
     project_id: String,
@@ -56,13 +86,37 @@ struct TraceabilityInput {
     depth: Option<usize>,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+struct EmptyInput {}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct GraphSearchInput {
+    query: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct GraphPathInput {
+    from_id: String,
+    to_id: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct GraphNeighborsInput {
+    node_id: String,
+    depth: Option<usize>,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), BoxError> {
     use std::io::Write;
     let log_path = "C:\\Users\\eswar\\ares_mcp_test.log";
-    let mut file = std::fs::OpenOptions::new().create(true).append(true).open(log_path).unwrap();
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log_path)
+        .unwrap();
     writeln!(file, "==== Starting ares-mcp ====").unwrap();
-    
+
     // Basic tracing setup for MCP (use stderr for logs so stdio stdout is free for JSON-RPC)
     tracing_subscriber::fmt()
         .with_writer(std::io::stderr)
@@ -86,14 +140,34 @@ async fn main() -> Result<(), BoxError> {
         writeln!(file, "Failed to load config: {:?}", e).ok();
         Box::<dyn std::error::Error + Send + Sync>::from(e)
     })?;
-    
+
     writeln!(file, "Config loaded. Initializing AppState...").unwrap();
-    
+
     let app_state = AppState::new(config).await.map_err(|e| {
         writeln!(file, "Failed to initialize AppState: {:?}", e).ok();
         Box::<dyn std::error::Error + Send + Sync>::from(e)
     })?;
-    
+
+    let project_id_for_migration = std::env::current_dir()
+        .map(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("project")
+                .to_string()
+        })
+        .unwrap_or_else(|_| "project".to_string());
+
+    // Run custom data migrations
+    let _ = app_state.store.run_migrations(&project_id_for_migration);
+
+    let ares_dir = std::path::PathBuf::from(&project_path).join(".ares");
+    if !ares_dir.exists() {
+        std::fs::create_dir_all(&ares_dir).ok();
+    }
+    let workspace_engine = Arc::new(
+        ares_repository_intelligence::engines::workspace::WorkspaceEngine::new(ares_dir).unwrap(),
+    );
+
     writeln!(file, "AppState initialized successfully.").unwrap();
 
     let assembler = Arc::new(MemoryContextAssembler::default_from_store(
@@ -104,8 +178,9 @@ async fn main() -> Result<(), BoxError> {
         std::path::PathBuf::from(&project_path),
     ));
     let facade = Arc::new(MemoryFacade::new(assembler.clone(), governance.clone()));
+    let intelligence_facade = Arc::new(IntelligenceFacade::new(app_state.store.clone()));
 
-    let inference_engine: Arc<dyn ares_core::inference::InferenceEngine> = 
+    let inference_engine: Arc<dyn ares_core::inference::InferenceEngine> =
         if std::env::var("OPENAI_API_KEY").is_ok() {
             Arc::new(ares_embeddings::providers::openai::OpenAIEmbeddingProvider::new().unwrap())
         } else if std::env::var("OLLAMA_HOST").is_ok() {
@@ -115,37 +190,43 @@ async fn main() -> Result<(), BoxError> {
         };
 
     // Create the Why tool
-    let facade_why = facade.clone();
-    let engine_clone = inference_engine.clone();
+    let intelligence_facade_why = intelligence_facade.clone();
     let project_id_str = project_path.clone();
 
     let why_tool = ToolBuilder::new("ares_why_exists")
         .description("Explains why a specific entity exists in the ARES memory graph")
         .handler(move |input: MemoryQueryInput| {
-            let facade = facade_why.clone();
-            let engine = engine_clone.clone();
-            let project_id = ares_core::ProjectId::from(project_id_str.clone());
+            let facade = intelligence_facade_why.clone();
+            let project_id = project_id_str.clone();
 
             async move {
                 let id = ares_core::canonicalize_node_id(&input.id);
-                match facade.why_with_context(&id, "Why does this exist?", &project_id).await {
-                    Ok(result) => {
-                        let inference = engine.complete(&result.context.assembled_prompt).await.unwrap_or_else(|e| {
-                            serde_json::json!({ "error": e.to_string(), "status": "failed" })
-                        });
+                let query = EngineeringQuery {
+                    entity_id: id.to_string(),
+                    project_id,
+                    query_type: QueryType::WhyExists,
+                    workspace_root: None,
+                    branch: None,
+                };
 
+                match facade.execute(&query) {
+                    Ok(insight) => {
                         let response = serde_json::json!({
-                            "entity": input.id,
-                            "requirements": result.graph.requirements,
-                            "decisions": result.graph.decisions,
-                            "evidence": result.graph.evidence,
-                            "inference": inference,
-                            "sources_used": result.context.sources,
-                            "estimated_tokens": result.context.estimated_tokens,
+                            "answer": insight.answer,
+                            "confidence": insight.confidence,
+                            "evidence": insight.evidence,
+                            "warnings": insight.warnings,
+                            "recommendations": insight.recommendations,
+                            "summary": insight.summary,
+                            "file_path": &input.id,
+                            "entity": &input.id,
+                            "mode": insight.mode,
+                            "metadata": insight.metadata,
                         });
-
-                        Ok(CallToolResult::text(serde_json::to_string(&response).unwrap()))
-                    },
+                        Ok(CallToolResult::text(
+                            serde_json::to_string(&response).unwrap(),
+                        ))
+                    }
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
                         "Failed to explain why entity exists",
                         &e.to_string(),
@@ -201,18 +282,42 @@ async fn main() -> Result<(), BoxError> {
         .build();
 
     // Create the Impact tool
-    let facade_impact = facade.clone();
+    let intelligence_facade_impact = intelligence_facade.clone();
+    let project_id_str_impact = project_path.clone();
     let impact_tool = ToolBuilder::new("ares_impact")
         .description("Performs read-only dependency analysis to determine what downstream components break if this entity is modified. Use this for general blast-radius queries without mutating the graph.")
         .handler(move |input: MemoryQueryInput| {
-            let facade = facade_impact.clone();
+            let facade = intelligence_facade_impact.clone();
+            let project_id = project_id_str_impact.clone();
             async move {
                 let id = ares_core::canonicalize_node_id(&input.id);
-                match facade.impact(&id) {
-                    Ok(result) => serde_json::to_string(&result)
-                        .map(CallToolResult::text)
-                        .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize impact analysis", &e.to_string()))),
-                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to perform impact analysis", &e.to_string()))),
+                let query = EngineeringQuery {
+                    entity_id: id.to_string(),
+                    project_id,
+                    query_type: QueryType::Impact,
+                    workspace_root: None,
+                    branch: None,
+                };
+                match facade.execute(&query) {
+                    Ok(insight) => {
+                        let response = serde_json::json!({
+                            "answer": insight.answer,
+                            "confidence": insight.confidence,
+                            "evidence": insight.evidence,
+                            "warnings": insight.warnings,
+                            "recommendations": insight.recommendations,
+                            "summary": insight.summary,
+                            "file_path": &input.id,
+                            "entity": &input.id,
+                            "mode": insight.mode,
+                            "metadata": insight.metadata,
+                        });
+                        Ok(CallToolResult::text(serde_json::to_string(&response).unwrap()))
+                    }
+                    Err(e) => Ok(CallToolResult::text(format!(
+                        "{{\"answer\":\"Error: {}\",\"confidence\":0,\"evidence\":[],\"mode\":\"Offline\"}}",
+                        e
+                    ))),
                 }
             }
         })
@@ -384,15 +489,65 @@ async fn main() -> Result<(), BoxError> {
             let store = store_dashboard.clone();
             let path = dashboard_project_path.clone();
             async move {
-                let result = ares_repository_intelligence::engines::overview::RepositoryOverviewEngine::collect(&store, &path).await;
-                serde_json::to_string(&result)
-                    .map(CallToolResult::text)
-                    .map_err(|e| {
-                        tower_mcp::Error::internal(format_mcp_error(
-                            "Failed to serialize dashboard",
-                            &e.to_string(),
-                        ))
-                    })
+                let use_planner = std::env::var("ARES_USE_PLANNER").unwrap_or_else(|_| "0".to_string()) == "1";
+                if use_planner {
+                    tracing::info!("Executing ares_dashboard via ExecutionPlanner");
+                    
+                    let mut registry = ares_repository_intelligence::planner::registry::EngineRegistry::new();
+                    registry.register(
+                        ares_repository_intelligence::core::engine::EngineId::Overview,
+                        vec![ares_repository_intelligence::core::capabilities::Capability::Workspace],
+                        Box::new(ares_repository_intelligence::engines::overview::RepositoryOverviewEngine::new(store.clone()))
+                    );
+                    
+                    let planner = ares_repository_intelligence::planner::pipeline::ExecutionPlanner::new(&registry);
+                    
+                    let context = ares_repository_intelligence::core::context::RepositoryContext {
+                        repository: ares_repository_intelligence::core::context::RepositoryInfo {
+                            root_path: path.clone(),
+                            name: "project".to_string(),
+                        },
+                        snapshot: ares_repository_intelligence::core::context::RepositorySnapshot::default(),
+                        workspace: ares_repository_intelligence::core::context::WorkspaceContext {
+                            workspace_id: ares_core::id::new_id(),
+                        },
+                        execution: ares_repository_intelligence::core::context::ExecutionContext {
+                            execution_id: ares_core::id::new_id(),
+                            started_at: 0,
+                            requested_by: "mcp".to_string(),
+                            entry_point: ares_repository_intelligence::core::context::EntryPoint::API,
+                            execution_mode: ares_repository_intelligence::core::context::ExecutionMode::Direct,
+                            streaming: false,
+                            debug: false,
+                        },
+                        policy: ares_repository_intelligence::core::context::ExecutionPolicy::default(),
+                        request: ares_repository_intelligence::core::context::RequestContext {
+                            query: "intent:dashboard".to_string(),
+                            parameters: std::collections::HashMap::new(),
+                        },
+                    };
+                    
+                    let response = planner.execute(&context).await;
+                    serde_json::to_string(&response)
+                        .map(CallToolResult::text)
+                        .map_err(|e| {
+                            tower_mcp::Error::internal(format_mcp_error(
+                                "Failed to serialize planner dashboard response",
+                                &e.to_string(),
+                            ))
+                        })
+                } else {
+                    tracing::info!("Executing ares_dashboard via Legacy Engine");
+                    let result = ares_repository_intelligence::engines::overview::RepositoryOverviewEngine::collect(&store, &path).await;
+                    serde_json::to_string(&result)
+                        .map(CallToolResult::text)
+                        .map_err(|e| {
+                            tower_mcp::Error::internal(format_mcp_error(
+                                "Failed to serialize dashboard",
+                                &e.to_string(),
+                            ))
+                        })
+                }
             }
         })
         .build();
@@ -443,31 +598,42 @@ async fn main() -> Result<(), BoxError> {
         })
         .build();
 
-    let store_drift = app_state.store.clone();
-    let project_id_str = project_path.clone();
+    let _store_drift = app_state.store.clone();
+    let intelligence_facade_drift = intelligence_facade.clone();
+    let project_id_str_drift = project_path.clone();
     let drift_tool = ToolBuilder::new("ares_drift")
         .description("Evaluates structural drift for a given file")
         .handler(move |input: MemoryQueryInput| {
-            let store = store_drift.clone();
-            let project_id = ares_core::ProjectId::from(project_id_str.clone());
+            let facade = intelligence_facade_drift.clone();
+            let project_id = project_id_str_drift.clone();
             async move {
                 let id = ares_core::canonicalize_node_id(&input.id);
-                let provider =
-                    ares_intelligence::drift::GitMemoryHistoricalProvider::new(store.clone());
-                match ares_intelligence::drift::analyze_drift(&id, &store, &project_id, &provider)
-                    .await
-                {
-                    Ok(report) => serde_json::to_string(&report)
-                        .map(CallToolResult::text)
-                        .map_err(|e| {
-                            tower_mcp::Error::internal(format_mcp_error(
-                                "Failed to serialize drift report",
-                                &e.to_string(),
-                            ))
-                        }),
-                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
-                        "Failed to analyze drift",
-                        &e.to_string(),
+                let query = EngineeringQuery {
+                    entity_id: id.to_string(),
+                    project_id,
+                    query_type: QueryType::Drift,
+                    workspace_root: None,
+                    branch: None,
+                };
+                match facade.execute(&query) {
+                    Ok(insight) => {
+                        let response = serde_json::json!({
+                            "answer": insight.answer,
+                            "confidence": insight.confidence,
+                            "evidence": insight.evidence,
+                            "warnings": insight.warnings,
+                            "recommendations": insight.recommendations,
+                            "summary": insight.summary,
+                            "file_path": &input.id,
+                            "entity": &input.id,
+                            "mode": insight.mode,
+                            "metadata": insight.metadata,
+                        });
+                        Ok(CallToolResult::text(serde_json::to_string(&response).unwrap()))
+                    }
+                    Err(e) => Ok(CallToolResult::text(format!(
+                        "{{\"answer\":\"Error: {}\",\"confidence\":0,\"evidence\":[],\"mode\":\"Offline\"}}",
+                        e
                     ))),
                 }
             }
@@ -520,30 +686,96 @@ async fn main() -> Result<(), BoxError> {
         })
         .build();
 
-    let store_trace = app_state.store.clone();
+    let intelligence_facade_trace = intelligence_facade.clone();
+    let project_id_str_trace = project_path.clone();
     let traceability_tool = ToolBuilder::new("ares_traceability")
         .description("Evaluates traceability relationships upstream and downstream")
         .handler(move |input: TraceabilityInput| {
-            let store = store_trace.clone();
+            let facade = intelligence_facade_trace.clone();
+            let project_id = project_id_str_trace.clone();
             async move {
-                let entity_id = ares_core::canonicalize_node_id(&input.entity_id);
-                match ares_intelligence::traceability::trace(
-                    &entity_id,
-                    input.depth.unwrap_or(3),
-                    &store,
-                )
-                .await
-                {
-                    Ok(report) => serde_json::to_string(&report)
+                let id = ares_core::canonicalize_node_id(&input.entity_id);
+                let query = EngineeringQuery {
+                    entity_id: id.to_string(),
+                    project_id,
+                    query_type: QueryType::Traceability,
+                    workspace_root: None,
+                    branch: None,
+                };
+                match facade.execute(&query) {
+                    Ok(insight) => {
+                        let response = serde_json::json!({
+                            "answer": insight.answer,
+                            "confidence": insight.confidence,
+                            "evidence": insight.evidence,
+                            "warnings": insight.warnings,
+                            "recommendations": insight.recommendations,
+                            "summary": insight.summary,
+                            "file_path": &input.entity_id,
+                            "entity": &input.entity_id,
+                            "mode": insight.mode,
+                            "metadata": insight.metadata,
+                        });
+                        Ok(CallToolResult::text(serde_json::to_string(&response).unwrap()))
+                    }
+                    Err(e) => Ok(CallToolResult::text(format!(
+                        "{{\"answer\":\"Error: {}\",\"confidence\":0,\"evidence\":[],\"mode\":\"Offline\"}}",
+                        e
+                    ))),
+                }
+            }
+        })
+        .build();
+
+    let store_graph = app_state.store.clone();
+    let graph_statistics_tool = ToolBuilder::new("ares_graph_statistics")
+        .description("Retrieves statistics about the knowledge graph")
+        .handler(move |_input: EmptyInput| {
+            let store = store_graph.clone();
+            async move {
+                let result = ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_statistics(&store).await;
+                match result {
+                    Ok(stats) => serde_json::to_string(&stats)
+                        .map(CallToolResult::text)
+                        .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize graph stats", &e.to_string()))),
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to retrieve graph stats", &e.to_string()))),
+                }
+            }
+        })
+        .build();
+
+    let store_graph_root = app_state.store.clone();
+    let graph_root_tool = ToolBuilder::new("ares_graph_root")
+        .description("Retrieves the root node of the graph to start lazy loading")
+        .handler(move |_input: EmptyInput| {
+            let store = store_graph_root.clone();
+            async move {
+                // Determine project_id (e.g. from cwd like CLI)
+                // Since this runs in the workspace, we can use the same logic
+                let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+                let name = cwd
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("project");
+                let _pid = ares_core::ProjectId::from(name);
+
+                let architecture_service =
+                    ares_repository_intelligence::services::ArchitectureService::new(store.clone());
+                match architecture_service.generate_architectural_seed(
+                    &cwd.to_string_lossy(),
+                    name,
+                    60,
+                ) {
+                    Ok(payload) => serde_json::to_string(&payload)
                         .map(CallToolResult::text)
                         .map_err(|e| {
                             tower_mcp::Error::internal(format_mcp_error(
-                                "Failed to serialize traceability report",
+                                "Failed to serialize graph root",
                                 &e.to_string(),
                             ))
                         }),
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
-                        "Failed to trace entity",
+                        "Failed to retrieve graph root",
                         &e.to_string(),
                     ))),
                 }
@@ -551,8 +783,264 @@ async fn main() -> Result<(), BoxError> {
         })
         .build();
 
+    let store_graph_neighbors = app_state.store.clone();
+    let graph_neighbors_tool = ToolBuilder::new("ares_graph_neighbors")
+        .description("Expands a node by fetching its immediate neighbors")
+        .handler(move |input: GraphNeighborsInput| {
+            let store = store_graph_neighbors.clone();
+            async move {
+                let node_id_str = ares_core::canonicalize_node_id(&input.node_id);
+                let node_id = ares_core::NodeId::from(node_id_str);
+                match ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_neighbors(&store, &node_id).await {
+                    Ok(payload) => serde_json::to_string(&payload)
+                        .map(CallToolResult::text)
+                        .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize graph neighbors", &e.to_string()))),
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to retrieve graph neighbors", &e.to_string()))),
+                }
+            }
+        })
+        .build();
+
+    let store_graph_search = app_state.store.clone();
+    let graph_search_tool = ToolBuilder::new("ares_graph_search")
+        .description("Searches the graph for nodes matching the query")
+        .handler(move |input: GraphSearchInput| {
+            let store = store_graph_search.clone();
+            async move {
+                match ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_search(&store, &input.query).await {
+                    Ok(payload) => serde_json::to_string(&payload)
+                        .map(CallToolResult::text)
+                        .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize graph search results", &e.to_string()))),
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to search graph", &e.to_string()))),
+                }
+            }
+        })
+        .build();
+
+    let store_graph_shortest_path = app_state.store.clone();
+    let graph_shortest_path_tool = ToolBuilder::new("ares_graph_shortest_path")
+        .description("Finds the shortest dependency path between two nodes")
+        .handler(move |input: GraphPathInput| {
+            let store = store_graph_shortest_path.clone();
+            async move {
+                let from_id_str = ares_core::canonicalize_node_id(&input.from_id);
+                let to_id_str = ares_core::canonicalize_node_id(&input.to_id);
+                let from_id = ares_core::NodeId::from(from_id_str);
+                let to_id = ares_core::NodeId::from(to_id_str);
+                match ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_shortest_path(&store, &from_id, &to_id).await {
+                    Ok(payload) => serde_json::to_string(&payload)
+                        .map(CallToolResult::text)
+                        .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize shortest path", &e.to_string()))),
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to find shortest path", &e.to_string()))),
+                }
+            }
+        })
+        .build();
+
+    let store_graph_metadata = app_state.store.clone();
+    let graph_metadata_tool = ToolBuilder::new("ares_graph_metadata")
+        .description("Retrieves full metadata for a specific node")
+        .handler(move |input: MemoryQueryInput| {
+            let store = store_graph_metadata.clone();
+            async move {
+                let node_id_str = ares_core::canonicalize_node_id(&input.id);
+                let node_id = ares_core::NodeId::from(node_id_str);
+                match ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_metadata(&store, &node_id).await {
+                    Ok(node) => serde_json::to_string(&node)
+                        .map(CallToolResult::text)
+                        .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize node metadata", &e.to_string()))),
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to retrieve node metadata", &e.to_string()))),
+                }
+            }
+        })
+        .build();
+
+    let we_bookmark = workspace_engine.clone();
+    let workspace_bookmark_tool = ToolBuilder::new("ares_workspace_bookmark")
+        .description("Bookmark a node or query in the workspace")
+        .handler(move |input: BookmarkInput| {
+            let we = we_bookmark.clone();
+            async move {
+                // kind is "Node", "Query", etc.
+                // For direct call, we map bookmark_node or bookmark_query based on kind?
+                // Actually, the WorkspaceEngine allows generic kind via private add_bookmark, but public are bookmark_node / bookmark_query.
+                // Since I didn't make add_bookmark public, let's use match on kind.
+                let res = if input.kind == "Node" {
+                    we.bookmark_node(&input.value, &input.title).await
+                } else {
+                    we.bookmark_query(&input.value, &input.title).await
+                };
+                match res {
+                    Ok(_) => Ok(CallToolResult::text("Bookmarked successfully".to_string())),
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
+                        "Failed to bookmark",
+                        &e.to_string(),
+                    ))),
+                }
+            }
+        })
+        .build();
+
+    let we_pin = workspace_engine.clone();
+    let workspace_pin_tool = ToolBuilder::new("ares_workspace_pin")
+        .description("Pin a node in the workspace")
+        .handler(move |input: PinInput| {
+            let we = we_pin.clone();
+            async move {
+                match we.pin_node(&input.node_id).await {
+                    Ok(_) => Ok(CallToolResult::text("Pinned successfully".to_string())),
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
+                        "Failed to pin",
+                        &e.to_string(),
+                    ))),
+                }
+            }
+        })
+        .build();
+
+    let we_list = workspace_engine.clone();
+    let workspace_list_tool = ToolBuilder::new("ares_workspace_list")
+        .description("List recent questions, bookmarks, and pins")
+        .handler(move |_input: EmptyInput| {
+            let we = we_list.clone();
+            async move {
+                let questions = we.list_recent_questions().await.unwrap_or_default();
+                let bookmarks = we.list_bookmarks().await.unwrap_or_default();
+                let pins = we.list_pinned_nodes().await.unwrap_or_default();
+                let response = serde_json::json!({
+                    "recent_questions": questions,
+                    "bookmarks": bookmarks,
+                    "pins": pins
+                });
+                Ok(CallToolResult::text(
+                    serde_json::to_string(&response).unwrap(),
+                ))
+            }
+        })
+        .build();
+
+    let we_record_nav = workspace_engine.clone();
+    let workspace_record_nav_tool = ToolBuilder::new("ares_workspace_record_navigation")
+        .description("Record a navigation event")
+        .handler(move |input: RecordNavigateInput| {
+            let we = we_record_nav.clone();
+            async move {
+                match we.push_navigation(&input.node_id).await {
+                    Ok(_) => Ok(CallToolResult::text("Recorded successfully".to_string())),
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
+                        "Failed to record navigation",
+                        &e.to_string(),
+                    ))),
+                }
+            }
+        })
+        .build();
+
+    let we_nav = workspace_engine.clone();
+    let workspace_navigate_tool = ToolBuilder::new("ares_workspace_navigate")
+        .description("Navigate back or forward")
+        .handler(move |input: NavigateInput| {
+            let we = we_nav.clone();
+            async move {
+                let res = if input.direction == "back" {
+                    we.navigation_back(input.current_timestamp).await
+                } else {
+                    we.navigation_forward(input.current_timestamp).await
+                };
+                match res {
+                    Ok(Some(nav)) => Ok(CallToolResult::text(serde_json::to_string(&nav).unwrap())),
+                    Ok(None) => Ok(CallToolResult::text("{}".to_string())),
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
+                        "Failed to navigate",
+                        &e.to_string(),
+                    ))),
+                }
+            }
+        })
+        .build();
+
+    let store_chat = app_state.store.clone();
+    let project_path_chat = project_path.clone();
+    let inference_chat = inference_engine.clone();
+    let we_chat = workspace_engine.clone();
+
+    let chat_tool = ToolBuilder::new("ares_chat")
+        .description("Repository Conversation Engine. Ask any question about the codebase.")
+        .handler(move |input: ChatInput| {
+            let store = store_chat.clone();
+            let path = project_path_chat.clone();
+            let inference = inference_chat.clone();
+            let we = we_chat.clone();
+            
+            async move {
+                let mut registry = ares_repository_intelligence::planner::registry::EngineRegistry::new();
+                registry.register(
+                    ares_repository_intelligence::core::engine::EngineId::Overview,
+                    vec![ares_repository_intelligence::core::capabilities::Capability::Workspace],
+                    Box::new(ares_repository_intelligence::engines::overview::RepositoryOverviewEngine::new(store.clone()))
+                );
+                
+                let planner = ares_repository_intelligence::planner::pipeline::ExecutionPlanner::new(&registry);
+                let conversation = ares_repository_intelligence::engines::conversation::ConversationEngine::new(&planner, inference);
+                
+                let mut context = ares_repository_intelligence::core::context::RepositoryContext {
+                    repository: ares_repository_intelligence::core::context::RepositoryInfo {
+                        root_path: path.clone(),
+                        name: "project".to_string(),
+                    },
+                    snapshot: ares_repository_intelligence::core::context::RepositorySnapshot::default(),
+                    workspace: ares_repository_intelligence::core::context::WorkspaceContext {
+                        workspace_id: ares_core::id::new_id(),
+                    },
+                    execution: ares_repository_intelligence::core::context::ExecutionContext {
+                        execution_id: ares_core::id::new_id(),
+                        started_at: 0,
+                        requested_by: "mcp".to_string(),
+                        entry_point: ares_repository_intelligence::core::context::EntryPoint::API,
+                        execution_mode: ares_repository_intelligence::core::context::ExecutionMode::Direct,
+                        streaming: false,
+                        debug: false,
+                    },
+                    policy: ares_repository_intelligence::core::context::ExecutionPolicy::default(),
+                    request: ares_repository_intelligence::core::context::RequestContext {
+                        query: "".to_string(),
+                        parameters: std::collections::HashMap::new(),
+                    },
+                };
+                
+                match conversation.ask(&input.query, &mut context).await {
+                    Ok(resp) => {
+                        // Record recent question
+                        let _ = we.add_recent_question(ares_repository_intelligence::engines::workspace::RecentQuestion {
+                            id: ares_core::id::new_id(),
+                            question: input.query.clone(),
+                            repository_id: "project".to_string(),
+                            execution_id: resp.response.execution_id.clone(),
+                            replay_id: resp.response.replay_id.clone().unwrap_or_default(),
+                            timestamp: chrono::Utc::now().timestamp_millis(),
+                        }).await;
+
+                        let output = serde_json::json!({
+                            "answer": resp.answer,
+                            "actions": resp.actions,
+                            "citations": resp.response.citations,
+                        });
+                        Ok(CallToolResult::text(serde_json::to_string(&output).unwrap()))
+                    },
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed chat", &e.to_string()))),
+                }
+            }
+        })
+        .build();
+
     let router = McpRouter::new()
         .server_info("ares-mcp", env!("CARGO_PKG_VERSION"))
+        .tool(chat_tool)
+        .tool(workspace_bookmark_tool)
+        .tool(workspace_pin_tool)
+        .tool(workspace_list_tool)
+        .tool(workspace_navigate_tool)
+        .tool(workspace_record_nav_tool)
         .tool(why_tool)
         .tool(who_tool)
         .tool(evolution_tool)
@@ -565,19 +1053,29 @@ async fn main() -> Result<(), BoxError> {
         .tool(gaps_tool)
         .tool(simulate_tool)
         .tool(traceability_tool)
+        .tool(graph_statistics_tool)
+        .tool(graph_root_tool)
+        .tool(graph_neighbors_tool)
+        .tool(graph_search_tool)
+        .tool(graph_shortest_path_tool)
+        .tool(graph_metadata_tool)
         .resource(cert_resource)
         .resource_template(context_resource)
         .resource_template(summary_resource);
 
-    writeln!(file, "Router built successfully. Starting StdioTransport...").unwrap();
-    
+    writeln!(
+        file,
+        "Router built successfully. Starting StdioTransport..."
+    )
+    .unwrap();
+
     info!("ARES MCP Server started on stdio");
 
     match StdioTransport::new(router).run().await {
         Ok(_) => {
             writeln!(file, "StdioTransport run finished successfully.").unwrap();
             Ok(())
-        },
+        }
         Err(e) => {
             writeln!(file, "StdioTransport run failed: {:?}", e).unwrap();
             Err(Box::<dyn std::error::Error + Send + Sync>::from(e))

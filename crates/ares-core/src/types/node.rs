@@ -104,7 +104,7 @@ impl std::str::FromStr for NodeType {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "project" => Ok(Self::Project),
+            "project" | "repository" => Ok(Self::Project),
             "file" => Ok(Self::File),
             "function" => Ok(Self::Function),
             "method" => Ok(Self::Method),

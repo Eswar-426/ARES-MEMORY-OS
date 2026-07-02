@@ -25,9 +25,9 @@ impl PromptAssembler {
         mut ast: AstContext,
         mut neighbors: NeighborContext,
         mut git: GitContext,
-        mut ownership: OwnershipContext,
-        mut architecture: ArchitectureContext,
-        mut requirements: RequirementContext,
+        ownership: OwnershipContext,
+        architecture: ArchitectureContext,
+        requirements: RequirementContext,
         mut decisions: DecisionContext,
     ) -> ContextPackage {
         // 1. Stable sorting

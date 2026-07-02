@@ -29,8 +29,12 @@ impl ValidationRunner {
         let mut enforcement = None;
         let mut certification_level = ares_governance::models::CertificationLevel::None;
 
-        // Determine project ID. For now assume "TEST" or get from somewhere if we have multiple
-        let project_id = ares_core::ProjectId::from("TEST");
+        let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        let name = cwd
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("project");
+        let project_id = ares_core::ProjectId::from(name);
 
         // Use GovernanceFacade directly.
         // The project path is ideally injected, but we will assume current_dir for the CLI scenario.

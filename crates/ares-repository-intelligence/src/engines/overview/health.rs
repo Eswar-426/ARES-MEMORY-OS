@@ -21,14 +21,18 @@ impl HealthRule for GraphIntegrityRule {
                 score_delta: -15,
                 severity: "Critical".to_string(),
                 title: "Foreign Key Violations".to_string(),
-                description: "The graph contains edges with missing source or target nodes.".to_string(),
+                description: "The graph contains edges with missing source or target nodes."
+                    .to_string(),
             }
         } else if dash.integrity.missing_sources > 0 || dash.integrity.missing_targets > 0 {
             HealthContribution {
                 score_delta: -10,
                 severity: "Warning".to_string(),
                 title: "Missing References".to_string(),
-                description: format!("Found {} missing sources and {} missing targets.", dash.integrity.missing_sources, dash.integrity.missing_targets),
+                description: format!(
+                    "Found {} missing sources and {} missing targets.",
+                    dash.integrity.missing_sources, dash.integrity.missing_targets
+                ),
             }
         } else {
             HealthContribution {
@@ -70,7 +74,10 @@ impl HealthRule for OrphanRule {
                 score_delta: -((dash.integrity.orphans / 10) as i32).min(10),
                 severity: "Warning".to_string(),
                 title: "High Orphan Count".to_string(),
-                description: format!("Found {} unconnected nodes in the graph.", dash.integrity.orphans),
+                description: format!(
+                    "Found {} unconnected nodes in the graph.",
+                    dash.integrity.orphans
+                ),
             }
         } else {
             HealthContribution {

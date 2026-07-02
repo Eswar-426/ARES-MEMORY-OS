@@ -75,6 +75,38 @@ export class AresQueryPanel {
     private constructor(panel: vscode.WebviewPanel) {
         this.panel = panel;
         this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
+
+        // Handle messages from the webview
+        this.panel.webview.onDidReceiveMessage(
+            message => {
+                switch (message.command) {
+                    case 'executeCommand':
+                        if (message.args && message.args.length > 0) {
+                            vscode.commands.executeCommand(message.args[0], ...message.args.slice(1));
+                        }
+                        return;
+                    case 'openFile':
+                        if (message.path) {
+                            vscode.workspace.openTextDocument(message.path).then(doc => {
+                                vscode.window.showTextDocument(doc).then(editor => {
+                                    if (message.line !== undefined) {
+                                        const line = Math.max(0, message.line - 1);
+                                        const char = message.column !== undefined ? Math.max(0, message.column - 1) : 0;
+                                        const pos = new vscode.Position(line, char);
+                                        editor.selection = new vscode.Selection(pos, pos);
+                                        editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+                                    }
+                                });
+                            }, err => {
+                                vscode.window.showErrorMessage(`Could not open file: ${err.message}`);
+                            });
+                        }
+                        return;
+                }
+            },
+            null,
+            this.disposables
+        );
     }
 
     private dispose(): void {
@@ -95,21 +127,32 @@ export class AresQueryPanel {
     /** Show loading spinner immediately, then post data or error later. */
     public static showLoading(context: vscode.ExtensionContext): AresQueryPanel {
         const inst = AresQueryPanel.ensurePanel(context);
-        inst.postMessage({ type: 'loading' });
+        inst.panel.webview.html = AresQueryPanel.getHtml();
+        setTimeout(() => {
+            inst.postMessage({ type: 'loading' });
+        }, 150);
         return inst;
     }
 
     /** Show a successful response. */
     public static show(context: vscode.ExtensionContext, data: AresResponse): AresQueryPanel {
         const inst = AresQueryPanel.ensurePanel(context);
-        inst.postMessage({ type: 'update', data });
+        // Force fresh HTML to break VS Code's webview restore cache,
+        // then delay postMessage until the new JS has loaded its listener.
+        inst.panel.webview.html = AresQueryPanel.getHtml();
+        setTimeout(() => {
+            inst.postMessage({ type: 'update', data });
+        }, 150);
         return inst;
     }
 
     /** Show a user-friendly error inside the panel. */
     public static showError(context: vscode.ExtensionContext, error: AresError): AresQueryPanel {
         const inst = AresQueryPanel.ensurePanel(context);
-        inst.postMessage({ type: 'error', error });
+        inst.panel.webview.html = AresQueryPanel.getHtml();
+        setTimeout(() => {
+            inst.postMessage({ type: 'error', error });
+        }, 150);
         return inst;
     }
 
@@ -259,6 +302,20 @@ body{
 .confidence-pct.medium{color:#d29922}
 .confidence-pct.low{color:#da3633}
 
+.confidence-reasons {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.confidence-reason {
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    padding: 1px 0;
+    line-height: 1.4;
+}
+
 /* ===== Evidence ===== */
 .evidence-item{
     padding:10px 0;
@@ -350,7 +407,83 @@ body{
 
 /* ===== Utility ===== */
 .hidden{display:none!important}
+
+/* ─── Insight Cards 2×2 ─── */
+.dash-cards-grid{
+    display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px;
+}
+.dash-insight-card{
+    padding:16px;border-radius:10px;
+    background:color-mix(in srgb,var(--vscode-editor-foreground) 3%,transparent);
+    border:1px solid var(--vscode-panel-border);
+    transition:border-color .15s;
+}
+.dash-insight-card:hover{border-color:color-mix(in srgb,var(--vscode-button-background) 50%,transparent)}
+.dash-card-title{
+    font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;
+    color:var(--vscode-descriptionForeground);margin-bottom:12px;
+    display:flex;align-items:center;gap:6px;
+}
+.dash-card-title-icon{font-size:14px}
+.dash-card-rows{display:flex;flex-direction:column;gap:6px}
+.dash-card-row{
+    display:flex;justify-content:space-between;align-items:baseline;
+    font-size:12px;
+}
+.dash-card-label{color:var(--vscode-descriptionForeground)}
+.dash-card-value{font-weight:600;font-size:13px;color:var(--vscode-editor-foreground)}
+.dash-card-value-accent{font-weight:700;font-size:16px;color:var(--vscode-button-background)}
+.dash-card-value-warn{font-weight:600;color:#d29922}
+.dash-card-value-ok{font-weight:600;color:#2ea043}
+.dash-card-value-muted{color:var(--vscode-descriptionForeground)}
+
+/* ─── Section Title ─── */
+.dash-section-title{
+    font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;
+    color:var(--vscode-descriptionForeground);margin-bottom:12px;
+}
+
+/* ─── Descriptive Action Cards ─── */
+.dash-actions-grid{
+    display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px;
+}
+.dash-action-card{
+    display:flex;align-items:flex-start;gap:12px;
+    padding:14px 16px;border-radius:10px;cursor:pointer;text-align:left;
+    background:color-mix(in srgb,var(--vscode-button-background) 6%,transparent);
+    border:1px solid color-mix(in srgb,var(--vscode-button-background) 15%,transparent);
+    color:var(--vscode-editor-foreground);
+    transition:all .2s ease;
+}
+.dash-action-card:hover{
+    background:color-mix(in srgb,var(--vscode-button-background) 15%,transparent);
+    border-color:var(--vscode-button-background);
+    transform:translateY(-1px);
+    box-shadow:0 2px 8px rgba(0,0,0,.15);
+}
+.dash-action-icon{font-size:24px;flex-shrink:0;margin-top:1px}
+.dash-action-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.dash-action-label{font-size:13px;font-weight:600;line-height:1.3}
+.dash-action-desc{font-size:11px;color:var(--vscode-descriptionForeground);line-height:1.4}
+
+.dash-header{
+    display:flex;align-items:center;gap:16px;
+    padding:20px 0;margin-bottom:20px;
+    border-bottom:1px solid var(--vscode-panel-border);
+}
+.dash-header-icon{font-size:36px}
+.dash-repo-name{font-size:20px;font-weight:700;letter-spacing:-.4px}
+.dash-repo-status{display:flex;gap:8px;margin-top:4px}
+.dash-badge{
+    font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;
+    padding:2px 8px;border-radius:4px;
+    background:color-mix(in srgb,var(--vscode-editor-foreground) 8%,transparent);
+    color:var(--vscode-descriptionForeground);
+}
+.dash-badge-ok{background:color-mix(in srgb,#2ea043 15%,transparent);color:#2ea043}
+.dash-badge-warn{background:color-mix(in srgb,#d29922 15%,transparent);color:#d29922}
 </style>
+
 </head>
 <body>
 
@@ -401,7 +534,7 @@ body{
         <!-- Confidence -->
         <div class="section animate-slide" style="animation-delay:.1s">
             <div class="section-header">Confidence</div>
-            <div class="section-body">
+            <div id="confidenceSection" class="section-body">
                 <div class="confidence-row">
                     <div id="confidenceLabel" class="confidence-label"></div>
                     <div class="confidence-bar-track">
@@ -444,7 +577,7 @@ body{
 
         <!-- Dashboard -->
         <div id="dashboardSection" class="section animate-slide hidden" style="animation-delay:.40s">
-            <div class="section-header">Project Health Dashboard</div>
+            
             <div id="dashboardList" class="section-body"></div>
         </div>
     </div>
@@ -482,6 +615,7 @@ body{
         confidenceLabel:  document.getElementById('confidenceLabel'),
         confidenceBar:    document.getElementById('confidenceBar'),
         confidencePct:    document.getElementById('confidencePct'),
+        confidenceSection: document.getElementById('confidenceSection'),
         evidenceSection:  document.getElementById('evidenceSection'),
         evidenceHeader:   document.getElementById('evidenceHeader'),
         evidenceList:     document.getElementById('evidenceList'),
@@ -548,21 +682,45 @@ body{
 
     function renderAnswer(data) {
         dom.answer.textContent = data.answer;
-    }
 
-    function renderConfidence(data) {
-        var pct = Math.round((data.confidence || 0) * 100);
-        var level = confidenceLevel(data.confidence || 0);
+        // Confidence bar fix — set directly since renderConfidence may have stale DOM refs
+        var raw = data.confidence;
+        var score = 0;
+        if (typeof raw === 'number') { score = raw; }
+        else if (typeof raw === 'string') { score = parseFloat(raw) || 0; }
+        else if (raw && typeof raw === 'object') { score = parseFloat(raw.score) || 0; }
+        var pct = Math.min(100, Math.max(0, Math.round(score)));
 
-        dom.confidenceLabel.textContent = confidenceText(data.confidence || 0);
+        var level = pct <= 33 ? 'low' : pct <= 66 ? 'medium' : 'high';
+        var levelText = pct <= 33 ? 'Low' : pct <= 66 ? 'Medium' : 'High';
+
+        dom.confidenceLabel.textContent = levelText;
         dom.confidenceLabel.className = 'confidence-label ' + level;
-
         dom.confidenceBar.className = 'confidence-bar-fill ' + level;
         dom.confidenceBar.style.width = pct + '%';
-
         dom.confidencePct.textContent = pct + '%';
         dom.confidencePct.className = 'confidence-pct ' + level;
+
+        // Reasons checklist
+        var reasons = (raw && typeof raw === 'object' && Array.isArray(raw.reasons)) ? raw.reasons : [];
+        var rc = document.getElementById('confidenceSection');
+        if (rc) {
+            var existing = rc.querySelector('.confidence-reasons');
+            if (existing) existing.remove();
+            if (reasons.length > 0) {
+                var div = document.createElement('div');
+                div.className = 'confidence-reasons';
+                for (var i = 0; i < reasons.length; i++) {
+                    var item = document.createElement('div');
+                    item.className = 'confidence-reason';
+                    item.textContent = '✓ ' + reasons[i];
+                    div.appendChild(item);
+                }
+                rc.appendChild(div);
+            }
+        }
     }
+
 
     function renderEvidence(data) {
         dom.evidenceList.innerHTML = '';
@@ -577,31 +735,32 @@ body{
             var item = document.createElement('div');
             item.className = 'evidence-item';
 
+            // New schema: ev.category + ev.value
+            // Fallback: ev.source + ev.detail (backward compat)
+            var category = ev.category || ev.source || 'unknown';
+            var value = ev.value || ev.detail || '';
+
             var src = document.createElement('a');
             src.className = 'evidence-source';
-            src.textContent = ev.source;
-            src.title = 'Open ' + ev.source;
-            src.addEventListener('click', function () {
-                vscode.postMessage({
-                    command: 'openFile',
-                    path: ev.source,
-                    line: ev.line,
-                    column: ev.column,
+            src.textContent = category;
+            src.title = category + ': ' + value;
+            // Only make clickable if it looks like a file path
+            if (category.indexOf('/') !== -1 || category.indexOf('.') !== -1) {
+                src.addEventListener('click', function () {
+                    vscode.postMessage({
+                        command: 'openFile',
+                        path: category,
+                    });
                 });
-            });
+            }
             item.appendChild(src);
 
-            if (typeof ev.line === 'number') {
-                var hint = document.createElement('span');
-                hint.className = 'evidence-line-hint';
-                hint.textContent = ':' + ev.line + (typeof ev.column === 'number' ? ':' + ev.column : '');
-                item.appendChild(hint);
+            if (value && value !== category) {
+                var detail = document.createElement('div');
+                detail.className = 'evidence-detail';
+                detail.textContent = value;
+                item.appendChild(detail);
             }
-
-            var detail = document.createElement('div');
-            detail.className = 'evidence-detail';
-            detail.textContent = ev.detail;
-            item.appendChild(detail);
 
             dom.evidenceList.appendChild(item);
         });
@@ -645,7 +804,8 @@ body{
 
     function renderDrift(data) {
         dom.driftList.innerHTML = '';
-        if (data.has_drift === undefined && !data.summary) {
+        // Only render drift section for actual drift queries
+        if (!data.metadata || data.metadata.generator !== "DriftGenerator") {
             dom.driftSection.classList.add('hidden');
             return;
         }
@@ -875,290 +1035,117 @@ body{
     }
 
     function renderDashboard(data) {
-        dom.dashboardList.innerHTML = '';
         if (!data.dashboard) {
             dom.dashboardSection.classList.add('hidden');
             return;
         }
-        dom.dashboardSection.classList.remove('hidden');
 
         var dash = data.dashboard;
+        var repo = dash.repository || {};
+        var graph = dash.graph || dash.knowledge_graph || {};
+        var integrity = dash.integrity || {};
 
-        // Container
-        var container = document.createElement('div');
-        container.style.display = 'flex';
-        container.style.flexDirection = 'column';
-        container.style.gap = '20px';
+        dom.dashboardSection.classList.remove('hidden');
+        dom.dashboardList.innerHTML = '';
 
-        // 1. Quick Actions
-        var quickActions = document.createElement('div');
-        quickActions.style.display = 'flex';
-        quickActions.style.gap = '8px';
-        quickActions.style.flexWrap = 'wrap';
-        quickActions.style.marginBottom = '4px';
-
-        const actions = [
-            { label: 'Ingest', cmd: 'ares.ingest' },
-            { label: 'Doctor', cmd: 'ares.doctor' },
-            { label: 'Benchmark', cmd: 'ares.benchmark' },
-            { label: 'Why Exists', cmd: 'ares.whyExists' },
-            { label: 'Impact', cmd: 'ares.impactAnalysis' },
-            { label: 'Traceability', cmd: 'ares.traceabilityAnalysis' }
-        ];
-
-        actions.forEach(action => {
-            var btn = document.createElement('button');
-            btn.textContent = action.label;
-            btn.className = 'empty-command';
-            btn.style.margin = '0';
-            btn.style.cursor = 'pointer';
-            btn.addEventListener('click', function() {
-                vscode.postMessage({ command: 'executeCommand', args: [action.cmd] });
-            });
-            quickActions.appendChild(btn);
-        });
-        container.appendChild(quickActions);
-
-        // 1. Health Banner
-        var healthScore = dash.health ? dash.health.score : 0;
-        var healthColor = healthScore > 90 ? '#89d185' : (healthScore > 70 ? '#d29922' : '#f48771');
-        var healthStatus = dash.health ? dash.health.status : 'Unknown';
-        var banner = document.createElement('div');
-        banner.className = 'decision-card';
-        banner.style.display = 'flex';
-        banner.style.alignItems = 'center';
-        banner.style.justifyContent = 'space-between';
-        banner.style.background = 'color-mix(in srgb, var(--vscode-editor-foreground) 4%, transparent)';
-        banner.style.borderLeft = '4px solid ' + healthColor;
-        
-        var refreshingHtml = dash.refreshing ? '<span style="font-size: 11px; margin-left: 10px; color: var(--vscode-descriptionForeground); font-weight: normal; animation: pulse 1.5s infinite;">↻ Refreshing...</span>' : '';
-        banner.innerHTML = '<div style="font-size: 16px; font-weight: 600;">Repository Health' + refreshingHtml + '</div><div style="font-size: 24px; font-weight: 700; color: ' + healthColor + '">' + healthScore + '/100 (' + healthStatus + ')</div>';
-        container.appendChild(banner);
-
-        // Helper to create a section card
-        function createSectionCard(title, command) {
-            var card = document.createElement('div');
-            card.className = 'decision-card';
-            card.style.cursor = 'pointer';
-            card.addEventListener('click', function() {
-                vscode.postMessage({ command: 'executeCommand', args: [command] });
-            });
-            card.addEventListener('mouseover', function() { card.style.borderColor = 'var(--vscode-button-background)'; });
-            card.addEventListener('mouseout', function() { card.style.borderColor = 'var(--vscode-panel-border)'; });
-
-            var header = document.createElement('div');
-            header.className = 'section-header';
-            header.style.marginBottom = '12px';
-            header.style.border = 'none';
-            header.style.padding = '0';
-            header.style.background = 'transparent';
-            header.textContent = title;
-            card.appendChild(header);
-
-            var grid = document.createElement('div');
-            grid.style.display = 'grid';
-            grid.style.gridTemplateColumns = '1fr 1fr';
-            grid.style.gap = '12px';
-            card.appendChild(grid);
-
-            return { card, grid };
-        }
-
-        function addMetricRow(grid, label, value, color) {
-            var row = document.createElement('div');
-            row.style.display = 'flex';
-            row.style.justifyContent = 'space-between';
-            row.style.fontSize = '12px';
-            
-            var lbl = document.createElement('span');
-            lbl.style.color = 'var(--vscode-descriptionForeground)';
-            lbl.textContent = label;
-            
-            var val = document.createElement('span');
-            val.style.fontWeight = '600';
-            val.style.color = color || 'var(--vscode-editor-foreground)';
-            val.textContent = value;
-
-            row.appendChild(lbl);
-            row.appendChild(val);
-            grid.appendChild(row);
-        }
-
-        // 2. Repository
-        if (dash.repository) {
-            var repoCard = createSectionCard('Repository', 'ares.doctor');
-            addMetricRow(repoCard.grid, 'Name', dash.repository.name);
-            addMetricRow(repoCard.grid, 'Language', dash.repository.language);
-            addMetricRow(repoCard.grid, 'Branch', dash.repository.branch);
-            addMetricRow(repoCard.grid, 'Commit', dash.repository.commit);
-            addMetricRow(repoCard.grid, 'Indexed', dash.repository.indexed ? '✓' : '✗', dash.repository.indexed ? '#89d185' : '#f48771');
-            addMetricRow(repoCard.grid, 'Last Ingest', dash.repository.last_ingest);
-            addMetricRow(repoCard.grid, 'Dirty', dash.repository.is_dirty ? 'Yes' : 'No', dash.repository.is_dirty ? '#f48771' : 'var(--vscode-editor-foreground)');
-            addMetricRow(repoCard.grid, 'Files', dash.repository.files);
-            addMetricRow(repoCard.grid, 'Functions', dash.repository.functions);
-            addMetricRow(repoCard.grid, 'Modules', dash.repository.modules);
-            container.appendChild(repoCard.card);
-        }
-
-        // 3. Knowledge Graph
-        if (dash.graph) {
-            var graphCard = createSectionCard('Knowledge Graph', 'ares.benchmark');
-            addMetricRow(graphCard.grid, 'Nodes', dash.graph.nodes);
-            addMetricRow(graphCard.grid, 'Edges', dash.graph.edges);
-            addMetricRow(graphCard.grid, 'Depth', dash.graph.depth);
-            addMetricRow(graphCard.grid, 'Average Degree', dash.graph.average_degree ? dash.graph.average_degree.toFixed(2) : '0');
-            container.appendChild(graphCard.card);
-        }
-
-        // 4. Intelligence
-        if (dash.intelligence) {
-            var intelCard = createSectionCard('Intelligence', 'ares.whyExists');
-            
-            function getStatusColor(status) {
-                if (!status) return '#d29922';
-                let s = status.toUpperCase();
-                if (s.includes('READY')) return '#89d185';
-                if (s.includes('NOT AVAILABLE') || s.includes('NONE')) return '#f48771';
-                return '#d29922';
+        // Hide other generic sections
+        document.querySelectorAll('#resultContent > .section').forEach(function(el) {
+            if (el !== dom.dashboardSection) {
+                el.classList.add('hidden');
             }
-            
-            addMetricRow(intelCard.grid, 'Why Exists', dash.intelligence.why_exists_status, getStatusColor(dash.intelligence.why_exists_status));
-            addMetricRow(intelCard.grid, 'Graph', dash.intelligence.graph_status, getStatusColor(dash.intelligence.graph_status));
-            addMetricRow(intelCard.grid, 'Git Memory', dash.intelligence.git_memory_status, getStatusColor(dash.intelligence.git_memory_status));
-            addMetricRow(intelCard.grid, 'Ownership', dash.intelligence.ownership_status, getStatusColor(dash.intelligence.ownership_status));
-            addMetricRow(intelCard.grid, 'Requirements', dash.intelligence.requirements_status, getStatusColor(dash.intelligence.requirements_status));
-            addMetricRow(intelCard.grid, 'Governance', dash.intelligence.governance_status, getStatusColor(dash.intelligence.governance_status));
-            addMetricRow(intelCard.grid, 'Impact', dash.intelligence.impact_status, getStatusColor(dash.intelligence.impact_status));
-            addMetricRow(intelCard.grid, 'Traceability', dash.intelligence.traceability_status, getStatusColor(dash.intelligence.traceability_status));
-            addMetricRow(intelCard.grid, 'Simulation', dash.intelligence.simulation_status, getStatusColor(dash.intelligence.simulation_status));
-            addMetricRow(intelCard.grid, 'Drift', dash.intelligence.drift_status, getStatusColor(dash.intelligence.drift_status));
-            container.appendChild(intelCard.card);
-        }
+        });
 
-        // 5. Integrity
-        if (dash.integrity) {
-            var intCard = createSectionCard('Graph Integrity', 'ares.doctor');
-            var fkColor = dash.integrity.foreign_keys_passed ? '#89d185' : '#f48771';
-            addMetricRow(intCard.grid, 'Foreign Keys', dash.integrity.foreign_keys_passed ? 'PASS' : 'FAIL', fkColor);
-            addMetricRow(intCard.grid, 'Missing Targets', dash.integrity.missing_targets, dash.integrity.missing_targets > 0 ? '#f48771' : '#89d185');
-            addMetricRow(intCard.grid, 'Missing Sources', dash.integrity.missing_sources, dash.integrity.missing_sources > 0 ? '#f48771' : '#89d185');
-            addMetricRow(intCard.grid, 'Orphans', dash.integrity.orphans, dash.integrity.orphans > 0 ? '#d29922' : '#89d185');
-            addMetricRow(intCard.grid, 'Cycles', dash.integrity.cycles, dash.integrity.cycles > 0 ? '#f48771' : '#89d185');
-            container.appendChild(intCard.card);
-        }
+        var html = '';
 
-        // 6. Coverage
-        if (dash.coverage) {
-            var covCard = createSectionCard('Coverage', 'ares.coverageAnalysis');
-            addMetricRow(covCard.grid, 'Git History', dash.coverage.git_history_enabled ? '✓' : '✗', dash.coverage.git_history_enabled ? '#89d185' : '#f48771');
-            addMetricRow(covCard.grid, 'Ownership', dash.coverage.ownership_enabled ? 'Enabled' : 'Disabled', dash.coverage.ownership_enabled ? '#89d185' : '#d29922');
-            addMetricRow(covCard.grid, 'Requirements', dash.coverage.requirements);
-            addMetricRow(covCard.grid, 'ADRs', dash.coverage.adrs);
-            addMetricRow(covCard.grid, 'Decisions', dash.coverage.decisions);
-            addMetricRow(covCard.grid, 'Architecture Docs', dash.coverage.architecture_docs);
-            container.appendChild(covCard.card);
+        // ─── Repository Header ───────────────────────────────
+        html += '<div class="dash-header">';
+        html += '<div class="dash-header-icon">📦</div>';
+        html += '<div class="dash-header-info">';
+        html += '<div class="dash-repo-name">' + (repo.name || 'Repository') + '</div>';
+        html += '<div class="dash-repo-status">';
+        if (repo.indexed) {
+            html += '<span class="dash-badge dash-badge-ok">Indexed ✓</span>';
+        } else {
+            html += '<span class="dash-badge dash-badge-warn">Not Indexed</span>';
         }
-
-        // 7. Performance
-        if (dash.performance) {
-            var perfCard = createSectionCard('Performance', 'ares.benchmark');
-            addMetricRow(perfCard.grid, 'Scanner', dash.performance.scanner_ms + ' ms');
-            addMetricRow(perfCard.grid, 'AST Parsing', dash.performance.ast_parsing_ms + ' ms');
-            addMetricRow(perfCard.grid, 'Git Memory', dash.performance.git_memory_ms + ' ms');
-            addMetricRow(perfCard.grid, 'Knowledge Graph', dash.performance.knowledge_graph_ms + ' ms');
-            addMetricRow(perfCard.grid, 'Persistence', dash.performance.persistence_ms + ' ms');
-            addMetricRow(perfCard.grid, 'Total Ingest Time', dash.performance.total_time_ms + ' ms');
-            container.appendChild(perfCard.card);
+        if (repo.commit) {
+            html += '<span class="dash-badge">' + repo.commit.substring(0, 7) + '</span>';
         }
+        html += '</div></div></div>';
 
-        // 8. Activity
-        if (dash.activity && dash.activity.length > 0) {
-            var actCard = createSectionCard('Recent Activity', 'ares.ingest');
-            dash.activity.forEach(function(evt) {
-                addMetricRow(actCard.grid, '✔ ' + evt.message, evt.relative_time, '#89d185');
+        // ─── 4 Insight Cards (2×2) ──────────────────────────
+        html += '<div class="dash-cards-grid">';
+
+        html += '<div class="dash-insight-card">';
+        html += '<div class="dash-card-title"><span class="dash-card-title-icon">📂</span> Repository</div>';
+        html += '<div class="dash-card-rows">';
+        html += '<div class="dash-card-row"><span class="dash-card-label">Files</span><span class="dash-card-value">' + (repo.files || 0) + '</span></div>';
+        html += '<div class="dash-card-row"><span class="dash-card-label">Modules</span><span class="dash-card-value">' + (graph.modules || repo.modules || 0) + '</span></div>';
+        html += '<div class="dash-card-row"><span class="dash-card-label">Nodes</span><span class="dash-card-value-accent">' + (graph.nodes || 0) + '</span></div>';
+        html += '</div></div>';
+
+        html += '<div class="dash-insight-card">';
+        html += '<div class="dash-card-title"><span class="dash-card-title-icon">🔗</span> Graph</div>';
+        html += '<div class="dash-card-rows">';
+        html += '<div class="dash-card-row"><span class="dash-card-label">Edges</span><span class="dash-card-value">' + (graph.edges || 0) + '</span></div>';
+        html += '<div class="dash-card-row"><span class="dash-card-label">Orphans</span><span class="' + ((integrity.orphan_nodes || 0) > 10 ? 'dash-card-value-warn' : 'dash-card-value') + '">' + (integrity.orphan_nodes || 0) + '</span></div>';
+        var connectivity = (graph.nodes > 0 && graph.edges > 0) ? Math.min(100, Math.round((1 - (integrity.orphan_nodes || 0) / graph.nodes) * 100)) : 0;
+        html += '<div class="dash-card-row"><span class="dash-card-label">Connected</span><span class="' + (connectivity > 90 ? 'dash-card-value-ok' : 'dash-card-value') + '">' + connectivity + '%</span></div>';
+        html += '</div></div>';
+
+        html += '<div class="dash-insight-card">';
+        html += '<div class="dash-card-title"><span class="dash-card-title-icon">⏱️</span> Activity</div>';
+        html += '<div class="dash-card-rows">';
+        var lastIngest = repo.last_ingest || repo.updated_at;
+        html += '<div class="dash-card-row"><span class="dash-card-label">Last ingest</span><span class="dash-card-value-muted">' + (lastIngest ? 'Just now' : '—') + '</span></div>';
+        var lastQuery = (data.recent_queries && data.recent_queries.length > 0) ? data.recent_queries[0] : null;
+        html += '<div class="dash-card-row"><span class="dash-card-label">Last query</span><span class="dash-card-value-muted">' + (lastQuery ? 'Recently' : '—') + '</span></div>';
+        html += '<div class="dash-card-row"><span class="dash-card-label">Queries</span><span class="dash-card-value">' + (data.recent_queries ? data.recent_queries.length : 0) + '</span></div>';
+        html += '</div></div>';
+
+        html += '<div class="dash-insight-card">';
+        html += '<div class="dash-card-title"><span class="dash-card-title-icon">💡</span> Insights</div>';
+        html += '<div class="dash-card-rows">';
+        var typeCount = Object.keys(graph.types || {}).length;
+        html += '<div class="dash-card-row"><span class="dash-card-label">Node types</span><span class="dash-card-value">' + typeCount + '</span></div>';
+        html += '<div class="dash-card-row"><span class="dash-card-label">Avg degree</span><span class="dash-card-value">' + (graph.nodes > 0 ? ((graph.edges || 0) * 2 / graph.nodes).toFixed(1) : '0') + '</span></div>';
+        html += '<div class="dash-card-row"><span class="dash-card-label">Density</span><span class="dash-card-value-muted">' + (graph.nodes > 1 ? ((graph.edges || 0) / (graph.nodes * (graph.nodes - 1) / 2) * 100).toFixed(2) + '%' : '—') + '</span></div>';
+        html += '</div></div>';
+
+        html += '</div>';
+
+        // ─── Quick Actions (descriptive cards) ──────────────
+        html += '<div class="dash-section-title">Quick Actions</div>';
+        html += '<div class="dash-actions-grid">';
+        var actions = [
+            { icon: '🌐', label: 'Graph Explorer', desc: 'Visualize repository architecture.', cmd: 'ares.graphExplorer' },
+            { icon: '🧠', label: 'Why Exists', desc: 'Ask why any file or module exists.', cmd: 'ares.whyExists' },
+            { icon: '🧬', label: 'Impact Analysis', desc: 'See what breaks if something changes.', cmd: 'ares.impactAnalysis' },
+            { icon: '📐', label: 'Traceability', desc: 'Trace connections across the codebase.', cmd: 'ares.traceabilityAnalysis' },
+            { icon: '📊', label: 'Drift Analysis', desc: 'Detect code that drifted from intent.', cmd: 'ares.driftAnalysis' },
+            { icon: '🔄', label: 'Ingest / Refresh', desc: 'Re-index repository into memory.', cmd: 'ares.ingest' },
+        ];
+        for (var j = 0; j < actions.length; j++) {
+            var a = actions[j];
+            html += '<button class="dash-action-card" data-cmd="' + a.cmd + '">';
+            html += '<span class="dash-action-icon">' + a.icon + '</span>';
+            html += '<span class="dash-action-text">';
+            html += '<span class="dash-action-label">' + a.label + '</span>';
+            html += '<span class="dash-action-desc">' + a.desc + '</span>';
+            html += '</span>';
+            html += '</button>';
+        }
+        html += '</div>';
+
+        dom.dashboardList.innerHTML = html;
+
+        // Attach event listeners after rendering
+        document.querySelectorAll('.dash-action-card').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                vscode.postMessage({ command: 'executeCommand', args: [btn.getAttribute('data-cmd')] });
             });
-            container.appendChild(actCard.card);
-        }
-
-        // 9. Recent Queries
-        if (data.recent_queries && data.recent_queries.length > 0) {
-            var qCard = document.createElement('div');
-            qCard.className = 'decision-card';
-            
-            var qHeader = document.createElement('div');
-            qHeader.className = 'section-header';
-            qHeader.style.marginBottom = '12px';
-            qHeader.style.border = 'none';
-            qHeader.style.padding = '0';
-            qHeader.style.background = 'transparent';
-            qHeader.textContent = 'Recent Queries';
-            qCard.appendChild(qHeader);
-
-            data.recent_queries.forEach(function(q) {
-                var row = document.createElement('div');
-                row.style.display = 'flex';
-                row.style.justifyContent = 'space-between';
-                row.style.fontSize = '12px';
-                row.style.marginBottom = '8px';
-                row.style.cursor = 'pointer';
-                
-                var cmdSpan = document.createElement('span');
-                cmdSpan.style.color = 'var(--vscode-textLink-foreground)';
-                cmdSpan.style.fontWeight = '600';
-                cmdSpan.textContent = q.command + (q.target ? ' (' + q.target + ')' : '');
-
-                var timeSpan = document.createElement('span');
-                timeSpan.style.color = 'var(--vscode-descriptionForeground)';
-                var date = new Date(q.timestamp);
-                var diff = Math.floor((new Date() - date) / 1000 / 60);
-                timeSpan.textContent = diff < 1 ? 'Just now' : (diff < 60 ? diff + 'm ago' : Math.floor(diff/60) + 'h ago');
-
-                row.appendChild(cmdSpan);
-                row.appendChild(timeSpan);
-                
-                row.addEventListener('click', function() {
-                    let cmdId = q.command.toLowerCase().replace(/ /g, '');
-                    if (cmdId === 'whyexists') cmdId = 'whyExists';
-                    if (cmdId === 'impactanalysis') cmdId = 'impactAnalysis';
-                    if (cmdId === 'traceabilityanalysis') cmdId = 'traceabilityAnalysis';
-                    if (cmdId === 'driftanalysis') cmdId = 'driftAnalysis';
-                    
-                    let vscodeCmd = 'ares.' + cmdId;
-                    vscode.postMessage({ command: 'executeCommand', args: [vscodeCmd] });
-                });
-                
-                row.addEventListener('mouseover', function() { cmdSpan.style.textDecoration = 'underline'; });
-                row.addEventListener('mouseout', function() { cmdSpan.style.textDecoration = 'none'; });
-
-                qCard.appendChild(row);
-            });
-            container.appendChild(qCard);
-        }
-
-        // 10. Cache Stats
-        if (dash.cache_stats) {
-            var cacheCard = createSectionCard('Overview Cache', 'ares.benchmark');
-            addMetricRow(cacheCard.grid, 'Hit Rate', dash.cache_stats.hit_rate);
-            addMetricRow(cacheCard.grid, 'Age', dash.cache_stats.age.toFixed(1) + ' seconds');
-            addMetricRow(cacheCard.grid, 'TTL', dash.cache_stats.ttl.toFixed(1) + ' seconds');
-            addMetricRow(cacheCard.grid, 'State', dash.refreshing ? 'Refreshing (tokio::spawn)' : 'Idle');
-            container.appendChild(cacheCard.card);
-        }
-
-        // 11. Version Info
-        if (dash.version) {
-            var versionLabel = document.createElement('div');
-            versionLabel.style.fontSize = '11px';
-            versionLabel.style.color = 'var(--vscode-descriptionForeground)';
-            versionLabel.style.textAlign = 'center';
-            versionLabel.style.marginTop = '10px';
-            versionLabel.textContent = 'ARES MemoryOS v' + dash.version.ares_version + ' | DB Schema v' + dash.version.schema_version;
-            container.appendChild(versionLabel);
-        }
-
-        dom.dashboardList.appendChild(container);
+        });
     }
-
     function renderEmptyState() {
         dom.resultContent.classList.add('hidden');
         dom.emptyState.classList.remove('hidden');
@@ -1179,27 +1166,47 @@ body{
     }
 
     function showData(data) {
-        hideAll();
-        dom.content.classList.remove('hidden');
+        try {
+            hideAll();
+            dom.content.classList.remove('hidden');
 
-        renderHeader(data);
+            renderHeader(data);
 
-        if (isEmpty(data)) {
-            renderEmptyState();
-            return;
+            if (isEmpty(data)) {
+                renderEmptyState();
+                return;
+            }
+
+            dom.resultContent.classList.remove('hidden');
+            dom.emptyState.classList.add('hidden');
+
+            if (data.query_type !== 'ARES Home') {
+                dom.answer.parentElement.parentElement.classList.remove('hidden');
+                dom.confidenceLabel.parentElement.parentElement.parentElement.classList.remove('hidden');
+                renderAnswer(data);
+                if (data.evidence && data.evidence.length > 0) {
+                    renderEvidence(data);
+                } else {
+                    dom.evidenceSection.classList.add('hidden');
+                }
+                renderDecisions(data);
+                // Drift verdict is now rendered in the narrative answer — legacy widget disabled
+                dom.driftSection.classList.add('hidden');
+                renderSimulation(data);
+                renderTraceability(data);
+            } else {
+                dom.answer.parentElement.parentElement.classList.add('hidden');
+                dom.confidenceLabel.parentElement.parentElement.parentElement.classList.add('hidden');
+                dom.evidenceSection.classList.add('hidden');
+                dom.decisionsSection.classList.add('hidden');
+                dom.driftSection.classList.add('hidden');
+                dom.simulationSection.classList.add('hidden');
+                dom.traceabilitySection.classList.add('hidden');
+            }
+            renderDashboard(data);
+        } catch (e) {
+            showError({message: "UI Render Error", detail: e.toString()});
         }
-
-        dom.resultContent.classList.remove('hidden');
-        dom.emptyState.classList.add('hidden');
-
-        renderAnswer(data);
-        renderConfidence(data);
-        renderEvidence(data);
-        renderDecisions(data);
-        renderDrift(data);
-        renderSimulation(data);
-        renderTraceability(data);
-        renderDashboard(data);
     }
 
     // --- Message listener ---

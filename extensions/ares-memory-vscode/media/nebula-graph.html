@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline' ${webview.cspSource}; font-src ${webview.cspSource};">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#080c12;font-family:'Segoe UI',-apple-system,sans-serif}
+#graph-canvas{position:fixed;top:0;left:0;width:100%;height:100%;cursor:grab}
+#graph-canvas.dragging{cursor:grabbing}
+#graph-canvas.pointer{cursor:pointer}
+#placeholder{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);color:#484f58;font-size:13px;text-align:center;pointer-events:none;z-index:5}
+#tooltip{position:fixed;display:none;background:rgba(8,12,18,0.88);backdrop-filter:blur(20px) saturate(120%);-webkit-backdrop-filter:blur(20px) saturate(120%);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px 18px;font-size:11px;color:#c9d1d9;max-width:300px;pointer-events:none;z-index:100;box-shadow:0 4px 24px rgba(0,0,0,0.5),0 0 0 1px rgba(255,255,255,0.02) inset}
+#side-panel{position:fixed;bottom:16px;left:16px;background:rgba(8,12,18,0.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.04);border-radius:10px;padding:14px 16px;z-index:10;width:180px;max-height:calc(100vh - 32px);overflow-y:auto;box-shadow:0 4px 24px rgba(0,0,0,0.4);font-size:11px;color:#484f58}
+#side-panel::-webkit-scrollbar{width:4px}
+#side-panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:2px}
+#minimap-wrap{position:fixed;bottom:16px;right:16px;background:rgba(8,12,18,0.7);border:1px solid rgba(255,255,255,0.04);border-radius:8px;padding:6px;z-index:10}
+#minimap{display:block;border-radius:4px}
+#reset-btn{position:fixed;top:12px;right:12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#7d8590;padding:6px 14px;border-radius:6px;font-size:11px;cursor:pointer;z-index:10;font-family:inherit;transition:all 0.15s}
+#reset-btn:hover{background:rgba(255,255,255,0.08);color:#e6edf3;border-color:rgba(255,255,255,0.15)}
+</style>
+</head>
+<body>
+<canvas id="graph-canvas"></canvas>
+<div id="placeholder">Click a node to explore dependencies</div>
+<div id="tooltip"></div>
+<div id="side-panel"></div>
+<div id="minimap-wrap"><canvas id="minimap" width="140" height="100"></canvas></div>
+<button id="reset-btn">Reset Graph</button>
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════════
+//  VS CODE API
+// ═══════════════════════════════════════════════════════════════
+const vscodeApi = acquireVsCodeApi();
+
+// ═══════════════════════════════════════════════════════════════
+//  COLOR PALETTE — Dark fills + colored glow per type
+// ═══════════════════════════════════════════════════════════════
+const NODE_PALETTE = {
+    repository: { fill:'#0c1929', glow:'#3b82f6', tint:'59,130,246' },
+    directory:  { fill:'#0c2416', glow:'#22c55e', tint:'34,197,94' },
+    crate:      { fill:'#1c0c2e', glow:'#a855f7', tint:'168,85,247' },
+    file:       { fill:'#291e0c', glow:'#f59e0b', tint:'245,158,11' },
+    struct:     { fill:'#0c1e2c', glow:'#06b6d4', tint:'6,182,212' },
+    function:   { fill:'#2c0c18', glow:'#f43f5e', tint:'244,63,94' },
+    trait:      { fill:'#0c2c1e', glow:'#10b981', tint:'16,185,129' },
+    module:     { fill:'#1a1a0c', glow:'#eab308', tint:'234,179,8' },
+};
+function getPalette(type) { return NODE_PALETTE[type] || NODE_PALETTE.file; }
+function getNodeColor(type) { return getPalette(type).glow; }
+function getNodeFill(type) { return getPalette(type).fill; }
+function getTypeTint(type) { return getPalette(type).tint; }
+
+// ═══════════════════════════════════════════════════════════════
+//  NODE SIZES
+// ═══════════════════════════════════════════════════════════════
+function getNodeSize(type) {
+    return { repository:28, directory:20, crate:18, file:14, struct:16, function:11, trait:14, module:16 }[type] || 16;
+}
+function getShapeIcon(type) {
+    return { repository:'⬡', directory:'▣', crate:'●', file:'▪', struct:'◆', function:'◦', trait:'⬡', module:'⬢' }[type] || '●';
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SHAPE DRAWING
+// ═══════════════════════════════════════════════════════════════
+function traceShape(ctx, type, x, y, r) {
+    ctx.beginPath();
+    switch (type) {
+        case 'repository': case 'trait':
+            for (let i = 0; i < 6; i++) {
+                const a = (Math.PI / 3) * i - Math.PI / 6;
+                const px = x + r * Math.cos(a), py = y + r * Math.sin(a);
+                i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+            }
+            ctx.closePath(); break;
+        case 'directory':
+            ctx.roundRect(x - r * 1.15, y - r * 0.75, r * 2.3, r * 1.5, 5); break;
+        case 'file': case 'module':
+            ctx.rect(x - r * 0.9, y - r * 0.65, r * 1.8, r * 1.3); break;
+        case 'struct':
+            ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y);
+            ctx.closePath(); break;
+        default: // circle: crate, function, fallback
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+    }
+}
+
+function hexToRgba(hex, a) {
+    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    return `rgba(${r},${g},${b},${a})`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════
+const state = {
+    nodes: [],
+    edges: [],
+    nodeMap: new Map(),
+    hoveredNodeId: null,
+    dragNode: null,
+    dragOffset: { x: 0, y: 0 },
+    isPanning: false,
+    panStart: { x: 0, y: 0 },
+    transform: { scale: 1, panX: 0, panY: 0 },
+    _cameraTargetX: 0, _cameraTargetY: 0, _cameraTargetScale: undefined,
+    _cameraMoving: false,
+    _dashOffset: 0,
+    _pendingExpandId: null,
+    expansionTree: {},
+    mouseWorld: { x: 0, y: 0 },
+    mouseScreen: { x: 0, y: 0 },
+    canvas: null, ctx: null, dpr: 1,
+    miniCanvas: null, miniCtx: null,
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  CANVAS SETUP
+// ═══════════════════════════════════════════════════════════════
+function initCanvas() {
+    state.canvas = document.getElementById('graph-canvas');
+    state.ctx = state.canvas.getContext('2d');
+    state.miniCanvas = document.getElementById('minimap');
+    state.miniCtx = state.miniCanvas.getContext('2d');
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+}
+
+function resizeCanvas() {
+    state.dpr = window.devicePixelRatio || 1;
+    const c = state.canvas;
+    c.width = c.clientWidth * state.dpr;
+    c.height = c.clientHeight * state.dpr;
+    state.ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  BACKGROUND
+// ═══════════════════════════════════════════════════════════════
+function drawBackground(ctx, w, h) {
+    ctx.fillStyle = '#080c12';
+    ctx.fillRect(0, 0, w, h);
+    // Dot grid
+    ctx.fillStyle = 'rgba(255,255,255,0.025)';
+    const sp = 28;
+    const ox = (state.transform.panX % (sp * state.transform.scale) + sp * state.transform.scale) % (sp * state.transform.scale);
+    const oy = (state.transform.panY % (sp * state.transform.scale) + sp * state.transform.scale) % (sp * state.transform.scale);
+    for (let x = ox; x < w; x += sp * state.transform.scale) {
+        for (let y = oy; y < h; y += sp * state.transform.scale) {
+            ctx.fillRect(x - 0.5, y - 0.5, 1, 1);
+        }
+    }
+    // Vignette
+    const vg = ctx.createRadialGradient(w / 2, h / 2, w * 0.2, w / 2, h / 2, w * 0.75);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.35)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, w, h);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DRAW NODES
+// ═══════════════════════════════════════════════════════════════
+function drawNode(node) {
+    const ctx = state.ctx;
+    const x = node.x, y = node.y;
+    const palette = getPalette(node.type);
+    const baseR = getNodeSize(node.type);
+    const alpha = node.renderAlpha;
+    const scale = node.renderScale || 1;
+    const r = baseR * scale;
+    const isHov = node.id === state.hoveredNodeId;
+
+    if (alpha < 0.01 || r < 1) return;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    // Glow
+    ctx.shadowColor = palette.glow;
+    ctx.shadowBlur = (isHov ? 32 : 14) / state.transform.scale;
+    traceShape(ctx, node.type, x, y, r + 2);
+    ctx.fillStyle = `rgba(${palette.tint},${isHov ? 0.25 : 0.08})`;
+    ctx.fill();
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+
+    // Main fill — dark with tint
+    traceShape(ctx, node.type, x, y, r);
+    const mf = ctx.createRadialGradient(x, y - r * 0.2, 0, x, y, r * 1.1);
+    mf.addColorStop(0, `rgba(${palette.tint},0.14)`);
+    mf.addColorStop(0.6, `rgba(${palette.tint},0.05)`);
+    mf.addColorStop(1, palette.fill);
+    ctx.fillStyle = mf;
+    ctx.fill();
+
+    // Border
+    ctx.strokeStyle = isHov ? `rgba(${palette.tint},0.55)` : `rgba(${palette.tint},0.22)`;
+    ctx.lineWidth = (isHov ? 1.8 : 1) / state.transform.scale;
+    ctx.stroke();
+
+    // Glass highlight
+    traceShape(ctx, node.type, x, y - r * 0.2, r * 0.6);
+    const gh = ctx.createLinearGradient(x, y - r, x, y - r * 0.1);
+    gh.addColorStop(0, 'rgba(255,255,255,0.06)');
+    gh.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gh;
+    ctx.fill();
+
+    // Expand badge ⊕
+    if (node.state !== 'expanded' && node.state !== 'loading' && (node._childCount > 0 || node._outCount > 0)) {
+        const bx = x + r * 0.7, by = y - r * 0.7, br = 7;
+        ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2);
+        ctx.fillStyle = isHov ? `rgba(${palette.tint},0.22)` : `rgba(${palette.tint},0.08)`;
+        ctx.fill();
+        ctx.strokeStyle = isHov ? `rgba(${palette.tint},0.45)` : `rgba(${palette.tint},0.18)`;
+        ctx.lineWidth = 0.8 / state.transform.scale; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(bx - 3, by); ctx.lineTo(bx + 3, by);
+        ctx.moveTo(bx, by - 3); ctx.lineTo(bx, by + 3);
+        ctx.strokeStyle = isHov ? `rgba(${palette.tint},0.8)` : `rgba(${palette.tint},0.35)`;
+        ctx.lineWidth = 1.2 / state.transform.scale; ctx.stroke();
+    }
+
+    // Collapse badge ⊖
+    if (node.state === 'expanded') {
+        const bx = x + r * 0.7, by = y - r * 0.7, br = 7;
+        ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2);
+        ctx.fillStyle = isHov ? `rgba(${palette.tint},0.28)` : `rgba(${palette.tint},0.1)`;
+        ctx.fill();
+        ctx.strokeStyle = isHov ? `rgba(${palette.tint},0.55)` : `rgba(${palette.tint},0.22)`;
+        ctx.lineWidth = 0.8 / state.transform.scale; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(bx - 3, by); ctx.lineTo(bx + 3, by);
+        ctx.strokeStyle = isHov ? `rgba(${palette.tint},0.9)` : `rgba(${palette.tint},0.45)`;
+        ctx.lineWidth = 1.2 / state.transform.scale; ctx.stroke();
+    }
+
+    // Loading arc
+    if (node.state === 'loading') {
+        const t = performance.now() * 0.004;
+        ctx.beginPath(); ctx.arc(x, y, r + 5, t, t + Math.PI * 1.3);
+        ctx.strokeStyle = `rgba(${palette.tint},0.5)`;
+        ctx.lineWidth = 2 / state.transform.scale; ctx.lineCap = 'round'; ctx.stroke(); ctx.lineCap = 'butt';
+    }
+
+    ctx.restore();
+
+    // Label
+    let label = node.label;
+    if (label.length > 20) label = label.slice(0, 18) + '…';
+    ctx.save();
+    ctx.globalAlpha = alpha * (isHov ? 1 : 0.6);
+    ctx.font = `${isHov ? '600' : '400'} 11px "Segoe UI",-apple-system,sans-serif`;
+    ctx.fillStyle = isHov ? '#e6edf3' : '#6e7681';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    
+    // Reverse scale for label so it doesn't shrink when zooming out
+    const labelScale = 1 / state.transform.scale;
+    ctx.scale(labelScale, labelScale);
+    ctx.fillText(label, (x) * state.transform.scale, (y + r + 8) * state.transform.scale);
+    ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DRAW EDGES
+// ═══════════════════════════════════════════════════════════════
+function drawEdges() {
+    const ctx = state.ctx;
+    const { edges, nodeMap, hoveredNodeId, transform } = state;
+
+    edges.forEach(edge => {
+        const src = nodeMap.get(edge.source);
+        const tgt = nodeMap.get(edge.target);
+        if (!src || !tgt) return;
+
+        let tAlpha = 0.1;
+        if (hoveredNodeId) {
+            tAlpha = (edge.source === hoveredNodeId || edge.target === hoveredNodeId) ? 0.45 : 0.025;
+        }
+        edge._targetAlpha = tAlpha;
+        edge.renderAlpha += (edge._targetAlpha - edge.renderAlpha) * 0.1;
+        if (edge.renderAlpha < 0.008) return;
+
+        const sx = src.x;
+        const sy = src.y;
+        const tx = tgt.x;
+        const ty = tgt.y;
+
+        if (edge.type === 'contains') {
+            ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(tx, ty);
+            ctx.strokeStyle = `rgba(255,255,255,${edge.renderAlpha * 0.4})`;
+            ctx.lineWidth = 0.7 / transform.scale; ctx.setLineDash([]); ctx.stroke(); return;
+        }
+
+        const dx = tx - sx, dy = ty - sy;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const off = dist * 0.12;
+        const nx = -dy / dist * off, ny = dx / dist * off;
+        const cx = (sx + tx) / 2 + nx, cy = (sy + ty) / 2 + ny;
+
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.quadraticCurveTo(cx, cy, tx, ty);
+        ctx.strokeStyle = `rgba(255,255,255,${edge.renderAlpha})`;
+        ctx.lineWidth = (tAlpha > 0.3 ? 1.4 : 0.8) / transform.scale;
+        ctx.setLineDash([4, 4]);
+        ctx.lineDashOffset = -(state._dashOffset || 0);
+        ctx.stroke(); ctx.setLineDash([]);
+
+        // Arrow
+        if (edge.renderAlpha > 0.08) {
+            const t = 0.92;
+            const tangX = 2 * (1 - t) * (cx - sx) + 2 * t * (tx - cx);
+            const tangY = 2 * (1 - t) * (cy - sy) + 2 * t * (ty - cy);
+            const angle = Math.atan2(tangY, tangX);
+            const aS = 5;
+            const tR = getNodeSize(tgt.type) * (tgt.renderScale || 1);
+            const ax = tx - Math.cos(angle) * (tR + 3);
+            const ay = ty - Math.sin(angle) * (tR + 3);
+            ctx.beginPath(); ctx.moveTo(ax, ay);
+            ctx.lineTo(ax - aS * Math.cos(angle - 0.35), ay - aS * Math.sin(angle - 0.35));
+            ctx.lineTo(ax - aS * Math.cos(angle + 0.35), ay - aS * Math.sin(angle + 0.35));
+            ctx.closePath();
+            ctx.fillStyle = `rgba(255,255,255,${edge.renderAlpha * 0.7})`;
+            ctx.fill();
+        }
+    });
+    state._dashOffset = (state._dashOffset || 0) + 0.2;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  TOOLTIP
+// ═══════════════════════════════════════════════════════════════
+function getBreadcrumb(nodeId) {
+    const path = [nodeId]; let cur = nodeId;
+    for (let i = 0; i < 15; i++) {
+        const p = state.edges.find(e => e.target === cur && e.type === 'contains');
+        if (!p) break; path.unshift(p.source); cur = p.source;
+    }
+    return path;
+}
+
+function buildTooltipHTML(node) {
+    const p = getPalette(node.type);
+    const t = p.tint;
+    const tl = node.type.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+    const m = node.meta || {};
+
+    let html = '';
+    // Breadcrumb
+    const bc = getBreadcrumb(node.id);
+    if (bc.length > 1) {
+        html += `<div style="font-size:10px;margin-bottom:10px;color:#484f58;line-height:1.4">${bc.map(id=>{
+            const n=state.nodeMap.get(id); const cp=n?getPalette(n.type):p;
+            return `<span style="color:rgba(${cp.tint},0.65)">${n?n.label:id}</span>`;
+        }).join(' <span style="color:#30363d">›</span> ')}</div>`;
+    }
+    // Header
+    html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(${t},0.1);border:1px solid rgba(${t},0.18);display:flex;align-items:center;justify-content:center;font-size:14px;color:rgba(${t},0.85);box-shadow:0 0 10px rgba(${t},0.08)">${getShapeIcon(node.type)}</div>
+        <div style="flex:1;min-width:0"><div style="color:#e6edf3;font-weight:600;font-size:13px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${node.label}</div>
+        <div style="color:rgba(${t},0.5);font-size:10px;text-transform:uppercase;letter-spacing:0.8px;margin-top:2px">${tl}</div></div></div>`;
+
+    if (m.description) html += `<div style="color:#8b949e;font-size:11px;margin-bottom:10px;line-height:1.5;border-bottom:1px solid rgba(255,255,255,0.04);padding-bottom:10px">${m.description}</div>`;
+
+    // Connections
+    const inC = node._inCount||0, outC = node._outCount||0;
+    html += `<div style="margin-bottom:10px"><div style="color:#484f58;font-size:10px;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;font-weight:600">Connections</div>`;
+    html += `<div style="display:flex;gap:10px;margin-bottom:6px">
+        <div style="flex:1;background:rgba(${t},0.05);border-radius:6px;padding:6px 10px;text-align:center"><div style="color:rgba(${t},0.9);font-size:18px;font-weight:700;line-height:1">${inC}</div><div style="color:#484f58;font-size:9px;margin-top:2px">INCOMING</div></div>
+        <div style="flex:1;background:rgba(${t},0.05);border-radius:6px;padding:6px 10px;text-align:center"><div style="color:rgba(${t},0.9);font-size:18px;font-weight:700;line-height:1">${outC}</div><div style="color:#484f58;font-size:9px;margin-top:2px">OUTGOING</div></div></div>`;
+
+    const incoming = state.edges.filter(e=>e.target===node.id).slice(0,5).map(e=>{const s=state.nodeMap.get(e.source);return s?`<span style="color:rgba(${getPalette(s.type).tint},0.65)">${s.label}</span>`:null}).filter(Boolean);
+    const outgoing = state.edges.filter(e=>e.source===node.id).slice(0,5).map(e=>{const tg=state.nodeMap.get(e.target);return tg?`<span style="color:rgba(${getPalette(tg.type).tint},0.65)">${tg.label}</span>`:null}).filter(Boolean);
+    if(incoming.length) html+=`<div style="font-size:10px;color:#484f58;margin-bottom:2px">← ${incoming.join(', ')}${inC>5?' +'+(inC-5)+' more':''}</div>`;
+    if(outgoing.length) html+=`<div style="font-size:10px;color:#484f58">→ ${outgoing.join(', ')}${outC>5?' +'+(outC-5)+' more':''}</div>`;
+    html += `</div>`;
+
+    // Meta
+    const stats = [];
+    if(m.language)stats.push(['Language',m.language]);
+    if(m.files)stats.push(['Files',m.files]);
+    if(m.modules)stats.push(['Modules',m.modules]);
+    if(m.functions)stats.push(['Functions',m.functions.toLocaleString()]);
+    if(m.loc)stats.push(['Lines',m.loc.toLocaleString()]);
+    if(m.dependencies!==undefined)stats.push(['Deps',m.dependencies]);
+    if(m.dependents!==undefined)stats.push(['Used by',m.dependents]);
+    if(m.owner)stats.push(['Owner',m.owner]);
+    if(m.changed)stats.push(['Changed',m.changed]);
+    if(stats.length){
+        html+=`<div style="border-top:1px solid rgba(255,255,255,0.04);padding-top:10px;display:grid;grid-template-columns:auto 1fr;gap:3px 14px;font-size:11px">`;
+        stats.forEach(([l,v])=>{html+=`<span style="color:#484f58">${l}</span><span style="color:#c9d1d9">${v}</span>`});
+        html+=`</div>`;
+    }
+
+    // Action
+    const cc = node._childCount||0;
+    html+=`<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.04)">`;
+    if(node.state==='expanded') html+=`<div style="font-size:10px;color:rgba(${t},0.55)">⊖ Click to collapse</div>`;
+    else if(cc>0||outC>0) html+=`<div style="font-size:10px;color:rgba(${t},0.55)">⊕ Click to expand ${cc||outC} items</div>`;
+    html+=`</div>`;
+    return html;
+}
+
+function showTooltip(node) {
+    const tip = document.getElementById('tooltip');
+    tip.innerHTML = buildTooltipHTML(node);
+    tip.style.display = 'block';
+    positionTooltip(node);
+}
+function hideTooltip() { document.getElementById('tooltip').style.display = 'none'; }
+function positionTooltip(node) {
+    const tip = document.getElementById('tooltip');
+    const r = getNodeSize(node.type) * (node.renderScale||1);
+    let left = node.x * state.transform.scale + state.transform.panX + r + 14;
+    let top = node.y * state.transform.scale + state.transform.panY - 20;
+    const cw = state.canvas.clientWidth, ch = state.canvas.clientHeight;
+    if (left + 300 > cw) left = node.x * state.transform.scale + state.transform.panX - r - 314;
+    if (top + 200 > ch) top = ch - 210;
+    if (top < 10) top = 10;
+    tip.style.left = left + 'px'; tip.style.top = top + 'px';
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SIDE PANEL
+// ═══════════════════════════════════════════════════════════════
+function updateSidePanelRoot() {
+    const sp = document.getElementById('side-panel');
+    sp.innerHTML = `
+        <div style="color:#6e7681;font-weight:600;font-size:10px;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:8px">Overview</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+            <div style="flex:1;background:rgba(255,255,255,0.025);border-radius:6px;padding:8px;text-align:center"><div style="color:#e6edf3;font-size:16px;font-weight:700">${state.nodes.length}</div><div style="color:#484f58;font-size:9px">NODES</div></div>
+            <div style="flex:1;background:rgba(255,255,255,0.025);border-radius:6px;padding:8px;text-align:center"><div style="color:#e6edf3;font-size:16px;font-weight:700">${state.edges.length}</div><div style="color:#484f58;font-size:9px">EDGES</div></div>
+        </div>
+        <div style="color:#6e7681;font-weight:600;font-size:10px;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px">Shapes</div>
+        <div style="font-size:10px;color:#484f58;line-height:1.9">
+            <span style="color:rgba(59,130,246,0.55)">⬡</span> Repository <span style="color:rgba(34,197,94,0.55);margin-left:4px">▣</span> Directory<br>
+            <span style="color:rgba(168,85,247,0.55)">●</span> Crate <span style="color:rgba(245,158,11,0.55);margin-left:4px">▪</span> File<br>
+            <span style="color:rgba(6,182,212,0.55)">◆</span> Struct <span style="color:rgba(244,63,94,0.55);margin-left:4px">◦</span> Function <span style="color:rgba(16,185,129,0.55);margin-left:4px">⬡</span> Trait
+        </div>
+        <div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.04);color:#6e7681;font-weight:600;font-size:10px;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px">Edges</div>
+        <div style="font-size:10px;color:#484f58;line-height:1.8">─── Contains<br>╌╌╌ Depends on</div>
+        <div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.04);font-size:10px;color:#30363d;line-height:1.7">⊕ Click to expand<br>⊖ Click to collapse<br>Drag to move · Scroll to zoom</div>`;
+}
+
+function updateSidePanel(parent, children) {
+    const sp = document.getElementById('side-panel');
+    const pp = getPalette(parent.type);
+    let h = `<div style="color:#6e7681;font-weight:600;font-size:10px;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:8px">Navigation</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px;background:rgba(${pp.tint},0.05);border-radius:8px;border:1px solid rgba(${pp.tint},0.08)">
+            <div style="width:24px;height:24px;border-radius:6px;background:rgba(${pp.tint},0.12);display:flex;align-items:center;justify-content:center;font-size:12px;color:rgba(${pp.tint},0.75)">${getShapeIcon(parent.type)}</div>
+            <div><div style="color:#e6edf3;font-size:12px;font-weight:600">${parent.label}</div><div style="color:#484f58;font-size:9px">${children.length} items</div></div>
+        </div>
+        <div style="color:#6e7681;font-weight:600;font-size:10px;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px">Items</div>`;
+    children.forEach(c => {
+        const cp = getPalette(c.type);
+        h += `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.025)">
+            <div style="width:5px;height:5px;border-radius:50%;background:rgba(${cp.tint},0.45);flex-shrink:0"></div>
+            <div style="flex:1;min-width:0"><div style="color:#c9d1d9;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.label}</div>
+            <div style="color:#484f58;font-size:9px">${c.type}${c._childCount?' · '+c._childCount+' children':''}</div></div></div>`;
+    });
+    h += `<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.04);font-size:10px;color:#30363d;line-height:1.7">⊕ Click to expand<br>⊖ Click to collapse<br>Drag to move · Scroll to zoom</div>`;
+    sp.innerHTML = h;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  HIERARCHICAL LAYOUT
+// ═══════════════════════════════════════════════════════════════
+function layoutHierarchy(nodes, edges) {
+    const nm = new Map(nodes.map(n => [n.id, n]));
+    const hasParent = new Set(edges.filter(e => e.type === 'contains').map(e => e.target));
+    const roots = nodes.filter(n => !hasParent.has(n.id));
+    const children = new Map();
+    nodes.forEach(n => children.set(n.id, []));
+    edges.filter(e => e.type === 'contains').forEach(e => { const a = children.get(e.source); if (a) a.push(e.target); });
+
+    const LH = 150, NS = 110;
+    function stw(id) { const k = children.get(id) || []; return k.length === 0 ? NS : k.reduce((s, k) => s + stw(k), 0); }
+    function lay(id, d, lx) {
+        const n = nm.get(id); if (!n) return lx;
+        const k = children.get(id) || []; const w = stw(id);
+        if (k.length === 0) { n.x = lx + w / 2; n.y = d * LH; return lx + w; }
+        let cx = lx; k.forEach(kid => { cx = lay(kid, d + 1, cx); });
+        const f = nm.get(k[0]), l = nm.get(k[k.length - 1]);
+        n.x = (f.x + l.x) / 2; n.y = d * LH;
+        return lx + w;
+    }
+    let sx = 0; roots.forEach(r => { sx = lay(r.id, 0, sx) + 80; });
+
+    const xs = nodes.map(n => n.x), ys = nodes.map(n => n.y);
+    const mnx = Math.min(...xs), mxx = Math.max(...xs), mny = Math.min(...ys), mxy = Math.max(...ys);
+    const tw = mxx - mnx || 1, th = mxy - mny || 1;
+    nodes.forEach(n => { n.x = ((n.x - mnx) / tw - 0.5) * Math.min(tw, 700); n.y = ((n.y - mny) / th - 0.5) * Math.min(th, 450); });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CONNECTION COUNTING
+// ═══════════════════════════════════════════════════════════════
+function recountConnections() {
+    state.nodes.forEach(n => { n._inCount = 0; n._outCount = 0; });
+    state.edges.forEach(e => {
+        const s = state.nodeMap.get(e.source), t = state.nodeMap.get(e.target);
+        if (s) s._outCount++; if (t) t._inCount++;
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  EXPAND / COLLAPSE
+// ═══════════════════════════════════════════════════════════════
+function expandNode(nodeId) {
+    const n = state.nodeMap.get(nodeId); if (!n) return;
+    n.state = 'loading'; state._pendingExpandId = nodeId;
+    vscodeApi.postMessage({ command: 'loadNeighbors', id: nodeId });
+}
+
+function collapseNode(nodeId) {
+    const node = state.nodeMap.get(nodeId);
+    if (!node) return;
+
+    // Walk the expansion tree to find ALL descendants
+    const toRemove = new Set();
+    const queue = [nodeId];
+    while (queue.length > 0) {
+        const cur = queue.shift();
+        const children = state.expansionTree[cur] || [];
+        children.forEach(childId => {
+            if (!toRemove.has(childId)) {
+                toRemove.add(childId);
+                queue.push(childId);
+            }
+        });
+        delete state.expansionTree[cur];
+    }
+
+    if (toRemove.size === 0) {
+        node.state = 'default';
+        return;
+    }
+
+    // Animate all descendants back toward the collapsing node
+    toRemove.forEach(id => {
+        const n = state.nodeMap.get(id);
+        if (n) {
+            n._targetX = node.x;
+            n._targetY = node.y;
+            n._targetAlpha = 0;
+            n._targetScale = 0.15;
+            n._removing = true;
+        }
+    });
+
+    // Fade out edges connected to removed nodes
+    state.edges.forEach(e => {
+        if (toRemove.has(e.source) || toRemove.has(e.target)) {
+            e._targetAlpha = 0;
+            e._removing = true;
+        }
+    });
+
+    node.state = 'default';
+
+    // Remove from DOM after animation completes
+    setTimeout(() => {
+        state.nodes = state.nodes.filter(n => !n._removing);
+        state.edges = state.edges.filter(e => !e._removing);
+        state.nodeMap = new Map(state.nodes.map(n => [n.id, n]));
+        recountConnections();
+        updateSidePanelRoot();
+    }, 420);
+}
+
+function handleNodeClick(nodeId) {
+    const n = state.nodeMap.get(nodeId); if (!n) return;
+    if (n.state === 'expanded') collapseNode(nodeId);
+    else if (n.state !== 'loading') expandNode(nodeId);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  HIT TESTING
+// ═══════════════════════════════════════════════════════════════
+function hitTest(wx, wy) {
+    for (let i = state.nodes.length - 1; i >= 0; i--) {
+        const n = state.nodes[i];
+        const r = getNodeSize(n.type) * (n.renderScale || 1);
+        const dx = wx - n.x, dy = wy - n.y;
+        if (dx * dx + dy * dy <= (r + 4) * (r + 4)) return n;
+    }
+    return null;
+}
+function screenToWorld(sx, sy) {
+    return { x: (sx - state.transform.panX) / state.transform.scale, y: (sy - state.transform.panY) / state.transform.scale };
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  HOVER STATE
+// ═══════════════════════════════════════════════════════════════
+function updateHoverState() {
+    const hid = state.hoveredNodeId;
+    state.nodes.forEach(n => {
+        if (!hid) { n._targetAlpha = 1; n._targetScale = 1; return; }
+        if (n.id === hid) { n._targetAlpha = 1; n._targetScale = 1.12; return; }
+        const isConnected = state.edges.some(e =>
+            (e.source === hid && e.target === n.id) || (e.target === hid && e.source === n.id));
+        n._targetAlpha = isConnected ? 0.6 : 0.06;
+        n._targetScale = isConnected ? 0.97 : 0.85;
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MINIMAP
+// ═══════════════════════════════════════════════════════════════
+function drawMinimap() {
+    const mc = state.miniCtx, mw = 140, mh = 100;
+    mc.fillStyle = 'rgba(8,12,18,0.8)'; mc.fillRect(0, 0, mw, mh);
+    if (state.nodes.length === 0) return;
+    const xs = state.nodes.map(n => n.x), ys = state.nodes.map(n => n.y);
+    const mnx = Math.min(...xs) - 30, mxx = Math.max(...xs) + 30;
+    const mny = Math.min(...ys) - 30, mxy = Math.max(...ys) + 30;
+    const gw = mxx - mnx || 1, gh = mxy - mny || 1;
+    const s = Math.min(mw / gw, mh / gh) * 0.85;
+    const ox = (mw - gw * s) / 2 - mnx * s, oy = (mh - gh * s) / 2 - mny * s;
+
+    // Edges
+    mc.strokeStyle = 'rgba(255,255,255,0.06)'; mc.lineWidth = 0.5;
+    state.edges.forEach(e => {
+        const s2 = state.nodeMap.get(e.source), t = state.nodeMap.get(e.target);
+        if (!s2 || !t) return; mc.beginPath(); mc.moveTo(s2.x * s + ox, s2.y * s + oy);
+        mc.lineTo(t.x * s + ox, t.y * s + oy); mc.stroke();
+    });
+    // Nodes
+    state.nodes.forEach(n => {
+        mc.fillStyle = `rgba(${getPalette(n.type).tint},${n.id === state.hoveredNodeId ? 0.8 : 0.35})`;
+        mc.fillRect(n.x * s + ox - 1.5, n.y * s + oy - 1.5, 3, 3);
+    });
+    // Viewport rect
+    const cw = state.canvas.clientWidth, ch = state.canvas.clientHeight;
+    const vl = (-state.transform.panX / state.transform.scale) * s + ox;
+    const vt = (-state.transform.panY / state.transform.scale) * s + oy;
+    const vw = (cw / state.transform.scale) * s, vh = (ch / state.transform.scale) * s;
+    mc.strokeStyle = 'rgba(255,255,255,0.2)'; mc.lineWidth = 1;
+    mc.strokeRect(vl, vt, vw, vh);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MAIN RENDER LOOP
+// ═══════════════════════════════════════════════════════════════
+function renderLoop() {
+    const ctx = state.ctx;
+    const cw = state.canvas.clientWidth, ch = state.canvas.clientHeight;
+
+    // Lerp node positions (for fan-out animation)
+    state.nodes.forEach(n => {
+        if (n._targetX !== undefined) {
+            n.x += (n._targetX - n.x) * 0.08;
+            n.y += (n._targetY - n.y) * 0.08;
+            if (Math.abs(n._targetX - n.x) < 0.3 && Math.abs(n._targetY - n.y) < 0.3) {
+                n.x = n._targetX; n.y = n._targetY; delete n._targetX; delete n._targetY;
+            }
+        }
+    });
+
+    // Lerp alpha & scale
+    state.nodes.forEach(n => {
+        n.renderAlpha += ((n._targetAlpha ?? 1) - n.renderAlpha) * 0.1;
+        n.renderScale += ((n._targetScale ?? 1) - n.renderScale) * 0.1;
+    });
+
+    // Camera lerp
+    if (state._cameraMoving) {
+        state.transform.panX += (state._cameraTargetX - state.transform.panX) * 0.06;
+        state.transform.panY += (state._cameraTargetY - state.transform.panY) * 0.06;
+        if (state._cameraTargetScale !== undefined) {
+            state.transform.scale += (state._cameraTargetScale - state.transform.scale) * 0.06;
+        }
+        const dx = Math.abs(state._cameraTargetX - state.transform.panX);
+        const dy = Math.abs(state._cameraTargetY - state.transform.panY);
+        const ds = state._cameraTargetScale !== undefined ? Math.abs(state._cameraTargetScale - state.transform.scale) : 0;
+        if (dx < 0.3 && dy < 0.3 && ds < 0.001) {
+            state.transform.panX = state._cameraTargetX; state.transform.panY = state._cameraTargetY;
+            if (state._cameraTargetScale !== undefined) state.transform.scale = state._cameraTargetScale;
+            state._cameraMoving = false;
+        }
+    }
+
+    // Clear & draw
+    ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+    drawBackground(ctx, cw, ch);
+    ctx.setTransform(state.dpr * state.transform.scale, 0, 0, state.dpr * state.transform.scale, state.dpr * state.transform.panX, state.dpr * state.transform.panY);
+    drawEdges();
+    
+    // Reverse scale for labels to be invariant to zoom
+    state.nodes.forEach(n => drawNode(n));
+    
+    ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+    drawMinimap();
+
+    // Update tooltip position if visible
+    if (state.hoveredNodeId) {
+        const hn = state.nodeMap.get(state.hoveredNodeId);
+        if (hn) positionTooltip(hn);
+    }
+
+    requestAnimationFrame(renderLoop);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MOUSE EVENTS
+// ═══════════════════════════════════════════════════════════════
+function initEvents() {
+    const c = state.canvas;
+    let clickStart = null;
+
+    c.addEventListener('mousemove', e => {
+        const rect = c.getBoundingClientRect();
+        state.mouseScreen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        state.mouseWorld = screenToWorld(state.mouseScreen.x, state.mouseScreen.y);
+
+        if (state.dragNode) {
+            state.dragNode.x = state.mouseWorld.x - state.dragOffset.x;
+            state.dragNode.y = state.mouseWorld.y - state.dragOffset.y;
+            delete state.dragNode._targetX; delete state.dragNode._targetY;
+            return;
+        }
+        if (state.isPanning) {
+            state.transform.panX += e.clientX - state.panStart.x;
+            state.transform.panY += e.clientY - state.panStart.y;
+            state.panStart = { x: e.clientX, y: e.clientY };
+            return;
+        }
+
+        const hit = hitTest(state.mouseWorld.x, state.mouseWorld.y);
+        const newId = hit ? hit.id : null;
+        if (newId !== state.hoveredNodeId) {
+            state.hoveredNodeId = newId;
+            updateHoverState();
+            if (hit) { showTooltip(hit); c.classList.add('pointer'); c.classList.remove('dragging'); }
+            else { hideTooltip(); c.classList.remove('pointer'); }
+        }
+    });
+
+    c.addEventListener('mousedown', e => {
+        clickStart = { x: e.clientX, y: e.clientY };
+        const hit = hitTest(state.mouseWorld.x, state.mouseWorld.y);
+        if (hit) {
+            state.dragNode = hit; hit.pinned = true;
+            state.dragOffset = { x: state.mouseWorld.x - hit.x, y: state.mouseWorld.y - hit.y };
+            c.classList.add('dragging'); c.classList.remove('pointer');
+        } else {
+            state.isPanning = true; state.panStart = { x: e.clientX, y: e.clientY };
+            c.classList.add('dragging');
+        }
+    });
+
+    c.addEventListener('mouseup', e => {
+        if (clickStart && Math.abs(e.clientX - clickStart.x) < 5 && Math.abs(e.clientY - clickStart.y) < 5) {
+            const hit = hitTest(state.mouseWorld.x, state.mouseWorld.y);
+            if (hit) handleNodeClick(hit.id);
+        }
+        if (state.dragNode) { state.dragNode.pinned = false; state.dragNode = null; }
+        state.isPanning = false; clickStart = null;
+        c.classList.remove('dragging');
+        const hit2 = hitTest(state.mouseWorld.x, state.mouseWorld.y);
+        c.classList.toggle('pointer', !!hit2);
+    });
+
+    c.addEventListener('mouseleave', () => {
+        state.hoveredNodeId = null; updateHoverState(); hideTooltip();
+        if (state.dragNode) { state.dragNode.pinned = false; state.dragNode = null; }
+        state.isPanning = false; c.classList.remove('dragging', 'pointer');
+    });
+
+    c.addEventListener('wheel', e => {
+        e.preventDefault();
+        const factor = e.deltaY > 0 ? 0.92 : 1.08;
+        const ns = Math.max(0.15, Math.min(4, state.transform.scale * factor));
+        const mx = state.mouseScreen.x, my = state.mouseScreen.y;
+        state.transform.panX = mx - (mx - state.transform.panX) * (ns / state.transform.scale);
+        state.transform.panY = my - (my - state.transform.panY) * (ns / state.transform.scale);
+        state.transform.scale = ns;
+    }, { passive: false });
+
+    document.getElementById('reset-btn').addEventListener('click', () => {
+        state.nodes = [];
+        state.edges = [];
+        state.nodeMap = new Map();
+        state.expansionTree = {};
+        state.hoveredNodeId = null;
+        state._cameraMoving = false;
+        state.transform = { scale: 1, panX: 0, panY: 0 };
+        document.getElementById('placeholder').style.display = 'block';
+        updateSidePanelRoot();
+        vscodeApi.postMessage({ command: 'loadRoot' });
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MESSAGE HANDLER
+// ═══════════════════════════════════════════════════════════════
+window.addEventListener('message', event => {
+    const msg = event.data;
+    switch (msg.command) {
+        case 'graphUpdate': {
+            if (!msg.data) break;
+            
+            // Check if this is an initial load (nodes + edges) or deps load
+            if (!state.nodes.length) {
+                const { nodes, edges } = msg.data;
+                state.nodes = nodes.map((n, i) => ({
+                    id: String(n.id), label: n.label || n.id, type: (n.type || 'file').toLowerCase(),
+                    meta: n.meta || {}, x: 0, y: 0, vx: 0, vy: 0,
+                    state: 'default', pinned: false,
+                    renderAlpha: 0, renderScale: 0.5, _targetAlpha: 1, _targetScale: 1,
+                    _inCount: 0, _outCount: 0, _childCount: n._childCount || n.childCount || 0,
+                }));
+                state.edges = (edges || []).map(e => ({
+                    source: String(e.source), target: String(e.target),
+                    type: e.type || 'contains', renderAlpha: 0, _targetAlpha: 0.12,
+                }));
+                state.nodeMap = new Map(state.nodes.map(n => [n.id, n]));
+                state.expansionTree = {};
+                recountConnections();
+                layoutHierarchy(state.nodes, state.edges);
+
+                // Fit view
+                const xs = state.nodes.map(n => n.x), ys = state.nodes.map(n => n.y);
+                const mnx = Math.min(...xs), mxx = Math.max(...xs), mny = Math.min(...ys), mxy = Math.max(...ys);
+                const gw = mxx - mnx + 200, gh = mxy - mny + 200;
+                const cw = state.canvas.clientWidth, ch = state.canvas.clientHeight;
+                const s = Math.min(cw / gw, ch / gh, 1.2);
+                state.transform.scale = s;
+                state.transform.panX = -((mnx + mxx) / 2) * s + cw / 2;
+                state.transform.panY = -((mny + mxy) / 2) * s + ch / 2;
+
+                document.getElementById('placeholder').style.display = 'none';
+                updateSidePanelRoot();
+            } else {
+                const { nodes: nn, edges: ne } = msg.data;
+                if (!nn || nn.length === 0) {
+                    const pid = state._pendingExpandId;
+                    const p = state.nodeMap.get(pid); if (p) p.state = 'expanded';
+                    break;
+                }
+                const pid = ne?.[0]?.source || state._pendingExpandId;
+                const parent = state.nodeMap.get(pid); if (!parent) break;
+                parent.state = 'expanded';
+
+                // Fan direction — ALWAYS downward, left/right ok, NEVER upward
+                let fanCenter = Math.PI * 0.5;
+                const pe = state.edges.find(e => e.target === pid);
+                if (pe) {
+                    const gp = state.nodeMap.get(pe.source);
+                    if (gp) {
+                        let a = Math.atan2(parent.y - gp.y, parent.x - gp.x);
+                        if (a < 0) a = -a; // Reflect upward angles to downward
+                        fanCenter = Math.max(0.15, Math.min(Math.PI - 0.15, a));
+                    }
+                }
+
+                const uniqueNodes = nn.filter(n => !state.nodeMap.has(String(n.id)));
+                const uniqueEdges = (ne || []).filter(e => {
+                    const src = String(e.source), tgt = String(e.target), type = e.type || 'contains';
+                    return !state.edges.some(existing => existing.source === src && existing.target === tgt && existing.type === type);
+                });
+
+                const count = uniqueNodes.length;
+                const arcR = Math.max(110, 60 + count * 22);
+                const spread = Math.min(Math.PI * 0.8, 0.3 + count * 0.12);
+
+                const newNodes = uniqueNodes.map((n, i) => {
+                    const a = count === 1 ? fanCenter : fanCenter - spread / 2 + (i / (count - 1)) * spread;
+                    return {
+                        id: String(n.id), label: n.label || n.id, type: (n.type || 'file').toLowerCase(),
+                        meta: n.meta || {}, x: parent.x, y: parent.y,
+                        _targetX: parent.x + Math.cos(a) * arcR, _targetY: parent.y + Math.sin(a) * arcR,
+                        vx: 0, vy: 0, state: 'default', pinned: false,
+                        renderAlpha: 0, renderScale: 0.2, _targetAlpha: 1, _targetScale: 1,
+                        _inCount: 0, _outCount: 0, _childCount: n._childCount || n.childCount || 0,
+                    };
+                });
+                const newEdges = uniqueEdges.map(e => ({
+                    source: String(e.source), target: String(e.target),
+                    type: e.type || 'contains', renderAlpha: 0, _targetAlpha: 0.12,
+                }));
+
+                state.nodes.push(...newNodes); state.edges.push(...newEdges);
+                newNodes.forEach(n => state.nodeMap.set(n.id, n));
+                recountConnections();
+
+                // Track expansion tree for reliable collapse
+                state.expansionTree[pid] = newNodes.map(n => n.id);
+
+                // Camera
+                const allT = [{ x: parent.x, y: parent.y }, ...newNodes.map(n => ({ x: n._targetX, y: n._targetY }))];
+                const ax = allT.map(p => p.x), ay = allT.map(p => p.y);
+                const gMinX = Math.min(...ax), gMaxX = Math.max(...ax), gMinY = Math.min(...ay), gMaxY = Math.max(...ay);
+                const gW = gMaxX - gMinX + 200, gH = gMaxY - gMinY + 200;
+                const cw = state.canvas.clientWidth, ch = state.canvas.clientHeight;
+                const fs = Math.min(cw / gW, ch / gH, 1.5);
+                state._cameraTargetScale = fs;
+                state._cameraTargetX = -((gMinX + gMaxX) / 2) * fs + cw / 2;
+                state._cameraTargetY = -((gMinY + gMaxY) / 2) * fs + ch / 2;
+                state._cameraMoving = true;
+
+                updateSidePanel(parent, newNodes);
+            }
+            break;
+        }
+        case 'metadataUpdate': {
+            const n = state.nodeMap.get(msg.data.id);
+            if (n && msg.data) { n.meta = { ...n.meta, ...msg.data }; }
+            if (state.hoveredNodeId === msg.data.id && n) showTooltip(n);
+            break;
+        }
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════════════
+initCanvas();
+initEvents();
+renderLoop();
+vscodeApi.postMessage({ command: 'loadRoot' });
+
+</script>
+</body>
+</html>

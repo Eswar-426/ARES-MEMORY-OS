@@ -5,6 +5,35 @@ use ares_core::{
 };
 use rusqlite::params;
 
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+
+#[derive(Debug, Clone)]
+pub struct WorkspaceContext {
+    pub workspace_path: PathBuf,
+    pub workspace_name: String,
+    pub repositories: Vec<ProjectId>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum LayoutHint {
+    Hierarchical,
+    ForceDirected,
+    Radial,
+    Concentric,
+}
+
+#[derive(Debug, Clone)]
+pub struct GraphQueryContext {
+    pub workspace: WorkspaceContext,
+    pub repository: ProjectId,
+    pub max_depth: usize,
+    pub max_nodes: usize,
+    pub edge_filters: Vec<EdgeType>,
+    pub node_filters: Vec<NodeType>,
+    pub layout_hint: LayoutHint,
+}
+
 pub struct SqliteGraphRepository {
     store: Store,
 }
@@ -135,6 +164,22 @@ impl SqliteGraphRepository {
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
             Err(e) => Err(AresError::db(e)),
         }
+    }
+
+    /// Resolves a file path to its node UUID
+    pub fn get_id_by_path(&self, file_path: &str) -> Result<String, AresError> {
+        let conn = self.store.get_conn()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id FROM graph_nodes WHERE file_path = ?1 AND deleted_at IS NULL LIMIT 1",
+            )
+            .map_err(AresError::db)?;
+
+        stmt.query_row(params![file_path], |row| row.get(0))
+            .map_err(|_| AresError::NotFound {
+                resource_type: "node",
+                id: file_path.to_string(),
+            })
     }
 
     pub fn get_by_file_path(
@@ -655,6 +700,354 @@ impl SqliteGraphRepository {
         ).map_err(AresError::db)?;
         Ok(())
     }
+
+    // ----------------------------------------------------------------
+    // Graph Explorer APIs
+    // ----------------------------------------------------------------
+    pub fn get_graph_root(
+        &self,
+        context: &GraphQueryContext,
+    ) -> Result<(Vec<GraphNode>, Vec<GraphEdge>), AresError> {
+        let conn = self.store.get_conn()?;
+
+        let pid = context.repository.as_str();
+
+        // 1. Fetch root nodes (project, workspace) specific to the context project_id
+        let root_sql = "SELECT id FROM graph_nodes WHERE node_type IN ('project', 'workspace') AND project_id = ? AND deleted_at IS NULL";
+        let mut root_stmt = conn.prepare(root_sql).map_err(AresError::db)?;
+        let mut root_ids = Vec::new();
+        let mut root_rows = root_stmt.query([pid]).map_err(AresError::db)?;
+        while let Some(row) = root_rows.next().map_err(AresError::db)? {
+            let id: String = row.get(0).map_err(AresError::db)?;
+            root_ids.push(id);
+        }
+
+        // Fallback: if no project node found, try to get top-level folders or crates
+        if root_ids.is_empty() {
+            let fallback_sql = "SELECT id FROM graph_nodes WHERE node_type IN ('crate', 'folder') AND project_id = ? AND deleted_at IS NULL LIMIT 10";
+            let mut fb_stmt = conn.prepare(fallback_sql).map_err(AresError::db)?;
+            let mut fb_rows = fb_stmt.query([pid]).map_err(AresError::db)?;
+            while let Some(row) = fb_rows.next().map_err(AresError::db)? {
+                let id: String = row.get(0).map_err(AresError::db)?;
+                root_ids.push(id);
+            }
+        }
+
+        if root_ids.is_empty() {
+            tracing::info!("[get_graph_root] No root nodes found");
+            return Ok((Vec::new(), Vec::new()));
+        }
+
+        // 2. BFS to gather hierarchy (Contains, Defines, Declares) up to depth 3
+        let placeholders = root_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let bfs_sql = format!(
+            r#"
+            WITH RECURSIVE bfs(id, depth) AS (
+                SELECT id, 0 FROM graph_nodes WHERE id IN ({})
+                UNION ALL
+                SELECT e.to_node_id, b.depth + 1
+                FROM graph_edges e
+                JOIN bfs b ON e.from_node_id = b.id
+                JOIN graph_nodes n ON e.to_node_id = n.id
+                WHERE e.valid_until IS NULL 
+                  AND n.deleted_at IS NULL 
+                  AND n.node_type IN ('workspace', 'project', 'repository', 'folder', 'crate', 'module')
+                  AND e.edge_type IN ('contains', 'defines', 'declares', 'imports', 'depends_on')
+                  AND b.depth < {}
+            )
+            SELECT DISTINCT id FROM bfs LIMIT {};
+        "#,
+            placeholders, context.max_depth, context.max_nodes
+        );
+
+        let mut stmt = conn.prepare(&bfs_sql).map_err(AresError::db)?;
+        let params: Vec<&dyn rusqlite::ToSql> =
+            root_ids.iter().map(|s| s as &dyn rusqlite::ToSql).collect();
+        let mut node_ids = Vec::new();
+        let mut rows = stmt
+            .query(rusqlite::params_from_iter(params))
+            .map_err(AresError::db)?;
+        while let Some(row) = rows.next().map_err(AresError::db)? {
+            let id: String = row.get(0).map_err(AresError::db)?;
+            node_ids.push(id);
+        }
+
+        // 3. Fetch the actual GraphNodes
+        let node_placeholders = node_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let nodes_sql = format!(
+            "SELECT id, project_id, node_type, label, properties, file_path, created_at, updated_at, deleted_at 
+             FROM graph_nodes WHERE id IN ({}) AND deleted_at IS NULL", 
+            node_placeholders
+        );
+        let mut nodes_stmt = conn.prepare(&nodes_sql).map_err(AresError::db)?;
+        let node_params: Vec<&dyn rusqlite::ToSql> =
+            node_ids.iter().map(|s| s as &dyn rusqlite::ToSql).collect();
+
+        let mut nodes = Vec::new();
+        let mut node_rows = nodes_stmt
+            .query(rusqlite::params_from_iter(node_params.clone()))
+            .map_err(AresError::db)?;
+        while let Some(row) = node_rows.next().map_err(AresError::db)? {
+            let mut node = row_to_node(row).map_err(AresError::db)?;
+
+            if let serde_json::Value::Object(ref mut map) = node.properties {
+                let node_type = node.node_type.as_str();
+                let expandable = matches!(
+                    node_type,
+                    "project" | "workspace" | "folder" | "crate" | "module"
+                );
+                map.insert(
+                    "expandable".to_string(),
+                    serde_json::Value::Bool(expandable),
+                );
+                map.insert("loaded".to_string(), serde_json::Value::Bool(true));
+
+                let color = match node_type {
+                    "project" | "workspace" => "#3b82f6",
+                    "folder" | "crate" => "#8b5cf6",
+                    "module" => "#10b981",
+                    "file" => "#6b7280",
+                    _ => "#9ca3af",
+                };
+                let icon = match node_type {
+                    "project" | "workspace" => "📦",
+                    "folder" => "📁",
+                    "crate" => "🦀",
+                    "module" => "🧩",
+                    "file" => "📄",
+                    _ => "⏺",
+                };
+                map.insert(
+                    "color".to_string(),
+                    serde_json::Value::String(color.to_string()),
+                );
+                map.insert(
+                    "icon".to_string(),
+                    serde_json::Value::String(icon.to_string()),
+                );
+            }
+            nodes.push(node);
+        }
+
+        // 4. Fetch all edges where BOTH ends are in the fetched nodes
+        let edges_sql = format!(
+            "SELECT id, project_id, from_node_id, to_node_id, edge_type, weight, confidence, source, valid_from, valid_until, created_at
+             FROM graph_edges 
+             WHERE from_node_id IN ({0}) AND to_node_id IN ({0}) AND valid_until IS NULL",
+            node_placeholders
+        );
+        let mut edges_stmt = conn.prepare(&edges_sql).map_err(AresError::db)?;
+
+        let mut edge_params = node_params.clone();
+        edge_params.extend(node_params.clone());
+
+        let mut edges = Vec::new();
+        let mut edge_rows = edges_stmt
+            .query(rusqlite::params_from_iter(edge_params.clone()))
+            .map_err(AresError::db)?;
+        while let Some(row) = edge_rows.next().map_err(AresError::db)? {
+            let edge = row_to_edge(row).map_err(AresError::db)?;
+            edges.push(edge);
+        }
+
+        // Compute degree
+        let degree_sql = format!(
+            "SELECT node_id, COUNT(*) FROM (
+                SELECT from_node_id as node_id FROM graph_edges WHERE from_node_id IN ({0}) AND valid_until IS NULL
+                UNION ALL
+                SELECT to_node_id as node_id FROM graph_edges WHERE to_node_id IN ({0}) AND valid_until IS NULL
+            ) GROUP BY node_id",
+            node_placeholders
+        );
+        if let Ok(mut deg_stmt) = conn.prepare(&degree_sql) {
+            if let Ok(mut deg_rows) =
+                deg_stmt.query(rusqlite::params_from_iter(node_params.clone()))
+            {
+                let mut degrees = std::collections::HashMap::new();
+                while let Ok(Some(row)) = deg_rows.next() {
+                    let id: String = row.get(0).unwrap_or_default();
+                    let deg: i64 = row.get(1).unwrap_or(0);
+                    degrees.insert(id, deg);
+                }
+                for node in &mut nodes {
+                    if let serde_json::Value::Object(ref mut map) = node.properties {
+                        let deg = degrees.get(node.id.as_str()).copied().unwrap_or(0);
+                        map.insert(
+                            "degree".to_string(),
+                            serde_json::Value::Number(serde_json::Number::from(deg)),
+                        );
+                    }
+                }
+            }
+        }
+
+        tracing::info!(
+            "[get_graph_root] Returning {} nodes, {} edges",
+            nodes.len(),
+            edges.len()
+        );
+        Ok((nodes, edges))
+    }
+
+    pub fn get_graph_neighbors(
+        &self,
+        node_id: &NodeId,
+        _depth: usize,
+    ) -> Result<(Vec<GraphNode>, Vec<GraphEdge>), AresError> {
+        // Implement simple 1-depth neighbors fetch for lazy loading.
+        let conn = self.store.get_conn()?;
+
+        let mut edges = Vec::new();
+        let mut nodes = Vec::new();
+
+        let mut edge_stmt = conn.prepare(
+            "SELECT id, project_id, from_node_id, to_node_id, edge_type, weight, confidence, source, valid_from, valid_until, created_at
+             FROM graph_edges 
+             WHERE (from_node_id = ?1 OR to_node_id = ?1) AND valid_until IS NULL"
+        ).map_err(AresError::db)?;
+
+        let mut rows = edge_stmt
+            .query(params![node_id.as_str()])
+            .map_err(AresError::db)?;
+        let mut neighbor_ids = std::collections::HashSet::new();
+        neighbor_ids.insert(node_id.as_str().to_string());
+
+        while let Some(row) = rows.next().map_err(AresError::db)? {
+            let edge = row_to_edge(row).map_err(AresError::db)?;
+            neighbor_ids.insert(edge.from_node_id.as_str().to_string());
+            neighbor_ids.insert(edge.to_node_id.as_str().to_string());
+            edges.push(edge);
+        }
+
+        if !neighbor_ids.is_empty() {
+            let placeholders = neighbor_ids
+                .iter()
+                .map(|_| "?")
+                .collect::<Vec<_>>()
+                .join(",");
+            let sql = format!("SELECT id, project_id, node_type, label, properties, file_path, created_at, updated_at, deleted_at FROM graph_nodes WHERE id IN ({}) AND deleted_at IS NULL", placeholders);
+            let mut node_stmt = conn.prepare(&sql).map_err(AresError::db)?;
+            let params: Vec<&dyn rusqlite::ToSql> = neighbor_ids
+                .iter()
+                .map(|s| s as &dyn rusqlite::ToSql)
+                .collect();
+            let mut node_rows = node_stmt
+                .query(rusqlite::params_from_iter(params))
+                .map_err(AresError::db)?;
+            while let Some(row) = node_rows.next().map_err(AresError::db)? {
+                let mut node = row_to_node(row).map_err(AresError::db)?;
+
+                // Inject degree count
+                let degree: i64 = conn.query_row(
+                    "SELECT COUNT(*) FROM graph_edges WHERE (from_node_id = ?1 OR to_node_id = ?1) AND valid_until IS NULL",
+                    params![node.id.as_str()],
+                    |row| row.get(0),
+                ).unwrap_or(0);
+                if let serde_json::Value::Object(ref mut map) = node.properties {
+                    map.insert(
+                        "degree".to_string(),
+                        serde_json::Value::Number(serde_json::Number::from(degree)),
+                    );
+                }
+
+                nodes.push(node);
+            }
+        }
+
+        Ok((nodes, edges))
+    }
+
+    pub fn search_graph_nodes(
+        &self,
+        query: &str,
+    ) -> Result<(Vec<GraphNode>, Vec<GraphEdge>), AresError> {
+        let conn = self.store.get_conn()?;
+        let search_pattern = format!("%{}%", query);
+        let mut stmt = conn.prepare(
+            "SELECT id, project_id, node_type, label, properties, file_path, created_at, updated_at, deleted_at 
+             FROM graph_nodes 
+             WHERE (label LIKE ?1 OR file_path LIKE ?1 OR node_type LIKE ?1) AND deleted_at IS NULL LIMIT 20"
+        ).map_err(AresError::db)?;
+
+        let mut nodes = Vec::new();
+        let mut rows = stmt.query(params![search_pattern]).map_err(AresError::db)?;
+        while let Some(row) = rows.next().map_err(AresError::db)? {
+            nodes.push(row_to_node(row).map_err(AresError::db)?);
+        }
+
+        // Return matching nodes with no edges initially
+        Ok((nodes, Vec::new()))
+    }
+
+    pub fn get_shortest_path(
+        &self,
+        from: &NodeId,
+        to: &NodeId,
+    ) -> Result<(Vec<GraphNode>, Vec<GraphEdge>), AresError> {
+        let conn = self.store.get_conn()?;
+
+        // Recursive CTE to find shortest path
+        let sql = r#"
+            WITH RECURSIVE
+              path_search(node_id, path_len, path_str) AS (
+                SELECT ?1, 0, ?1
+                UNION ALL
+                SELECT e.to_node_id, p.path_len + 1, p.path_str || ',' || e.to_node_id
+                FROM path_search p
+                JOIN graph_edges e ON p.node_id = e.from_node_id
+                WHERE e.valid_until IS NULL AND p.path_len < 10 AND p.node_id != ?2
+              )
+            SELECT path_str FROM path_search WHERE node_id = ?2 ORDER BY path_len ASC LIMIT 1;
+        "#;
+
+        let mut stmt = conn.prepare(sql).map_err(AresError::db)?;
+        let mut result_path_str: String = String::new();
+        if let Ok(path) = stmt.query_row(params![from.as_str(), to.as_str()], |row| row.get(0)) {
+            result_path_str = path;
+        }
+
+        if result_path_str.is_empty() {
+            return Ok((Vec::new(), Vec::new()));
+        }
+
+        let path_nodes: Vec<&str> = result_path_str.split(',').collect();
+        let mut nodes = Vec::new();
+        let mut edges = Vec::new();
+
+        // Fetch nodes
+        if !path_nodes.is_empty() {
+            let placeholders = path_nodes.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+            let nsql = format!("SELECT id, project_id, node_type, label, properties, file_path, created_at, updated_at, deleted_at FROM graph_nodes WHERE id IN ({}) AND deleted_at IS NULL", placeholders);
+            let mut node_stmt = conn.prepare(&nsql).map_err(AresError::db)?;
+            let params: Vec<&dyn rusqlite::ToSql> = path_nodes
+                .iter()
+                .map(|s| s as &dyn rusqlite::ToSql)
+                .collect();
+            let mut node_rows = node_stmt
+                .query(rusqlite::params_from_iter(params))
+                .map_err(AresError::db)?;
+            while let Some(row) = node_rows.next().map_err(AresError::db)? {
+                nodes.push(row_to_node(row).map_err(AresError::db)?);
+            }
+
+            // Fetch edges between these nodes
+            let esql = format!("SELECT id, project_id, from_node_id, to_node_id, edge_type, weight, confidence, source, valid_from, valid_until, created_at FROM graph_edges WHERE from_node_id IN ({0}) AND to_node_id IN ({0}) AND valid_until IS NULL", placeholders);
+            let mut edge_stmt = conn.prepare(&esql).map_err(AresError::db)?;
+            let mut edge_params: Vec<&dyn rusqlite::ToSql> = path_nodes
+                .iter()
+                .map(|s| s as &dyn rusqlite::ToSql)
+                .collect();
+            edge_params.extend(path_nodes.iter().map(|s| s as &dyn rusqlite::ToSql));
+            let mut edge_rows = edge_stmt
+                .query(rusqlite::params_from_iter(edge_params))
+                .map_err(AresError::db)?;
+            while let Some(row) = edge_rows.next().map_err(AresError::db)? {
+                edges.push(row_to_edge(row).map_err(AresError::db)?);
+            }
+        }
+
+        Ok((nodes, edges))
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -826,5 +1219,112 @@ mod tests {
                                                    // Confidence decay
         assert!((impact.impacts[0].confidence - 0.9).abs() < 0.01);
         assert!((impact.impacts[1].confidence - 0.8).abs() < 0.01);
+    }
+    #[test]
+    fn graph_root_returns_connected_graph() {
+        let (store, _dir) = test_store();
+        let project_id = setup_project(&store);
+        let repo = SqliteGraphRepository::new(store);
+
+        // 1. Create a project node
+        let mut proj_node = make_node(&project_id, "root_project", None);
+        proj_node.node_type = NodeType::Project;
+        let proj_node = repo.upsert_node(proj_node).unwrap();
+
+        // 2. Create some folders
+        let mut folder1 = make_node(&project_id, "src", None);
+        folder1.node_type = NodeType::Folder;
+        let folder1 = repo.upsert_node(folder1).unwrap();
+
+        let mut folder2 = make_node(&project_id, "tests", None);
+        folder2.node_type = NodeType::Folder;
+        let folder2 = repo.upsert_node(folder2).unwrap();
+
+        repo.upsert_edge(GraphEdge {
+            id: new_id(),
+            project_id: project_id.clone(),
+            from_node_id: proj_node.id.clone(),
+            to_node_id: folder1.id.clone(),
+            edge_type: EdgeType::Contains,
+            weight: 1.0,
+            confidence: 1.0,
+            source: "scanner".into(),
+            valid_from: now_micros(),
+            valid_until: None,
+            created_at: now_micros(),
+        })
+        .unwrap();
+
+        repo.upsert_edge(GraphEdge {
+            id: new_id(),
+            project_id: project_id.clone(),
+            from_node_id: proj_node.id.clone(),
+            to_node_id: folder2.id.clone(),
+            edge_type: EdgeType::Contains,
+            weight: 1.0,
+            confidence: 1.0,
+            source: "scanner".into(),
+            valid_from: now_micros(),
+            valid_until: None,
+            created_at: now_micros(),
+        })
+        .unwrap();
+
+        // 3. Create 25 files in folder1
+        for i in 0..25 {
+            let mut file_node = make_node(&project_id, &format!("file{}.rs", i), None);
+            file_node.node_type = NodeType::File;
+            let file_node = repo.upsert_node(file_node).unwrap();
+
+            repo.upsert_edge(GraphEdge {
+                id: new_id(),
+                project_id: project_id.clone(),
+                from_node_id: folder1.id.clone(),
+                to_node_id: file_node.id.clone(),
+                edge_type: EdgeType::Contains,
+                weight: 1.0,
+                confidence: 1.0,
+                source: "scanner".into(),
+                valid_from: now_micros(),
+                valid_until: None,
+                created_at: now_micros(),
+            })
+            .unwrap();
+        }
+
+        // 4. Fetch the root graph
+        let query_context = GraphQueryContext {
+            workspace: WorkspaceContext {
+                workspace_path: std::path::PathBuf::from("/test"),
+                workspace_name: "test_workspace".to_string(),
+                repositories: vec![ProjectId::from("TEST")],
+            },
+            repository: ProjectId::from("TEST"),
+            max_depth: 3,
+            max_nodes: 100,
+            edge_filters: vec![],
+            node_filters: vec![],
+            layout_hint: LayoutHint::Hierarchical,
+        };
+        let (nodes, edges) = repo.get_graph_root(&query_context).unwrap();
+
+        // The CTE limits to 60 nodes, we inserted 1 (proj) + 2 (folders) + 25 (files) = 28 nodes
+        assert!(nodes.len() > 20, "Should fetch all nodes");
+        assert!(edges.len() > 20, "Should fetch all edges");
+
+        let ids: std::collections::HashSet<_> =
+            nodes.iter().map(|n| n.id.as_str().to_string()).collect();
+
+        // 5. Assert NO dangling edges! Every edge must have both source and target in the fetched nodes.
+        for edge in &edges {
+            assert!(
+                ids.contains(edge.from_node_id.as_str()),
+                "Dangling edge: source missing"
+            );
+            assert!(
+                ids.contains(edge.to_node_id.as_str()),
+                "Dangling edge: target missing"
+            );
+        }
     }
 }

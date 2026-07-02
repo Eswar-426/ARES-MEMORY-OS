@@ -977,15 +977,21 @@ name = "ares-repository-intelligence"
 version = "0.1.0"
 dependencies = [
  "ares-core",
+ "ares-git-memory",
+ "ares-knowledge-graph",
  "ares-retrieval",
  "ares-store",
+ "async-trait",
  "chrono",
+ "futures",
  "lazy_static",
+ "rusqlite",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "uuid",
 ]
 

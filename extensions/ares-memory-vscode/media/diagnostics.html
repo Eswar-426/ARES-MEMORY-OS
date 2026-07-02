@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline' ${webview.cspSource};">
+<style>
+    body {
+        background-color: #1e1e1e;
+        color: #d4d4d4;
+        font-family: Consolas, 'Courier New', monospace;
+        padding: 20px;
+        line-height: 1.5;
+    }
+    h1, h2 {
+        color: #569cd6;
+        border-bottom: 1px solid #333;
+        padding-bottom: 5px;
+    }
+    .card {
+        background-color: #252526;
+        border: 1px solid #3c3c3c;
+        border-radius: 4px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    .field {
+        margin-bottom: 10px;
+    }
+    .label {
+        color: #9cdcfe;
+        font-weight: bold;
+    }
+    .value {
+        color: #ce9178;
+        word-break: break-all;
+    }
+    pre {
+        background-color: #1e1e1e;
+        border: 1px solid #3c3c3c;
+        padding: 10px;
+        border-radius: 4px;
+        overflow-x: auto;
+        color: #dcdcaa;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    .log-entry {
+        border-left: 3px solid #569cd6;
+        padding-left: 10px;
+        margin-bottom: 15px;
+    }
+    .log-entry.SEND { border-color: #4ec9b0; }
+    .log-entry.RECEIVE { border-color: #d16969; }
+    .log-header {
+        font-size: 0.9em;
+        color: #808080;
+        margin-bottom: 5px;
+    }
+</style>
+</head>
+<body>
+    <h1>ARES Diagnostics</h1>
+    
+    <div class="card">
+        <h2>Environment State</h2>
+        <div class="field">
+            <span class="label">Workspace Root:</span>
+            <span class="value" id="workspace-root">Loading...</span>
+        </div>
+        <div class="field">
+            <span class="label">Database Path:</span>
+            <span class="value" id="db-path">Loading...</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>MCP Connection Test (ares_dashboard)</h2>
+        <pre id="mcp-test">Loading...</pre>
+    </div>
+
+    <div class="card">
+        <h2>MCP Traffic Log</h2>
+        <div id="traffic-log">
+            <div style="color: #808080; font-style: italic;">Waiting for traffic... (Add DiagnosticsPanel.logMcpTraffic calls in your code)</div>
+        </div>
+    </div>
+
+    <script>
+        const vscode = acquireVsCodeApi();
+        
+        window.addEventListener('message', event => {
+            const message = event.data;
+            
+            if (message.type === 'STATE_UPDATE') {
+                document.getElementById('workspace-root').textContent = message.data.workspaceRoot;
+                document.getElementById('db-path').textContent = message.data.dbPath;
+                document.getElementById('mcp-test').textContent = message.data.mcpTestResult;
+            }
+            
+            if (message.type === 'MCP_TRAFFIC') {
+                const logContainer = document.getElementById('traffic-log');
+                
+                // Remove placeholder if it exists
+                if (logContainer.firstElementChild && logContainer.firstElementChild.tagName !== 'DIV' || logContainer.firstElementChild.style.fontStyle === 'italic') {
+                    logContainer.innerHTML = '';
+                }
+
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${message.data.direction}`;
+                
+                const header = document.createElement('div');
+                header.className = 'log-header';
+                header.textContent = `[${message.data.timestamp}] ${message.data.direction} - ${message.data.method}`;
+                
+                const payload = document.createElement('pre');
+                payload.textContent = message.data.payload;
+                
+                entry.appendChild(header);
+                entry.appendChild(payload);
+                
+                // Prepend to show newest first
+                logContainer.insertBefore(entry, logContainer.firstChild);
+            }
+        });
+    </script>
+</body>
+</html>

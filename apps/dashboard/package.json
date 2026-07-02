@@ -10,8 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ares/ui": "workspace:^",
     "@tanstack/react-query": "^5.101.0",
     "@xyflow/react": "^12.4.2",
+    "cytoscape": "^3.34.0",
+    "cytoscape-dagre": "^4.0.0",
     "lucide-react": "^0.470.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
@@ -22,6 +25,8 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.3.1",
+    "@types/cytoscape": "^3.21.9",
+    "@types/cytoscape-dagre": "^2.3.4",
     "@types/node": "^24.12.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

@@ -3,11 +3,11 @@
 //! Generates deterministic embeddings by hashing the input text.
 //! No external dependencies required.
 
+use ares_core::inference::InferenceEngine;
 use ares_core::vector::{
     traits::EmbeddingProvider,
     types::{Embedding, EmbeddingMetadata},
 };
-use ares_core::inference::InferenceEngine;
 use ares_core::AresError;
 use async_trait::async_trait;
 

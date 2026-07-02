@@ -19,7 +19,8 @@ fn get_repo() -> Result<SqliteCandidateRepository, AresError> {
 pub async fn execute_list() -> Result<(), AresError> {
     let repo = get_repo()?;
     // Assuming a single default project ID for now, as CLI runs per repo
-    let project_id = "TEST";
+    let __pid = crate::get_default_project_id();
+    let project_id = __pid.as_str();
     let candidates = repo
         .list_candidates(project_id, 100, 0)
         .await
@@ -64,7 +65,8 @@ pub async fn execute_list() -> Result<(), AresError> {
 
 pub async fn execute_show(id: String) -> Result<(), AresError> {
     let repo = get_repo()?;
-    let project_id = "TEST";
+    let __pid = crate::get_default_project_id();
+    let project_id = __pid.as_str();
     let candidate = repo
         .get_candidate(project_id, &id)
         .await
@@ -113,7 +115,8 @@ pub async fn execute_show(id: String) -> Result<(), AresError> {
 
 pub async fn execute_accept(id: String) -> Result<(), AresError> {
     let repo = get_repo()?;
-    let project_id = "TEST";
+    let __pid = crate::get_default_project_id();
+    let project_id = __pid.as_str();
     let candidate = repo
         .get_candidate(project_id, &id)
         .await
@@ -174,7 +177,8 @@ pub async fn execute_accept(id: String) -> Result<(), AresError> {
 
 pub async fn execute_reject(id: String) -> Result<(), AresError> {
     let repo = get_repo()?;
-    let project_id = "TEST";
+    let __pid = crate::get_default_project_id();
+    let project_id = __pid.as_str();
     let mut candidate = repo
         .get_candidate(project_id, &id)
         .await

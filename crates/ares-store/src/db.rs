@@ -46,16 +46,23 @@ impl Store {
             .map_err(|e| AresError::migration(format!("Failed to build connection pool: {e}")))?;
 
         let store = Self { pool };
-        store.run_migrations()?;
+        store.run_schema_migrations()?;
 
         Ok(store)
     }
 
     /// Run all pending schema migrations.
-    pub fn run_migrations(&self) -> Result<(), AresError> {
+    pub fn run_schema_migrations(&self) -> Result<(), AresError> {
         debug!("Running schema migrations");
         let mut conn = self.get_conn()?;
-        crate::migrations::run(&mut conn)
+        crate::migrations::MigrationManager::run_schema_migrations(&mut conn)
+    }
+
+    /// Run all pending migrations (schema and custom data migrations).
+    pub fn run_migrations(&self, project_id: &str) -> Result<(), AresError> {
+        debug!("Running schema and data migrations");
+        let mut conn = self.get_conn()?;
+        crate::migrations::MigrationManager::run(&mut conn, project_id)
     }
 
     /// Acquire a connection from the pool.

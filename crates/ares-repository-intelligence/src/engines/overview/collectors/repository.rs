@@ -11,7 +11,7 @@ pub async fn collect(store: &Store, project_path: &str) -> RepositoryOverview {
         .to_string();
 
     let root_path = project_path.to_string();
-    
+
     // Get git info
     let branch = Command::new("git")
         .arg("rev-parse")
@@ -31,19 +31,24 @@ pub async fn collect(store: &Store, project_path: &str) -> RepositoryOverview {
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_else(|_| "unknown".to_string());
 
-    let stats = store.overview_repository_stats().unwrap_or_else(|_| ares_store::overview::RepositoryStats {
-        files: 0,
-        functions: 0,
-        directories: 0,
-        modules: 0,
+    let stats = store.overview_repository_stats().unwrap_or({
+        ares_store::overview::RepositoryStats {
+            files: 0,
+            functions: 0,
+            directories: 0,
+            modules: 0,
+        }
     });
 
     let mut language = "Unknown".to_string();
     if let Ok(conn) = store.get_conn() {
         if let Ok(props_str) = conn.query_row(
-            &format!("SELECT properties FROM graph_nodes WHERE node_type = '{}' LIMIT 1", ares_core::NodeType::Project.as_str()),
+            &format!(
+                "SELECT properties FROM graph_nodes WHERE node_type = '{}' LIMIT 1",
+                ares_core::NodeType::Project.as_str()
+            ),
             [],
-            |row| row.get::<_, String>(0)
+            |row| row.get::<_, String>(0),
         ) {
             if let Ok(props) = serde_json::from_str::<serde_json::Value>(&props_str) {
                 if let Some(lang) = props.get("language").and_then(|v| v.as_str()) {

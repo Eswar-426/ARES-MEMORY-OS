@@ -6,7 +6,7 @@ use ares_knowledge_graph::models::{
 use clap::Args;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use std::time::{Instant, SystemTime, UNIX_EPOCH, Duration};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 fn format_duration(d: Duration) -> String {
     let secs = d.as_secs();
@@ -72,6 +72,11 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
 
     let db_path = out_dir.join("ares.db");
     let raw_store = std::sync::Arc::new(ares_store::db::Store::open(&db_path)?);
+
+    // Run schema and data migrations
+    let project_id = crate::get_default_project_id();
+    raw_store.run_migrations(project_id.as_str())?;
+
     let graph_store = ares_knowledge_graph::store::KnowledgeGraphStore::new(raw_store.clone());
 
     if args.incremental {
@@ -91,14 +96,13 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         let mut batch = Vec::new();
         let batch_size = 2500;
 
-        let project_id = ares_core::ProjectId::from("TEST");
         let repo = std::sync::Arc::new(
             ares_store::repositories::graph::SqliteGraphRepository::new((*raw_store).clone()),
         );
 
         // Insert dummy project
         raw_store.get_conn()?.execute(
-            "INSERT OR IGNORE INTO projects (id, name, description, root_path, primary_language, domain, maturity, created_at, updated_at) VALUES (?1, 'TEST', '', '', '', '', 'greenfield', 0, 0)",
+            "INSERT OR IGNORE INTO projects (id, name, description, root_path, primary_language, domain, maturity, created_at, updated_at) VALUES (?1, ?1, '', '', '', '', 'greenfield', 0, 0)",
             [project_id.as_str()],
         ).map_err(|e| ares_core::AresError::db(e.to_string()))?;
 
@@ -260,8 +264,7 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                 for mut edge in git_memory.edges {
                     if matches!(
                         edge.edge_type,
-                        ares_core::EdgeType::AuthoredBy
-                            | ares_core::EdgeType::Touches
+                        ares_core::EdgeType::Touches
                             | ares_core::EdgeType::Owns
                             | ares_core::EdgeType::ContributedTo
                     ) {
@@ -303,7 +306,7 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                 }
                 NodeType::Requirement => continue, // Scanner creates File nodes, classifier maps them
                 NodeType::Decision => continue, // Scanner creates File nodes, classifier maps them
-                NodeType::Owner => ares_core::NodeType::Tag, // Only Owner nodes need bridging
+                NodeType::Owner => ares_core::NodeType::Person, // Map to Person to align with Git extraction
                 NodeType::Repository => continue,
                 _ => continue,
             };
@@ -353,7 +356,9 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                 .get(&edge.target_id)
                 .cloned()
                 .unwrap_or_else(|| {
-                    println!("DEBUG: to_id MISSING for target_id: {:?}", edge.target_id);
+                    if !edge.target_id.starts_with('@') && !edge.target_id.contains(':') {
+                        println!("DEBUG: to_id MISSING for target_id: {:?}", edge.target_id);
+                    }
                     edge.target_id.clone()
                 });
             let ge = ares_core::GraphEdge {
@@ -440,16 +445,48 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         let elapsed = start_time.elapsed();
 
         println!("\nARES Ingest Summary\n");
-        if files == 0 { println!("Files scanned ............. No files detected"); } else { println!("Files scanned ............. {}", files); }
-        if dirs == 0 { println!("Directories ............... No directories detected"); } else { println!("Directories ............... {}", dirs); }
-        if funcs == 0 { println!("Functions ................. No functions detected"); } else { println!("Functions ................. {}", funcs); }
-        if deps == 0 { println!("Dependencies .............. No dependencies detected"); } else { println!("Dependencies .............. {}", deps); }
-        if decisions == 0 { println!("Decisions ................. No ADRs detected"); } else { println!("Decisions ................. {}", decisions); }
-        if commits == 0 { println!("Commits analyzed .......... No commits detected"); } else { println!("Commits analyzed .......... {}", commits); }
+        if files == 0 {
+            println!("Files scanned ............. No files detected");
+        } else {
+            println!("Files scanned ............. {}", files);
+        }
+        if dirs == 0 {
+            println!("Directories ............... No directories detected");
+        } else {
+            println!("Directories ............... {}", dirs);
+        }
+        if funcs == 0 {
+            println!("Functions ................. No functions detected");
+        } else {
+            println!("Functions ................. {}", funcs);
+        }
+        if deps == 0 {
+            println!("Dependencies .............. No dependencies detected");
+        } else {
+            println!("Dependencies .............. {}", deps);
+        }
+        if decisions == 0 {
+            println!("Decisions ................. No ADRs detected");
+        } else {
+            println!("Decisions ................. {}", decisions);
+        }
+        if commits == 0 {
+            println!("Commits analyzed .......... No commits detected");
+        } else {
+            println!("Commits analyzed .......... {}", commits);
+        }
 
         println!("\nGraph\n");
-        if total_nodes == 0 { println!("Nodes ..................... No nodes present"); } else { println!("Nodes ..................... {}", total_nodes); }
-        if total_edges == 0 { println!("Edges ..................... No edges present"); } else { println!("Edges ..................... {}", total_edges); }
+        if total_nodes == 0 {
+            println!("Nodes ..................... No nodes present");
+        } else {
+            println!("Nodes ..................... {}", total_nodes);
+        }
+        if total_edges == 0 {
+            println!("Edges ..................... No edges present");
+        } else {
+            println!("Edges ..................... {}", total_edges);
+        }
 
         println!("\nIntegrity\n");
         println!("Missing Sources ........... {}", missing_sources);
@@ -458,11 +495,26 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         println!("CHECK Errors .............. 0");
 
         println!("\nTiming Breakdown\n");
-        println!("AST Extraction ............ {}", format_duration(ast_elapsed));
-        println!("Source Scanning ........... {}", format_duration(scan_elapsed));
-        println!("File Inventory ............ {}", format_duration(inventory_elapsed));
-        println!("Git Fact Capture .......... {}", format_duration(git_elapsed));
-        println!("Memory Bridging ........... {}", format_duration(bridge_elapsed));
+        println!(
+            "AST Extraction ............ {}",
+            format_duration(ast_elapsed)
+        );
+        println!(
+            "Source Scanning ........... {}",
+            format_duration(scan_elapsed)
+        );
+        println!(
+            "File Inventory ............ {}",
+            format_duration(inventory_elapsed)
+        );
+        println!(
+            "Git Fact Capture .......... {}",
+            format_duration(git_elapsed)
+        );
+        println!(
+            "Memory Bridging ........... {}",
+            format_duration(bridge_elapsed)
+        );
 
         println!("\nCompleted in {}", format_duration(elapsed));
     }

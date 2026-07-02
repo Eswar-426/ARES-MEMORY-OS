@@ -64,7 +64,7 @@ pub async fn execute_pr_check(base_report_path: Option<String>) -> Result<(), Ar
         (*store).clone(),
         std::path::PathBuf::from(&project_path),
     );
-    let project_id = ares_core::ProjectId::from("TEST");
+    let project_id = crate::get_default_project_id();
 
     let head_compliance = governance
         .evaluate_project(&project_id)
@@ -178,7 +178,7 @@ pub async fn execute_coverage(json: bool, markdown: bool) -> Result<(), AresErro
     }
 
     let store = std::sync::Arc::new(ares_store::db::Store::open(&store_path)?);
-    let project_id = ares_core::ProjectId::from("TEST");
+    let project_id = crate::get_default_project_id();
     let metrics = ares_governance::coverage_engine::CoverageEngine::calculate(&store, &project_id)?;
 
     if json {
@@ -236,7 +236,7 @@ pub async fn execute_debt(json: bool, markdown: bool) -> Result<(), AresError> {
     let project_path = std::env::current_dir().unwrap_or_default();
     let store_path = project_path.join(".ares").join("ares.db");
     let store = std::sync::Arc::new(ares_store::db::Store::open(&store_path)?);
-    let project_id = ares_core::ProjectId::from("TEST");
+    let project_id = crate::get_default_project_id();
 
     let coverage =
         ares_governance::coverage_engine::CoverageEngine::calculate(&store, &project_id)?;
@@ -265,7 +265,7 @@ pub async fn execute_health(json: bool, markdown: bool) -> Result<(), AresError>
     let project_path = std::env::current_dir().unwrap_or_default();
     let store_path = project_path.join(".ares").join("ares.db");
     let store = std::sync::Arc::new(ares_store::db::Store::open(&store_path)?);
-    let project_id = ares_core::ProjectId::from("TEST");
+    let project_id = crate::get_default_project_id();
 
     let coverage =
         ares_governance::coverage_engine::CoverageEngine::calculate(&store, &project_id)?;
@@ -295,7 +295,7 @@ pub async fn execute_maturity(json: bool, markdown: bool) -> Result<(), AresErro
     let project_path = std::env::current_dir().unwrap_or_default();
     let store_path = project_path.join(".ares").join("ares.db");
     let store = std::sync::Arc::new(ares_store::db::Store::open(&store_path)?);
-    let project_id = ares_core::ProjectId::from("TEST");
+    let project_id = crate::get_default_project_id();
 
     let coverage =
         ares_governance::coverage_engine::CoverageEngine::calculate(&store, &project_id)?;
@@ -325,7 +325,7 @@ pub async fn execute_drift(json: bool, markdown: bool) -> Result<(), AresError> 
     let project_path = std::env::current_dir().unwrap_or_default();
     let store_path = project_path.join(".ares").join("ares.db");
     let store = std::sync::Arc::new(ares_store::db::Store::open(&store_path)?);
-    let project_id = ares_core::ProjectId::from("TEST");
+    let project_id = crate::get_default_project_id();
 
     let drift =
         ares_governance::memory_drift_engine::MemoryDriftEngine::calculate(&store, &project_id)?;
@@ -370,11 +370,11 @@ pub async fn execute_check(baseline: Option<String>) -> Result<(), AresError> {
         (*raw_store).clone(),
     ));
 
-    let project_id = ares_core::ProjectId::from("TEST");
+    let project_id = crate::get_default_project_id();
 
     // Insert dummy project to satisfy foreign key constraint
     raw_store.get_conn()?.execute(
-        "INSERT OR IGNORE INTO projects (id, name, description, root_path, primary_language, domain, maturity, created_at, updated_at) VALUES (?1, 'TEST', '', '', '', '', 'greenfield', 0, 0)",
+        "INSERT OR IGNORE INTO projects (id, name, description, root_path, primary_language, domain, maturity, created_at, updated_at) VALUES (?1, ?1, '', '', '', '', 'greenfield', 0, 0)",
         [project_id.as_str()],
     ).map_err(|e| ares_core::AresError::db(e.to_string()))?;
 
@@ -472,7 +472,7 @@ pub async fn execute_check(baseline: Option<String>) -> Result<(), AresError> {
         }
     }
 
-    let project_id = ares_core::ProjectId::from("TEST");
+    let project_id = crate::get_default_project_id();
 
     let base_coverage =
         ares_governance::coverage_engine::CoverageEngine::calculate(&raw_store, &project_id)?;
