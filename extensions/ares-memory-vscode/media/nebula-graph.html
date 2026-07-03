@@ -47,6 +47,7 @@ const NODE_PALETTE = {
     function:   { fill:'#2c0c18', glow:'#f43f5e', tint:'244,63,94' },
     trait:      { fill:'#0c2c1e', glow:'#10b981', tint:'16,185,129' },
     module:     { fill:'#1a1a0c', glow:'#eab308', tint:'234,179,8' },
+    aggregator: { fill:'#161b22', glow:'#8b949e', tint:'139,148,158' },
 };
 function getPalette(type) { return NODE_PALETTE[type] || NODE_PALETTE.file; }
 function getNodeColor(type) { return getPalette(type).glow; }
@@ -57,10 +58,10 @@ function getTypeTint(type) { return getPalette(type).tint; }
 //  NODE SIZES
 // ═══════════════════════════════════════════════════════════════
 function getNodeSize(type) {
-    return { repository:28, directory:20, crate:18, file:14, struct:16, function:11, trait:14, module:16 }[type] || 16;
+    return { repository:28, directory:20, crate:18, file:14, struct:16, function:11, trait:14, module:16, aggregator:12 }[type] || 16;
 }
 function getShapeIcon(type) {
-    return { repository:'⬡', directory:'▣', crate:'●', file:'▪', struct:'◆', function:'◦', trait:'⬡', module:'⬢' }[type] || '●';
+    return { repository:'⬡', directory:'▣', crate:'●', file:'▪', struct:'◆', function:'◦', trait:'⬡', module:'⬢', aggregator:'+' }[type] || '●';
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -210,7 +211,7 @@ function drawNode(node) {
     ctx.fill();
 
     // Expand badge ⊕
-    if (node.state !== 'expanded' && node.state !== 'loading' && (node._childCount > 0 || node._outCount > 0)) {
+    if (node.type !== 'aggregator' && node.state !== 'expanded' && node.state !== 'loading' && (node._childCount > 0 || node._outCount > 0)) {
         const bx = x + r * 0.7, by = y - r * 0.7, br = 7;
         ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2);
         ctx.fillStyle = isHov ? `rgba(${palette.tint},0.22)` : `rgba(${palette.tint},0.08)`;
@@ -224,7 +225,7 @@ function drawNode(node) {
     }
 
     // Collapse badge ⊖
-    if (node.state === 'expanded') {
+    if (node.type !== 'aggregator' && node.state === 'expanded') {
         const bx = x + r * 0.7, by = y - r * 0.7, br = 7;
         ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2);
         ctx.fillStyle = isHov ? `rgba(${palette.tint},0.28)` : `rgba(${palette.tint},0.1)`;
@@ -504,19 +505,79 @@ function recountConnections() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  STATE CONSISTENCY — Reachability sweep & orphan cleanup
+// ═══════════════════════════════════════════════════════════════
+function cleanupOrphans() {
+    const reachable = new Set();
+    const roots = state.nodes.filter(n => !state.edges.some(e => e.target === n.id && e.type === 'contains'));
+    const queue = [...roots];
+    queue.forEach(n => reachable.add(n.id));
+    let safety = 0;
+    while (queue.length > 0 && safety < 50000) {
+        const cur = queue.shift();
+        state.edges.filter(e => e.source === cur && e.type === 'contains').forEach(e => {
+            if (!reachable.has(e.target)) {
+                reachable.add(e.target);
+                const tn = state.nodeMap.get(e.target);
+                if (tn) queue.push(tn);
+            }
+        });
+        safety++;
+    }
+    const removed = new Set();
+    state.nodes = state.nodes.filter(n => {
+        if (!reachable.has(n.id)) { removed.add(n.id); return false; }
+        return true;
+    });
+    state.edges = state.edges.filter(e => !removed.has(e.source) && !removed.has(e.target));
+    removed.forEach(id => delete state.expansionTree[id]);
+    Object.keys(state.expansionTree).forEach(pid => {
+        state.expansionTree[pid] = (state.expansionTree[pid] || []).filter(id => !removed.has(id));
+        if (state.expansionTree[pid].length === 0) delete state.expansionTree[pid];
+    });
+    state.nodeMap = new Map(state.nodes.map(n => [n.id, n]));
+    recountConnections();
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  EXPAND / COLLAPSE
 // ═══════════════════════════════════════════════════════════════
+let _expandTimeout = null;
+
 function expandNode(nodeId) {
-    const n = state.nodeMap.get(nodeId); if (!n) return;
-    n.state = 'loading'; state._pendingExpandId = nodeId;
+    const n = state.nodeMap.get(nodeId);
+    if (!n) return;
+    if (n.state === 'loading') return;
+    if (n.state === 'expanded') { collapseNode(nodeId); return; }
+
+    // Clear stale pending state from any previous failed expand
+    if (state._pendingExpandId && state._pendingExpandId !== nodeId) {
+        const stale = state.nodeMap.get(state._pendingExpandId);
+        if (stale && stale.state === 'loading') stale.state = 'default';
+    }
+    if (_expandTimeout) { clearTimeout(_expandTimeout); _expandTimeout = null; }
+
+    n.state = 'loading';
+    state._pendingExpandId = nodeId;
+
+    // Safety timeout: if backend never responds, reset loading state
+    _expandTimeout = setTimeout(() => {
+        if (state._pendingExpandId === nodeId) {
+            const node = state.nodeMap.get(nodeId);
+            if (node && node.state === 'loading') node.state = 'default';
+            state._pendingExpandId = null;
+        }
+    }, 8000);
+
     vscodeApi.postMessage({ command: 'loadNeighbors', id: nodeId });
 }
 
 function collapseNode(nodeId) {
     const node = state.nodeMap.get(nodeId);
     if (!node) return;
+    if (node.state !== 'expanded') return;
 
-    // Walk the expansion tree to find ALL descendants
+    // Walk expansion tree to find ALL descendants (BFS)
     const toRemove = new Set();
     const queue = [nodeId];
     while (queue.length > 0) {
@@ -534,6 +595,12 @@ function collapseNode(nodeId) {
     if (toRemove.size === 0) {
         node.state = 'default';
         return;
+    }
+
+    // Clear pending expand if it's being removed
+    if (toRemove.has(state._pendingExpandId)) {
+        state._pendingExpandId = null;
+        if (_expandTimeout) { clearTimeout(_expandTimeout); _expandTimeout = null; }
     }
 
     // Animate all descendants back toward the collapsing node
@@ -564,14 +631,138 @@ function collapseNode(nodeId) {
         state.edges = state.edges.filter(e => !e._removing);
         state.nodeMap = new Map(state.nodes.map(n => [n.id, n]));
         recountConnections();
-        updateSidePanelRoot();
+
+        // Side panel: show parent context on mid-level collapse
+        const parentEdge = state.edges.find(e => e.target === nodeId && e.type === 'contains');
+        if (parentEdge) {
+            const parentNode = state.nodeMap.get(parentEdge.source);
+            const siblings = (state.expansionTree[parentEdge.source] || [])
+                .map(id => state.nodeMap.get(id)).filter(Boolean);
+            if (parentNode && siblings.length > 0) {
+                updateSidePanel(parentNode, siblings);
+            } else {
+                updateSidePanelRoot();
+            }
+        } else {
+            updateSidePanelRoot();
+        }
     }, 420);
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  PROGRESSIVE DISCLOSURE
+// ═══════════════════════════════════════════════════════════════
+const MAX_VISIBLE_CHILDREN = 10;
+
+function expandAggregator(aggNode) {
+    const pid = aggNode._parentId;
+    const parent = state.nodeMap.get(pid);
+
+    if (!parent || parent.state !== 'expanded') {
+        state.nodes = state.nodes.filter(n => n.id !== aggNode.id);
+        state.edges = state.edges.filter(e => e.source !== aggNode.id && e.target !== aggNode.id);
+        state.nodeMap.delete(aggNode.id);
+        return;
+    }
+
+    if (!aggNode._hiddenNodes?.length) {
+        state.nodes = state.nodes.filter(n => n.id !== aggNode.id);
+        state.edges = state.edges.filter(e => e.source !== aggNode.id && e.target !== aggNode.id);
+        state.nodeMap.delete(aggNode.id);
+        if (state.expansionTree[pid]) {
+            state.expansionTree[pid] = state.expansionTree[pid].filter(id => id !== aggNode.id);
+            if (state.expansionTree[pid].length === 0) delete state.expansionTree[pid];
+        }
+        return;
+    }
+
+    // Remove aggregator
+    state.nodes = state.nodes.filter(n => n.id !== aggNode.id);
+    state.edges = state.edges.filter(e => e.source !== aggNode.id && e.target !== aggNode.id);
+    state.nodeMap.delete(aggNode.id);
+
+    // Existing children stay exactly where they are — NO re-layout
+    const existingChildIds = (state.expansionTree[pid] || []).filter(id => id !== aggNode.id && state.nodeMap.has(id));
+
+    // Filter hidden nodes against current graph
+    const hidden = aggNode._hiddenNodes.filter(n => !state.nodeMap.has(String(n.id)));
+    if (hidden.length === 0) {
+        state.expansionTree[pid] = existingChildIds;
+        return;
+    }
+
+    // Fan hidden children DOWNWARD from aggregator's last position
+    const count = hidden.length;
+    const fanCenter = Math.PI * 0.5;
+    const arcR = Math.max(130, 90 + count * 16);
+    const spread = Math.min(Math.PI * 0.35, 0.2 + count * 0.035);
+
+    const newNodes = hidden.map((n, i) => {
+        const a = count === 1 ? fanCenter : fanCenter - spread / 2 + (i / (count - 1)) * spread;
+        return {
+            id: String(n.id), label: n.label || n.id, type: (n.type || 'file').toLowerCase(),
+            meta: n.meta || {}, x: aggNode.x, y: aggNode.y,
+            _targetX: aggNode.x + Math.cos(a) * arcR, _targetY: aggNode.y + Math.sin(a) * arcR,
+            vx: 0, vy: 0, state: 'default', pinned: false,
+            renderAlpha: 0, renderScale: 0.2, _targetAlpha: 1, _targetScale: 1,
+            _inCount: 0, _outCount: 0, _childCount: n._childCount || n.childCount || 0,
+        };
+    });
+
+    const newNodeIds = new Set(newNodes.map(n => n.id));
+    const newEdges = (aggNode._hiddenEdges || []).filter(e => {
+        const s = String(e.source ?? ''), t = String(e.target ?? '');
+        return newNodeIds.has(s) || newNodeIds.has(t);
+    }).map(e => ({
+        source: String(e.source), target: String(e.target),
+        type: e.type || 'contains', renderAlpha: 0, _targetAlpha: 0.12,
+    }));
+
+    state.nodes.push(...newNodes);
+    state.edges.push(...newEdges);
+    newNodes.forEach(n => state.nodeMap.set(n.id, n));
+    recountConnections();
+    state.expansionTree[pid] = [...existingChildIds, ...newNodes.map(n => n.id)];
+
+    // Camera: frame only the new children + parent
+    const allTargets = [{ x: parent.x, y: parent.y }, ...newNodes.map(n => ({ x: n._targetX, y: n._targetY }))];
+    const ax = allTargets.map(p => p.x), ay = allTargets.map(p => p.y);
+    const gMinX = Math.min(...ax), gMaxX = Math.max(...ax), gMinY = Math.min(...ay), gMaxY = Math.max(...ay);
+    const gW = gMaxX - gMinX + 200, gH = gMaxY - gMinY + 200;
+    const cw = state.canvas.clientWidth, ch = state.canvas.clientHeight;
+    const fs = Math.min(cw / gW, ch / gH, 1.5);
+    state._cameraTargetScale = fs;
+    state._cameraTargetX = -((gMinX + gMaxX) / 2) * fs + cw / 2;
+    state._cameraTargetY = -((gMinY + gMaxY) / 2) * fs + ch / 2;
+    state._cameraMoving = true;
+
+    const allForPanel = (state.expansionTree[pid] || []).map(id => state.nodeMap.get(id)).filter(Boolean);
+    updateSidePanel(parent, allForPanel);
+}
+
 function handleNodeClick(nodeId) {
-    const n = state.nodeMap.get(nodeId); if (!n) return;
+    const n = state.nodeMap.get(nodeId);
+    if (!n) return;
+    if (n._removing) return;
+    if (n.type === 'aggregator') { expandAggregator(n); return; }
     if (n.state === 'expanded') collapseNode(nodeId);
     else if (n.state !== 'loading') expandNode(nodeId);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SUBTREE HELPERS
+// ═══════════════════════════════════════════════════════════════
+function getDescendants(nodeId) {
+    const result = [];
+    const visited = new Set();
+    const queue = [nodeId];
+    while (queue.length > 0) {
+        const cur = queue.shift();
+        (state.expansionTree[cur] || []).forEach(id => {
+            if (!visited.has(id)) { visited.add(id); result.push(id); queue.push(id); }
+        });
+    }
+    return result;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -715,9 +906,27 @@ function initEvents() {
         state.mouseWorld = screenToWorld(state.mouseScreen.x, state.mouseScreen.y);
 
         if (state.dragNode) {
-            state.dragNode.x = state.mouseWorld.x - state.dragOffset.x;
-            state.dragNode.y = state.mouseWorld.y - state.dragOffset.y;
+            const newX = state.mouseWorld.x - state.dragOffset.x;
+            const newY = state.mouseWorld.y - state.dragOffset.y;
+            const dx = newX - state.dragNode.x;
+            const dy = newY - state.dragNode.y;
+
+            state.dragNode.x = newX;
+            state.dragNode.y = newY;
             delete state.dragNode._targetX; delete state.dragNode._targetY;
+
+            // Move entire subtree with parent
+            if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
+                getDescendants(state.dragNode.id).forEach(id => {
+                    const child = state.nodeMap.get(id);
+                    if (child && !child._removing) {
+                        child.x += dx;
+                        child.y += dy;
+                        if (child._targetX !== undefined) child._targetX += dx;
+                        if (child._targetY !== undefined) child._targetY += dy;
+                    }
+                });
+            }
             return;
         }
         if (state.isPanning) {
@@ -779,6 +988,8 @@ function initEvents() {
     }, { passive: false });
 
     document.getElementById('reset-btn').addEventListener('click', () => {
+        if (_expandTimeout) { clearTimeout(_expandTimeout); _expandTimeout = null; }
+        state._pendingExpandId = null;
         state.nodes = [];
         state.edges = [];
         state.nodeMap = new Map();
@@ -816,8 +1027,16 @@ window.addEventListener('message', event => {
                     type: e.type || 'contains', renderAlpha: 0, _targetAlpha: 0.12,
                 }));
                 state.nodeMap = new Map(state.nodes.map(n => [n.id, n]));
-                state.expansionTree = {};
                 recountConnections();
+
+                // Build expansion tree from initial contains edges so subtree drag works
+                state.expansionTree = {};
+                state.edges.filter(e => e.type === 'contains').forEach(e => {
+                    if (!state.expansionTree[e.source]) state.expansionTree[e.source] = [];
+                    if (!state.expansionTree[e.source].includes(e.target)) {
+                        state.expansionTree[e.source].push(e.target);
+                    }
+                });
                 layoutHierarchy(state.nodes, state.edges);
 
                 // Fit view
@@ -834,40 +1053,84 @@ window.addEventListener('message', event => {
                 updateSidePanelRoot();
             } else {
                 const { nodes: nn, edges: ne } = msg.data;
-                if (!nn || nn.length === 0) {
-                    const pid = state._pendingExpandId;
-                    const p = state.nodeMap.get(pid); if (p) p.state = 'expanded';
-                    break;
-                }
-                const pid = ne?.[0]?.source || state._pendingExpandId;
-                const parent = state.nodeMap.get(pid); if (!parent) break;
+
+                // Clear loading timeout — we got a response
+                if (_expandTimeout) { clearTimeout(_expandTimeout); _expandTimeout = null; }
+                const pendingId = state._pendingExpandId;
+                state._pendingExpandId = null;
+
+                // Determine parent ID — ALWAYS trust pendingId over edge source
+                const pid = pendingId || (ne?.[0]?.source);
+                const parent = state.nodeMap.get(pid);
+
+                // Guard: parent was removed or collapsed while loading
+                if (!parent || parent.state !== 'loading') break;
+
                 parent.state = 'expanded';
 
-                // Fan direction — ALWAYS downward, left/right ok, NEVER upward
-                let fanCenter = Math.PI * 0.5;
-                const pe = state.edges.find(e => e.target === pid);
-                if (pe) {
-                    const gp = state.nodeMap.get(pe.source);
-                    if (gp) {
-                        let a = Math.atan2(parent.y - gp.y, parent.x - gp.x);
-                        if (a < 0) a = -a; // Reflect upward angles to downward
-                        fanCenter = Math.max(0.15, Math.min(Math.PI - 0.15, a));
-                    }
+                // Empty response — leaf node
+                if (!nn || nn.length === 0) {
+                    updateSidePanel(parent, []);
+                    break;
                 }
 
-                const uniqueNodes = nn.filter(n => !state.nodeMap.has(String(n.id)));
-                const uniqueEdges = (ne || []).filter(e => {
-                    const src = String(e.source), tgt = String(e.target), type = e.type || 'contains';
-                    return !state.edges.some(existing => existing.source === src && existing.target === tgt && existing.type === type);
-                });
+                // Sanitize and deduplicate incoming nodes
+                const uniqueNodes = nn
+                    .map(n => ({ ...n, id: String(n.id ?? '') }))
+                    .filter(n => n.id && n.id !== 'undefined' && n.id !== 'null' && n.id !== '')
+                    .filter(n => !state.nodeMap.has(n.id));
 
-                const count = uniqueNodes.length;
-                const arcR = Math.max(110, 60 + count * 22);
-                const spread = Math.min(Math.PI * 0.8, 0.3 + count * 0.12);
+                // Sanitize and deduplicate incoming edges
+                const uniqueEdges = (ne || [])
+                    .map(e => ({ ...e, source: String(e.source ?? ''), target: String(e.target ?? '') }))
+                    .filter(e => e.source && e.target && e.source !== 'undefined' && e.target !== 'undefined')
+                    .filter(e => !state.edges.some(existing =>
+                        existing.source === e.source && existing.target === e.target && existing.type === (e.type || 'contains')));
 
-                const newNodes = uniqueNodes.map((n, i) => {
+                if (uniqueNodes.length === 0) {
+                    updateSidePanel(parent, []);
+                    break;
+                }
+
+                // Fan direction — ALWAYS downward
+                const fanCenter = Math.PI * 0.5;
+
+                // ── Progressive Disclosure: cap visible children ──
+                let nodesToLayout = uniqueNodes;
+                let edgesToLayout = uniqueEdges;
+                let aggMeta = null;
+
+                if (uniqueNodes.length > MAX_VISIBLE_CHILDREN) {
+                    const visible = uniqueNodes.slice(0, MAX_VISIBLE_CHILDREN);
+                    const hidden = uniqueNodes.slice(MAX_VISIBLE_CHILDREN);
+                    const visibleIds = new Set(visible.map(n => String(n.id)));
+                    const hiddenIds = new Set(hidden.map(n => String(n.id)));
+
+                    edgesToLayout = uniqueEdges.filter(e => {
+                        const s = String(e.source), t = String(e.target);
+                        return (s === pid && visibleIds.has(t)) || (t === pid && visibleIds.has(s)) ||
+                               (visibleIds.has(s) && visibleIds.has(t));
+                    });
+
+                    const hiddenEdges = uniqueEdges.filter(e => {
+                        const s = String(e.source), t = String(e.target);
+                        return hiddenIds.has(s) || hiddenIds.has(t);
+                    });
+
+                    aggMeta = { hiddenNodes: hidden, hiddenEdges, parentId: pid };
+                    nodesToLayout = [...visible, {
+                        id: `agg_${pid}_${Date.now()}`, label: `+${hidden.length} more`,
+                        type: 'aggregator', meta: {}, _childCount: hidden.length, _isAggregator: true,
+                    }];
+                }
+
+                const count = nodesToLayout.length;
+                const arcR = Math.max(180, 120 + count * 16);
+                const spread = Math.min(Math.PI * 0.35, 0.2 + count * 0.035);
+
+                const newNodes = nodesToLayout.map((n, i) => {
                     const a = count === 1 ? fanCenter : fanCenter - spread / 2 + (i / (count - 1)) * spread;
-                    return {
+                    const node = {
                         id: String(n.id), label: n.label || n.id, type: (n.type || 'file').toLowerCase(),
                         meta: n.meta || {}, x: parent.x, y: parent.y,
                         _targetX: parent.x + Math.cos(a) * arcR, _targetY: parent.y + Math.sin(a) * arcR,
@@ -875,8 +1138,14 @@ window.addEventListener('message', event => {
                         renderAlpha: 0, renderScale: 0.2, _targetAlpha: 1, _targetScale: 1,
                         _inCount: 0, _outCount: 0, _childCount: n._childCount || n.childCount || 0,
                     };
+                    if (n._isAggregator && aggMeta) {
+                        node._hiddenNodes = aggMeta.hiddenNodes;
+                        node._hiddenEdges = aggMeta.hiddenEdges;
+                        node._parentId = aggMeta.parentId;
+                    }
+                    return node;
                 });
-                const newEdges = uniqueEdges.map(e => ({
+                const newEdges = edgesToLayout.map(e => ({
                     source: String(e.source), target: String(e.target),
                     type: e.type || 'contains', renderAlpha: 0, _targetAlpha: 0.12,
                 }));
