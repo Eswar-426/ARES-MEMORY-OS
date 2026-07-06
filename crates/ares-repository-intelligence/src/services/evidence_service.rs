@@ -265,10 +265,35 @@ impl EvidenceService {
             dependent_count: dependents.len(),
         };
 
+        let introduced_at = node
+            .properties
+            .get("introduced_at")
+            .and_then(|v| v.as_i64())
+            .map(format_timestamp);
+        let introduced_by = node
+            .properties
+            .get("introduced_by")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+        let introduction_reason = node
+            .properties
+            .get("introduction_reason")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+        let introduction_hash = node
+            .properties
+            .get("introduction_hash")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
         let timestamps = Timestamps {
             created_at: Some(format_timestamp(node.created_at)),
             updated_at: Some(format_timestamp(node.updated_at)),
             last_committed: None,
+            introduced_at,
+            introduced_by,
+            introduction_reason,
+            introduction_hash,
         };
 
         Ok(EngineeringEvidence {

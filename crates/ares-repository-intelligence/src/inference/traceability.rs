@@ -11,7 +11,7 @@ pub struct TraceabilityGenerator;
 impl DeterministicInference for TraceabilityGenerator {
     fn generate(&self, evidence: &EngineeringEvidence) -> EngineeringInsight {
         let start = std::time::Instant::now();
-        let intent = IntentExtractor::extract(&evidence.commits);
+        let intent = IntentExtractor::extract(&evidence.commits, evidence.timestamps.as_ref());
         let confidence = ConfidenceEngine::calculate(evidence);
         let mut sections = Vec::new();
 

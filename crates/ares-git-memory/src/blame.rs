@@ -27,11 +27,99 @@ impl BlameExtractor {
         }
 
         let files_str = String::from_utf8_lossy(&ls_output.stdout);
-        let files: Vec<&str> = files_str.lines().filter(|l| !l.is_empty()).collect();
+        let mut files: Vec<&str> = files_str.lines().filter(|l| !l.is_empty()).collect();
+
+        // 2. Filter out known binary, generated, and asset files
+        let blocklist = [
+            // Images & Media
+            ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".ico", ".svg", ".webp",
+            ".mp3", ".mp4", ".wav", ".avi", ".mov", ".mkv", ".webm",
+            // Fonts
+            ".woff", ".woff2", ".eot", ".ttf", ".otf",
+            // Compiled & Archives
+            ".dll", ".exe", ".so", ".dylib", ".class", ".jar", ".war", ".pyc", ".pyo", ".pyd",
+            ".zip", ".tar", ".gz", ".tgz", ".rar", ".7z", ".bz2", ".xz", ".whl", ".egg", ".gem",
+            // Object files and debug symbols
+            ".o", ".obj", ".a", ".lib", ".pdb", ".out",
+            // Data & Binary formats
+            ".parquet", ".avro", ".sqlite", ".sqlite3", ".db", ".bin", ".dat", ".wasm", ".pdf",
+            // Translations & Localizations
+            ".mo", ".po", ".pot",
+            // ML Weights & Models
+            ".npz", ".npy", ".h5", ".pb", ".pt", ".pth", ".onnx", ".safetensors",
+            // Minified JS/CSS and map files
+            ".min.js", ".min.css", ".map",
+            // Test snapshots (huge, generated)
+            ".snap",
+            // Certificates & Keys
+            ".pem", ".crt", ".key", ".p12", ".pfx",
+            // Logs and Locks
+            ".log", "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "cargo.lock", "poetry.lock", "gemfile.lock", "composer.lock",
+        ];
+
+        let dir_blocklist = [
+            "venv/", ".venv/", "env/", ".env/", "node_modules/", "bower_components/",
+            "__pycache__/", ".pytest_cache/", ".mypy_cache/", ".tox/",
+            "target/", "build/", "dist/", "out/", "bin/", "obj/",
+            ".git/", ".svn/", ".hg/", ".idea/", ".vscode/",
+            "vendor/", ".next/", ".nuxt/",
+        ];
+
+        files.retain(|f| {
+            let lower = f.to_lowercase().replace('\\', "/");
+            let has_blocked_ext = blocklist.iter().any(|&ext| lower.ends_with(ext));
+            let has_blocked_dir = dir_blocklist.iter().any(|&dir| lower.contains(dir));
+            !has_blocked_ext && !has_blocked_dir
+        });
 
         let mut seen_persons = HashSet::new();
 
         println!("Running git blame on {} files...", files.len());
+
+        struct CreationInfo {
+            hash: String,
+            author: String,
+            reason: String,
+            timestamp: i64,
+        }
+
+        let mut creation_map: HashMap<String, CreationInfo> = HashMap::new();
+        println!("Pre-computing creation commits for files...");
+        let mut global_creation_cmd = Command::new("git");
+        global_creation_cmd
+            .current_dir(project_path)
+            .args(["log", "--name-status", "--pretty=format:COMMIT|%H|%an|%s|%at", "--reverse"]);
+
+        if let Ok(output) = global_creation_cmd.output() {
+            let output_str = String::from_utf8_lossy(&output.stdout);
+            let mut current_hash = String::new();
+            let mut current_author = String::new();
+            let mut current_subject = String::new();
+            let mut current_timestamp = 0;
+
+            for line in output_str.lines() {
+                if line.starts_with("COMMIT|") {
+                    let parts: Vec<&str> = line.splitn(5, '|').collect();
+                    if parts.len() == 5 {
+                        current_hash = parts[1].to_string();
+                        current_author = parts[2].to_string();
+                        current_subject = parts[3].to_string();
+                        current_timestamp = parts[4].parse().unwrap_or(captured_at);
+                    }
+                } else if line.starts_with(|c: char| c.is_ascii_uppercase()) && line.contains('\t') {
+                    let parts: Vec<&str> = line.split('\t').collect();
+                    if parts.len() >= 2 {
+                        let file_path = parts.last().unwrap().to_string();
+                        creation_map.entry(file_path).or_insert(CreationInfo {
+                            hash: current_hash.clone(),
+                            author: current_author.clone(),
+                            reason: current_subject.clone(),
+                            timestamp: current_timestamp,
+                        });
+                    }
+                }
+            }
+        }
 
         use rayon::prelude::*;
 
@@ -146,6 +234,30 @@ impl BlameExtractor {
                         }
                     }
                 }
+
+                // --- NEW: Introduction / Creation extraction (O(1) lookup) ---
+                if let Some(info) = creation_map.get(file) {
+                    let file_node_id = ares_core::canonicalize_node_id(file);
+                    
+                    local_nodes.push(GraphNode {
+                        id: NodeId::from(file_node_id.as_str()),
+                        project_id: project_id.clone(),
+                        node_type: NodeType::File,
+                        label: String::new(),
+                        properties: serde_json::json!({
+                            "introduced_at": info.timestamp,
+                            "introduced_by": info.author,
+                            "introduction_reason": info.reason,
+                            "introduction_hash": info.hash,
+                        }),
+                        file_path: Some(file.to_string()),
+                        created_at: captured_at,
+                        updated_at: captured_at,
+                        deleted_at: None,
+                    });
+                }
+                // -------------------------------------------------------------
+
                 Some((local_nodes, local_edges))
             })
             .collect();

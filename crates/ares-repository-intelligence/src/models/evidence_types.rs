@@ -68,6 +68,10 @@ pub struct Timestamps {
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
     pub last_committed: Option<String>,
+    pub introduced_at: Option<String>,
+    pub introduced_by: Option<String>,
+    pub introduction_reason: Option<String>,
+    pub introduction_hash: Option<String>,
 }
 
 /// Risk classification for an entity.

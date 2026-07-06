@@ -1,3 +1,5 @@
+import * as path from 'path';
+import * as fs from 'fs';
 import * as vscode from 'vscode';
 import { McpClient } from './mcp-client';
 import { resolveAresCli, resolveAresMcp, ResolvedBinary } from './binary-discovery';
@@ -39,6 +41,52 @@ export async function activate(context: vscode.ExtensionContext) {
         aresOutput.appendLine('\nActivation Status: ABORTED (Missing Binaries)');
         vscode.window.showErrorMessage('ARES: Could not find CLI or MCP binary.');
         return;
+    }
+
+    // ── Connect MCP ──────────────────────────────────────────
+    const workspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!workspace) {
+        aresOutput.appendLine('No workspace folder open. ARES requires an open workspace.');
+        vscode.window.showErrorMessage('ARES requires an open workspace folder.');
+        return;
+    }
+
+    // ── Auto-Initialize Repository ─────────────────────────
+    const aresDir = path.join(workspace, '.ares');
+    const aresDb = path.join(aresDir, 'ares.db');
+    if (!fs.existsSync(aresDb)) {
+        if (!aresCliCache) {
+            aresOutput.appendLine('Workspace not initialized and ares CLI not found. Cannot auto-scan.');
+            vscode.window.showErrorMessage('ARES: Workspace not scanned. Please run `ares scan .` manually.');
+            return;
+        }
+
+        aresOutput.appendLine(`Workspace not initialized. Running: ${aresCliCache.path} scan .`);
+        aresOutput.show();
+
+        const { spawnSync } = require('child_process') as typeof import('child_process');
+        const result = spawnSync(aresCliCache.path, ['scan'], {
+            cwd: workspace,
+            encoding: 'utf-8',
+            timeout: 120_000,
+        });
+
+        if (result.error) {
+            aresOutput.appendLine(`Scan failed: ${result.error.message}`);
+            vscode.window.showErrorMessage(`ARES scan failed: ${result.error.message}`);
+            return;
+        }
+
+        if (result.status !== 0) {
+            aresOutput.appendLine(`Scan exited with code ${result.status}`);
+            aresOutput.appendLine(result.stderr || result.stdout);
+            vscode.window.showErrorMessage(`ARES scan failed (exit code ${result.status}). Check ARES output channel.`);
+            return;
+        }
+
+        aresOutput.appendLine('Scan completed successfully.');
+    } else {
+        aresOutput.appendLine(`Database found: ${aresDb}`);
     }
 
     // ── Connect MCP ──────────────────────────────────────────

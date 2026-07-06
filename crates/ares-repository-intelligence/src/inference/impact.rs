@@ -11,7 +11,7 @@ pub struct ImpactGenerator;
 impl DeterministicInference for ImpactGenerator {
     fn generate(&self, evidence: &EngineeringEvidence) -> EngineeringInsight {
         let start = std::time::Instant::now();
-        let _intent = IntentExtractor::extract(&evidence.commits);
+        let _intent = IntentExtractor::extract(&evidence.commits, evidence.timestamps.as_ref());
         let confidence = ConfidenceEngine::calculate(evidence);
         let mut sections = Vec::new();
 

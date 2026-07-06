@@ -23,6 +23,8 @@ impl CommitExtractor {
         let mut cmd = Command::new("git");
         cmd.current_dir(project_path).args([
             "log",
+            "-m",
+            "--first-parent",
             &format!("-{}", depth),
             format,
             "--name-status",
@@ -48,9 +50,9 @@ impl CommitExtractor {
         let commits = output_str.split("[COMMIT]\0").filter(|s| !s.is_empty());
 
         for commit_block in commits {
-            let mut parts = commit_block.splitn(2, "\0[FILES]\n");
-            let metadata_part = parts.next().unwrap_or("");
-            let files_part = parts.next().unwrap_or("");
+            let mut parts = commit_block.splitn(2, "\0[FILES]\n").collect::<Vec<_>>();
+            let metadata_part = parts[0];
+            let files_part = if parts.len() > 1 { parts[1] } else { "" };
 
             let meta_parts: Vec<&str> = metadata_part.split('\0').collect();
             if meta_parts.len() < 6 {

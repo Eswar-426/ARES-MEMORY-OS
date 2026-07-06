@@ -169,11 +169,14 @@ fn capture_names_contains_import(m: &tree_sitter::QueryMatch, query: &Query) -> 
 }
 
 fn extract_py_import_path(text: &str) -> String {
-    let mut path = text.replace("import ", "");
-    if path.starts_with("from ") {
-        if let Some(end) = path.find(" import") {
-            path = path[5..end].to_string();
+    let text = text.trim();
+    if let Some(rest) = text.strip_prefix("from ") {
+        if let Some(end) = rest.find(" import") {
+            return rest[..end].trim().to_string();
         }
+        return rest.trim().to_string();
+    } else if let Some(rest) = text.strip_prefix("import ") {
+        return rest.trim().to_string();
     }
-    path.trim().to_string()
+    text.to_string()
 }

@@ -72,8 +72,13 @@ impl GraphBuilder {
         let mut code_artifact_ids = Vec::new();
 
         // Add CodeArtifacts
+        let root_str = self.root.to_string_lossy().to_string();
         for file in &files {
-            let file_str = ares_core::canonicalize_node_id(&file.to_string_lossy());
+            let rel_path = ares_core::canonical_repo_path(&root_str, &file.to_string_lossy());
+            if rel_path.is_empty() {
+                continue;
+            }
+            let file_str = ares_core::canonicalize_node_id(&rel_path);
             code_artifact_ids.push(file_str.clone());
 
             sink(GraphEvent::Node(KnowledgeNode {
@@ -131,7 +136,11 @@ impl GraphBuilder {
 
         // Map ownership to files
         for file in &files {
-            let file_str = ares_core::canonicalize_node_id(&file.to_string_lossy());
+            let rel_path = ares_core::canonical_repo_path(&root_str, &file.to_string_lossy());
+            if rel_path.is_empty() {
+                continue;
+            }
+            let file_str = ares_core::canonicalize_node_id(&rel_path);
             for (pattern, owner) in &ownerships {
                 let canonical_pattern = ares_core::canonicalize_node_id(pattern);
                 if file_str.contains(&canonical_pattern) || pattern == "*" {
@@ -161,8 +170,8 @@ impl GraphBuilder {
         // Tests
         let test_relations = TestResolutionEngine::extract_test_relations(&files);
         for (code, test) in test_relations {
-            let code_str = ares_core::canonicalize_node_id(&code.to_string_lossy());
-            let test_str = ares_core::canonicalize_node_id(&test.to_string_lossy());
+            let code_str = ares_core::canonicalize_node_id(&ares_core::canonical_repo_path(&root_str, &code.to_string_lossy()));
+            let test_str = ares_core::canonicalize_node_id(&ares_core::canonical_repo_path(&root_str, &test.to_string_lossy()));
 
             // To be robust, ensure we emit nodes for the tests and code themselves.
             // Often they are already emitted via walkdir, but just in case:
@@ -224,7 +233,7 @@ impl GraphBuilder {
 
                     sink(GraphEvent::Edge(KnowledgeEdge {
                         id: Uuid::new_v4().to_string(),
-                        source_id: ares_core::canonicalize_node_id(&source_file),
+                        source_id: ares_core::canonicalize_node_id(&ares_core::canonical_repo_path(&root_str, &source_file)),
                         target_id: dep_id,
                         edge_type: EdgeType::DependsOn,
                         confidence: 1.0,
@@ -249,7 +258,7 @@ impl GraphBuilder {
 
                     sink(GraphEvent::Edge(KnowledgeEdge {
                         id: Uuid::new_v4().to_string(),
-                        source_id: ares_core::canonicalize_node_id(&source_file),
+                        source_id: ares_core::canonicalize_node_id(&ares_core::canonical_repo_path(&root_str, &source_file)),
                         target_id: dep_id,
                         edge_type: EdgeType::DependsOn,
                         confidence: 1.0,

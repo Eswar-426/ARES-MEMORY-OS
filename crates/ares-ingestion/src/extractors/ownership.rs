@@ -18,7 +18,7 @@ impl OwnershipExtractor {
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 if parts.len() >= 2 {
                     let pattern = parts[0];
-                    let owner = parts[1];
+                    let owner = parts[1].trim_matches(|c| c == '"' || c == '\'');
                     ownership.push((pattern.to_string(), owner.to_string()));
                 }
             }
@@ -36,7 +36,7 @@ impl OwnershipExtractor {
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 if parts.len() >= 2 {
                     let pattern = parts[0];
-                    let owner = parts[1];
+                    let owner = parts[1].trim_matches(|c| c == '"' || c == '\'');
                     ownership.push((pattern.to_string(), owner.to_string()));
                 }
             }
@@ -53,7 +53,7 @@ impl OwnershipExtractor {
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 if parts.len() >= 2 {
                     let pattern = parts[0];
-                    let owner = parts[1];
+                    let owner = parts[1].trim_matches(|c| c == '"' || c == '\'');
                     ownership.push((pattern.to_string(), owner.to_string()));
                 }
             }

@@ -256,7 +256,35 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                     git_memory.nodes.len(),
                     git_memory.edges.len()
                 );
-                for node in git_memory.nodes {
+                // Ensure project record exists — git nodes have FK to projects table
+                {
+                    let conn = repo.store().get_conn()
+                        .expect("Failed to get DB connection for project init");
+                    conn.execute(
+                        "INSERT OR IGNORE INTO projects (id, name, description, root_path, primary_language, domain, maturity, created_at, updated_at) VALUES (?1, ?2, '', ?3, '', '', 'greenfield', ?4, ?5)",
+                        rusqlite::params![
+                            project_id.as_str(),
+                            project_id.as_str(),
+                            std::env::current_dir().unwrap_or_default().to_str().unwrap_or("."),
+                            ares_core::types::event::now_micros(),
+                            ares_core::types::event::now_micros(),
+                        ],
+                    ).expect("Failed to ensure project record");
+                }
+
+                for mut node in git_memory.nodes {
+                    // Remap File nodes with creation metadata to the scanner's UUID
+                    // so json_patch merges introduced_at/by/reason/hash into the
+                    // correct node (the one the WhyExists generator queries).
+                    if matches!(node.node_type, ares_core::NodeType::File) {
+                        let canonical = ares_core::canonicalize_node_id(node.id.as_str());
+                        if let Some(scanner_id) = path_to_scanner_id.get(&canonical) {
+                            node.id = ares_core::NodeId::from(scanner_id.as_str());
+                        }
+                        // If no scanner ID found, this file wasn't scanned (e.g. deleted
+                        // or binary). The node will be created with its path-based ID,
+                        // which is fine — it just won't appear in WhyExists queries.
+                    }
                     if let Err(e) = repo.upsert_node(node) {
                         println!("DEBUG: Failed to upsert git node: {:?}", e);
                     }
@@ -294,6 +322,16 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         }
         let git_elapsed = git_start.elapsed();
 
+        /// Normalize raw @username IDs to person:username format
+        /// to match the node IDs created by ares-git-memory
+        fn normalize_owner_id(raw: &str, _direction: &str) -> String {
+            if let Some(username) = raw.strip_prefix('@') {
+                format!("person:{}", username)
+            } else {
+                raw.to_string()
+            }
+        }
+
         let bridge_start = Instant::now();
         for node in &kg_nodes {
             let ntype = match &node.node_type {
@@ -315,8 +353,15 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                 .get("path")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
+
+            let node_id_str = if ntype == ares_core::NodeType::Person {
+                normalize_owner_id(&node.id, "node_id")
+            } else {
+                node.id.clone()
+            };
+
             let gn = ares_core::GraphNode {
-                id: ares_core::NodeId::from(node.id.as_str()),
+                id: ares_core::NodeId::from(node_id_str.as_str()),
                 project_id: project_id.clone(),
                 node_type: ntype,
                 label: node.name.clone(),
@@ -330,6 +375,7 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                 println!("DEBUG: Failed to upsert node: {:?}", e);
             }
         }
+
         for edge in &kg_edges {
             let etype = match &edge.edge_type {
                 EdgeType::OwnedBy => ares_core::EdgeType::OwnedBy,
@@ -348,19 +394,11 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
             let from_id = path_to_scanner_id
                 .get(&edge.source_id)
                 .cloned()
-                .unwrap_or_else(|| {
-                    println!("DEBUG: from_id MISSING for source_id: {:?}", edge.source_id);
-                    edge.source_id.clone()
-                });
+                .unwrap_or_else(|| normalize_owner_id(&edge.source_id, "from_id"));
             let to_id = path_to_scanner_id
                 .get(&edge.target_id)
                 .cloned()
-                .unwrap_or_else(|| {
-                    if !edge.target_id.starts_with('@') && !edge.target_id.contains(':') {
-                        println!("DEBUG: to_id MISSING for target_id: {:?}", edge.target_id);
-                    }
-                    edge.target_id.clone()
-                });
+                .unwrap_or_else(|| normalize_owner_id(&edge.target_id, "to_id"));
             let ge = ares_core::GraphEdge {
                 id: edge.id.clone(),
                 project_id: project_id.clone(),

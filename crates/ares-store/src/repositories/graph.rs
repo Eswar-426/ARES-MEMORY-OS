@@ -58,8 +58,8 @@ impl SqliteGraphRepository {
             "INSERT INTO graph_nodes (id, project_id, node_type, label, properties, file_path, created_at, updated_at)
              VALUES (?1,?2,?3,?4,?5,?6,?7,?8)
              ON CONFLICT(id) DO UPDATE SET
-               label      = excluded.label,
-               properties = excluded.properties,
+               label      = CASE WHEN excluded.label != '' THEN excluded.label ELSE graph_nodes.label END,
+               properties = json_patch(graph_nodes.properties, excluded.properties),
                updated_at = excluded.updated_at,
                deleted_at = NULL",
             params![
@@ -143,6 +143,68 @@ impl SqliteGraphRepository {
             created_at: now,
             ..edge
         })
+    }
+
+    pub fn upsert_node_tx(
+        &self,
+        tx: &rusqlite::Transaction<'_>,
+        node: GraphNode,
+    ) -> Result<(), AresError> {
+        let now = now_micros();
+        tx.execute(
+            "INSERT INTO graph_nodes (id, project_id, node_type, label, properties, file_path, created_at, updated_at)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8)
+             ON CONFLICT(id) DO UPDATE SET
+               label      = CASE WHEN excluded.label != '' THEN excluded.label ELSE graph_nodes.label END,
+               properties = json_patch(graph_nodes.properties, excluded.properties),
+               updated_at = excluded.updated_at,
+               deleted_at = NULL",
+            params![
+                node.id.as_str(),
+                node.project_id.as_str(),
+                node.node_type.as_str(),
+                node.label,
+                node.properties.to_string(),
+                node.file_path,
+                now,
+                now,
+            ],
+        ).map_err(AresError::db)?;
+        Ok(())
+    }
+
+    pub fn upsert_edge_tx(
+        &self,
+        tx: &rusqlite::Transaction<'_>,
+        edge: GraphEdge,
+    ) -> Result<(), AresError> {
+        let now = now_micros();
+        tx.execute(
+            "UPDATE graph_edges SET valid_until = ?1
+             WHERE from_node_id = ?2 AND to_node_id = ?3 AND edge_type = ?4 AND valid_until IS NULL",
+            params![now, edge.from_node_id.as_str(), edge.to_node_id.as_str(), edge.edge_type.as_str()],
+        ).map_err(AresError::db)?;
+
+        let edge_id = new_id();
+        tx.execute(
+            "INSERT INTO graph_edges
+               (id, project_id, from_node_id, to_node_id, edge_type, weight, confidence,
+                source, valid_from, valid_until, created_at)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,NULL,?10)",
+            params![
+                edge_id,
+                edge.project_id.as_str(),
+                edge.from_node_id.as_str(),
+                edge.to_node_id.as_str(),
+                edge.edge_type.as_str(),
+                edge.weight,
+                edge.confidence,
+                edge.source,
+                now,
+                now,
+            ],
+        ).map_err(AresError::db)?;
+        Ok(())
     }
 
     // ----------------------------------------------------------------

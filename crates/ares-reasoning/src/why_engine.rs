@@ -39,6 +39,12 @@ impl WhyEngine {
                     architectures.push(node.label.clone());
                     evidence.push(format!("Architecture: {}", node.label));
                 }
+                NodeType::Commit => {
+                    evidence.push(format!("Commit: {}", node.label));
+                }
+                NodeType::Person => {
+                    evidence.push(format!("Author: {}", node.label));
+                }
                 _ => {
                     evidence.push(format!("Node: {} ({:?})", node.label, node.node_type));
                 }

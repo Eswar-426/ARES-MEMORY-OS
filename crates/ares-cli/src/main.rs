@@ -411,6 +411,11 @@ async fn main() -> Result<(), AresError> {
         Commands::Init => {
             let path = env::current_dir().unwrap();
             RepositoryInitializer::init(&path)?;
+            // Initialize the store to create ares.db and run schema migrations
+            let db_path = path.join(".ares").join("ares.db");
+            let store = ares_store::Store::open(&db_path)?;
+            let project_id_str = path.file_name().and_then(|n| n.to_str()).unwrap_or("project");
+            store.run_migrations(project_id_str)?;
             println!(
                 "Initialized ARES Repository Memory Operating System in {:?}",
                 path
@@ -418,7 +423,34 @@ async fn main() -> Result<(), AresError> {
         }
         Commands::Scan => {
             let path = env::current_dir().unwrap();
-            RepositoryScanner::scan(&path)?;
+            let db_path = path.join(".ares").join("ares.db");
+            let store = ares_store::Store::open(&db_path)?;
+            let project_id_str = path.file_name().and_then(|n| n.to_str()).unwrap_or("project");
+            let project_id = ares_core::ProjectId::from(project_id_str);
+            
+            // Ensure project exists in DB
+            let project_repo = ares_store::repositories::project::SqliteProjectRepository::new(store.clone());
+            if project_repo.get_by_id(&project_id)?.is_none() {
+                let now = ares_core::types::event::now_micros();
+                let project = ares_core::Project {
+                    id: project_id.clone(),
+                    name: project_id_str.to_string(),
+                    description: "Auto-initialized project".to_string(),
+                    root_path: path.to_string_lossy().to_string(),
+                    primary_language: "".to_string(),
+                    domain: "".to_string(),
+                    maturity: ares_core::ProjectMaturity::Greenfield,
+                    created_at: now,
+                    updated_at: now,
+                    deleted_at: None,
+                };
+                project_repo.create(&project)?;
+            }
+            
+            let graph_repo = std::sync::Arc::new(ares_store::repositories::graph::SqliteGraphRepository::new(store));
+            let scanner = ares_scanner::Scanner::new(graph_repo);
+            
+            let _report = scanner.full_scan(&project_id, &path)?;
             println!("Repository scanning completed.");
         }
         Commands::Build => {

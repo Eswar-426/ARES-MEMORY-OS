@@ -20,8 +20,9 @@ New-Item -ItemType Directory -Force -Path $LinuxBinDir | Out-Null
 New-Item -ItemType Directory -Force -Path $MacOsBinDir | Out-Null
 
 Write-Host "3. Copying binaries..."
-Copy-Item -Path "target\release\ares.exe" -Destination "$WinBinDir\ares.exe" -Force
-Copy-Item -Path "target\release\ares-mcp.exe" -Destination "$WinBinDir\ares-mcp.exe" -Force
+$TargetDir = (cargo metadata --format-version 1 --no-deps | ConvertFrom-Json).target_directory
+Copy-Item -Path "$TargetDir\release\ares.exe" -Destination "$WinBinDir\ares.exe" -Force
+Copy-Item -Path "$TargetDir\release\ares-mcp.exe" -Destination "$WinBinDir\ares-mcp.exe" -Force
 
 # Note: For Linux/macOS, we would need to cross-compile. Since this is Windows, we just copy the Windows ones for now.
 # Real pipelines would copy all 3 platforms.

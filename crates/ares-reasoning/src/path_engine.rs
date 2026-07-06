@@ -13,6 +13,13 @@ impl PathEngine {
         Self { store }
     }
 
+    fn resolve_node_id(repo: &SqliteGraphRepository, raw_id: &str) -> String {
+        if raw_id.len() == 36 && raw_id.chars().filter(|&c| c == '-').count() == 4 {
+            return raw_id.to_string();
+        }
+        repo.get_id_by_path(raw_id).unwrap_or_else(|_| raw_id.to_string())
+    }
+
     /// Recursively trace upstream dependencies with full tracking.
     /// Returns TraceResult with nodes, status, missing memory, path, and distances.
     /// NEVER panics on incomplete graphs — gaps are first-class information.
@@ -29,7 +36,8 @@ impl PathEngine {
 
         let repo = SqliteGraphRepository::new(self.store.clone());
 
-        let start_node_opt = repo.get_node(&start_id.into())?;
+        let resolved_id = Self::resolve_node_id(&repo, start_id);
+        let start_node_opt = repo.get_node(&resolved_id.into())?;
         let start_node = match start_node_opt {
             Some(node) => node,
             None => {
@@ -80,6 +88,26 @@ impl PathEngine {
                         distances.push((upstream_node.label.clone(), new_dist));
                         queue.push_back((upstream_node.clone(), new_dist));
                         results.push(upstream_node);
+                    }
+                }
+            }
+
+            // Also check incoming edges for nodes that act as upstream in the domain model
+            // (e.g., Commit -> File, Person -> File) but are stored as downstream edges.
+            if let Ok(incoming_edges) = repo.get_edges_to(&current.id) {
+                edges_visited += incoming_edges.len();
+                for edge in incoming_edges {
+                    query_count += 1;
+                    if let Some(upstream_node) = repo.get_node(&edge.from_node_id).ok().flatten() {
+                        if self.is_valid_upstream(&current.node_type, &upstream_node.node_type) {
+                            let new_dist = dist + 1;
+                            found_upstream = true;
+                            found_types.insert(format!("{:?}", upstream_node.node_type));
+                            path.push(upstream_node.label.clone());
+                            distances.push((upstream_node.label.clone(), new_dist));
+                            queue.push_back((upstream_node.clone(), new_dist));
+                            results.push(upstream_node);
+                        }
                     }
                 }
             }
@@ -139,7 +167,8 @@ impl PathEngine {
 
         let repo = SqliteGraphRepository::new(self.store.clone());
 
-        let start_node_opt = repo.get_node(&start_id.into())?;
+        let resolved_id = Self::resolve_node_id(&repo, start_id);
+        let start_node_opt = repo.get_node(&resolved_id.into())?;
         let start_node = match start_node_opt {
             Some(node) => node,
             None => {
@@ -211,7 +240,6 @@ impl PathEngine {
         })
     }
 
-    /// Enforces upstream hierarchy: Code -> Architecture -> Decision -> Requirement
     fn is_valid_upstream(&self, downstream: &NodeType, upstream: &NodeType) -> bool {
         match (downstream, upstream) {
             (NodeType::Outcome, NodeType::RuntimeSignal) => true,
@@ -222,6 +250,12 @@ impl PathEngine {
             (NodeType::Folder, NodeType::Architecture) => true,
             (NodeType::Architecture, NodeType::Decision) => true,
             (NodeType::Decision, NodeType::Requirement) => true,
+            // Allow Git history tracing
+            (NodeType::File, NodeType::Commit) => true,
+            (NodeType::File, NodeType::Person) => true,
+            (NodeType::Folder, NodeType::Commit) => true,
+            (NodeType::Folder, NodeType::Person) => true,
+            (NodeType::Commit, NodeType::Person) => true,
             // Cross-hierarchy hops are blocked
             _ => false,
         }

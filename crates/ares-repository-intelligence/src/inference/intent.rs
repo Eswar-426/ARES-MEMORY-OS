@@ -1,4 +1,4 @@
-use crate::models::GitEvidence;
+use crate::models::{GitEvidence, Timestamps};
 
 #[derive(Debug, Clone)]
 pub struct ExtractedIntent {
@@ -20,8 +20,8 @@ pub struct EvolutionStep {
 pub struct IntentExtractor;
 
 impl IntentExtractor {
-    pub fn extract(commits: &[GitEvidence]) -> ExtractedIntent {
-        if commits.is_empty() {
+    pub fn extract(commits: &[GitEvidence], ts: Option<&Timestamps>) -> ExtractedIntent {
+        if commits.is_empty() && ts.is_none() {
             return ExtractedIntent {
                 creation_reason: None,
                 creation_hash: String::new(),
@@ -32,48 +32,73 @@ impl IntentExtractor {
             };
         }
 
-        // commits are sorted most-recent-first; reverse for chronological
-        let chronological: Vec<&GitEvidence> = commits.iter().rev().collect();
-        let oldest = chronological[0];
-        let newest = &commits[0];
+        let mut evolution = Vec::new();
+        if !commits.is_empty() {
+            let chronological: Vec<&GitEvidence> = commits.iter().rev().collect();
+            evolution = chronological[1..]
+                .iter()
+                .map(|c| EvolutionStep {
+                    description: if c.message.is_empty() {
+                        "(no message)".to_string()
+                    } else {
+                        c.message.clone()
+                    },
+                    hash: c.hash[..7.min(c.hash.len())].to_string(),
+                    author: if c.author.is_empty() {
+                        "unknown".to_string()
+                    } else {
+                        c.author.clone()
+                    },
+                })
+                .collect();
+        }
 
-        // Evolution: everything after creation, in chronological order
-        let evolution: Vec<EvolutionStep> = chronological[1..]
-            .iter()
-            .map(|c| EvolutionStep {
-                description: if c.message.is_empty() {
-                    "(no message)".to_string()
-                } else {
-                    c.message.clone()
-                },
-                hash: c.hash[..7.min(c.hash.len())].to_string(),
-                author: if c.author.is_empty() {
-                    "unknown".to_string()
-                } else {
-                    c.author.clone()
-                },
-            })
-            .collect();
+        // Use explicitly extracted introduction data if available, otherwise fallback to oldest known commit
+        let (creation_reason, creation_hash, creation_author) = if let Some(t) = ts {
+            if t.introduction_hash.is_some() {
+                (
+                    t.introduction_reason.clone(),
+                    t.introduction_hash.clone().unwrap_or_default(),
+                    t.introduced_by.clone().unwrap_or_else(|| "unknown".to_string())
+                )
+            } else if !commits.is_empty() {
+                let oldest = commits.iter().rev().next().unwrap();
+                (
+                    if oldest.message.is_empty() { None } else { Some(oldest.message.clone()) },
+                    oldest.hash[..7.min(oldest.hash.len())].to_string(),
+                    if oldest.author.is_empty() { "unknown".to_string() } else { oldest.author.clone() }
+                )
+            } else {
+                (None, String::new(), String::new())
+            }
+        } else if !commits.is_empty() {
+            let oldest = commits.iter().rev().next().unwrap();
+            (
+                if oldest.message.is_empty() { None } else { Some(oldest.message.clone()) },
+                oldest.hash[..7.min(oldest.hash.len())].to_string(),
+                if oldest.author.is_empty() { "unknown".to_string() } else { oldest.author.clone() }
+            )
+        } else {
+            (None, String::new(), String::new())
+        };
+
+        let (last_modified_hash, last_modified_author) = if !commits.is_empty() {
+            let newest = &commits[0];
+            (
+                newest.hash[..7.min(newest.hash.len())].to_string(),
+                if newest.author.is_empty() { "unknown".to_string() } else { newest.author.clone() }
+            )
+        } else {
+            (String::new(), String::new())
+        };
 
         ExtractedIntent {
-            creation_reason: if oldest.message.is_empty() {
-                None
-            } else {
-                Some(oldest.message.clone())
-            },
-            creation_hash: oldest.hash[..7.min(oldest.hash.len())].to_string(),
-            creation_author: if oldest.author.is_empty() {
-                "unknown".to_string()
-            } else {
-                oldest.author.clone()
-            },
+            creation_reason,
+            creation_hash,
+            creation_author,
             evolution,
-            last_modified_hash: newest.hash[..7.min(newest.hash.len())].to_string(),
-            last_modified_author: if newest.author.is_empty() {
-                "unknown".to_string()
-            } else {
-                newest.author.clone()
-            },
+            last_modified_hash,
+            last_modified_author,
         }
     }
 }
