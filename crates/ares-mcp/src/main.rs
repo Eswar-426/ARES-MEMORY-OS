@@ -32,6 +32,48 @@ struct MemoryQueryInput {
     id: String,
 }
 
+// === Phase 2: Task 3.1 — Additional MCP Tools ===
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct OwnerQueryInput {
+    file_path: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct DecisionsQueryInput {
+    file_path: Option<String>,
+    since: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct SearchQueryInput {
+    query: String,
+    #[serde(default = "default_search_limit")]
+    limit: usize,
+}
+
+fn default_search_limit() -> usize { 10 }
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct TimelineQueryInput {
+    file_path: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct CompareQueryInput {
+    file_a: String,
+    file_b: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct ArchitectureQueryInput {}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct RequirementsQueryInput {
+    file_path: Option<String>,
+}
+
+
 #[derive(Debug, Deserialize, JsonSchema)]
 struct GovernanceQueryInput {
     project_id: String,
@@ -646,6 +688,410 @@ async fn main() -> Result<(), BoxError> {
         })
         .build();
 
+    // ============================================================
+    // PHASE 2 TASK 3.1: Additional MCP Tools
+    // ============================================================
+
+    // --- ares_who_owns ---
+    let store_who = app_state.store.clone();
+    let pp_who = project_path.clone();
+    let who_owns_tool = ToolBuilder::new("ares_who_owns")
+        .description("Returns the registered owner and contributor history for a file")
+        .handler(move |input: OwnerQueryInput| {
+            let store_arc = store_who.clone();
+            let pp = pp_who.clone();
+            async move {
+                let start = std::time::Instant::now();
+                let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
+                let project_name = std::path::Path::new(&pp).file_name().unwrap_or_default().to_string_lossy().to_string();
+                let project_id = ares_core::ProjectId::from(project_name);
+
+                let mut owner_name = String::new();
+                let mut owner_confidence = 0.0f32;
+                let mut contributors: Vec<serde_json::Value> = Vec::new();
+                let mut total_weight = 0.0f32;
+
+                if let Ok(file_id_str) = repo.get_id_by_path(&input.file_path) {
+                    let file_id = ares_core::NodeId::from(file_id_str.as_str());
+
+                    if let Ok(edges) = repo.get_edges_to_by_type(&file_id, "authored_by") {
+                        for e in &edges {
+                            if let Ok(Some(p)) = repo.get_node(&e.from_node_id) {
+                                owner_name = p.label.clone();
+                                owner_confidence = e.confidence;
+                            }
+                        }
+                    }
+
+                    if let Ok(edges) = repo.get_edges_to_by_type(&file_id, "contributed_to") {
+                        for e in &edges {
+                            total_weight += e.weight;
+                            if let Ok(Some(p)) = repo.get_node(&e.from_node_id) {
+                                contributors.push(serde_json::json!({
+                                    "name": p.label,
+                                    "percentage": (e.weight * 100.0).round() as i32
+                                }));
+                            }
+                        }
+                    }
+                }
+
+                contributors.sort_by(|a, b| b["percentage"].as_i64().cmp(&a["percentage"].as_i64()));
+
+                Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
+                    "result": {
+                        "owner": owner_name,
+                        "confidence": owner_confidence,
+                        "commit_percentage": if total_weight > 0.0 { (total_weight * 100.0).round() as i32 } else { 0 },
+                        "contributors": contributors
+                    },
+                    "evidence": [{"source": "graph", "confidence": 1.0}],
+                    "query_time_ms": start.elapsed().as_millis() as i64
+                })).unwrap()))
+            }
+        })
+        .build();
+
+    // --- ares_decisions ---
+    let store_dec = app_state.store.clone();
+    let pp_dec = project_path.clone();
+    let decisions_tool = ToolBuilder::new("ares_decisions")
+        .description("Returns architectural decisions, optionally filtered by file path or date")
+        .handler(move |input: DecisionsQueryInput| {
+            let store_arc = store_dec.clone();
+            let pp = pp_dec.clone();
+            async move {
+                let start = std::time::Instant::now();
+                let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
+                let project_name = std::path::Path::new(&pp).file_name().unwrap_or_default().to_string_lossy().to_string();
+                let project_id = ares_core::ProjectId::from(project_name);
+
+                let mut decisions = Vec::new();
+                let target_file_id = input.file_path.as_ref().and_then(|fp| repo.get_id_by_path(fp).ok());
+
+                if let Ok(all) = repo.get_nodes_by_type(&project_id, "decision") {
+                    for dn in &all {
+                        let props = &dn.properties;
+                        let summary = props.get("decision").and_then(|v| v.as_str()).unwrap_or(&dn.label);
+                        let author = props.get("author").and_then(|v| v.as_str()).unwrap_or("unknown");
+
+                        let mut matches = target_file_id.is_none();
+                        let mut files: Vec<String> = Vec::new();
+
+                        if let Ok(edges) = repo.get_edges_from(&dn.id) {
+                            for e in &edges {
+                                files.push(e.to_node_id.as_str().to_string());
+                                if let Some(ref fid) = target_file_id {
+                                    if e.to_node_id.as_str() == fid.as_str() {
+                                        matches = true;
+                                    }
+                                }
+                            }
+                        }
+
+                        if matches {
+                            if let Some(ref since) = input.since {
+                                if let Ok(ts) = since.parse::<i64>() {
+                                    if dn.created_at < ts { continue; }
+                                }
+                            }
+                            decisions.push(serde_json::json!({
+                                "id": dn.id.as_str(),
+                                "date": dn.created_at,
+                                "summary": summary,
+                                "author": author,
+                                "files": files
+                            }));
+                        }
+                    }
+                }
+
+                Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
+                    "result": { "decisions": decisions },
+                    "evidence": [{"source": "graph", "confidence": 1.0}],
+                    "query_time_ms": start.elapsed().as_millis() as i64
+                })).unwrap()))
+            }
+        })
+        .build();
+
+    // --- ares_search ---
+    let store_srch = app_state.store.clone();
+    let pp_srch = project_path.clone();
+    let search_tool = ToolBuilder::new("ares_search")
+        .description("Searches nodes by label or file path using full-text matching")
+        .handler(move |input: SearchQueryInput| {
+            let store_arc = store_srch.clone();
+            let pp = pp_srch.clone();
+            async move {
+                let start = std::time::Instant::now();
+                let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
+                let project_name = std::path::Path::new(&pp).file_name().unwrap_or_default().to_string_lossy().to_string();
+                let project_id = ares_core::ProjectId::from(project_name);
+                let _pattern = format!("%{}%", input.query);
+
+                let mut results = Vec::new();
+                if let Ok(all) = repo.get_all_nodes(&project_id) {
+                    let mut matched: Vec<_> = all.into_iter().filter(|n| {
+                        n.label.to_lowercase().contains(&input.query.to_lowercase())
+                            || n.file_path.as_ref().map_or(false, |fp| fp.to_lowercase().contains(&input.query.to_lowercase()))
+                    }).collect();
+                    matched.truncate(input.limit);
+                    for n in matched {
+                        results.push(serde_json::json!({
+                            "node_id": n.id.as_str(),
+                            "type": n.node_type,
+                            "summary": n.label,
+                            "file_path": n.file_path
+                        }));
+                    }
+                }
+
+                Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
+                    "result": { "results": results },
+                    "evidence": [{"source": "graph", "confidence": 1.0}],
+                    "query_time_ms": start.elapsed().as_millis() as i64
+                })).unwrap()))
+            }
+        })
+        .build();
+
+    // --- ares_timeline ---
+    let store_tl = app_state.store.clone();
+    let pp_tl = project_path.clone();
+    let timeline_tool = ToolBuilder::new("ares_timeline")
+        .description("Returns the chronological commit history for a file")
+        .handler(move |input: TimelineQueryInput| {
+            let store_arc = store_tl.clone();
+            let pp = pp_tl.clone();
+            async move {
+                let start = std::time::Instant::now();
+                let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
+                let project_name = std::path::Path::new(&pp).file_name().unwrap_or_default().to_string_lossy().to_string();
+                let _project_id = ares_core::ProjectId::from(project_name);
+
+                let mut events = Vec::new();
+                if let Ok(file_id_str) = repo.get_id_by_path(&input.file_path) {
+                    let file_id = ares_core::NodeId::from(file_id_str.as_str());
+                    if let Ok(edges) = repo.get_edges_to_by_type(&file_id, "touches") {
+                        let mut commit_ids: Vec<(i64, ares_core::NodeId)> = edges.iter()
+                            .map(|e| (e.valid_from, e.from_node_id.clone()))
+                            .collect();
+                        commit_ids.sort_by_key(|(ts, _)| *ts);
+
+                        for (ts, cid) in &commit_ids {
+                            if let Ok(Some(commit)) = repo.get_node(cid) {
+                                let author = commit.properties.get("author").and_then(|v| v.as_str()).unwrap_or("unknown");
+                                let subject = commit.properties.get("subject").and_then(|v| v.as_str()).unwrap_or("");
+                                events.push(serde_json::json!({
+                                    "date": *ts,
+                                    "type": "commit",
+                                    "summary": subject,
+                                    "author": author
+                                }));
+                            }
+                        }
+                    }
+                }
+
+                Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
+                    "result": { "events": events },
+                    "evidence": [{"source": "graph", "confidence": 1.0}],
+                    "query_time_ms": start.elapsed().as_millis() as i64
+                })).unwrap()))
+            }
+        })
+        .build();
+
+    // --- ares_compare ---
+    let store_cmp = app_state.store.clone();
+    let pp_cmp = project_path.clone();
+    let compare_tool = ToolBuilder::new("ares_compare")
+        .description("Compares two files: shared dependencies, shared decisions, coupling score")
+        .handler(move |input: CompareQueryInput| {
+            let store_arc = store_cmp.clone();
+            let pp = pp_cmp.clone();
+            async move {
+                let start = std::time::Instant::now();
+                let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
+                let project_name = std::path::Path::new(&pp).file_name().unwrap_or_default().to_string_lossy().to_string();
+                let _project_id = ares_core::ProjectId::from(project_name);
+
+                let id_a = repo.get_id_by_path(&input.file_a).ok().map(|s| ares_core::NodeId::from(s.as_str()));
+                let id_b = repo.get_id_by_path(&input.file_b).ok().map(|s| ares_core::NodeId::from(s.as_str()));
+
+                let mut deps_a = std::collections::HashSet::new();
+                let mut deps_b = std::collections::HashSet::new();
+
+                if let Some(ref id) = id_a {
+                    if let Ok(edges) = repo.get_edges_from(id) {
+                        for e in &edges {
+                            if e.edge_type.as_str() == "depends_on" {
+                                deps_a.insert(e.to_node_id.as_str().to_string());
+                            }
+                        }
+                    }
+                }
+                if let Some(ref id) = id_b {
+                    if let Ok(edges) = repo.get_edges_from(id) {
+                        for e in &edges {
+                            if e.edge_type.as_str() == "depends_on" {
+                                deps_b.insert(e.to_node_id.as_str().to_string());
+                            }
+                        }
+                    }
+                }
+
+                let shared: Vec<String> = deps_a.intersection(&deps_b).cloned().collect();
+                let union_count = deps_a.union(&deps_b).count();
+                let coupling = if union_count > 0 { shared.len() as f64 / union_count as f64 } else { 0.0 };
+
+                let relationship = if coupling > 0.5 { "tightly coupled" }
+                    else if coupling > 0.1 { "loosely coupled" }
+                    else { "independent" };
+
+                Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
+                    "result": {
+                        "shared_dependencies": shared,
+                        "shared_decisions": [],
+                        "relationship": relationship,
+                        "coupling_score": (coupling * 100.0).round() as i32
+                    },
+                    "evidence": [{"source": "graph", "confidence": 1.0}],
+                    "query_time_ms": start.elapsed().as_millis() as i64
+                })).unwrap()))
+            }
+        })
+        .build();
+
+    // --- ares_architecture ---
+    let store_arch = app_state.store.clone();
+    let pp_arch = project_path.clone();
+    let architecture_tool = ToolBuilder::new("ares_architecture")
+        .description("Returns a high-level architectural overview of the repository")
+        .handler(move |_input: ArchitectureQueryInput| {
+            let store_arc = store_arch.clone();
+            let pp = pp_arch.clone();
+            async move {
+                let start = std::time::Instant::now();
+                let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
+                let project_name = std::path::Path::new(&pp).file_name().unwrap_or_default().to_string_lossy().to_string();
+                let project_id = ares_core::ProjectId::from(project_name);
+
+                let mut type_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+                let mut dep_names: std::collections::HashSet<String> = std::collections::HashSet::new();
+                let mut top_files: Vec<(usize, String)> = Vec::new();
+                let mut decisions: Vec<serde_json::Value> = Vec::new();
+
+                if let Ok(all_nodes) = repo.get_all_nodes(&project_id) {
+                    for n in &all_nodes {
+                        *type_counts.entry(format!("{:?}", n.node_type).to_lowercase()).or_insert(0) += 1;
+                        if n.id.as_str().starts_with("DEP-") {
+                            dep_names.insert(n.label.clone());
+                        }
+                    }
+
+                    // Find top files by incoming edge count
+                    let file_ids: Vec<_> = all_nodes.iter()
+                        .filter(|n| format!("{:?}", n.node_type).to_lowercase() == "file")
+                        .take(200) // limit for performance
+                        .collect();
+
+                    for fn_node in &file_ids {
+                        let in_count = repo.get_edges_to(&fn_node.id).map(|e| e.len()).unwrap_or(0);
+                        let path = fn_node.file_path.clone().unwrap_or_default();
+                        top_files.push((in_count, path));
+                    }
+                    top_files.sort_by(|a, b| b.0.cmp(&a.0));
+                    top_files.truncate(10);
+                }
+
+                if let Ok(all_decisions) = repo.get_nodes_by_type(&project_id, "decision") {
+                    for d in &all_decisions {
+                        let summary = d.properties.get("decision").and_then(|v| v.as_str()).unwrap_or(&d.label);
+                        decisions.push(serde_json::json!({ "summary": summary }));
+                    }
+                    decisions.truncate(10);
+                }
+
+                let file_count = type_counts.get("file").copied().unwrap_or(0);
+                let func_count = type_counts.get("function").copied().unwrap_or(0);
+                let commit_count = type_counts.get("commit").copied().unwrap_or(0);
+
+                let tech_stack: Vec<String> = dep_names.into_iter().take(20).collect();
+                let top: Vec<serde_json::Value> = top_files.iter().map(|(c, p)| serde_json::json!({"path": p, "dependents": c})).collect();
+
+                Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
+                    "result": {
+                        "summary": format!("{} files, {} functions, {} commits across {} node types", file_count, func_count, commit_count, type_counts.len()),
+                        "top_files": top,
+                        "key_decisions": decisions,
+                        "technology_stack": tech_stack,
+                        "health_score": 0
+                    },
+                    "evidence": [{"source": "graph", "confidence": 1.0}],
+                    "query_time_ms": start.elapsed().as_millis() as i64
+                })).unwrap()))
+            }
+        })
+        .build();
+
+    // --- ares_requirements ---
+    let store_req = app_state.store.clone();
+    let pp_req = project_path.clone();
+    let requirements_tool = ToolBuilder::new("ares_requirements")
+        .description("Returns requirements linked to the repository or a specific file")
+        .handler(move |input: RequirementsQueryInput| {
+            let store_arc = store_req.clone();
+            let pp = pp_req.clone();
+            async move {
+                let start = std::time::Instant::now();
+                let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
+                let project_name = std::path::Path::new(&pp).file_name().unwrap_or_default().to_string_lossy().to_string();
+                let project_id = ares_core::ProjectId::from(project_name);
+
+                let mut requirements = Vec::new();
+
+                if let Ok(all) = repo.get_nodes_by_type(&project_id, "requirement") {
+                    for rn in &all {
+                        let text = rn.properties.get("text").and_then(|v| v.as_str()).unwrap_or(&rn.label);
+                        let status = rn.properties.get("status").and_then(|v| v.as_str()).unwrap_or("unknown");
+
+                        let mut linked_files: Vec<String> = Vec::new();
+                        let mut matches = input.file_path.is_none();
+
+                        if let Ok(edges) = repo.get_edges_from(&rn.id) {
+                            for e in &edges {
+                                let target_path = e.to_node_id.as_str().to_string();
+                                linked_files.push(target_path.clone());
+                                if let Some(ref fp) = input.file_path {
+                                    if target_path.contains(fp) || fp.contains(&target_path) {
+                                        matches = true;
+                                    }
+                                }
+                            }
+                        }
+
+                        if matches {
+                            requirements.push(serde_json::json!({
+                                "id": rn.id.as_str(),
+                                "text": text,
+                                "status": status,
+                                "linked_files": linked_files
+                            }));
+                        }
+                    }
+                }
+
+                Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
+                    "result": { "requirements": requirements },
+                    "evidence": [{"source": "graph", "confidence": 1.0}],
+                    "query_time_ms": start.elapsed().as_millis() as i64
+                })).unwrap()))
+            }
+        })
+        .build();
+
     let gaps_tool = ToolBuilder::new("ares_gaps")
         .description("Evaluates knowledge gaps in the traceability graph")
         .handler(move |_input: ProjectQueryInput| async move {
@@ -1056,6 +1502,13 @@ async fn main() -> Result<(), BoxError> {
         .tool(dashboard_tool)
         .tool(coverage_tool)
         .tool(drift_tool)
+        .tool(who_owns_tool)
+        .tool(decisions_tool)
+        .tool(search_tool)
+        .tool(timeline_tool)
+        .tool(compare_tool)
+        .tool(architecture_tool)
+        .tool(requirements_tool)
         .tool(gaps_tool)
         .tool(simulate_tool)
         .tool(traceability_tool)
