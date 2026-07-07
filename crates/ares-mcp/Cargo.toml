@@ -34,6 +34,8 @@ schemars = "1.2.1"
 ares-requirements = { version = "0.1.0", path = "../ares-requirements" }
 ares-traceability = { version = "0.1.0", path = "../ares-traceability" }
 ares-embeddings = { version = "0.1.0", path = "../ares-embeddings", features = ["ollama", "openai"] }
+uuid = { workspace = true, features = ["v4"] }
+rusqlite.workspace = true
 
 [dev-dependencies]
 tempfile   = { workspace = true }
