@@ -182,7 +182,13 @@ async fn main() -> Result<(), BoxError> {
 
     let inference_engine: Arc<dyn ares_core::inference::InferenceEngine> =
         if std::env::var("OPENAI_API_KEY").is_ok() {
-            Arc::new(ares_embeddings::providers::openai::OpenAIEmbeddingProvider::new().unwrap())
+            match ares_embeddings::providers::openai::OpenAIEmbeddingProvider::new() {
+                Ok(provider) => Arc::new(provider),
+                Err(e) => {
+                    println!("WARN: Failed to initialize OpenAI provider: {}. Falling back to mock engine.", e);
+                    Arc::new(ares_agent::inference::MockInferenceEngine)
+                }
+            }
         } else if std::env::var("OLLAMA_HOST").is_ok() {
             Arc::new(ares_embeddings::providers::ollama::OllamaEmbeddingProvider::new())
         } else {

@@ -31,7 +31,7 @@ impl GitMemoryExtractor {
         self.depth = depth;
     }
 
-    pub fn extract(&self, project_id: &ProjectId) -> Result<GitMemoryResult, String> {
+    pub fn extract_metadata_only(&self, project_id: &ProjectId) -> Result<GitMemoryResult, String> {
         let captured_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -108,11 +108,26 @@ impl GitMemoryExtractor {
             all_edges.extend(edges);
         }
 
+        Ok(GitMemoryResult {
+            nodes: all_nodes,
+            edges: all_edges,
+            sources,
+        })
+    }
+
+    pub fn extract(&self, project_id: &ProjectId) -> Result<GitMemoryResult, String> {
+        let captured_at = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64;
+            
+        let mut result = self.extract_metadata_only(project_id)?;
+
         // 5. Blame
         if let Ok((nodes, edges)) =
             blame::BlameExtractor::extract(&self.project_path, project_id, captured_at)
         {
-            sources.push(models::MemorySource {
+            result.sources.push(models::MemorySource {
                 name: "git_blame".to_string(),
                 tier: models::SourceTier::Repository,
                 available: !nodes.is_empty(),
@@ -120,14 +135,10 @@ impl GitMemoryExtractor {
                 node_count: nodes.len() as u64,
                 edge_count: edges.len() as u64,
             });
-            all_nodes.extend(nodes);
-            all_edges.extend(edges);
+            result.nodes.extend(nodes);
+            result.edges.extend(edges);
         }
 
-        Ok(GitMemoryResult {
-            nodes: all_nodes,
-            edges: all_edges,
-            sources,
-        })
+        Ok(result)
     }
 }

@@ -17,9 +17,24 @@ pub async fn execute_doctor() -> Result<(), AresError> {
     // 2. Knowledge Graph
     let db_path = ares_dir.join("ares.db");
     if db_path.exists() {
-        println!("✓ Knowledge Graph");
+        if let Ok(store) = ares_store::db::Store::open(&db_path) {
+            if let Ok(conn) = store.get_conn() {
+                if conn.execute("SELECT 1 FROM graph_nodes LIMIT 1", []).is_ok() {
+                    println!("✓ Knowledge Graph (Integrity OK)");
+                } else {
+                    println!("✗ Knowledge Graph (Corrupted)");
+                    std::process::exit(1);
+                }
+            } else {
+                println!("✗ Knowledge Graph (Connection Failed)");
+                std::process::exit(1);
+            }
+        } else {
+            println!("✗ Knowledge Graph (Failed to open)");
+            std::process::exit(1);
+        }
     } else {
-        println!("✗ Knowledge Graph");
+        println!("✗ Knowledge Graph (Not Found)");
     }
 
     // 3. Workspace

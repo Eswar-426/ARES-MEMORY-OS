@@ -228,13 +228,46 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         let mut git_extractor = ares_git_memory::GitMemoryExtractor::new(&args.path);
         git_extractor.set_depth(args.git_depth);
 
-        match git_extractor.extract(&project_id) {
+        let mut upsert_git_results = |git_memory: ares_git_memory::models::GitMemoryResult| {
+            for mut node in git_memory.nodes {
+                if matches!(node.node_type, ares_core::NodeType::File) {
+                    let canonical = ares_core::canonicalize_node_id(node.id.as_str());
+                    if let Some(scanner_id) = path_to_scanner_id.get(&canonical) {
+                        node.id = ares_core::NodeId::from(scanner_id.as_str());
+                    }
+                }
+                if let Err(e) = repo.upsert_node(node) {
+                    println!("DEBUG: Failed to upsert git node: {:?}", e);
+                }
+            }
+            for mut edge in git_memory.edges {
+                if matches!(
+                    edge.edge_type,
+                    ares_core::EdgeType::Touches
+                        | ares_core::EdgeType::Owns
+                        | ares_core::EdgeType::ContributedTo
+                ) {
+                    if let Some(scanner_id) = path_to_scanner_id.get(edge.to_node_id.as_str()) {
+                        edge.to_node_id = ares_core::NodeId::from(scanner_id.as_str());
+                    } else {
+                        continue;
+                    }
+                }
+                if let Err(e) = repo.upsert_edge(edge.clone()) {
+                    println!(
+                        "DEBUG: Failed to upsert git edge {:?} -> {:?} : {:?}",
+                        edge.from_node_id, edge.to_node_id, e
+                    );
+                }
+            }
+        };
+
+        match git_extractor.extract_metadata_only(&project_id) {
             Ok(git_memory) => {
                 registry.register(
                     ares_core::types::source::MemorySource::GitHistory,
                     ares_core::types::source::SourceStatus::Active,
                 );
-                // Simple heuristic: if any author nodes exist, codeowners/blame is somewhat active
                 let has_authors = git_memory
                     .nodes
                     .iter()
@@ -252,11 +285,11 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                 }
 
                 println!(
-                    "Captured {} git nodes and {} edges",
+                    "Captured {} git metadata nodes and {} edges",
                     git_memory.nodes.len(),
                     git_memory.edges.len()
                 );
-                // Ensure project record exists — git nodes have FK to projects table
+
                 {
                     let conn = repo.store().get_conn()
                         .expect("Failed to get DB connection for project init");
@@ -272,52 +305,59 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                     ).expect("Failed to ensure project record");
                 }
 
-                for mut node in git_memory.nodes {
-                    // Remap File nodes with creation metadata to the scanner's UUID
-                    // so json_patch merges introduced_at/by/reason/hash into the
-                    // correct node (the one the WhyExists generator queries).
-                    if matches!(node.node_type, ares_core::NodeType::File) {
-                        let canonical = ares_core::canonicalize_node_id(node.id.as_str());
-                        if let Some(scanner_id) = path_to_scanner_id.get(&canonical) {
-                            node.id = ares_core::NodeId::from(scanner_id.as_str());
-                        }
-                        // If no scanner ID found, this file wasn't scanned (e.g. deleted
-                        // or binary). The node will be created with its path-based ID,
-                        // which is fine — it just won't appear in WhyExists queries.
-                    }
-                    if let Err(e) = repo.upsert_node(node) {
-                        println!("DEBUG: Failed to upsert git node: {:?}", e);
-                    }
-                }
-                for mut edge in git_memory.edges {
-                    if matches!(
-                        edge.edge_type,
-                        ares_core::EdgeType::Touches
-                            | ares_core::EdgeType::Owns
-                            | ares_core::EdgeType::ContributedTo
-                    ) {
-                        if let Some(scanner_id) = path_to_scanner_id.get(edge.to_node_id.as_str()) {
-                            edge.to_node_id = ares_core::NodeId::from(scanner_id.as_str());
-                        } else {
-                            // File not found in current repository (e.g., deleted in history).
-                            // Skip this edge to avoid FOREIGN KEY constraint failure.
-                            continue;
-                        }
-                    }
-                    if let Err(e) = repo.upsert_edge(edge.clone()) {
-                        println!(
-                            "DEBUG: Failed to upsert git edge {:?} -> {:?} : {:?}",
-                            edge.from_node_id, edge.to_node_id, e
-                        );
-                    }
-                }
+                upsert_git_results(git_memory);
             }
             Err(e) => {
                 registry.register(
                     ares_core::types::source::MemorySource::GitHistory,
                     ares_core::types::source::SourceStatus::Failed(e.to_string()),
                 );
-                println!("Warning: Git memory extraction failed: {}", e);
+                println!("Warning: Git metadata extraction failed: {}", e);
+            }
+        }
+
+        // --- P3.3 Incremental Git Blame ---
+        println!("Extracting Git Blame incrementally...");
+        let captured_at = ares_core::types::event::now_micros() as i64;
+        
+        if let Ok(all_files) = ares_git_memory::blame::BlameExtractor::get_blameable_files(&args.path) {
+            let mut blamed_files = std::collections::HashSet::new();
+            if let Ok(conn) = repo.store().get_conn() {
+                if let Ok(mut stmt) = conn.prepare("SELECT DISTINCT to_node_id FROM graph_edges WHERE edge_type = 'ContributedTo'") {
+                    if let Ok(rows) = stmt.query_map([], |row| row.get::<_, String>(0)) {
+                        for r in rows.flatten() {
+                            blamed_files.insert(r);
+                        }
+                    }
+                }
+            }
+
+            let total_blame_files = all_files.len();
+            let files_to_process: Vec<String> = all_files.into_iter().filter(|f| {
+                let canonical = ares_core::canonicalize_node_id(f);
+                if let Some(uuid) = path_to_scanner_id.get(&canonical) {
+                    !blamed_files.contains(uuid)
+                } else {
+                    true
+                }
+            }).collect();
+
+            let skipped = total_blame_files - files_to_process.len();
+            if skipped > 0 {
+                println!("Resuming git blame: skipped {} files already processed.", skipped);
+            }
+
+            for chunk in files_to_process.chunks(200) {
+                let chunk_refs: Vec<&str> = chunk.iter().map(|s| s.as_str()).collect();
+                if let Ok((nodes, edges)) = ares_git_memory::blame::BlameExtractor::extract_batch(&args.path, &project_id, captured_at, &chunk_refs) {
+                    println!("Upserting git blame chunk ({} files)...", chunk.len());
+                    let git_mem = ares_git_memory::models::GitMemoryResult {
+                        nodes,
+                        edges,
+                        sources: vec![],
+                    };
+                    upsert_git_results(git_mem);
+                }
             }
         }
         let git_elapsed = git_start.elapsed();

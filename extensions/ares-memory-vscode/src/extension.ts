@@ -39,7 +39,35 @@ export async function activate(context: vscode.ExtensionContext) {
 
     if (!aresCliCache || !aresMcpCache) {
         aresOutput.appendLine('\nActivation Status: ABORTED (Missing Binaries)');
-        vscode.window.showErrorMessage('ARES: Could not find CLI or MCP binary.');
+        vscode.window.showErrorMessage(
+            'ARES binaries (ares.exe, ares-mcp.exe) are missing. You need to build them.',
+            'View Build Instructions'
+        ).then(selection => {
+            if (selection === 'View Build Instructions') {
+                const instructions = `
+# ARES Binaries Missing
+
+The ARES extension requires the \`ares\` and \`ares-mcp\` binaries to function. These were not found in the extension folder or in your system PATH.
+
+## How to Build
+
+1. Open a terminal in the \`ARES_Memory_os\` repository root.
+2. Run the packaging script:
+   \`\`\`powershell
+   .\\package.ps1
+   \`\`\`
+3. This will compile the Rust binaries in release mode and package the extension.
+
+Alternatively, compile them manually:
+\`\`\`bash
+cargo build --release
+\`\`\`
+And copy the resulting executables from \`target/release/\` into the \`extensions/ares-memory-vscode/binaries/windows/\` folder.
+`;
+                vscode.workspace.openTextDocument({ content: instructions, language: 'markdown' })
+                    .then(doc => vscode.window.showTextDocument(doc));
+            }
+        });
         return;
     }
 
@@ -87,6 +115,34 @@ export async function activate(context: vscode.ExtensionContext) {
         aresOutput.appendLine('Scan completed successfully.');
     } else {
         aresOutput.appendLine(`Database found: ${aresDb}`);
+        aresOutput.appendLine(`Checking database integrity...`);
+        const { spawnSync } = require('child_process') as typeof import('child_process');
+        const doctorResult = spawnSync(aresCliCache.path, ['doctor'], {
+            cwd: workspace,
+            encoding: 'utf-8',
+            timeout: 10_000,
+        });
+
+        if (doctorResult.status !== 0 || (doctorResult.stdout && doctorResult.stdout.includes('Corrupted'))) {
+            aresOutput.appendLine(`Database is corrupted. Output: ${doctorResult.stdout || doctorResult.stderr}`);
+            vscode.window.showErrorMessage(
+                'ARES database is corrupted. Would you like to rebuild it now?',
+                'Rebuild Now'
+            ).then(selection => {
+                if (selection === 'Rebuild Now') {
+                    try {
+                        fs.rmSync(aresDir, { recursive: true, force: true });
+                        aresOutput.appendLine(`Deleted corrupted database at ${aresDir}`);
+                        vscode.commands.executeCommand('workbench.action.reloadWindow');
+                    } catch (e: any) {
+                        vscode.window.showErrorMessage(`Failed to delete corrupted database: ${e.message}`);
+                    }
+                }
+            });
+            return;
+        } else {
+            aresOutput.appendLine(`Database integrity OK.`);
+        }
     }
 
     // ── Connect MCP ──────────────────────────────────────────

@@ -30,21 +30,50 @@ impl CommitExtractor {
             "--name-status",
         ]);
 
-        let output = cmd
-            .output()
+        use std::process::Stdio;
+        use std::time::Duration;
+        use wait_timeout::ChildExt;
+
+        cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+        let mut child = cmd
+            .spawn()
             .map_err(|e| format!("Failed to execute git log: {}", e))?;
 
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            if stderr.contains("not a git repository")
-                || stderr.contains("does not have any commits")
+        let timeout = Duration::from_secs(60); // Log can take longer than blame
+        let status = match child.wait_timeout(timeout) {
+            Ok(Some(status)) => status,
+            Ok(None) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err("git log timed out after 60 seconds".to_string());
+            }
+            Err(e) => {
+                return Err(format!("wait_timeout error: {}", e));
+            }
+        };
+
+        let mut stdout = Vec::new();
+        let mut stderr = Vec::new();
+        if let Some(mut out) = child.stdout.take() {
+            use std::io::Read;
+            let _ = out.read_to_end(&mut stdout);
+        }
+        if let Some(mut err) = child.stderr.take() {
+            use std::io::Read;
+            let _ = err.read_to_end(&mut stderr);
+        }
+
+        if !status.success() {
+            let stderr_str = String::from_utf8_lossy(&stderr);
+            if stderr_str.contains("not a git repository")
+                || stderr_str.contains("does not have any commits")
             {
                 return Ok((vec![], vec![])); // Quietly return empty for non-git repos
             }
-            return Err(format!("git log failed: {}", stderr));
+            return Err(format!("git log failed: {}", stderr_str));
         }
 
-        let output_str = String::from_utf8_lossy(&output.stdout);
+        let output_str = String::from_utf8_lossy(&stdout);
 
         let mut seen_persons = HashSet::new();
         let commits = output_str.split("[COMMIT]\0").filter(|s| !s.is_empty());

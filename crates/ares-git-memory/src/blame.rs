@@ -7,15 +7,7 @@ use std::process::Command;
 pub struct BlameExtractor;
 
 impl BlameExtractor {
-    pub fn extract(
-        project_path: &Path,
-        project_id: &ProjectId,
-        captured_at: i64,
-    ) -> Result<(Vec<GraphNode>, Vec<GraphEdge>), String> {
-        let mut nodes = Vec::new();
-        let mut edges = Vec::new();
-
-        // 1. Get all tracked files
+    pub fn get_blameable_files(project_path: &Path) -> Result<Vec<String>, String> {
         let mut ls_cmd = Command::new("git");
         ls_cmd.current_dir(project_path).args(["ls-files"]);
 
@@ -23,11 +15,32 @@ impl BlameExtractor {
             .output()
             .map_err(|e| format!("git ls-files failed: {}", e))?;
         if !ls_output.status.success() {
-            return Ok((vec![], vec![]));
+            return Ok(vec![]);
         }
 
         let files_str = String::from_utf8_lossy(&ls_output.stdout);
-        let mut files: Vec<&str> = files_str.lines().filter(|l| !l.is_empty()).collect();
+        Ok(files_str.lines().filter(|l| !l.is_empty()).map(|s| s.to_string()).collect())
+    }
+
+    pub fn extract(
+        project_path: &Path,
+        project_id: &ProjectId,
+        captured_at: i64,
+    ) -> Result<(Vec<GraphNode>, Vec<GraphEdge>), String> {
+        let files = Self::get_blameable_files(project_path)?;
+        let files_refs: Vec<&str> = files.iter().map(|s| s.as_str()).collect();
+        Self::extract_batch(project_path, project_id, captured_at, &files_refs)
+    }
+
+    pub fn extract_batch(
+        project_path: &Path,
+        project_id: &ProjectId,
+        captured_at: i64,
+        files: &[&str],
+    ) -> Result<(Vec<GraphNode>, Vec<GraphEdge>), String> {
+        let mut nodes = Vec::new();
+        let mut edges = Vec::new();
+        let mut files = files.to_vec();
 
         // 2. Filter out known binary, generated, and asset files
         let blocklist = [
@@ -90,33 +103,57 @@ impl BlameExtractor {
             .current_dir(project_path)
             .args(["log", "--name-status", "--pretty=format:COMMIT|%H|%an|%s|%at", "--reverse"]);
 
-        if let Ok(output) = global_creation_cmd.output() {
-            let output_str = String::from_utf8_lossy(&output.stdout);
-            let mut current_hash = String::new();
-            let mut current_author = String::new();
-            let mut current_subject = String::new();
-            let mut current_timestamp = 0;
+        use std::process::Stdio;
+        use wait_timeout::ChildExt;
 
-            for line in output_str.lines() {
-                if line.starts_with("COMMIT|") {
-                    let parts: Vec<&str> = line.splitn(5, '|').collect();
-                    if parts.len() == 5 {
-                        current_hash = parts[1].to_string();
-                        current_author = parts[2].to_string();
-                        current_subject = parts[3].to_string();
-                        current_timestamp = parts[4].parse().unwrap_or(captured_at);
+        global_creation_cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+        if let Ok(mut child) = global_creation_cmd.spawn() {
+            let timeout = std::time::Duration::from_secs(120);
+            match child.wait_timeout(timeout) {
+                Ok(Some(status)) => {
+                    if status.success() {
+                        let mut stdout = Vec::new();
+                        if let Some(mut out) = child.stdout.take() {
+                            use std::io::Read;
+                            out.read_to_end(&mut stdout).ok();
+                        }
+                        let output_str = String::from_utf8_lossy(&stdout);
+                        let mut current_hash = String::new();
+                        let mut current_author = String::new();
+                        let mut current_subject = String::new();
+                        let mut current_timestamp = 0;
+
+                        for line in output_str.lines() {
+                            if line.starts_with("COMMIT|") {
+                                let parts: Vec<&str> = line.splitn(5, '|').collect();
+                                if parts.len() == 5 {
+                                    current_hash = parts[1].to_string();
+                                    current_author = parts[2].to_string();
+                                    current_subject = parts[3].to_string();
+                                    current_timestamp = parts[4].parse().unwrap_or(captured_at);
+                                }
+                            } else if line.starts_with(|c: char| c.is_ascii_uppercase()) && line.contains('\t') {
+                                let parts: Vec<&str> = line.split('\t').collect();
+                                if parts.len() >= 2 {
+                                    let file_path = parts.last().unwrap().to_string();
+                                    creation_map.entry(file_path).or_insert(CreationInfo {
+                                        hash: current_hash.clone(),
+                                        author: current_author.clone(),
+                                        reason: current_subject.clone(),
+                                        timestamp: current_timestamp,
+                                    });
+                                }
+                            }
+                        }
                     }
-                } else if line.starts_with(|c: char| c.is_ascii_uppercase()) && line.contains('\t') {
-                    let parts: Vec<&str> = line.split('\t').collect();
-                    if parts.len() >= 2 {
-                        let file_path = parts.last().unwrap().to_string();
-                        creation_map.entry(file_path).or_insert(CreationInfo {
-                            hash: current_hash.clone(),
-                            author: current_author.clone(),
-                            reason: current_subject.clone(),
-                            timestamp: current_timestamp,
-                        });
-                    }
+                }
+                Ok(None) => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    println!("WARN: git log for creation commits timed out");
+                }
+                Err(e) => {
+                    println!("WARN: wait_timeout error for creation commits: {}", e);
                 }
             }
         }
@@ -135,9 +172,22 @@ impl BlameExtractor {
                     .current_dir(project_path)
                     .args(["blame", "--line-porcelain", file]);
 
-                if let Ok(output) = blame_cmd.output() {
-                    if output.status.success() {
-                        let blame_str = String::from_utf8_lossy(&output.stdout);
+                use std::process::Stdio;
+                use std::time::Duration;
+                use wait_timeout::ChildExt;
+
+                blame_cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+                if let Ok(mut child) = blame_cmd.spawn() {
+                    let timeout = Duration::from_secs(30);
+                    match child.wait_timeout(timeout) {
+                        Ok(Some(status)) => {
+                            if status.success() {
+                                let mut stdout = Vec::new();
+                                if let Some(mut out) = child.stdout.take() {
+                                    use std::io::Read;
+                                    out.read_to_end(&mut stdout).ok();
+                                }
+                                let blame_str = String::from_utf8_lossy(&stdout);
 
                         let mut author_lines: HashMap<String, (String, usize)> = HashMap::new(); // email -> (name, count)
                         let mut total_lines = 0;
@@ -231,6 +281,17 @@ impl BlameExtractor {
                                 valid_until: None,
                                 created_at: captured_at,
                             });
+                        }
+                            }
+                        }
+                        Ok(None) => {
+                            // Timeout
+                            let _ = child.kill();
+                            let _ = child.wait();
+                            println!("WARN: git blame timed out for file: {}", file);
+                        }
+                        Err(e) => {
+                            println!("WARN: wait_timeout error for file: {}: {}", file, e);
                         }
                     }
                 }
