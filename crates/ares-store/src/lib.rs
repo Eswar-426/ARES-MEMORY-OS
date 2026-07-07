@@ -18,5 +18,6 @@ pub use repositories::{
     decision::SqliteDecisionRepository, event::SqliteEventRepository, graph::SqliteGraphRepository,
     memory::SqliteMemoryRepository, plan::SqlitePlanRepository, project::SqliteProjectRepository,
     timeline::SqliteTimelineRepository, vector::SqliteVectorRepository,
-    workflow::SqliteWorkflowRepository,
+    workflow::SqliteWorkflowRepository, gaps::SqliteGapRepository, gaps::GapAlert, gaps::GapType,
+    gaps::HealthScore,
 };

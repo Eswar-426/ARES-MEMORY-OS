@@ -60,4 +60,5 @@ pub struct GitMemoryResult {
     pub nodes: Vec<GraphNode>,
     pub edges: Vec<GraphEdge>,
     pub sources: Vec<MemorySource>,
+    pub pr_decisions: Vec<crate::commits::PrDecision>,
 }

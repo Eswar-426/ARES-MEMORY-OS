@@ -1,0 +1,150 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release -p ares-cli -p ares-mcp
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-windows
+          path: |
+            target/release/ares*
+
+  build-mac-arm:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup target add aarch64-apple-darwin
+      - run: cargo build --release --target aarch64-apple-darwin -p ares-cli -p ares-mcp
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binaries-mac-arm
+          path: |
+            target/aarch64-apple-darwin/release/ares*
+
+  build-mac-x64:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup target add x86_64-apple-darwin
+      - run: cargo build --release --target x86_64-apple-darwin -p ares-cli -p ares-mcp
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binaries-mac-x64
+          path: |
+            target/x86_64-apple-darwin/release/ares*
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev
+      - run: cargo build --release -p ares-cli -p ares-mcp
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binaries-linux
+          path: |
+            target/release/ares*
+
+  package-vsix:
+    needs: [build-windows, build-mac-arm, build-mac-x64, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Download Windows binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries-windows
+          path: extensions/ares-memory-vscode/binaries/windows/
+      - name: Download Mac ARM binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries-mac-arm
+          path: extensions/ares-memory-vscode/binaries/mac-arm/
+      - name: Download Mac x64 binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries-mac-x64
+          path: extensions/ares-memory-vscode/binaries/mac-x64/
+      - name: Download Linux binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries-linux
+          path: extensions/ares-memory-vscode/binaries/linux/
+      - name: Make binaries executable
+        run: |
+          chmod +x extensions/ares-memory-vscode/binaries/mac-arm/ares* || true
+          chmod +x extensions/ares-memory-vscode/binaries/mac-x64/ares* || true
+          chmod +x extensions/ares-memory-vscode/binaries/linux/ares* || true
+      - name: Package VSIX
+        run: |
+          cd extensions/ares-memory-vscode
+          npm install
+          npx vsce package
+      - name: Upload VSIX
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: extensions/ares-memory-vscode/*.vsix
+
+  create-release:
+    needs: [package-vsix]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries-windows
+          path: dist/windows/
+      - name: Download Mac ARM binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries-mac-arm
+          path: dist/mac-arm/
+      - name: Download Mac x64 binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries-mac-x64
+          path: dist/mac-x64/
+      - name: Download Linux binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries-linux
+          path: dist/linux/
+      - name: Download VSIX
+        uses: actions/download-artifact@v4
+        with:
+          name: vsix
+          path: dist/
+      - name: Create archives
+        run: |
+          cd dist/windows && zip -r ../../ares-windows-${{ github.ref_name }}.zip *
+          cd ../mac-arm && tar czf ../../ares-mac-arm-${{ github.ref_name }}.tar.gz *
+          cd ../mac-x64 && tar czf ../../ares-mac-x64-${{ github.ref_name }}.tar.gz *
+          cd ../linux && tar czf ../../ares-linux-${{ github.ref_name }}.tar.gz *
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.vsix
+            ares-*.zip
+            ares-*.tar.gz
+          body: "ARES MemoryOS ${{ github.ref_name }} — see README for install instructions"

@@ -1,5 +1,5 @@
 use crate::languages::{
-    go::GoExtractor, javascript::JavaScriptExtractor, python::PythonExtractor, rust::RustExtractor,
+    cpp::CppExtractor, csharp::CSharpExtractor, go::GoExtractor, java::JavaExtractor, javascript::JavaScriptExtractor, python::PythonExtractor, ruby::RubyExtractor, rust::RustExtractor,
     typescript::TypeScriptExtractor, ExtractionResult, LanguageExtractor,
 };
 use ares_core::ProjectId;
@@ -10,6 +10,10 @@ pub struct ExtractorRouter {
     js: JavaScriptExtractor,
     python: PythonExtractor,
     go: GoExtractor,
+    java: JavaExtractor,
+    csharp: CSharpExtractor,
+    cpp: CppExtractor,
+    ruby: RubyExtractor,
 }
 
 impl ExtractorRouter {
@@ -20,6 +24,10 @@ impl ExtractorRouter {
             js: JavaScriptExtractor::new(),
             python: PythonExtractor::new(),
             go: GoExtractor::new(),
+            java: JavaExtractor::new(),
+            csharp: CSharpExtractor::new(),
+            cpp: CppExtractor::new(),
+            ruby: RubyExtractor::new(),
         }
     }
 
@@ -41,6 +49,10 @@ impl ExtractorRouter {
             "js" | "jsx" => &self.js,
             "py" => &self.python,
             "go" => &self.go,
+            "java" => &self.java,
+            "cs" => &self.csharp,
+            "c" | "cpp" | "h" | "hpp" => &self.cpp,
+            "rb" => &self.ruby,
             _ => return Ok(None),
         };
 

@@ -9,28 +9,57 @@ import { registerGraphCommand } from './commands/graph';
 import { registerCliCommands } from './commands/cli';
 import { registerQueryCommands } from './commands/query';
 import { registerDashboardCommand } from './commands/dashboard';
+import { registerHealthCommands } from './commands/health';
 import { registerDiagnosticsCommand } from './diagnosticsPanel';
-
+import { recordInlineDecision } from './commands/recordDecision';
+import { ensureBinaries, getPlatformInfo } from './binaryDownloader';
 let mcpClient: McpClient;
 let requestManager: RequestManager;
 let aresOutput: vscode.OutputChannel;
 let aresCliCache: ResolvedBinary | undefined;
 let aresMcpCache: ResolvedBinary | undefined;
 
+export let aresStatusBar: vscode.StatusBarItem;
+
 export async function activate(context: vscode.ExtensionContext) {
     aresOutput = vscode.window.createOutputChannel('ARES');
     aresOutput.appendLine('ARES Memory OS extension activating...\n');
+    
+    aresStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+    aresStatusBar.command = 'ares.healthCheck';
+    aresStatusBar.text = '$(check) ARES: --';
+    aresStatusBar.tooltip = 'ARES Repository Health';
+    aresStatusBar.show();
+    context.subscriptions.push(aresStatusBar);
+    
     aresOutput.appendLine('--- ARES Startup Validation ---');
 
     // ── Resolve Binaries ─────────────────────────────────────
-    aresCliCache = await resolveAresCli(context);
+    let binariesEnsured = false;
+    try {
+        await ensureBinaries(context);
+        binariesEnsured = true;
+    } catch (e) {
+        aresOutput.appendLine(`Auto-download failed: ${e}`);
+        // Continue to fallback discovery
+    }
+
+    if (binariesEnsured) {
+        const info = getPlatformInfo();
+        const binDir = path.join(context.extensionPath, 'binaries', info.dir);
+        const cliName = info.binaryName.replace('-mcp', ''); // 'ares.exe' or 'ares'
+        aresCliCache = { path: path.join(binDir, cliName), source: 'Auto-Downloaded' };
+        aresMcpCache = { path: path.join(binDir, info.binaryName), source: 'Auto-Downloaded' };
+    } else {
+        aresCliCache = await resolveAresCli(context);
+        aresMcpCache = await resolveAresMcp(context);
+    }
     if (aresCliCache) {
         aresOutput.appendLine(`✓ CLI:  ${aresCliCache.path}  (${aresCliCache.source})`);
     } else {
         aresOutput.appendLine('✗ CLI:  not found');
     }
 
-    aresMcpCache = await resolveAresMcp(context);
     if (aresMcpCache) {
         aresOutput.appendLine(`✓ MCP:  ${aresMcpCache.path}  (${aresMcpCache.source})`);
     } else {
@@ -168,7 +197,11 @@ And copy the resulting executables from \`target/release/\` into the \`extension
     registerCliCommands(context, aresOutput, aresCliCache, mcpClient);
     registerQueryCommands(context, mcpClient, aresOutput);
     registerDashboardCommand(context, mcpClient, aresOutput);
+    registerHealthCommands(context, mcpClient, aresOutput);
     registerDiagnosticsCommand(context, mcpClient, aresOutput);
+    context.subscriptions.push(vscode.commands.registerCommand('ares.recordDecision', async () => {
+        await recordInlineDecision(context, mcpClient);
+    }));
 }
 
 export function deactivate() {

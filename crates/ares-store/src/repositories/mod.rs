@@ -14,3 +14,5 @@ pub mod timeline;
 pub mod traits;
 pub mod vector;
 pub mod workflow;
+
+pub mod gaps;

@@ -29,6 +29,11 @@ walkdir     = { workspace = true }
 ignore      = { workspace = true }
 notify      = { workspace = true }
 notify-debouncer-mini = { workspace = true }
+tree-sitter-java = "0.23.5"
+tree-sitter-c-sharp = "0.21.3"
+tree-sitter-c = "0.23.0"
+tree-sitter-cpp = "0.23.4"
+tree-sitter-ruby = "0.23.1"
 
 [dev-dependencies]
 tempfile    = { workspace = true }

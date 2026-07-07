@@ -6,6 +6,7 @@ pub mod blame;
 pub mod branches;
 pub mod codeowners;
 pub mod commits;
+pub use commits::PrDecision;
 pub mod models;
 pub mod releases;
 
@@ -41,8 +42,9 @@ impl GitMemoryExtractor {
         let mut all_edges = Vec::new();
         let mut sources = Vec::new();
 
+        let mut pr_decisions = Vec::new();
         // 1. Commits
-        if let Ok((nodes, edges)) = commits::CommitExtractor::extract(
+        if let Ok((nodes, edges, pr_decs)) = commits::CommitExtractor::extract(
             &self.project_path,
             project_id,
             self.depth,
@@ -58,6 +60,7 @@ impl GitMemoryExtractor {
             });
             all_nodes.extend(nodes);
             all_edges.extend(edges);
+            pr_decisions.extend(pr_decs);
         }
 
         // 2. Releases
@@ -112,6 +115,7 @@ impl GitMemoryExtractor {
             nodes: all_nodes,
             edges: all_edges,
             sources,
+            pr_decisions,
         })
     }
 

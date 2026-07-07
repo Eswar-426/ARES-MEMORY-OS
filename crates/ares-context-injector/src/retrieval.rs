@@ -93,7 +93,7 @@ impl ContextRetriever for StoreContextRetriever {
         let project_path = self.get_project_path(project_id)?;
         let captured_at = ares_core::types::event::now_micros();
 
-        let (nodes, edges) = tokio::task::block_in_place(|| {
+        let (nodes, edges, _) = tokio::task::block_in_place(|| {
             ares_git_memory::commits::CommitExtractor::extract(
                 &project_path,
                 project_id,

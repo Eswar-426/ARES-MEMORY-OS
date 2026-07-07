@@ -40,6 +40,9 @@ export interface AresResponse {
     dashboard?: AresDashboard;
     recent_queries?: any[];
     execution_time_ms?: number;
+    gaps?: any[];
+    health_score?: number;
+    score_breakdown?: any;
     [key: string]: any;
 }
 
@@ -494,6 +497,18 @@ body{
 </div>
 
 <!-- Error -->
+<div id="dashboardSection" class="section hidden">
+    <div class="section-title">ARES REPOSITORY HEALTH</div>
+    <div id="dashboardList" class="card-list"></div>
+</div>
+
+<div id="gapsSection" class="section hidden">
+    <div id="healthScore" style="margin-bottom: 20px;"></div>
+    <div id="gapCounts" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;"></div>
+    <div class="section-title">TOP GAPS</div>
+    <div id="gapList" class="card-list"></div>
+</div>
+
 <div id="errorState" class="error-state hidden">
     <div class="error-icon">⚠️</div>
     <div id="errorTitle" class="error-title"></div>
@@ -628,6 +643,10 @@ body{
         traceabilitySection: document.getElementById('traceabilitySection'),
         traceabilityList: document.getElementById('traceabilityList'),
         dashboardSection: document.getElementById('dashboardSection'),
+        gapsSection: document.getElementById('gapsSection'),
+        healthScore: document.getElementById('healthScore'),
+        gapCounts: document.getElementById('gapCounts'),
+        gapList: document.getElementById('gapList'),
         dashboardList:    document.getElementById('dashboardList'),
         emptyState:       document.getElementById('emptyState'),
         executionTime:    document.getElementById('executionTime'),
@@ -1034,7 +1053,98 @@ body{
         dom.traceabilityList.appendChild(card);
     }
 
+    function renderGaps(data) {
+        if (!data.gaps) {
+            dom.gapsSection.classList.add('hidden');
+            return;
+        }
+
+        dom.gapsSection.classList.remove('hidden');
+        dom.healthScore.innerHTML = '';
+        dom.gapCounts.innerHTML = '';
+        dom.gapList.innerHTML = '';
+
+        // Hide other sections
+        document.getElementById('evidenceSection')?.classList.add('hidden');
+        document.getElementById('relatedSection')?.classList.add('hidden');
+        document.getElementById('traceabilitySection')?.classList.add('hidden');
+        document.getElementById('dashboardSection')?.classList.add('hidden');
+
+        var scoreStr = '<div style="padding:16px;background:var(--vscode-editor-inactiveSelectionBackground);border-radius:8px;">';
+        scoreStr += '<h2 style="margin-bottom:8px;">REPOSITORY HEALTH &nbsp; <span style="float:right">Score: ' + Math.round(data.health_score || 0) + '</span></h2>';
+        scoreStr += '<div style="width:100%;height:10px;background:var(--vscode-editor-background);border-radius:5px;overflow:hidden;margin-bottom:12px;">';
+        var color = data.health_score > 70 ? 'var(--vscode-testing-iconPassed)' : data.health_score > 40 ? 'var(--vscode-testing-iconQueued)' : 'var(--vscode-testing-iconFailed)';
+        scoreStr += '<div style="width:' + Math.round(data.health_score || 0) + '%;height:100%;background:' + color + ';"></div>';
+        scoreStr += '</div>';
+
+        if (data.score_breakdown && data.score_breakdown.overall !== undefined) {
+            var bd = data.score_breakdown;
+            scoreStr += '<div style="display:flex; justify-content:space-between; font-size:11px; opacity:0.8;">';
+            scoreStr += '<span>Files w/ Decisions (40%): <b>' + Math.round((bd.files_with_decisions_term || 0) * 100) + '%</b></span>';
+            scoreStr += '<span>Decisions w/ Reqs (30%): <b>' + Math.round((bd.decisions_with_requirements_term || 0) * 100) + '%</b></span>';
+            scoreStr += '<span>Files w/ Owners (20%): <b>' + Math.round((bd.files_with_owners_term || 0) * 100) + '%</b></span>';
+            scoreStr += '<span>Fresh Decisions (10%): <b>' + Math.round((bd.fresh_decisions_term || 0) * 100) + '%</b></span>';
+            scoreStr += '</div>';
+        }
+
+        scoreStr += '</div>';
+        dom.healthScore.innerHTML = scoreStr;
+
+        var counts = {};
+        data.gaps.forEach(function(g) { counts[g.gap_type] = (counts[g.gap_type] || 0) + 1; });
+        
+        var labels = {
+            'unknown_ownership': 'Unknown Ownership',
+            'code_without_decision': 'Code w/o Decision',
+            'stale_decision': 'Stale Decision',
+            'decision_without_code': 'Decision w/o Code',
+            'orphaned_requirement': 'Orphaned Req'
+        };
+
+        Object.keys(labels).forEach(function(type) {
+            var c = counts[type] || 0;
+            var badge = document.createElement('div');
+            badge.style.padding = '8px 12px';
+            badge.style.background = 'var(--vscode-button-secondaryBackground)';
+            badge.style.borderRadius = '6px';
+            badge.style.textAlign = 'center';
+            badge.style.minWidth = '120px';
+            badge.innerHTML = '<div style="font-size:11px;opacity:0.8">' + labels[type] + '</div><div style="font-size:18px;font-weight:bold">' + c + '</div>';
+            dom.gapCounts.appendChild(badge);
+        });
+
+        var prio = { 'unknown_ownership': 1, 'code_without_decision': 2, 'stale_decision': 3, 'decision_without_code': 4, 'orphaned_requirement': 5 };
+        var sorted = data.gaps.sort(function(a, b) { return prio[a.gap_type] - prio[b.gap_type]; });
+        var top10 = sorted.slice(0, 10);
+        
+        var icons = { 'unknown_ownership': '🔴', 'code_without_decision': '🟡', 'stale_decision': '🟡', 'decision_without_code': '⚪', 'orphaned_requirement': '⚪' };
+
+        top10.forEach(function(gap) {
+            var card = document.createElement('div');
+            card.className = 'card animate-slide';
+            card.innerHTML = '<div class="card-header"><div class="card-title">' + (icons[gap.gap_type] || '') + ' ' + (labels[gap.gap_type] || gap.gap_type) + '</div></div>' +
+                             '<div class="card-body"><code>' + gap.node_label + '</code><p style="margin-top:8px;opacity:0.8">' + gap.details + '</p></div>';
+            
+            var btn = document.createElement('button');
+            btn.className = 'nav-button';
+            btn.style.marginTop = '12px';
+            btn.style.width = '100%';
+            btn.innerText = 'Create Decision →';
+            btn.onclick = function() {
+                vscode.postMessage({ command: 'executeCommand', args: ['ares.createDecisionFromGap', gap.node_label, gap.details] });
+            };
+            
+            card.appendChild(btn);
+            dom.gapList.appendChild(card);
+        });
+    }
+
     function renderDashboard(data) {
+        if (data.query_type === 'healthCheck' || data.gaps) {
+            renderGaps(data);
+            return;
+        }
+
         if (!data.dashboard) {
             dom.dashboardSection.classList.add('hidden');
             return;
@@ -1045,7 +1155,7 @@ body{
         var graph = dash.graph || dash.knowledge_graph || {};
         var integrity = dash.integrity || {};
 
-        dom.dashboardSection.classList.remove('hidden');
+        document.getElementById('dashboardSection')?.classList.remove('hidden');
         dom.dashboardList.innerHTML = '';
 
         // Hide other generic sections
@@ -1179,6 +1289,12 @@ body{
 
             dom.resultContent.classList.remove('hidden');
             dom.emptyState.classList.add('hidden');
+
+            // Hide other generic sections
+            document.getElementById('evidenceSection')?.classList.add('hidden');
+            document.getElementById('relatedSection')?.classList.add('hidden');
+            document.getElementById('traceabilitySection')?.classList.add('hidden');
+            document.getElementById('gapsSection')?.classList.add('hidden');
 
             if (data.query_type !== 'ARES Home') {
                 dom.answer.parentElement.parentElement.classList.remove('hidden');

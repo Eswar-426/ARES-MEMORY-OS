@@ -134,6 +134,8 @@ struct RecordDecisionInput {
     description: String,
     status: String,
     impacted_paths: Vec<String>,
+    source: Option<String>,
+    confidence: Option<f64>,
 }
 
 #[derive(Debug, Deserialize, serde::Serialize, JsonSchema)]
@@ -1254,10 +1256,10 @@ async fn main() -> Result<(), BoxError> {
                 let now = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_micros() as i64);
                 
                 let properties = serde_json::json!({
-                    "source": "agent",
+                    "source": input.source.unwrap_or_else(|| "agent".to_string()),
                     "description": input.description,
                     "status": input.status,
-                    "confidence": 1.0
+                    "confidence": input.confidence.unwrap_or(1.0)
                 });
                 
                 let decision_node = ares_core::GraphNode {
@@ -2039,7 +2041,57 @@ async fn main() -> Result<(), BoxError> {
         })
         .build();
 
-    let router = McpRouter::new()
+    
+    let store_health = app_state.store.clone();
+    let session_clone_health_tool = session_state.clone();
+    let health_tool = ToolBuilder::new("ares_health_check")
+        .description("Scans the repository memory graph for gaps (code without decisions, stale decisions, missing ownership) and returns a health score")
+        .handler(move |_input: ProjectQueryInput| {
+            let session = session_clone_health_tool.clone();
+            let store = store_health.clone();
+            async move {
+                track_session_call(&session, "ares_health_check", &_input);
+                let project_name = session.lock().unwrap().project_id.clone();
+                let project_id = ares_core::ProjectId::from(project_name);
+                
+                let repo = ares_store::repositories::gaps::SqliteGapRepository::new(store);
+                
+                let mut all_gaps = Vec::new();
+                if let Ok(mut gaps) = repo.get_code_without_decision(&project_id, 30) {
+                    all_gaps.append(&mut gaps);
+                }
+                if let Ok(mut gaps) = repo.get_decisions_without_code(&project_id, 7) {
+                    all_gaps.append(&mut gaps);
+                }
+                if let Ok(mut gaps) = repo.get_orphaned_requirements(&project_id) {
+                    all_gaps.append(&mut gaps);
+                }
+                if let Ok(mut gaps) = repo.get_stale_decisions(&project_id, 30) {
+                    all_gaps.append(&mut gaps);
+                }
+                if let Ok(mut gaps) = repo.get_unknown_ownership(&project_id) {
+                    all_gaps.append(&mut gaps);
+                }
+                
+                let mut health_score = 100.0;
+                let mut score_breakdown = serde_json::json!({});
+                if let Ok(score) = repo.calculate_health_score(&project_id) {
+                    health_score = score.overall;
+                    score_breakdown = serde_json::to_value(score).unwrap_or_default();
+                }
+                
+                let result = serde_json::json!({
+                    "gaps": all_gaps,
+                    "health_score": health_score,
+                    "score_breakdown": score_breakdown
+                });
+                
+                Ok(CallToolResult::text(result.to_string()))
+            }
+        })
+        .build();
+
+let router = McpRouter::new()
         .server_info("ares-mcp", env!("CARGO_PKG_VERSION"))
         .instructions("ARES maintains a session memory. Use ares_end_session at the end of each session to persist your context for the next session. Use ares_session_context to retrieve past session context.")
         .tool(chat_tool)
@@ -2055,6 +2107,7 @@ async fn main() -> Result<(), BoxError> {
         .tool(compliance_tool)
         .tool(scorecard_tool)
         .tool(dashboard_tool)
+        .tool(health_tool)
         .tool(coverage_tool)
         .tool(drift_tool)
         .tool(who_owns_tool)

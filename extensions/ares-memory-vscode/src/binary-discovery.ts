@@ -51,7 +51,8 @@ async function discoverBinary(
     // 3. Extension Bundled Binaries
     let platformDir = 'linux';
     if (isWindows) platformDir = 'windows';
-    else if (process.platform === 'darwin') platformDir = 'macos';
+    else if (process.platform === 'darwin' && process.arch === 'arm64') platformDir = 'mac-arm';
+    else if (process.platform === 'darwin') platformDir = 'mac-x64';
     
     const bundledBin = path.join(context.extensionPath, 'binaries', platformDir, executableName);
     if (fs.existsSync(bundledBin)) {
