@@ -6,8 +6,8 @@ use ares_repository_intelligence::facade::IntelligenceFacade;
 use ares_repository_intelligence::models::{EngineeringQuery, QueryType};
 use schemars::JsonSchema;
 
-use std::sync::{Arc, Mutex};
 use std::collections::HashSet;
+use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
 struct SessionState {
@@ -24,7 +24,9 @@ fn track_session_call(
 ) {
     let serialized = serde_json::to_string(input).unwrap_or_default();
     let mut state = session.lock().unwrap();
-    state.tool_calls.push((tool_name.to_string(), serialized.clone()));
+    state
+        .tool_calls
+        .push((tool_name.to_string(), serialized.clone()));
     extract_paths_from_json(&mut state.files_touched, &serialized);
 }
 
@@ -110,7 +112,9 @@ struct SearchQueryInput {
     limit: usize,
 }
 
-fn default_search_limit() -> usize { 10 }
+fn default_search_limit() -> usize {
+    10
+}
 
 #[derive(Debug, Deserialize, serde::Serialize, JsonSchema)]
 struct TimelineQueryInput {
@@ -163,7 +167,6 @@ struct CorrectInput {
 struct RequirementsQueryInput {
     file_path: Option<String>,
 }
-
 
 #[derive(Debug, Deserialize, serde::Serialize, JsonSchema)]
 struct GovernanceQueryInput {
@@ -269,9 +272,12 @@ async fn main() -> Result<(), BoxError> {
         started_at: std::time::Instant::now(),
         tool_calls: Vec::new(),
         files_touched: HashSet::new(),
-        project_id: std::path::Path::new(&project_path).file_name().unwrap_or_default().to_string_lossy().to_string(),
+        project_id: std::path::Path::new(&project_path)
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string(),
     }));
-
 
     writeln!(file, "Project path = {}", project_path).unwrap();
     writeln!(file, "Loading AgentConfig...").unwrap();
@@ -320,20 +326,26 @@ async fn main() -> Result<(), BoxError> {
     let facade = Arc::new(MemoryFacade::new(assembler.clone(), governance.clone()));
     let intelligence_facade = Arc::new(IntelligenceFacade::new(app_state.store.clone()));
 
-    let inference_engine: Arc<dyn ares_core::inference::InferenceEngine> =
-        if std::env::var("OPENAI_API_KEY").is_ok() {
-            match ares_embeddings::providers::openai::OpenAIEmbeddingProvider::new() {
-                Ok(provider) => Arc::new(provider),
-                Err(e) => {
-                    println!("WARN: Failed to initialize OpenAI provider: {}. Falling back to mock engine.", e);
-                    Arc::new(ares_agent::inference::MockInferenceEngine)
-                }
+    let inference_engine: Arc<dyn ares_core::inference::InferenceEngine> = if std::env::var(
+        "OPENAI_API_KEY",
+    )
+    .is_ok()
+    {
+        match ares_embeddings::providers::openai::OpenAIEmbeddingProvider::new() {
+            Ok(provider) => Arc::new(provider),
+            Err(e) => {
+                println!(
+                    "WARN: Failed to initialize OpenAI provider: {}. Falling back to mock engine.",
+                    e
+                );
+                Arc::new(ares_agent::inference::MockInferenceEngine)
             }
-        } else if std::env::var("OLLAMA_HOST").is_ok() {
-            Arc::new(ares_embeddings::providers::ollama::OllamaEmbeddingProvider::new())
-        } else {
-            Arc::new(ares_agent::inference::MockInferenceEngine)
-        };
+        }
+    } else if std::env::var("OLLAMA_HOST").is_ok() {
+        Arc::new(ares_embeddings::providers::ollama::OllamaEmbeddingProvider::new())
+    } else {
+        Arc::new(ares_agent::inference::MockInferenceEngine)
+    };
 
     // Create the Why tool
     let intelligence_facade_why = intelligence_facade.clone();
@@ -890,18 +902,32 @@ async fn main() -> Result<(), BoxError> {
             async move {
                 track_session_call(&session, "ares_decisions", &input);
                 let start = std::time::Instant::now();
-                let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
-                let project_name = std::path::Path::new(&pp).file_name().unwrap_or_default().to_string_lossy().to_string();
+                let repo =
+                    ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
+                let project_name = std::path::Path::new(&pp)
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
                 let project_id = ares_core::ProjectId::from(project_name);
 
                 let mut decisions = Vec::new();
-                let target_file_id = input.file_path.as_ref().and_then(|fp| repo.get_id_by_path(fp).ok());
+                let target_file_id = input
+                    .file_path
+                    .as_ref()
+                    .and_then(|fp| repo.get_id_by_path(fp).ok());
 
                 if let Ok(all) = repo.get_nodes_by_type(&project_id, "decision") {
                     for dn in &all {
                         let props = &dn.properties;
-                        let summary = props.get("decision").and_then(|v| v.as_str()).unwrap_or(&dn.label);
-                        let author = props.get("author").and_then(|v| v.as_str()).unwrap_or("unknown");
+                        let summary = props
+                            .get("decision")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or(&dn.label);
+                        let author = props
+                            .get("author")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("unknown");
 
                         let mut matches = target_file_id.is_none();
                         let mut files: Vec<String> = Vec::new();
@@ -920,7 +946,9 @@ async fn main() -> Result<(), BoxError> {
                         if matches {
                             if let Some(ref since) = input.since {
                                 if let Ok(ts) = since.parse::<i64>() {
-                                    if dn.created_at < ts { continue; }
+                                    if dn.created_at < ts {
+                                        continue;
+                                    }
                                 }
                             }
                             decisions.push(serde_json::json!({
@@ -934,11 +962,14 @@ async fn main() -> Result<(), BoxError> {
                     }
                 }
 
-                Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
-                    "result": { "decisions": decisions },
-                    "evidence": [{"source": "graph", "confidence": 1.0}],
-                    "query_time_ms": start.elapsed().as_millis() as i64
-                })).unwrap()))
+                Ok(CallToolResult::text(
+                    serde_json::to_string(&serde_json::json!({
+                        "result": { "decisions": decisions },
+                        "evidence": [{"source": "graph", "confidence": 1.0}],
+                        "query_time_ms": start.elapsed().as_millis() as i64
+                    }))
+                    .unwrap(),
+                ))
             }
         })
         .build();
@@ -956,17 +987,27 @@ async fn main() -> Result<(), BoxError> {
             async move {
                 track_session_call(&session, "ares_search", &input);
                 let start = std::time::Instant::now();
-                let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
-                let project_name = std::path::Path::new(&pp).file_name().unwrap_or_default().to_string_lossy().to_string();
+                let repo =
+                    ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
+                let project_name = std::path::Path::new(&pp)
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
                 let project_id = ares_core::ProjectId::from(project_name);
                 let _pattern = format!("%{}%", input.query);
 
                 let mut results = Vec::new();
                 if let Ok(all) = repo.get_all_nodes(&project_id) {
-                    let mut matched: Vec<_> = all.into_iter().filter(|n| {
-                        n.label.to_lowercase().contains(&input.query.to_lowercase())
-                            || n.file_path.as_ref().map_or(false, |fp| fp.to_lowercase().contains(&input.query.to_lowercase()))
-                    }).collect();
+                    let mut matched: Vec<_> = all
+                        .into_iter()
+                        .filter(|n| {
+                            n.label.to_lowercase().contains(&input.query.to_lowercase())
+                                || n.file_path.as_ref().map_or(false, |fp| {
+                                    fp.to_lowercase().contains(&input.query.to_lowercase())
+                                })
+                        })
+                        .collect();
                     matched.truncate(input.limit);
                     for n in matched {
                         results.push(serde_json::json!({
@@ -978,11 +1019,14 @@ async fn main() -> Result<(), BoxError> {
                     }
                 }
 
-                Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
-                    "result": { "results": results },
-                    "evidence": [{"source": "graph", "confidence": 1.0}],
-                    "query_time_ms": start.elapsed().as_millis() as i64
-                })).unwrap()))
+                Ok(CallToolResult::text(
+                    serde_json::to_string(&serde_json::json!({
+                        "result": { "results": results },
+                        "evidence": [{"source": "graph", "confidence": 1.0}],
+                        "query_time_ms": start.elapsed().as_millis() as i64
+                    }))
+                    .unwrap(),
+                ))
             }
         })
         .build();
@@ -1000,23 +1044,37 @@ async fn main() -> Result<(), BoxError> {
             async move {
                 track_session_call(&session, "ares_timeline", &input);
                 let start = std::time::Instant::now();
-                let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
-                let project_name = std::path::Path::new(&pp).file_name().unwrap_or_default().to_string_lossy().to_string();
+                let repo =
+                    ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
+                let project_name = std::path::Path::new(&pp)
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
                 let _project_id = ares_core::ProjectId::from(project_name);
 
                 let mut events = Vec::new();
                 if let Ok(file_id_str) = repo.get_id_by_path(&input.file_path) {
                     let file_id = ares_core::NodeId::from(file_id_str.as_str());
                     if let Ok(edges) = repo.get_edges_to_by_type(&file_id, "touches") {
-                        let mut commit_ids: Vec<(i64, ares_core::NodeId)> = edges.iter()
+                        let mut commit_ids: Vec<(i64, ares_core::NodeId)> = edges
+                            .iter()
                             .map(|e| (e.valid_from, e.from_node_id.clone()))
                             .collect();
                         commit_ids.sort_by_key(|(ts, _)| *ts);
 
                         for (ts, cid) in &commit_ids {
                             if let Ok(Some(commit)) = repo.get_node(cid) {
-                                let author = commit.properties.get("author").and_then(|v| v.as_str()).unwrap_or("unknown");
-                                let subject = commit.properties.get("subject").and_then(|v| v.as_str()).unwrap_or("");
+                                let author = commit
+                                    .properties
+                                    .get("author")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("unknown");
+                                let subject = commit
+                                    .properties
+                                    .get("subject")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("");
                                 events.push(serde_json::json!({
                                     "date": *ts,
                                     "type": "commit",
@@ -1028,11 +1086,14 @@ async fn main() -> Result<(), BoxError> {
                     }
                 }
 
-                Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
-                    "result": { "events": events },
-                    "evidence": [{"source": "graph", "confidence": 1.0}],
-                    "query_time_ms": start.elapsed().as_millis() as i64
-                })).unwrap()))
+                Ok(CallToolResult::text(
+                    serde_json::to_string(&serde_json::json!({
+                        "result": { "events": events },
+                        "evidence": [{"source": "graph", "confidence": 1.0}],
+                        "query_time_ms": start.elapsed().as_millis() as i64
+                    }))
+                    .unwrap(),
+                ))
             }
         })
         .build();
@@ -1050,12 +1111,23 @@ async fn main() -> Result<(), BoxError> {
             async move {
                 track_session_call(&session, "ares_compare", &input);
                 let start = std::time::Instant::now();
-                let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
-                let project_name = std::path::Path::new(&pp).file_name().unwrap_or_default().to_string_lossy().to_string();
+                let repo =
+                    ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
+                let project_name = std::path::Path::new(&pp)
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
                 let _project_id = ares_core::ProjectId::from(project_name);
 
-                let id_a = repo.get_id_by_path(&input.file_a).ok().map(|s| ares_core::NodeId::from(s.as_str()));
-                let id_b = repo.get_id_by_path(&input.file_b).ok().map(|s| ares_core::NodeId::from(s.as_str()));
+                let id_a = repo
+                    .get_id_by_path(&input.file_a)
+                    .ok()
+                    .map(|s| ares_core::NodeId::from(s.as_str()));
+                let id_b = repo
+                    .get_id_by_path(&input.file_b)
+                    .ok()
+                    .map(|s| ares_core::NodeId::from(s.as_str()));
 
                 let mut deps_a = std::collections::HashSet::new();
                 let mut deps_b = std::collections::HashSet::new();
@@ -1081,22 +1153,33 @@ async fn main() -> Result<(), BoxError> {
 
                 let shared: Vec<String> = deps_a.intersection(&deps_b).cloned().collect();
                 let union_count = deps_a.union(&deps_b).count();
-                let coupling = if union_count > 0 { shared.len() as f64 / union_count as f64 } else { 0.0 };
+                let coupling = if union_count > 0 {
+                    shared.len() as f64 / union_count as f64
+                } else {
+                    0.0
+                };
 
-                let relationship = if coupling > 0.5 { "tightly coupled" }
-                    else if coupling > 0.1 { "loosely coupled" }
-                    else { "independent" };
+                let relationship = if coupling > 0.5 {
+                    "tightly coupled"
+                } else if coupling > 0.1 {
+                    "loosely coupled"
+                } else {
+                    "independent"
+                };
 
-                Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
-                    "result": {
-                        "shared_dependencies": shared,
-                        "shared_decisions": [],
-                        "relationship": relationship,
-                        "coupling_score": (coupling * 100.0).round() as i32
-                    },
-                    "evidence": [{"source": "graph", "confidence": 1.0}],
-                    "query_time_ms": start.elapsed().as_millis() as i64
-                })).unwrap()))
+                Ok(CallToolResult::text(
+                    serde_json::to_string(&serde_json::json!({
+                        "result": {
+                            "shared_dependencies": shared,
+                            "shared_decisions": [],
+                            "relationship": relationship,
+                            "coupling_score": (coupling * 100.0).round() as i32
+                        },
+                        "evidence": [{"source": "graph", "confidence": 1.0}],
+                        "query_time_ms": start.elapsed().as_millis() as i64
+                    }))
+                    .unwrap(),
+                ))
             }
         })
         .build();
@@ -1189,16 +1272,29 @@ async fn main() -> Result<(), BoxError> {
             async move {
                 track_session_call(&session, "ares_requirements", &input);
                 let start = std::time::Instant::now();
-                let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
-                let project_name = std::path::Path::new(&pp).file_name().unwrap_or_default().to_string_lossy().to_string();
+                let repo =
+                    ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
+                let project_name = std::path::Path::new(&pp)
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
                 let project_id = ares_core::ProjectId::from(project_name);
 
                 let mut requirements = Vec::new();
 
                 if let Ok(all) = repo.get_nodes_by_type(&project_id, "requirement") {
                     for rn in &all {
-                        let text = rn.properties.get("text").and_then(|v| v.as_str()).unwrap_or(&rn.label);
-                        let status = rn.properties.get("status").and_then(|v| v.as_str()).unwrap_or("unknown");
+                        let text = rn
+                            .properties
+                            .get("text")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or(&rn.label);
+                        let status = rn
+                            .properties
+                            .get("status")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("unknown");
 
                         let mut linked_files: Vec<String> = Vec::new();
                         let mut matches = input.file_path.is_none();
@@ -1226,16 +1322,18 @@ async fn main() -> Result<(), BoxError> {
                     }
                 }
 
-                Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
-                    "result": { "requirements": requirements },
-                    "evidence": [{"source": "graph", "confidence": 1.0}],
-                    "query_time_ms": start.elapsed().as_millis() as i64
-                })).unwrap()))
+                Ok(CallToolResult::text(
+                    serde_json::to_string(&serde_json::json!({
+                        "result": { "requirements": requirements },
+                        "evidence": [{"source": "graph", "confidence": 1.0}],
+                        "query_time_ms": start.elapsed().as_millis() as i64
+                    }))
+                    .unwrap(),
+                ))
             }
         })
         .build();
 
-    
     // --- Task 3.2: Agent Memory Write API ---
     let store_rec_dec = app_state.store.clone();
     let pp_rec_dec = project_path.clone();
@@ -1248,20 +1346,28 @@ async fn main() -> Result<(), BoxError> {
             let pp_local = pp_rec_dec.clone();
             async move {
                 track_session_call(&session, "ares_record_decision", &input);
-                let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
-                let project_name = std::path::Path::new(&pp_local).file_name().unwrap_or_default().to_string_lossy().to_string();
+                let repo =
+                    ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
+                let project_name = std::path::Path::new(&pp_local)
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
                 let project_id = ares_core::ProjectId::from(project_name);
-                
+
                 let node_id = ares_core::NodeId::new();
-                let now = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_micros() as i64);
-                
+                let now = (std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_micros() as i64);
+
                 let properties = serde_json::json!({
                     "source": input.source.unwrap_or_else(|| "agent".to_string()),
                     "description": input.description,
                     "status": input.status,
                     "confidence": input.confidence.unwrap_or(1.0)
                 });
-                
+
                 let decision_node = ares_core::GraphNode {
                     id: node_id.clone(),
                     project_id: project_id.clone(),
@@ -1273,11 +1379,14 @@ async fn main() -> Result<(), BoxError> {
                     updated_at: now,
                     deleted_at: None,
                 };
-                
+
                 if let Err(e) = repo.upsert_node(decision_node) {
-                    return Ok(CallToolResult::text(format!("Failed to record decision: {}", e)));
+                    return Ok(CallToolResult::text(format!(
+                        "Failed to record decision: {}",
+                        e
+                    )));
                 }
-                
+
                 let mut linked_files = Vec::new();
                 for path in input.impacted_paths {
                     if let Ok(file_id_str) = repo.get_id_by_path(&path) {
@@ -1300,12 +1409,15 @@ async fn main() -> Result<(), BoxError> {
                         }
                     }
                 }
-                
-                Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
-                    "result": "Decision recorded",
-                    "decision_id": node_id.as_str(),
-                    "linked_files": linked_files
-                })).unwrap_or_default()))
+
+                Ok(CallToolResult::text(
+                    serde_json::to_string(&serde_json::json!({
+                        "result": "Decision recorded",
+                        "decision_id": node_id.as_str(),
+                        "linked_files": linked_files
+                    }))
+                    .unwrap_or_default(),
+                ))
             }
         })
         .build();
@@ -1321,20 +1433,28 @@ async fn main() -> Result<(), BoxError> {
             let pp_local = pp_rec_req.clone();
             async move {
                 track_session_call(&session, "ares_record_requirement", &input);
-                let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
-                let project_name = std::path::Path::new(&pp_local).file_name().unwrap_or_default().to_string_lossy().to_string();
+                let repo =
+                    ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
+                let project_name = std::path::Path::new(&pp_local)
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
                 let project_id = ares_core::ProjectId::from(project_name);
-                
+
                 let node_id = ares_core::NodeId::new();
-                let now = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_micros() as i64);
-                
+                let now = (std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_micros() as i64);
+
                 let properties = serde_json::json!({
                     "source": "agent",
                     "description": input.description,
                     "priority": input.priority,
                     "confidence": 1.0
                 });
-                
+
                 let req_node = ares_core::GraphNode {
                     id: node_id.clone(),
                     project_id: project_id.clone(),
@@ -1346,11 +1466,14 @@ async fn main() -> Result<(), BoxError> {
                     updated_at: now,
                     deleted_at: None,
                 };
-                
+
                 if let Err(e) = repo.upsert_node(req_node) {
-                    return Ok(CallToolResult::text(format!("Failed to record requirement: {}", e)));
+                    return Ok(CallToolResult::text(format!(
+                        "Failed to record requirement: {}",
+                        e
+                    )));
                 }
-                
+
                 let mut linked_files = Vec::new();
                 for path in input.satisfies_paths {
                     if let Ok(file_id_str) = repo.get_id_by_path(&path) {
@@ -1373,12 +1496,15 @@ async fn main() -> Result<(), BoxError> {
                         }
                     }
                 }
-                
-                Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
-                    "result": "Requirement recorded",
-                    "requirement_id": node_id.as_str(),
-                    "linked_files": linked_files
-                })).unwrap_or_default()))
+
+                Ok(CallToolResult::text(
+                    serde_json::to_string(&serde_json::json!({
+                        "result": "Requirement recorded",
+                        "requirement_id": node_id.as_str(),
+                        "linked_files": linked_files
+                    }))
+                    .unwrap_or_default(),
+                ))
             }
         })
         .build();
@@ -1392,37 +1518,50 @@ async fn main() -> Result<(), BoxError> {
             let store_arc = store_ann.clone();
             async move {
                 track_session_call(&session, "ares_annotate", &input);
-                let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
-                
+                let repo =
+                    ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
+
                 if let Ok(file_id_str) = repo.get_id_by_path(&input.target_path) {
                     let file_id = ares_core::NodeId::from(file_id_str);
                     if let Ok(Some(mut node)) = repo.get_node(&file_id) {
                         if let Some(obj) = node.properties.as_object_mut() {
-                            let mut annotations = obj.remove("annotations").unwrap_or_else(|| serde_json::json!({}));
+                            let mut annotations = obj
+                                .remove("annotations")
+                                .unwrap_or_else(|| serde_json::json!({}));
                             if let Some(ann_obj) = annotations.as_object_mut() {
                                 ann_obj.insert(input.key.clone(), serde_json::json!(input.value));
                             } else {
                                 let mut new_ann_obj = serde_json::Map::new();
-                                new_ann_obj.insert(input.key.clone(), serde_json::json!(input.value));
+                                new_ann_obj
+                                    .insert(input.key.clone(), serde_json::json!(input.value));
                                 annotations = serde_json::Value::Object(new_ann_obj);
                             }
                             obj.insert("annotations".to_string(), annotations);
-                            node.updated_at = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_micros() as i64);
-                            
+                            node.updated_at = (std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_micros() as i64);
+
                             if let Ok(_) = repo.upsert_node(node) {
-                                return Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
-                                    "result": "Annotation added",
-                                    "target": input.target_path,
-                                    "key": input.key
-                                })).unwrap_or_default()));
+                                return Ok(CallToolResult::text(
+                                    serde_json::to_string(&serde_json::json!({
+                                        "result": "Annotation added",
+                                        "target": input.target_path,
+                                        "key": input.key
+                                    }))
+                                    .unwrap_or_default(),
+                                ));
                             }
                         }
                     }
                 }
-                
-                Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
-                    "error": "Failed to add annotation: node not found"
-                })).unwrap_or_default()))
+
+                Ok(CallToolResult::text(
+                    serde_json::to_string(&serde_json::json!({
+                        "error": "Failed to add annotation: node not found"
+                    }))
+                    .unwrap_or_default(),
+                ))
             }
         })
         .build();
@@ -1469,8 +1608,6 @@ async fn main() -> Result<(), BoxError> {
         })
         .build();
 
-
-    
     let store_ctx = app_state.store.clone();
     let pp_ctx = project_path.clone();
     let session_context_tool = ToolBuilder::new("ares_session_context")
@@ -1864,8 +2001,6 @@ async fn main() -> Result<(), BoxError> {
                     we.bookmark_query(&input.value, &input.title).await
                 };
 
-
-
                 match res {
                     Ok(_) => Ok(CallToolResult::text("Bookmarked successfully".to_string())),
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
@@ -2041,7 +2176,6 @@ async fn main() -> Result<(), BoxError> {
         })
         .build();
 
-    
     let store_health = app_state.store.clone();
     let session_clone_health_tool = session_state.clone();
     let health_tool = ToolBuilder::new("ares_health_check")
@@ -2091,7 +2225,7 @@ async fn main() -> Result<(), BoxError> {
         })
         .build();
 
-let router = McpRouter::new()
+    let router = McpRouter::new()
         .server_info("ares-mcp", env!("CARGO_PKG_VERSION"))
         .instructions("ARES maintains a session memory. Use ares_end_session at the end of each session to persist your context for the next session. Use ares_session_context to retrieve past session context.")
         .tool(chat_tool)

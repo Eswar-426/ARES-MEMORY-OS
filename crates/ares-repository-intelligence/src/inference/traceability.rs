@@ -1,9 +1,7 @@
 use super::deterministic::DeterministicInference;
 use super::intent::IntentExtractor;
 use super::narrative;
-use crate::models::{
-    EngineeringEvidence, EngineeringInsight, InferenceMode, InsightMetadata,
-};
+use crate::models::{EngineeringEvidence, EngineeringInsight, InferenceMode, InsightMetadata};
 use crate::services::confidence_engine::ConfidenceEngine;
 
 pub struct TraceabilityGenerator;

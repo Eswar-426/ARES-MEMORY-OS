@@ -1,6 +1,7 @@
 pub mod benchmark;
 pub mod bootstrap;
 pub mod candidates;
+pub mod compact;
 pub mod doctor;
 pub mod governance;
 pub mod ingest;
@@ -8,4 +9,3 @@ pub mod memory;
 pub mod reasoning;
 pub mod simulate;
 pub mod traceability;
-pub mod compact;

@@ -14,12 +14,25 @@ const MAX_FILE_SIZE_BYTES: u64 = 2 * 1024 * 1024; // 2MB
 
 /// Extensionless files that should still be scanned
 const EXTENSIONLESS_FILES: &[&str] = &[
-    "Makefile", "Dockerfile", "Jenkinsfile", "Vagrantfile",
-    "CMakeLists.txt", "Gemfile", "Rakefile",
+    "Makefile",
+    "Dockerfile",
+    "Jenkinsfile",
+    "Vagrantfile",
+    "CMakeLists.txt",
+    "Gemfile",
+    "Rakefile",
 ];
 
 const IGNORED_DIRS: &[&str] = &[
-    ".git", "target", ".gemini", "artifacts", "node_modules", "dist", ".turbo", ".ares", "scratch"
+    ".git",
+    "target",
+    ".gemini",
+    "artifacts",
+    "node_modules",
+    "dist",
+    ".turbo",
+    ".ares",
+    "scratch",
 ];
 
 fn should_scan_file(path: &Path) -> bool {
@@ -41,11 +54,10 @@ fn should_scan_file(path: &Path) -> bool {
 
     // Check extension
     match path.extension().and_then(|e| e.to_str()) {
-        Some("rs") | Some("ts") | Some("tsx") | Some("js") | Some("jsx") |
-        Some("py") | Some("go") | Some("md") | Some("txt") |
-        Some("json") | Some("yml") | Some("yaml") | Some("toml") |
-        Some("sh") | Some("bash") | Some("xml") | Some("html") |
-        Some("css") | Some("scss") | Some("sql") | Some("graphql") => true,
+        Some("rs") | Some("ts") | Some("tsx") | Some("js") | Some("jsx") | Some("py")
+        | Some("go") | Some("md") | Some("txt") | Some("json") | Some("yml") | Some("yaml")
+        | Some("toml") | Some("sh") | Some("bash") | Some("xml") | Some("html") | Some("css")
+        | Some("scss") | Some("sql") | Some("graphql") => true,
         _ => false,
     }
 }
@@ -278,7 +290,9 @@ impl Scanner {
                 };
 
                 if !force_full {
-                    if let Ok(Some(prev_hash)) = self.graph_repo.get_scan_state(project_id, &path_str) {
+                    if let Ok(Some(prev_hash)) =
+                        self.graph_repo.get_scan_state(project_id, &path_str)
+                    {
                         if current_hash == prev_hash {
                             let mut paths = scanned_paths.lock().unwrap();
                             paths.insert(path_str.clone());
@@ -425,7 +439,8 @@ impl Scanner {
         //  PHASE 2: Sequential batch insert — single transaction
         // ═══════════════════════════════════════════════════════════
         {
-            let mut conn = self.graph_repo
+            let mut conn = self
+                .graph_repo
                 .store()
                 .get_conn()
                 .expect("[scanner] Failed to get DB connection for batch insert");
@@ -435,7 +450,9 @@ impl Scanner {
 
             for result in &parse_results {
                 // File node
-                let _ = self.graph_repo.upsert_node_tx(&tx, result.file_node.clone());
+                let _ = self
+                    .graph_repo
+                    .upsert_node_tx(&tx, result.file_node.clone());
 
                 // Container edges (contains / contained_in)
                 for edge in &result.container_edges {
@@ -453,7 +470,8 @@ impl Scanner {
                 }
             }
 
-            tx.commit().expect("[scanner] Failed to commit batch transaction");
+            tx.commit()
+                .expect("[scanner] Failed to commit batch transaction");
         }
 
         // Scan state updates (outside main transaction — low volume, uses existing method)

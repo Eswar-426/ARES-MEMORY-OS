@@ -1,21 +1,29 @@
 {
   "name": "ares-memory-vscode",
-  "publisher": "ares",
+  "publisher": "eswar426",
   "displayName": "ARES Memory OS",
-  "description": "Zero-context-loss continuity for ARES Memory OS",
+  "description": "Zero-context-loss continuity for ARES Memory OS. AI-powered engineering intelligence system.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/example/ares-memory-os"
+    "url": "https://github.com/Eswar-426/ARES-MEMORY-OS"
   },
   "version": "0.1.0",
   "license": "MIT",
-  "homepage": "https://github.com/example/ares-memory-os",
+  "author": "Eswar-426",
+  "homepage": "https://github.com/Eswar-426/ARES-MEMORY-OS",
   "bugs": {
-    "url": "https://github.com/example/ares-memory-os/issues"
+    "url": "https://github.com/Eswar-426/ARES-MEMORY-OS/issues"
   },
   "engines": {
     "vscode": "^1.80.0"
   },
+  "keywords": [
+    "ai",
+    "memory",
+    "code-analysis",
+    "mcp",
+    "graph"
+  ],
   "categories": [
     "Other"
   ],

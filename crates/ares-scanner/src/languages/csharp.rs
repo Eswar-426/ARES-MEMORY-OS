@@ -116,7 +116,8 @@ impl LanguageExtractor for CSharpExtractor {
 
             if !name.is_empty() {
                 if let Some(node_type) = node_type_opt {
-                    if node_type == NodeType::Tag && capture_names_contains_import(&m, &self.query) {
+                    if node_type == NodeType::Tag && capture_names_contains_import(&m, &self.query)
+                    {
                         let import_path = name
                             .replace("using", "")
                             .replace("static", "")
@@ -360,7 +361,7 @@ mod tests {
 
         assert!(import_paths.contains(&"System.Collections.Generic".to_string()));
         assert!(import_paths.contains(&"Example.MyClass".to_string()));
-        
+
         let mut class_found = false;
         let mut method_found = false;
         let mut namespace_found = false;
@@ -375,7 +376,7 @@ mod tests {
                 namespace_found = true;
             }
         }
-        
+
         assert!(class_found);
         assert!(method_found);
         assert!(namespace_found);

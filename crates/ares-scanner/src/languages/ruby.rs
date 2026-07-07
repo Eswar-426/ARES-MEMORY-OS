@@ -296,7 +296,7 @@ mod tests {
                 module_found = true;
             }
         }
-        
+
         assert!(class_found);
         assert!(method_found);
         assert!(module_found);

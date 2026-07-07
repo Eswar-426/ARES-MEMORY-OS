@@ -19,7 +19,10 @@ pub async fn execute_doctor() -> Result<(), AresError> {
     if db_path.exists() {
         if let Ok(store) = ares_store::db::Store::open(&db_path) {
             if let Ok(conn) = store.get_conn() {
-                if conn.execute("SELECT 1 FROM graph_nodes LIMIT 1", []).is_ok() {
+                if conn
+                    .execute("SELECT 1 FROM graph_nodes LIMIT 1", [])
+                    .is_ok()
+                {
                     println!("✓ Knowledge Graph (Integrity OK)");
                 } else {
                     println!("✗ Knowledge Graph (Corrupted)");

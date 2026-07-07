@@ -113,7 +113,8 @@ impl LanguageExtractor for JavaExtractor {
 
             if !name.is_empty() {
                 if let Some(node_type) = node_type_opt {
-                    if node_type == NodeType::Tag && capture_names_contains_import(&m, &self.query) {
+                    if node_type == NodeType::Tag && capture_names_contains_import(&m, &self.query)
+                    {
                         let import_path = name
                             .replace("import", "")
                             .replace("static", "")
@@ -355,7 +356,7 @@ mod tests {
 
         assert!(import_paths.contains(&"java.util.HashMap".to_string()));
         assert!(import_paths.contains(&"com.example.MyClass".to_string()));
-        
+
         let mut class_found = false;
         let mut method_found = false;
         for node in &result.nodes {
@@ -366,7 +367,7 @@ mod tests {
                 method_found = true;
             }
         }
-        
+
         assert!(class_found);
         assert!(method_found);
     }

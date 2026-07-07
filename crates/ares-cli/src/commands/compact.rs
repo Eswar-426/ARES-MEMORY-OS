@@ -13,11 +13,12 @@ pub async fn execute_compact() -> Result<(), AresError> {
         return Ok(());
     }
 
-    let initial_size = std::fs::metadata(&db_path)
-        .map(|m| m.len())
-        .unwrap_or(0);
-    
-    println!("Initial database size: {:.2} MB", initial_size as f64 / 1_048_576.0);
+    let initial_size = std::fs::metadata(&db_path).map(|m| m.len()).unwrap_or(0);
+
+    println!(
+        "Initial database size: {:.2} MB",
+        initial_size as f64 / 1_048_576.0
+    );
 
     let store = ares_store::db::Store::open(&db_path)?;
     let conn = store.get_conn()?;
@@ -30,14 +31,15 @@ pub async fn execute_compact() -> Result<(), AresError> {
     println!("Executing ANALYZE...");
     let _ = conn.execute("ANALYZE", []);
 
-    let final_size = std::fs::metadata(&db_path)
-        .map(|m| m.len())
-        .unwrap_or(0);
+    let final_size = std::fs::metadata(&db_path).map(|m| m.len()).unwrap_or(0);
 
-    println!("Final database size: {:.2} MB", final_size as f64 / 1_048_576.0);
+    println!(
+        "Final database size: {:.2} MB",
+        final_size as f64 / 1_048_576.0
+    );
     let saved = initial_size.saturating_sub(final_size);
     println!("Reclaimed space: {:.2} MB", saved as f64 / 1_048_576.0);
-    
+
     println!("\nCompaction complete.");
 
     Ok(())

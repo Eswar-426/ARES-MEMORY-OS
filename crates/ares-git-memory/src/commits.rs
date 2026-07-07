@@ -4,7 +4,6 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::process::Command;
 
-
 #[derive(Debug, Clone)]
 pub struct PrDecision {
     pub pr_number: Option<i64>,
@@ -16,12 +15,17 @@ pub struct PrDecision {
     pub touched_files: Vec<String>,
 }
 
-pub fn extract_pr_decision(subject: &str, body: &str, hash: &str, files: &[String]) -> Option<PrDecision> {
+pub fn extract_pr_decision(
+    subject: &str,
+    body: &str,
+    hash: &str,
+    files: &[String],
+) -> Option<PrDecision> {
     let mut pr_number = None;
-    
+
     let re_squash = regex::Regex::new(r"^(.+?)\s*\(#(\d+)\)$").unwrap();
     let re_merge = regex::Regex::new(r"^Merge pull request #(\d+)").unwrap();
-    
+
     let title;
     if let Some(caps) = re_squash.captures(subject) {
         title = caps.get(1).unwrap().as_str().to_string();
@@ -34,15 +38,31 @@ pub fn extract_pr_decision(subject: &str, body: &str, hash: &str, files: &[Strin
     }
 
     let headings = vec![
-        "## why", "## context", "## decision", "## motivation", "## background", 
-        "## problem", "## solution", "## approach", "## rationale", "## tradeoffs",
-        "### why", "### context", "### decision", "### motivation", "### background", 
-        "### problem", "### solution", "### approach", "### rationale", "### tradeoffs"
+        "## why",
+        "## context",
+        "## decision",
+        "## motivation",
+        "## background",
+        "## problem",
+        "## solution",
+        "## approach",
+        "## rationale",
+        "## tradeoffs",
+        "### why",
+        "### context",
+        "### decision",
+        "### motivation",
+        "### background",
+        "### problem",
+        "### solution",
+        "### approach",
+        "### rationale",
+        "### tradeoffs",
     ];
-    
+
     let mut extracted_heading = None;
     let mut extracted_text = String::new();
-    
+
     let mut in_target_heading = false;
     for line in body.lines() {
         let lower = line.trim().to_lowercase();
@@ -60,15 +80,24 @@ pub fn extract_pr_decision(subject: &str, body: &str, hash: &str, files: &[Strin
             extracted_text.push('\n');
         }
     }
-    
+
     let mut confidence = 0.0;
-    
+
     if extracted_heading.is_some() {
         confidence = 0.8;
     } else {
         let keywords = vec![
-            "because", "instead of", "chose", "decided", "reason", "motivated by",
-            "alternative", "tradeoff", "trade-off", "we chose", "the goal"
+            "because",
+            "instead of",
+            "chose",
+            "decided",
+            "reason",
+            "motivated by",
+            "alternative",
+            "tradeoff",
+            "trade-off",
+            "we chose",
+            "the goal",
         ];
         let lower_body = body.to_lowercase();
         let mut hit_count = 0;
@@ -80,11 +109,11 @@ pub fn extract_pr_decision(subject: &str, body: &str, hash: &str, files: &[Strin
             extracted_text = body.to_string();
         }
     }
-    
+
     if confidence < 0.4 {
         return None;
     }
-    
+
     Some(PrDecision {
         pr_number,
         title,
@@ -266,11 +295,17 @@ impl CommitExtractor {
 
             let mut files_list = Vec::new();
             for line in files_part.lines() {
-                if line.is_empty() { continue; }
+                if line.is_empty() {
+                    continue;
+                }
                 let f_parts: Vec<&str> = line.split('\t').collect();
                 if f_parts.len() >= 2 {
                     let status = f_parts[0];
-                    let file_path = if status.starts_with('R') && f_parts.len() >= 3 { f_parts[2] } else { f_parts[1] };
+                    let file_path = if status.starts_with('R') && f_parts.len() >= 3 {
+                        f_parts[2]
+                    } else {
+                        f_parts[1]
+                    };
                     files_list.push(file_path.to_string());
                 }
             }
@@ -330,7 +365,6 @@ impl CommitExtractor {
                     created_at: captured_at,
                 });
             }
-
 
             if let Some(pr_dec) = extract_pr_decision(subject, body, hash, &files_list) {
                 pr_decisions.push(pr_dec);

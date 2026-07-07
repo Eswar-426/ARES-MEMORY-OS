@@ -203,7 +203,8 @@ impl SqliteGraphRepository {
                 now,
                 now,
             ],
-        ).map_err(AresError::db)?;
+        )
+        .map_err(AresError::db)?;
         Ok(())
     }
 
@@ -237,9 +238,13 @@ impl SqliteGraphRepository {
         let mut stmt = conn.prepare(
             "SELECT id, project_id, node_type, label, properties, file_path, created_at, updated_at, deleted_at FROM graph_nodes WHERE project_id = ?1 AND node_type = ?2 AND deleted_at IS NULL"
         ).map_err(AresError::db)?;
-        let nodes = stmt.query_map(rusqlite::params![project_id.as_str(), node_type], |row| {
-            row_to_node(row)
-        }).map_err(AresError::db)?.collect::<Result<Vec<_>, _>>().map_err(AresError::db)?;
+        let nodes = stmt
+            .query_map(rusqlite::params![project_id.as_str(), node_type], |row| {
+                row_to_node(row)
+            })
+            .map_err(AresError::db)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(AresError::db)?;
         Ok(nodes)
     }
 
@@ -252,9 +257,13 @@ impl SqliteGraphRepository {
         let mut stmt = conn.prepare(
             "SELECT id, project_id, from_node_id, to_node_id, edge_type, weight, confidence, source, valid_from, valid_until, created_at FROM graph_edges WHERE to_node_id = ?1 AND edge_type = ?2 AND valid_until IS NULL"
         ).map_err(AresError::db)?;
-        let edges = stmt.query_map(rusqlite::params![node_id.as_str(), edge_type], |row| {
-            row_to_edge(row)
-        }).map_err(AresError::db)?.collect::<Result<Vec<_>, _>>().map_err(AresError::db)?;
+        let edges = stmt
+            .query_map(rusqlite::params![node_id.as_str(), edge_type], |row| {
+                row_to_edge(row)
+            })
+            .map_err(AresError::db)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(AresError::db)?;
         Ok(edges)
     }
 

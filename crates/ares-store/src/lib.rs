@@ -15,9 +15,9 @@ pub mod repositories;
 
 pub use db::Store;
 pub use repositories::{
-    decision::SqliteDecisionRepository, event::SqliteEventRepository, graph::SqliteGraphRepository,
+    decision::SqliteDecisionRepository, event::SqliteEventRepository, gaps::GapAlert,
+    gaps::GapType, gaps::HealthScore, gaps::SqliteGapRepository, graph::SqliteGraphRepository,
     memory::SqliteMemoryRepository, plan::SqlitePlanRepository, project::SqliteProjectRepository,
     timeline::SqliteTimelineRepository, vector::SqliteVectorRepository,
-    workflow::SqliteWorkflowRepository, gaps::SqliteGapRepository, gaps::GapAlert, gaps::GapType,
-    gaps::HealthScore,
+    workflow::SqliteWorkflowRepository,
 };

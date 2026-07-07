@@ -29,32 +29,26 @@ ARES exposes its graph through five deterministic intelligence engines accessibl
 4. **Drift Analysis**: Automatically detect when your codebase violates a documented architectural rule (e.g., bypassing a repository layer).
 5. **Simulation**: Ask "What if I delete this?" and get an instant, deterministic list of everything that will break before you write a single line of code.
 
+## Installation
+
+ARES MemoryOS is distributed as a zero-configuration VS Code extension with bundled native binaries.
+
+1. Download the latest `.vsix` from [GitHub Releases](https://github.com/Eswar-426/ARES-MEMORY-OS/releases).
+2. Install via VS Code: `Extensions` -> `...` -> `Install from VSIX`.
+3. The extension will automatically download the correct native intelligence engine for your OS (Windows, macOS ARM/x64, Linux) on first run. No Rust toolchain required!
+
+*(Once approved on the VS Code Marketplace, it will be available with a single click).*
+
 ## Quick Start
 
-Experience ARES in 5 minutes using our built-in demo orchestration script.
+Once installed, open any project folder in VS Code to see ARES in action:
 
-### 1. Prerequisites
-- Rust and Cargo (`rustup default stable`)
-- VS Code (`code` command in PATH)
-
-### 2. Run the Demo
-Launch the demo script from the repository root:
-```powershell
-./demo.ps1
-```
-
-By default, this sets up the **Payment Service** demo. You can also target specific scenarios:
-```powershell
-./demo.ps1 payment-service   # Impact & Traceability
-./demo.ps1 inventory-system  # Architecture Drift
-./demo.ps1 auth-service      # Why Exists
-```
-
-### 3. Ask "Wow" Questions
-Once VS Code opens, use the ARES Chat Webview to ask:
-- *"What happens if I change the PaymentProvider trait?"*
-- *"Show me everything implementing REQ-12."*
-- *"Are there any architecture violations of ADR-3?"*
+1. **Ingest your repository:** Run the `ARES: Ingest Repository` command from the Command Palette to build the local Knowledge Graph.
+2. **Access the Chat:** Open the ARES Chat Webview to ask architecture-aware questions.
+3. **Use the Intelligence Engines:**
+   - *"What happens if I change the PaymentProvider trait?"* (Impact Analysis)
+   - *"Show me everything implementing REQ-12."* (Traceability)
+   - *"Are there any architecture violations of ADR-3?"* (Drift Analysis)
 
 ## Architecture
 

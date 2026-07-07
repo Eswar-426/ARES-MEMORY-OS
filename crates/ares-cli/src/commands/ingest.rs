@@ -261,7 +261,10 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                 }
             }
 
-            let now_micros = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_micros() as i64;
+            let now_micros = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_micros() as i64;
             for pr_dec in git_memory.pr_decisions {
                 let requires_human_review = pr_dec.confidence < 0.79;
                 let dec_id = ares_core::NodeId::from(format!("decision:pr:{}", pr_dec.commit_hash));
@@ -275,7 +278,7 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                     "decision": pr_dec.description,
                     "title": pr_dec.title,
                 });
-                
+
                 let dec_node = ares_core::GraphNode {
                     id: dec_id.clone(),
                     project_id: project_id.clone(),
@@ -287,11 +290,11 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                     updated_at: now_micros,
                     deleted_at: None,
                 };
-                
+
                 if let Err(e) = repo.upsert_node(dec_node) {
                     println!("DEBUG: Failed to upsert PR decision node: {:?}", e);
                 }
-                
+
                 for file_path in pr_dec.touched_files {
                     let canonical = ares_core::canonicalize_node_id(&file_path);
                     let target_id = if let Some(scanner_id) = path_to_scanner_id.get(&canonical) {
@@ -299,7 +302,7 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                     } else {
                         continue;
                     };
-                    
+
                     let edge = ares_core::GraphEdge {
                         id: format!("{}-relatedto-{}", dec_id.as_str(), target_id.as_str()),
                         project_id: project_id.clone(),
@@ -313,14 +316,13 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                         valid_until: None,
                         created_at: now_micros,
                     };
-                    
+
                     if let Err(e) = repo.upsert_edge(edge) {
                         println!("DEBUG: Failed to upsert PR decision edge: {:?}", e);
                     }
                 }
             }
         };
-
 
         match git_extractor.extract_metadata_only(&project_id) {
             Ok(git_memory) => {
@@ -351,7 +353,9 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                 );
 
                 {
-                    let conn = repo.store().get_conn()
+                    let conn = repo
+                        .store()
+                        .get_conn()
                         .expect("Failed to get DB connection for project init");
                     conn.execute(
                         "INSERT OR IGNORE INTO projects (id, name, description, root_path, primary_language, domain, maturity, created_at, updated_at) VALUES (?1, ?2, '', ?3, '', '', 'greenfield', ?4, ?5)",
@@ -379,11 +383,15 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         // --- P3.3 Incremental Git Blame ---
         println!("Extracting Git Blame incrementally...");
         let captured_at = ares_core::types::event::now_micros() as i64;
-        
-        if let Ok(all_files) = ares_git_memory::blame::BlameExtractor::get_blameable_files(&args.path) {
+
+        if let Ok(all_files) =
+            ares_git_memory::blame::BlameExtractor::get_blameable_files(&args.path)
+        {
             let mut blamed_files = std::collections::HashSet::new();
             if let Ok(conn) = repo.store().get_conn() {
-                if let Ok(mut stmt) = conn.prepare("SELECT DISTINCT to_node_id FROM graph_edges WHERE edge_type = 'ContributedTo'") {
+                if let Ok(mut stmt) = conn.prepare(
+                    "SELECT DISTINCT to_node_id FROM graph_edges WHERE edge_type = 'ContributedTo'",
+                ) {
                     if let Ok(rows) = stmt.query_map([], |row| row.get::<_, String>(0)) {
                         for r in rows.flatten() {
                             blamed_files.insert(r);
@@ -393,23 +401,34 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
             }
 
             let total_blame_files = all_files.len();
-            let files_to_process: Vec<String> = all_files.into_iter().filter(|f| {
-                let canonical = ares_core::canonicalize_node_id(f);
-                if let Some(uuid) = path_to_scanner_id.get(&canonical) {
-                    !blamed_files.contains(uuid)
-                } else {
-                    true
-                }
-            }).collect();
+            let files_to_process: Vec<String> = all_files
+                .into_iter()
+                .filter(|f| {
+                    let canonical = ares_core::canonicalize_node_id(f);
+                    if let Some(uuid) = path_to_scanner_id.get(&canonical) {
+                        !blamed_files.contains(uuid)
+                    } else {
+                        true
+                    }
+                })
+                .collect();
 
             let skipped = total_blame_files - files_to_process.len();
             if skipped > 0 {
-                println!("Resuming git blame: skipped {} files already processed.", skipped);
+                println!(
+                    "Resuming git blame: skipped {} files already processed.",
+                    skipped
+                );
             }
 
             for chunk in files_to_process.chunks(200) {
                 let chunk_refs: Vec<&str> = chunk.iter().map(|s| s.as_str()).collect();
-                if let Ok((nodes, edges)) = ares_git_memory::blame::BlameExtractor::extract_batch(&args.path, &project_id, captured_at, &chunk_refs) {
+                if let Ok((nodes, edges)) = ares_git_memory::blame::BlameExtractor::extract_batch(
+                    &args.path,
+                    &project_id,
+                    captured_at,
+                    &chunk_refs,
+                ) {
                     println!("Upserting git blame chunk ({} files)...", chunk.len());
                     let git_mem = ares_git_memory::models::GitMemoryResult {
                         nodes,

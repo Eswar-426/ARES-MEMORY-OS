@@ -75,8 +75,7 @@ pub struct Timestamps {
 }
 
 /// Risk classification for an entity.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub enum RiskLevel {
     #[default]
     Low,
@@ -84,4 +83,3 @@ pub enum RiskLevel {
     High,
     Critical,
 }
-

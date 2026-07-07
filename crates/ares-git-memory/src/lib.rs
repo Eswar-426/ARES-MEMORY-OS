@@ -124,7 +124,7 @@ impl GitMemoryExtractor {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_millis() as i64;
-            
+
         let mut result = self.extract_metadata_only(project_id)?;
 
         // 5. Blame

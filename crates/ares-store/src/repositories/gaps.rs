@@ -22,7 +22,6 @@ pub struct GapAlert {
     pub details: String,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HealthScore {
     pub overall: f64,
@@ -30,7 +29,7 @@ pub struct HealthScore {
     pub decisions_with_requirements_term: f64,
     pub files_with_owners_term: f64,
     pub fresh_decisions_term: f64,
-    
+
     pub total_files: i64,
     pub files_with_decisions: i64,
     pub total_decisions: i64,
@@ -49,30 +48,35 @@ impl SqliteGapRepository {
         Self { store }
     }
 
-    
     pub fn calculate_health_score(&self, project_id: &ProjectId) -> Result<HealthScore, AresError> {
         let conn = self.store.get_conn()?;
 
-        let total_files: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM graph_nodes WHERE project_id = ?1 AND node_type = 'file'",
-            params![project_id.as_str()],
-            |row| row.get(0),
-        ).unwrap_or(0);
+        let total_files: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM graph_nodes WHERE project_id = ?1 AND node_type = 'file'",
+                params![project_id.as_str()],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
 
-        let files_with_decisions: i64 = conn.query_row(
-            "SELECT COUNT(DISTINCT n.id) FROM graph_nodes n 
+        let files_with_decisions: i64 = conn
+            .query_row(
+                "SELECT COUNT(DISTINCT n.id) FROM graph_nodes n 
              JOIN graph_edges e ON e.target_id = n.id
              JOIN graph_nodes d ON e.source_id = d.id 
              WHERE n.project_id = ?1 AND n.node_type = 'file' AND d.node_type = 'decision'",
-            params![project_id.as_str()],
-            |row| row.get(0),
-        ).unwrap_or(0);
+                params![project_id.as_str()],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
 
-        let total_decisions: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM graph_nodes WHERE project_id = ?1 AND node_type = 'decision'",
-            params![project_id.as_str()],
-            |row| row.get(0),
-        ).unwrap_or(0);
+        let total_decisions: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM graph_nodes WHERE project_id = ?1 AND node_type = 'decision'",
+                params![project_id.as_str()],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
 
         let decisions_with_requirements: i64 = conn.query_row(
             "SELECT COUNT(DISTINCT d.id) FROM graph_nodes d
@@ -95,25 +99,43 @@ impl SqliteGapRepository {
         let thirty_days_micros = 30 * 24 * 60 * 60 * 1_000_000_i64;
         let threshold = Self::now_micros() - thirty_days_micros;
 
-        let fresh_decisions: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM graph_nodes 
+        let fresh_decisions: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM graph_nodes 
              WHERE project_id = ?1 AND node_type = 'decision' AND created_at > ?2",
-            params![project_id.as_str(), threshold],
-            |row| row.get(0),
-        ).unwrap_or(0);
+                params![project_id.as_str(), threshold],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
 
         let stale_decisions = total_decisions - fresh_decisions;
 
-        let term1 = if total_files == 0 { 1.0 } else { (files_with_decisions as f64) / (total_files as f64) };
-        let term2 = if total_decisions == 0 { 1.0 } else { (decisions_with_requirements as f64) / (total_decisions as f64) };
-        let term3 = if total_files == 0 { 1.0 } else { (files_with_owners as f64) / (total_files as f64) };
-        
-        let term4 = if total_decisions == 0 { 
-            0.0 
-        } else if stale_decisions == 0 { 
-            if fresh_decisions > 0 { 1.0 } else { 0.0 } 
-        } else { 
-            ((fresh_decisions as f64) / (stale_decisions as f64)).min(1.0) 
+        let term1 = if total_files == 0 {
+            1.0
+        } else {
+            (files_with_decisions as f64) / (total_files as f64)
+        };
+        let term2 = if total_decisions == 0 {
+            1.0
+        } else {
+            (decisions_with_requirements as f64) / (total_decisions as f64)
+        };
+        let term3 = if total_files == 0 {
+            1.0
+        } else {
+            (files_with_owners as f64) / (total_files as f64)
+        };
+
+        let term4 = if total_decisions == 0 {
+            0.0
+        } else if stale_decisions == 0 {
+            if fresh_decisions > 0 {
+                1.0
+            } else {
+                0.0
+            }
+        } else {
+            ((fresh_decisions as f64) / (stale_decisions as f64)).min(1.0)
         };
 
         let overall = (term1 * 0.4 + term2 * 0.3 + term3 * 0.2 + term4 * 0.1) * 100.0;
@@ -135,7 +157,10 @@ impl SqliteGapRepository {
     }
 
     fn now_micros() -> i64 {
-        SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_micros() as i64
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_micros() as i64
     }
 
     pub fn get_code_without_decision(
@@ -145,8 +170,9 @@ impl SqliteGapRepository {
     ) -> Result<Vec<GapAlert>, AresError> {
         let threshold = Self::now_micros() - (older_than_days * 24 * 60 * 60 * 1_000_000);
         let mut conn = self.store.get_conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT id, label, file_path 
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, label, file_path 
              FROM graph_nodes 
              WHERE project_id = ?1 
                AND node_type = 'file' 
@@ -159,21 +185,24 @@ impl SqliteGapRepository {
                      AND dn.node_type = 'decision'
                      AND e.valid_until IS NULL
                      AND dn.deleted_at IS NULL
-               )"
-        ).map_err(AresError::db)?;
+               )",
+            )
+            .map_err(AresError::db)?;
 
-        let rows = stmt.query_map(params![project_id.as_str(), threshold], |row| {
-            let id: String = row.get(0)?;
-            let label: String = row.get(1)?;
-            let path: Option<String> = row.get(2)?;
-            let path_str = path.unwrap_or_else(|| label.clone());
-            Ok(GapAlert {
-                gap_type: GapType::CodeWithoutDecision,
-                node_id: id,
-                node_label: label,
-                details: format!("{} has no recorded decision", path_str),
+        let rows = stmt
+            .query_map(params![project_id.as_str(), threshold], |row| {
+                let id: String = row.get(0)?;
+                let label: String = row.get(1)?;
+                let path: Option<String> = row.get(2)?;
+                let path_str = path.unwrap_or_else(|| label.clone());
+                Ok(GapAlert {
+                    gap_type: GapType::CodeWithoutDecision,
+                    node_id: id,
+                    node_label: label,
+                    details: format!("{} has no recorded decision", path_str),
+                })
             })
-        }).map_err(AresError::db)?;
+            .map_err(AresError::db)?;
 
         let mut alerts = Vec::new();
         for r in rows {
@@ -189,8 +218,9 @@ impl SqliteGapRepository {
     ) -> Result<Vec<GapAlert>, AresError> {
         let threshold = Self::now_micros() - (older_than_days * 24 * 60 * 60 * 1_000_000);
         let mut conn = self.store.get_conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT id, label 
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, label 
              FROM graph_nodes 
              WHERE project_id = ?1 
                AND node_type = 'decision' 
@@ -203,19 +233,22 @@ impl SqliteGapRepository {
                      AND fn.node_type = 'file'
                      AND e.valid_until IS NULL
                      AND fn.deleted_at IS NULL
-               )"
-        ).map_err(AresError::db)?;
+               )",
+            )
+            .map_err(AresError::db)?;
 
-        let rows = stmt.query_map(params![project_id.as_str(), threshold], |row| {
-            let id: String = row.get(0)?;
-            let label: String = row.get(1)?;
-            Ok(GapAlert {
-                gap_type: GapType::DecisionWithoutCode,
-                node_id: id.clone(),
-                node_label: label.clone(),
-                details: format!("Decision {} ({}) has no linked implementation", id, label),
+        let rows = stmt
+            .query_map(params![project_id.as_str(), threshold], |row| {
+                let id: String = row.get(0)?;
+                let label: String = row.get(1)?;
+                Ok(GapAlert {
+                    gap_type: GapType::DecisionWithoutCode,
+                    node_id: id.clone(),
+                    node_label: label.clone(),
+                    details: format!("Decision {} ({}) has no linked implementation", id, label),
+                })
             })
-        }).map_err(AresError::db)?;
+            .map_err(AresError::db)?;
 
         let mut alerts = Vec::new();
         for r in rows {
@@ -229,8 +262,9 @@ impl SqliteGapRepository {
         project_id: &ProjectId,
     ) -> Result<Vec<GapAlert>, AresError> {
         let mut conn = self.store.get_conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT id, label 
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, label 
              FROM graph_nodes 
              WHERE project_id = ?1 
                AND node_type = 'requirement'
@@ -242,19 +276,22 @@ impl SqliteGapRepository {
                      AND dn.node_type = 'decision'
                      AND e.valid_until IS NULL
                      AND dn.deleted_at IS NULL
-               )"
-        ).map_err(AresError::db)?;
+               )",
+            )
+            .map_err(AresError::db)?;
 
-        let rows = stmt.query_map(params![project_id.as_str()], |row| {
-            let id: String = row.get(0)?;
-            let label: String = row.get(1)?;
-            Ok(GapAlert {
-                gap_type: GapType::OrphanedRequirement,
-                node_id: id.clone(),
-                node_label: label.clone(),
-                details: format!("REQ-{} ({}) has no implementing decisions", id, label),
+        let rows = stmt
+            .query_map(params![project_id.as_str()], |row| {
+                let id: String = row.get(0)?;
+                let label: String = row.get(1)?;
+                Ok(GapAlert {
+                    gap_type: GapType::OrphanedRequirement,
+                    node_id: id.clone(),
+                    node_label: label.clone(),
+                    details: format!("REQ-{} ({}) has no implementing decisions", id, label),
+                })
             })
-        }).map_err(AresError::db)?;
+            .map_err(AresError::db)?;
 
         let mut alerts = Vec::new();
         for r in rows {
@@ -270,9 +307,10 @@ impl SqliteGapRepository {
     ) -> Result<Vec<GapAlert>, AresError> {
         let threshold_us = stale_threshold_days * 24 * 60 * 60 * 1_000_000;
         let mut conn = self.store.get_conn()?;
-        
-        let mut stmt = conn.prepare(
-            "SELECT DISTINCT d.id, d.label, f.file_path, f.label
+
+        let mut stmt = conn
+            .prepare(
+                "SELECT DISTINCT d.id, d.label, f.file_path, f.label
              FROM graph_nodes f
              JOIN graph_edges e ON (e.from_node_id = f.id OR e.to_node_id = f.id)
              JOIN graph_nodes d ON (e.from_node_id = d.id OR e.to_node_id = d.id)
@@ -291,22 +329,28 @@ impl SqliteGapRepository {
                      AND e2.valid_until IS NULL
                      AND d2.deleted_at IS NULL
                      AND d2.created_at > d.created_at
-               )"
-        ).map_err(AresError::db)?;
+               )",
+            )
+            .map_err(AresError::db)?;
 
-        let rows = stmt.query_map(params![project_id.as_str(), threshold_us], |row| {
-            let id: String = row.get(0)?;
-            let label: String = row.get(1)?;
-            let path: Option<String> = row.get(2)?;
-            let f_label: String = row.get(3)?;
-            let path_str = path.unwrap_or_else(|| f_label);
-            Ok(GapAlert {
-                gap_type: GapType::StaleDecision,
-                node_id: id.clone(),
-                node_label: label,
-                details: format!("Decision {} may be stale. {} changed significantly", id, path_str),
+        let rows = stmt
+            .query_map(params![project_id.as_str(), threshold_us], |row| {
+                let id: String = row.get(0)?;
+                let label: String = row.get(1)?;
+                let path: Option<String> = row.get(2)?;
+                let f_label: String = row.get(3)?;
+                let path_str = path.unwrap_or_else(|| f_label);
+                Ok(GapAlert {
+                    gap_type: GapType::StaleDecision,
+                    node_id: id.clone(),
+                    node_label: label,
+                    details: format!(
+                        "Decision {} may be stale. {} changed significantly",
+                        id, path_str
+                    ),
+                })
             })
-        }).map_err(AresError::db)?;
+            .map_err(AresError::db)?;
 
         let mut alerts = Vec::new();
         for r in rows {
@@ -320,8 +364,9 @@ impl SqliteGapRepository {
         project_id: &ProjectId,
     ) -> Result<Vec<GapAlert>, AresError> {
         let mut conn = self.store.get_conn()?;
-        let mut stmt = conn.prepare(
-            "SELECT id, label, file_path 
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, label, file_path 
              FROM graph_nodes 
              WHERE project_id = ?1 
                AND node_type = 'file'
@@ -331,21 +376,24 @@ impl SqliteGapRepository {
                    WHERE (e.from_node_id = graph_nodes.id OR e.to_node_id = graph_nodes.id)
                      AND e.edge_type IN ('authored_by', 'contributed_to', 'owns')
                      AND e.valid_until IS NULL
-               )"
-        ).map_err(AresError::db)?;
+               )",
+            )
+            .map_err(AresError::db)?;
 
-        let rows = stmt.query_map(params![project_id.as_str()], |row| {
-            let id: String = row.get(0)?;
-            let label: String = row.get(1)?;
-            let path: Option<String> = row.get(2)?;
-            let path_str = path.unwrap_or_else(|| label.clone());
-            Ok(GapAlert {
-                gap_type: GapType::UnknownOwnership,
-                node_id: id,
-                node_label: label,
-                details: format!("{} has no clear owner", path_str),
+        let rows = stmt
+            .query_map(params![project_id.as_str()], |row| {
+                let id: String = row.get(0)?;
+                let label: String = row.get(1)?;
+                let path: Option<String> = row.get(2)?;
+                let path_str = path.unwrap_or_else(|| label.clone());
+                Ok(GapAlert {
+                    gap_type: GapType::UnknownOwnership,
+                    node_id: id,
+                    node_label: label,
+                    details: format!("{} has no clear owner", path_str),
+                })
             })
-        }).map_err(AresError::db)?;
+            .map_err(AresError::db)?;
 
         let mut alerts = Vec::new();
         for r in rows {

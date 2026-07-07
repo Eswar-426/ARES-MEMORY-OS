@@ -1,6 +1,7 @@
 use crate::languages::{
-    cpp::CppExtractor, csharp::CSharpExtractor, go::GoExtractor, java::JavaExtractor, javascript::JavaScriptExtractor, python::PythonExtractor, ruby::RubyExtractor, rust::RustExtractor,
-    typescript::TypeScriptExtractor, ExtractionResult, LanguageExtractor,
+    cpp::CppExtractor, csharp::CSharpExtractor, go::GoExtractor, java::JavaExtractor,
+    javascript::JavaScriptExtractor, python::PythonExtractor, ruby::RubyExtractor,
+    rust::RustExtractor, typescript::TypeScriptExtractor, ExtractionResult, LanguageExtractor,
 };
 use ares_core::ProjectId;
 

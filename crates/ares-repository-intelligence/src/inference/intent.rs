@@ -59,14 +59,24 @@ impl IntentExtractor {
                 (
                     t.introduction_reason.clone(),
                     t.introduction_hash.clone().unwrap_or_default(),
-                    t.introduced_by.clone().unwrap_or_else(|| "unknown".to_string())
+                    t.introduced_by
+                        .clone()
+                        .unwrap_or_else(|| "unknown".to_string()),
                 )
             } else if !commits.is_empty() {
                 let oldest = commits.iter().rev().next().unwrap();
                 (
-                    if oldest.message.is_empty() { None } else { Some(oldest.message.clone()) },
+                    if oldest.message.is_empty() {
+                        None
+                    } else {
+                        Some(oldest.message.clone())
+                    },
                     oldest.hash[..7.min(oldest.hash.len())].to_string(),
-                    if oldest.author.is_empty() { "unknown".to_string() } else { oldest.author.clone() }
+                    if oldest.author.is_empty() {
+                        "unknown".to_string()
+                    } else {
+                        oldest.author.clone()
+                    },
                 )
             } else {
                 (None, String::new(), String::new())
@@ -74,9 +84,17 @@ impl IntentExtractor {
         } else if !commits.is_empty() {
             let oldest = commits.iter().rev().next().unwrap();
             (
-                if oldest.message.is_empty() { None } else { Some(oldest.message.clone()) },
+                if oldest.message.is_empty() {
+                    None
+                } else {
+                    Some(oldest.message.clone())
+                },
                 oldest.hash[..7.min(oldest.hash.len())].to_string(),
-                if oldest.author.is_empty() { "unknown".to_string() } else { oldest.author.clone() }
+                if oldest.author.is_empty() {
+                    "unknown".to_string()
+                } else {
+                    oldest.author.clone()
+                },
             )
         } else {
             (None, String::new(), String::new())
@@ -86,7 +104,11 @@ impl IntentExtractor {
             let newest = &commits[0];
             (
                 newest.hash[..7.min(newest.hash.len())].to_string(),
-                if newest.author.is_empty() { "unknown".to_string() } else { newest.author.clone() }
+                if newest.author.is_empty() {
+                    "unknown".to_string()
+                } else {
+                    newest.author.clone()
+                },
             )
         } else {
             (String::new(), String::new())

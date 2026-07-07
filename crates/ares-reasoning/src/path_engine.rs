@@ -17,7 +17,8 @@ impl PathEngine {
         if raw_id.len() == 36 && raw_id.chars().filter(|&c| c == '-').count() == 4 {
             return raw_id.to_string();
         }
-        repo.get_id_by_path(raw_id).unwrap_or_else(|_| raw_id.to_string())
+        repo.get_id_by_path(raw_id)
+            .unwrap_or_else(|_| raw_id.to_string())
     }
 
     /// Recursively trace upstream dependencies with full tracking.
