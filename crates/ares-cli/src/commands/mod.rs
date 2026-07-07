@@ -8,3 +8,4 @@ pub mod memory;
 pub mod reasoning;
 pub mod simulate;
 pub mod traceability;
+pub mod compact;

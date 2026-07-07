@@ -52,6 +52,9 @@ enum Commands {
     /// System Health Check
     Doctor,
 
+    /// Compact the database
+    Compact,
+
     /// Run real-world engine benchmarks
     Benchmark,
 
@@ -362,6 +365,9 @@ async fn main() -> Result<(), AresError> {
         }
         Commands::Doctor => {
             commands::doctor::execute_doctor().await?;
+        }
+        Commands::Compact => {
+            commands::compact::execute_compact().await?;
         }
         Commands::Benchmark => {
             commands::benchmark::run_real_benchmark().await?;
