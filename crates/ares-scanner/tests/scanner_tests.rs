@@ -41,7 +41,7 @@ fn test_full_scan_discovers_and_parses() {
         .unwrap();
 
     let nodes = graph_repo
-        .get_by_file_path(&project_id, &code_path.to_string_lossy())
+        .get_by_file_path(&project_id, "main.rs")
         .unwrap();
 
     assert!(!nodes.is_empty());
