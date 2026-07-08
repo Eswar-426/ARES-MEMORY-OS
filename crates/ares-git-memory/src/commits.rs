@@ -125,6 +125,8 @@ pub fn extract_pr_decision(
     })
 }
 
+type ExtractResult = (Vec<GraphNode>, Vec<GraphEdge>, Vec<PrDecision>);
+
 pub struct CommitExtractor;
 
 impl CommitExtractor {
@@ -133,7 +135,7 @@ impl CommitExtractor {
         project_id: &ProjectId,
         depth: usize,
         captured_at: i64,
-    ) -> Result<(Vec<GraphNode>, Vec<GraphEdge>, Vec<PrDecision>), String> {
+    ) -> Result<ExtractResult, String> {
         let mut nodes = Vec::new();
         let mut edges = Vec::new();
         let mut pr_decisions = Vec::new();
@@ -201,7 +203,7 @@ impl CommitExtractor {
         let commits = output_str.split("[COMMIT]\0").filter(|s| !s.is_empty());
 
         for commit_block in commits {
-            let mut parts = commit_block.splitn(2, "\0[FILES]\n").collect::<Vec<_>>();
+            let parts = commit_block.splitn(2, "\0[FILES]\n").collect::<Vec<_>>();
             let metadata_part = parts[0];
             let files_part = if parts.len() > 1 { parts[1] } else { "" };
 

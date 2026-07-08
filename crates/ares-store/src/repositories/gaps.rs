@@ -169,7 +169,7 @@ impl SqliteGapRepository {
         older_than_days: i64,
     ) -> Result<Vec<GapAlert>, AresError> {
         let threshold = Self::now_micros() - (older_than_days * 24 * 60 * 60 * 1_000_000);
-        let mut conn = self.store.get_conn()?;
+        let conn = self.store.get_conn()?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, label, file_path 
@@ -217,7 +217,7 @@ impl SqliteGapRepository {
         older_than_days: i64,
     ) -> Result<Vec<GapAlert>, AresError> {
         let threshold = Self::now_micros() - (older_than_days * 24 * 60 * 60 * 1_000_000);
-        let mut conn = self.store.get_conn()?;
+        let conn = self.store.get_conn()?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, label 
@@ -261,7 +261,7 @@ impl SqliteGapRepository {
         &self,
         project_id: &ProjectId,
     ) -> Result<Vec<GapAlert>, AresError> {
-        let mut conn = self.store.get_conn()?;
+        let conn = self.store.get_conn()?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, label 
@@ -306,7 +306,7 @@ impl SqliteGapRepository {
         stale_threshold_days: i64,
     ) -> Result<Vec<GapAlert>, AresError> {
         let threshold_us = stale_threshold_days * 24 * 60 * 60 * 1_000_000;
-        let mut conn = self.store.get_conn()?;
+        let conn = self.store.get_conn()?;
 
         let mut stmt = conn
             .prepare(
@@ -339,7 +339,7 @@ impl SqliteGapRepository {
                 let label: String = row.get(1)?;
                 let path: Option<String> = row.get(2)?;
                 let f_label: String = row.get(3)?;
-                let path_str = path.unwrap_or_else(|| f_label);
+                let path_str = path.unwrap_or(f_label);
                 Ok(GapAlert {
                     gap_type: GapType::StaleDecision,
                     node_id: id.clone(),
@@ -363,7 +363,7 @@ impl SqliteGapRepository {
         &self,
         project_id: &ProjectId,
     ) -> Result<Vec<GapAlert>, AresError> {
-        let mut conn = self.store.get_conn()?;
+        let conn = self.store.get_conn()?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, label, file_path 

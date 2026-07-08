@@ -251,11 +251,7 @@ pub fn ownership_section(evidence: &EngineeringEvidence) -> Option<String> {
 
         if let Some(p) = primary.first() {
             let total = evidence.commits.len();
-            let pct = if total > 0 {
-                (p.commit_count * 100) / total
-            } else {
-                0
-            };
+            let pct = (p.commit_count * 100).checked_div(total).unwrap_or(0);
             lines.push(format!(
                 "Primary contributor: {} ({} commits, ~{}%)",
                 p.name, p.commit_count, pct

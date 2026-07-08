@@ -53,13 +53,30 @@ fn should_scan_file(path: &Path) -> bool {
     }
 
     // Check extension
-    match path.extension().and_then(|e| e.to_str()) {
-        Some("rs") | Some("ts") | Some("tsx") | Some("js") | Some("jsx") | Some("py")
-        | Some("go") | Some("md") | Some("txt") | Some("json") | Some("yml") | Some("yaml")
-        | Some("toml") | Some("sh") | Some("bash") | Some("xml") | Some("html") | Some("css")
-        | Some("scss") | Some("sql") | Some("graphql") => true,
-        _ => false,
-    }
+    matches!(
+        path.extension().and_then(|e| e.to_str()),
+        Some("rs")
+            | Some("ts")
+            | Some("tsx")
+            | Some("js")
+            | Some("jsx")
+            | Some("py")
+            | Some("go")
+            | Some("md")
+            | Some("txt")
+            | Some("json")
+            | Some("yml")
+            | Some("yaml")
+            | Some("toml")
+            | Some("sh")
+            | Some("bash")
+            | Some("xml")
+            | Some("html")
+            | Some("css")
+            | Some("scss")
+            | Some("sql")
+            | Some("graphql")
+    )
 }
 
 pub struct Scanner {
@@ -215,10 +232,10 @@ impl Scanner {
                             }
 
                             dir_nodes.insert(path, dir_node_id);
-                        } else if entry.file_type().is_some_and(|ft| ft.is_file()) {
-                            if should_scan_file(&path) {
-                                paths.push(path);
-                            }
+                        } else if entry.file_type().is_some_and(|ft| ft.is_file())
+                            && should_scan_file(&path)
+                        {
+                            paths.push(path);
                         }
                     }
                     Err(_) => continue,

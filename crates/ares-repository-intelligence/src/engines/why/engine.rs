@@ -65,21 +65,22 @@ impl RepositoryEngine for RepositoryWhyEngine {
             .why_does_this_exist(&entity_id)
             .map_err(|e| EngineError::ExecutionError(format!("WhyExists failed: {}", e)))?;
 
-        let mut bundle = EvidenceBundle::default();
-
-        bundle.architecture = Some(crate::core::evidence::ArchitectureEvidence {
-            decisions: why_result
-                .decisions
-                .iter()
-                .map(|n| n.id.to_string())
-                .collect(),
-            requirements: why_result
-                .requirements
-                .iter()
-                .map(|n| n.id.to_string())
-                .collect(),
-            adrs: vec![],
-        });
+        let bundle = EvidenceBundle {
+            architecture: Some(crate::core::evidence::ArchitectureEvidence {
+                decisions: why_result
+                    .decisions
+                    .iter()
+                    .map(|n| n.id.to_string())
+                    .collect(),
+                requirements: why_result
+                    .requirements
+                    .iter()
+                    .map(|n| n.id.to_string())
+                    .collect(),
+                adrs: vec![],
+            }),
+            ..EvidenceBundle::default()
+        };
 
         Ok(EngineExecutionResult {
             descriptor: self.descriptor(),

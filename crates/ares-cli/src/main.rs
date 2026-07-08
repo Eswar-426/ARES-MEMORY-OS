@@ -3,7 +3,7 @@ pub mod commands;
 use ares_core::AresError;
 use ares_memory_server::builder::RepositoryBuilder;
 use ares_memory_server::initializer::RepositoryInitializer;
-use ares_memory_server::scanner::RepositoryScanner;
+
 use clap::{Parser, Subcommand};
 use std::env;
 // We would initialize full dependencies here

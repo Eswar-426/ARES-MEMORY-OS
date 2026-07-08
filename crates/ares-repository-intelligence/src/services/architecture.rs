@@ -108,7 +108,7 @@ impl ArchitectureService {
             .collect();
 
         // Sort by score descending
-        scored_nodes.sort_by(|a, b| b.1.cmp(&a.1));
+        scored_nodes.sort_by_key(|b| std::cmp::Reverse(b.1));
 
         scored_nodes.into_iter().map(|(n, _)| n).collect()
     }

@@ -222,12 +222,14 @@ impl RepositoryEngine for RepositoryOverviewEngine {
             content: json_content,
         }];
 
-        let mut evidence = EvidenceBundle::default();
-        evidence.runtime = Some(RuntimeEvidence {
-            confidence: (response.health.score as f32) / 100.0,
-            statistics: std::collections::HashMap::new(),
-            sources: vec!["RepositoryOverviewEngine".to_string()],
-        });
+        let evidence = EvidenceBundle {
+            runtime: Some(RuntimeEvidence {
+                confidence: (response.health.score as f32) / 100.0,
+                statistics: std::collections::HashMap::new(),
+                sources: vec!["RepositoryOverviewEngine".to_string()],
+            }),
+            ..EvidenceBundle::default()
+        };
 
         let metadata = ExecutionMetadata {
             engine: "RepositoryOverviewEngine".to_string(),

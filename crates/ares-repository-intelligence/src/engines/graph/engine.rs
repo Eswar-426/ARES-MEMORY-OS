@@ -249,12 +249,14 @@ impl RepositoryEngine for RepositoryGraphEngine {
             content: json_content,
         }];
 
-        let mut evidence = EvidenceBundle::default();
-        evidence.graph = Some(GraphEvidence {
-            nodes: payload.nodes.iter().map(|n| n.id.to_string()).collect(),
-            edges: payload.edges.iter().map(|e| e.id.to_string()).collect(),
-            paths: vec![],
-        });
+        let evidence = EvidenceBundle {
+            graph: Some(GraphEvidence {
+                nodes: payload.nodes.iter().map(|n| n.id.to_string()).collect(),
+                edges: payload.edges.iter().map(|e| e.id.to_string()).collect(),
+                paths: vec![],
+            }),
+            ..EvidenceBundle::default()
+        };
 
         let metadata = ExecutionMetadata {
             engine: "RepositoryGraphEngine".to_string(),

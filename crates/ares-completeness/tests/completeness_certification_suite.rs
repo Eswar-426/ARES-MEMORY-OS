@@ -12,7 +12,7 @@ fn test_store() -> (Store, tempfile::TempDir) {
     let dir = tempdir().unwrap();
     let db_path = dir.path().join("test.db");
     let store = Store::open(&db_path).unwrap();
-    store.run_migrations().unwrap();
+    store.run_migrations("proj_1").unwrap();
     (store, dir)
 }
 

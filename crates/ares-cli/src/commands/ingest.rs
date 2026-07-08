@@ -228,7 +228,7 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         let mut git_extractor = ares_git_memory::GitMemoryExtractor::new(&args.path);
         git_extractor.set_depth(args.git_depth);
 
-        let mut upsert_git_results = |git_memory: ares_git_memory::models::GitMemoryResult| {
+        let upsert_git_results = |git_memory: ares_git_memory::models::GitMemoryResult| {
             for mut node in git_memory.nodes {
                 if matches!(node.node_type, ares_core::NodeType::File) {
                     let canonical = ares_core::canonicalize_node_id(node.id.as_str());

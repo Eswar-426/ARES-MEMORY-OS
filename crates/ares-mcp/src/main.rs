@@ -837,9 +837,7 @@ async fn main() -> Result<(), BoxError> {
                 track_session_call(&session, "ares_who_owns", &input);
                 let start = std::time::Instant::now();
                 let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
-                let project_name = std::path::Path::new(&pp).file_name().unwrap_or_default().to_string_lossy().to_string();
-                let project_id = ares_core::ProjectId::from(project_name);
-
+                let _project_name = std::path::Path::new(&pp).file_name().unwrap_or_default().to_string_lossy().to_string();
                 let mut owner_name = String::new();
                 let mut owner_confidence = 0.0f32;
                 let mut contributors: Vec<serde_json::Value> = Vec::new();
@@ -1000,7 +998,7 @@ async fn main() -> Result<(), BoxError> {
                         .into_iter()
                         .filter(|n| {
                             n.label.to_lowercase().contains(&input.query.to_lowercase())
-                                || n.file_path.as_ref().map_or(false, |fp| {
+                                || n.file_path.as_ref().is_some_and(|fp| {
                                     fp.to_lowercase().contains(&input.query.to_lowercase())
                                 })
                         })
@@ -1222,7 +1220,7 @@ async fn main() -> Result<(), BoxError> {
                         let path = fn_node.file_path.clone().unwrap_or_default();
                         top_files.push((in_count, path));
                     }
-                    top_files.sort_by(|a, b| b.0.cmp(&a.0));
+                    top_files.sort_by_key(|b| std::cmp::Reverse(b.0));
                     top_files.truncate(10);
                 }
 
@@ -1353,10 +1351,10 @@ async fn main() -> Result<(), BoxError> {
                 let project_id = ares_core::ProjectId::from(project_name);
 
                 let node_id = ares_core::NodeId::new();
-                let now = (std::time::SystemTime::now()
+                let now = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
-                    .as_micros() as i64);
+                    .as_micros() as i64;
 
                 let properties = serde_json::json!({
                     "source": input.source.unwrap_or_else(|| "agent".to_string()),
@@ -1440,10 +1438,10 @@ async fn main() -> Result<(), BoxError> {
                 let project_id = ares_core::ProjectId::from(project_name);
 
                 let node_id = ares_core::NodeId::new();
-                let now = (std::time::SystemTime::now()
+                let now = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
-                    .as_micros() as i64);
+                    .as_micros() as i64;
 
                 let properties = serde_json::json!({
                     "source": "agent",
@@ -1534,12 +1532,12 @@ async fn main() -> Result<(), BoxError> {
                                 annotations = serde_json::Value::Object(new_ann_obj);
                             }
                             obj.insert("annotations".to_string(), annotations);
-                            node.updated_at = (std::time::SystemTime::now()
+                            node.updated_at = std::time::SystemTime::now()
                                 .duration_since(std::time::UNIX_EPOCH)
                                 .unwrap()
-                                .as_micros() as i64);
+                                .as_micros() as i64;
 
-                            if let Ok(_) = repo.upsert_node(node) {
+                            if repo.upsert_node(node).is_ok() {
                                 return Ok(CallToolResult::text(
                                     serde_json::to_string(&serde_json::json!({
                                         "result": "Annotation added",
@@ -1586,9 +1584,9 @@ async fn main() -> Result<(), BoxError> {
                                 }));
                             }
                             obj.insert("corrections".to_string(), corrections);
-                            node.updated_at = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_micros() as i64);
+                            node.updated_at = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_micros() as i64;
 
-                            if let Ok(_) = repo.upsert_node(node) {
+                            if repo.upsert_node(node).is_ok() {
                                 return Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
                                     "result": "Correction recorded",
                                     "target": input.target_path
@@ -1630,17 +1628,15 @@ async fn main() -> Result<(), BoxError> {
                             let files: String = row.get(5).unwrap_or_default();
                             Ok((id, started, ended, calls, summary, files))
                         }) {
-                            for s_res in rows {
-                                if let Ok(s) = s_res {
-                                    sessions.push(serde_json::json!({
-                                        "session_id": s.0,
-                                        "started_at": s.1,
-                                        "ended_at": s.2,
-                                        "tool_calls": serde_json::from_str::<Vec<Vec<serde_json::Value>>>(&s.3).unwrap_or_default(),
-                                        "summary": s.4,
-                                        "files_touched": serde_json::from_str::<Vec<String>>(&s.5).unwrap_or_default()
-                                    }));
-                                }
+                            for s in rows.flatten() {
+                                sessions.push(serde_json::json!({
+                                    "session_id": s.0,
+                                    "started_at": s.1,
+                                    "ended_at": s.2,
+                                    "tool_calls": serde_json::from_str::<Vec<Vec<serde_json::Value>>>(&s.3).unwrap_or_default(),
+                                    "summary": s.4,
+                                    "files_touched": serde_json::from_str::<Vec<String>>(&s.5).unwrap_or_default()
+                                }));
                             }
                         }
                     }
@@ -1656,13 +1652,12 @@ async fn main() -> Result<(), BoxError> {
         .build();
 
     let store_end = app_state.store.clone();
-    let pp_end = project_path.clone();
+
     let session_clone_for_end = session_state.clone();
     let end_session_tool = ToolBuilder::new("ares_end_session")
         .description("Ends the current agent session and persists it to the database")
         .handler(move |_input: EmptyInput| {
             let store_arc = store_end.clone();
-            let pp = pp_end.clone();
             let session = session_clone_for_end.clone();
             async move {
                 let conn = store_arc.get_conn().ok();
@@ -1701,7 +1696,7 @@ async fn main() -> Result<(), BoxError> {
                     if let Ok(mut stmt) = conn.prepare(
                         "INSERT INTO agent_sessions (id, project_id, started_at, ended_at, tool_calls, summary, files_touched, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)"
                     ) {
-                        if let Ok(_) = stmt.execute(rusqlite::params![
+                        if stmt.execute(rusqlite::params![
                             session_id,
                             project_id_str,
                             started,
@@ -1711,7 +1706,7 @@ async fn main() -> Result<(), BoxError> {
                             serde_json::to_string(&files_touched).unwrap_or_default(),
                             now,
                             now,
-                        ]) {
+                        ]).is_ok() {
                             inserted = true;
                         }
                     }
@@ -1756,11 +1751,10 @@ async fn main() -> Result<(), BoxError> {
         .build();
 
     let store_sim = app_state.store.clone();
-    let session_clone_simulate_tool = session_state.clone();
+
     let simulate_tool = ToolBuilder::new("ares_simulate")
         .description("Performs mutation analysis only. Simulates structural changes (e.g., removing a node) to project coverage drops, new gaps, and drift before they happen.")
         .handler(move |input: SimulationInput| {
-            let session = session_clone_simulate_tool.clone();
             let session = session_clone_gaps_tool.clone();
             let store = store_sim.clone();
             async move {

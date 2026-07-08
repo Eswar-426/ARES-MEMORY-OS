@@ -240,7 +240,7 @@ impl EvidenceService {
                 is_primary: false,
             })
             .collect();
-        contributors.sort_by(|a, b| b.commit_count.cmp(&a.commit_count));
+        contributors.sort_by_key(|b| std::cmp::Reverse(b.commit_count));
         if let Some(first) = contributors.first_mut() {
             first.is_primary = true;
         }

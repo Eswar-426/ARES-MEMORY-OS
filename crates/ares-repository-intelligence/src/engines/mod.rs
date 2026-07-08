@@ -1,3 +1,4 @@
+#![allow(ambiguous_glob_reexports)]
 pub mod architecture_discovery_engine;
 pub mod capability_discovery_engine;
 pub mod dependency_discovery_engine;

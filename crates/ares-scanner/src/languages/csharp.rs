@@ -8,7 +8,7 @@ pub struct CSharpExtractor {
 
 impl CSharpExtractor {
     pub fn new() -> Self {
-        let language = tree_sitter_c_sharp::language().into();
+        let language = tree_sitter_c_sharp::language();
         let query_str = r#"
             (class_declaration name: (identifier) @name) @class
             (interface_declaration name: (identifier) @name) @interface
@@ -58,7 +58,7 @@ impl LanguageExtractor for CSharpExtractor {
         source_code: &str,
     ) -> Result<ExtractionResult, Box<dyn std::error::Error + Send + Sync>> {
         let mut parser = Parser::new();
-        parser.set_language(&tree_sitter_c_sharp::language().into())?;
+        parser.set_language(&tree_sitter_c_sharp::language())?;
 
         let tree = match parser.parse(source_code, None) {
             Some(t) => t,

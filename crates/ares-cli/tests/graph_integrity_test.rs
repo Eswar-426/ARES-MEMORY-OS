@@ -1,5 +1,4 @@
 use rusqlite::Connection;
-use std::path::PathBuf;
 
 #[test]
 fn test_graph_fk_integrity() {

@@ -64,7 +64,7 @@ impl IntentExtractor {
                         .unwrap_or_else(|| "unknown".to_string()),
                 )
             } else if !commits.is_empty() {
-                let oldest = commits.iter().rev().next().unwrap();
+                let oldest = commits.iter().next_back().unwrap();
                 (
                     if oldest.message.is_empty() {
                         None
@@ -82,7 +82,7 @@ impl IntentExtractor {
                 (None, String::new(), String::new())
             }
         } else if !commits.is_empty() {
-            let oldest = commits.iter().rev().next().unwrap();
+            let oldest = commits.iter().next_back().unwrap();
             (
                 if oldest.message.is_empty() {
                     None
