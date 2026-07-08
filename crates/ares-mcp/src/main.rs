@@ -326,26 +326,23 @@ async fn main() -> Result<(), BoxError> {
     let facade = Arc::new(MemoryFacade::new(assembler.clone(), governance.clone()));
     let intelligence_facade = Arc::new(IntelligenceFacade::new(app_state.store.clone()));
 
-    let inference_engine: Arc<dyn ares_core::inference::InferenceEngine> = if std::env::var(
-        "OPENAI_API_KEY",
-    )
-    .is_ok()
-    {
-        match ares_embeddings::providers::openai::OpenAIEmbeddingProvider::new() {
-            Ok(provider) => Arc::new(provider),
-            Err(e) => {
-                println!(
+    let inference_engine: Arc<dyn ares_core::inference::InferenceEngine> =
+        if std::env::var("OPENAI_API_KEY").is_ok() {
+            match ares_embeddings::providers::openai::OpenAIEmbeddingProvider::new() {
+                Ok(provider) => Arc::new(provider),
+                Err(e) => {
+                    println!(
                     "WARN: Failed to initialize OpenAI provider: {}. Falling back to mock engine.",
                     e
                 );
-                Arc::new(ares_agent::inference::MockInferenceEngine)
+                    Arc::new(ares_agent::inference::MockInferenceEngine)
+                }
             }
-        }
-    } else if std::env::var("OLLAMA_HOST").is_ok() {
-        Arc::new(ares_embeddings::providers::ollama::OllamaEmbeddingProvider::new())
-    } else {
-        Arc::new(ares_agent::inference::MockInferenceEngine)
-    };
+        } else if std::env::var("OLLAMA_HOST").is_ok() {
+            Arc::new(ares_embeddings::providers::ollama::OllamaEmbeddingProvider::new())
+        } else {
+            Arc::new(ares_agent::inference::MockInferenceEngine)
+        };
 
     // Create the Why tool
     let intelligence_facade_why = intelligence_facade.clone();
@@ -668,16 +665,16 @@ async fn main() -> Result<(), BoxError> {
                 let use_planner = std::env::var("ARES_USE_PLANNER").unwrap_or_else(|_| "0".to_string()) == "1";
                 if use_planner {
                     tracing::info!("Executing ares_dashboard via ExecutionPlanner");
-                    
+
                     let mut registry = ares_repository_intelligence::planner::registry::EngineRegistry::new();
                     registry.register(
                         ares_repository_intelligence::core::engine::EngineId::Overview,
                         vec![ares_repository_intelligence::core::capabilities::Capability::Workspace],
                         Box::new(ares_repository_intelligence::engines::overview::RepositoryOverviewEngine::new(store.clone()))
                     );
-                    
+
                     let planner = ares_repository_intelligence::planner::pipeline::ExecutionPlanner::new(&registry);
-                    
+
                     let context = ares_repository_intelligence::core::context::RepositoryContext {
                         repository: ares_repository_intelligence::core::context::RepositoryInfo {
                             root_path: path.clone(),
@@ -702,7 +699,7 @@ async fn main() -> Result<(), BoxError> {
                             parameters: std::collections::HashMap::new(),
                         },
                     };
-                    
+
                     let response = planner.execute(&context).await;
                     serde_json::to_string(&response)
                         .map(CallToolResult::text)
@@ -1576,7 +1573,7 @@ async fn main() -> Result<(), BoxError> {
             async move {
                 track_session_call(&session, "ares_correct", &input);
                 let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
-                
+
                 if let Ok(file_id_str) = repo.get_id_by_path(&input.target_path) {
                     let file_id = ares_core::NodeId::from(file_id_str);
                     if let Ok(Some(mut node)) = repo.get_node(&file_id) {
@@ -1590,7 +1587,7 @@ async fn main() -> Result<(), BoxError> {
                             }
                             obj.insert("corrections".to_string(), corrections);
                             node.updated_at = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_micros() as i64);
-                            
+
                             if let Ok(_) = repo.upsert_node(node) {
                                 return Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
                                     "result": "Correction recorded",
@@ -1600,7 +1597,7 @@ async fn main() -> Result<(), BoxError> {
                         }
                     }
                 }
-                
+
                 Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
                     "error": "Failed to record correction: node not found"
                 })).unwrap_or_default()))
@@ -2113,7 +2110,7 @@ async fn main() -> Result<(), BoxError> {
             let path = project_path_chat.clone();
             let inference = inference_chat.clone();
             let we = we_chat.clone();
-            
+
             async move {
                 track_session_call(&session, "ares_chat", &input);
                 let mut registry = ares_repository_intelligence::planner::registry::EngineRegistry::new();
@@ -2122,10 +2119,10 @@ async fn main() -> Result<(), BoxError> {
                     vec![ares_repository_intelligence::core::capabilities::Capability::Workspace],
                     Box::new(ares_repository_intelligence::engines::overview::RepositoryOverviewEngine::new(store.clone()))
                 );
-                
+
                 let planner = ares_repository_intelligence::planner::pipeline::ExecutionPlanner::new(&registry);
                 let conversation = ares_repository_intelligence::engines::conversation::ConversationEngine::new(&planner, inference);
-                
+
                 let mut context = ares_repository_intelligence::core::context::RepositoryContext {
                     repository: ares_repository_intelligence::core::context::RepositoryInfo {
                         root_path: path.clone(),
@@ -2150,7 +2147,7 @@ async fn main() -> Result<(), BoxError> {
                         parameters: std::collections::HashMap::new(),
                     },
                 };
-                
+
                 match conversation.ask(&input.query, &mut context).await {
                     Ok(resp) => {
                         // Record recent question
@@ -2187,9 +2184,9 @@ async fn main() -> Result<(), BoxError> {
                 track_session_call(&session, "ares_health_check", &_input);
                 let project_name = session.lock().unwrap().project_id.clone();
                 let project_id = ares_core::ProjectId::from(project_name);
-                
+
                 let repo = ares_store::repositories::gaps::SqliteGapRepository::new(store);
-                
+
                 let mut all_gaps = Vec::new();
                 if let Ok(mut gaps) = repo.get_code_without_decision(&project_id, 30) {
                     all_gaps.append(&mut gaps);
@@ -2206,20 +2203,20 @@ async fn main() -> Result<(), BoxError> {
                 if let Ok(mut gaps) = repo.get_unknown_ownership(&project_id) {
                     all_gaps.append(&mut gaps);
                 }
-                
+
                 let mut health_score = 100.0;
                 let mut score_breakdown = serde_json::json!({});
                 if let Ok(score) = repo.calculate_health_score(&project_id) {
                     health_score = score.overall;
                     score_breakdown = serde_json::to_value(score).unwrap_or_default();
                 }
-                
+
                 let result = serde_json::json!({
                     "gaps": all_gaps,
                     "health_score": health_score,
                     "score_breakdown": score_breakdown
                 });
-                
+
                 Ok(CallToolResult::text(result.to_string()))
             }
         })
