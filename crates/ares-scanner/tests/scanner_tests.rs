@@ -40,9 +40,7 @@ fn test_full_scan_discovers_and_parses() {
         .full_scan(&project_id, workspace_dir.path())
         .unwrap();
 
-    let nodes = graph_repo
-        .get_by_file_path(&project_id, "main.rs")
-        .unwrap();
+    let nodes = graph_repo.get_by_file_path(&project_id, "main.rs").unwrap();
 
     assert!(!nodes.is_empty());
     let has_hello_world = nodes.iter().any(|n| n.label == "hello_world");
