@@ -6,6 +6,7 @@ use ares_store::Store;
 use std::env;
 use std::fs;
 
+#[allow(deprecated)]
 pub async fn execute_overview() -> Result<(), AresError> {
     let current_dir = env::current_dir().map_err(AresError::Io)?;
     let ares_dir = current_dir.join(".ares");
