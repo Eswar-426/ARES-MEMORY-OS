@@ -58,6 +58,9 @@ enum Commands {
     /// Run real-world engine benchmarks
     Benchmark,
 
+    /// Generate an automatic system overview
+    Overview,
+
     /// Run the interactive ARES Demo
     Demo,
 
@@ -371,6 +374,9 @@ async fn main() -> Result<(), AresError> {
         }
         Commands::Benchmark => {
             commands::benchmark::run_real_benchmark().await?;
+        }
+        Commands::Overview => {
+            commands::overview::execute_overview().await?;
         }
         Commands::Demo => {
             println!("ARES Demo\n");
