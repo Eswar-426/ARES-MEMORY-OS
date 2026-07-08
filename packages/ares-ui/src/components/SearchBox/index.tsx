@@ -1,4 +1,3 @@
-import React from 'react';
 
 export const SearchBox = ({ value, onChange, placeholder = 'Search...' }: { value: string, onChange: (val: string) => void, placeholder?: string }) => {
     return (

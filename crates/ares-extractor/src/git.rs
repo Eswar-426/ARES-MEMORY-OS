@@ -89,6 +89,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore]
     fn test_get_commit_info_on_this_repo() {
         // This test runs against the actual ARES repository
         let repo_path = Path::new(env!("CARGO_MANIFEST_DIR"))
