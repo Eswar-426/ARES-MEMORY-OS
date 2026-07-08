@@ -852,7 +852,7 @@ impl SqliteGraphRepository {
                 JOIN graph_nodes n ON e.to_node_id = n.id
                 WHERE e.valid_until IS NULL 
                   AND n.deleted_at IS NULL 
-                  AND n.node_type IN ('workspace', 'project', 'repository', 'folder', 'crate', 'module')
+                  AND n.node_type IN ('workspace', 'project', 'repository', 'folder', 'crate', 'module', 'file')
                   AND e.edge_type IN ('contains', 'defines', 'declares', 'imports', 'depends_on')
                   AND b.depth < {}
             )
@@ -1398,9 +1398,9 @@ mod tests {
             workspace: WorkspaceContext {
                 workspace_path: std::path::PathBuf::from("/test"),
                 workspace_name: "test_workspace".to_string(),
-                repositories: vec![ProjectId::from("TEST")],
+                repositories: vec![project_id.clone()],
             },
-            repository: ProjectId::from("TEST"),
+            repository: project_id.clone(),
             max_depth: 3,
             max_nodes: 100,
             edge_filters: vec![],
