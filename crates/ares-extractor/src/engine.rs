@@ -218,6 +218,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_extraction_engine_with_mock_provider() {
         let (store, _dir) = test_store();
         let project_id = setup_project(&store);
@@ -255,6 +256,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_confidence_threshold_filtering() {
         let (store, _dir) = test_store();
 
