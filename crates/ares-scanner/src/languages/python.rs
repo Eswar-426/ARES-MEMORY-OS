@@ -108,7 +108,7 @@ impl LanguageExtractor for PythonExtractor {
                             edge_type: ares_core::EdgeType::Imports,
                             weight: 1.0,
                             confidence: 0.5,
-                            source: format!("import:{}", import_path),
+                            source: "scanner".to_string(),
                             valid_from: now,
                             valid_until: None,
                             created_at: now,

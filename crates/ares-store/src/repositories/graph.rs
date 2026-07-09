@@ -272,7 +272,7 @@ impl SqliteGraphRepository {
         let conn = self.store.get_conn()?;
         let mut stmt = conn
             .prepare(
-                "SELECT id FROM graph_nodes WHERE file_path = ?1 AND deleted_at IS NULL LIMIT 1",
+                "SELECT id FROM graph_nodes WHERE file_path = ?1 AND node_type = 'file' AND deleted_at IS NULL LIMIT 1",
             )
             .map_err(AresError::db)?;
 

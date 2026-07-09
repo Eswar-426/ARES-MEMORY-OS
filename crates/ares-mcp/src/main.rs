@@ -1232,17 +1232,18 @@ async fn main() -> Result<(), BoxError> {
                     }
                 }
 
-                let shared_ids: Vec<String> = deps_a.intersection(&deps_b).cloned().collect();
+                let id_a_str = id_a.as_ref().map(|id| id.as_str().to_string()).unwrap_or_default();
+                let id_b_str = id_b.as_ref().map(|id| id.as_str().to_string()).unwrap_or_default();
+
+                let mut shared_ids: std::collections::HashSet<String> = deps_a.intersection(&deps_b).cloned().collect();
+                if deps_a.contains(&id_b_str) { shared_ids.insert(id_b_str.clone()); }
+                if deps_b.contains(&id_a_str) { shared_ids.insert(id_a_str.clone()); }
 
                 let a_count = deps_a.len();
                 let b_count = deps_b.len();
-                let min_count = a_count.min(b_count);
+                let max_count = a_count.max(b_count).max(1);
 
-                let coupling = if min_count > 0 {
-                    shared_ids.len() as f64 / min_count as f64
-                } else {
-                    0.0
-                };
+                let coupling = shared_ids.len() as f64 / max_count as f64;
 
                 let shared_paths: Vec<String> = shared_ids
                     .into_iter()
