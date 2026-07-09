@@ -37,7 +37,7 @@ fn extract_paths_from_json(files: &mut HashSet<String>, json_str: &str) {
             let rest = &json_str[idx + pattern.len()..];
             if let Some(val_start) = rest.find('"') {
                 if let Some(val_end) = rest[val_start + 1..].find('"') {
-                    let path = &rest[val_start + 1..val_end];
+                    let path = &rest[val_start + 1..val_start + 1 + val_end];
                     if !path.is_empty()
                         && !path.starts_with("person:")
                         && !path.starts_with("commit:")
@@ -89,7 +89,23 @@ fn format_mcp_error(message: &str, details: &str) -> String {
 
 #[derive(Debug, Deserialize, serde::Serialize, JsonSchema)]
 struct MemoryQueryInput {
-    id: String,
+    id: Option<String>,
+    file_path: Option<String>,
+}
+
+impl MemoryQueryInput {
+    fn resolve_id(&self, store: &ares_store::db::Store) -> Result<String, String> {
+        if let Some(id) = &self.id {
+            return Ok(id.clone());
+        }
+        if let Some(path) = &self.file_path {
+            let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store.clone());
+            repo.get_id_by_path(path)
+                .map_err(|_| format!("File not found in graph: {}", path))
+        } else {
+            Err("Must provide either 'id' or 'file_path'".to_string())
+        }
+    }
 }
 
 // === Phase 2: Task 3.1 — Additional MCP Tools ===
@@ -176,7 +192,7 @@ struct GovernanceQueryInput {
 
 #[derive(Debug, Deserialize, serde::Serialize, JsonSchema)]
 struct ProjectQueryInput {
-    project_id: String,
+    project_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize, serde::Serialize, JsonSchema)]
@@ -218,8 +234,24 @@ struct SimulationInput {
 
 #[derive(Debug, Deserialize, serde::Serialize, JsonSchema)]
 struct TraceabilityInput {
-    entity_id: String,
+    entity_id: Option<String>,
+    file_path: Option<String>,
     depth: Option<usize>,
+}
+
+impl TraceabilityInput {
+    fn resolve_id(&self, store: &ares_store::db::Store) -> Result<String, String> {
+        if let Some(id) = &self.entity_id {
+            return Ok(id.clone());
+        }
+        if let Some(path) = &self.file_path {
+            let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store.clone());
+            repo.get_id_by_path(path)
+                .map_err(|_| format!("File not found in graph: {}", path))
+        } else {
+            Err("Must provide either 'entity_id' or 'file_path'".to_string())
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, serde::Serialize, JsonSchema)]
@@ -349,16 +381,22 @@ async fn main() -> Result<(), BoxError> {
     let project_id_str = project_path.clone();
 
     let session_clone_why_tool = session_state.clone();
+    let store_why = app_state.store.clone();
     let why_tool = ToolBuilder::new("ares_why_exists")
         .description("Explains why a specific entity exists in the ARES memory graph")
         .handler(move |input: MemoryQueryInput| {
             let session = session_clone_why_tool.clone();
             let facade = intelligence_facade_why.clone();
             let project_id = project_id_str.clone();
+            let store = store_why.clone();
 
             async move {
                 track_session_call(&session, "ares_why_exists", &input);
-                let id = ares_core::canonicalize_node_id(&input.id);
+                let id_str = match input.resolve_id(&store) {
+                    Ok(i) => i,
+                    Err(e) => return Err(tower_mcp::Error::invalid_params(e)),
+                };
+                let id = ares_core::canonicalize_node_id(&id_str);
                 let query = EngineeringQuery {
                     entity_id: id.to_string(),
                     project_id,
@@ -396,12 +434,18 @@ async fn main() -> Result<(), BoxError> {
 
     // Create the Who tool
     let facade_who = facade.clone();
+    let store_who = app_state.store.clone();
     let who_tool = ToolBuilder::new("ares_who_owns")
         .description("Identifies ownership and authorship information for an entity")
         .handler(move |input: MemoryQueryInput| {
             let facade = facade_who.clone();
+            let store = store_who.clone();
             async move {
-                let id = ares_core::canonicalize_node_id(&input.id);
+                let id_str = match input.resolve_id(&store) {
+                    Ok(i) => i,
+                    Err(e) => return Err(tower_mcp::Error::invalid_params(e)),
+                };
+                let id = ares_core::canonicalize_node_id(&id_str);
                 match facade.who(&id) {
                     Ok(result) => Ok(CallToolResult::text(result.to_string())),
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
@@ -416,14 +460,20 @@ async fn main() -> Result<(), BoxError> {
     // Create the Evolution tool
     let facade_evolution = facade.clone();
     let session_clone_evolution_tool = session_state.clone();
+    let store_evolution = app_state.store.clone();
     let evolution_tool = ToolBuilder::new("ares_evolution")
         .description("Retrieves the evolutionary timeline of an entity")
         .handler(move |input: MemoryQueryInput| {
             let session = session_clone_evolution_tool.clone();
             let facade = facade_evolution.clone();
+            let store = store_evolution.clone();
             async move {
                 track_session_call(&session, "ares_evolution", &input);
-                let id = ares_core::canonicalize_node_id(&input.id);
+                let id_str = match input.resolve_id(&store) {
+                    Ok(i) => i,
+                    Err(e) => return Err(tower_mcp::Error::invalid_params(e)),
+                };
+                let id = ares_core::canonicalize_node_id(&id_str);
                 match facade.evolution(&id) {
                     Ok(result) => serde_json::to_string(&result)
                         .map(CallToolResult::text)
@@ -446,15 +496,21 @@ async fn main() -> Result<(), BoxError> {
     let intelligence_facade_impact = intelligence_facade.clone();
     let project_id_str_impact = project_path.clone();
     let session_clone_impact_tool = session_state.clone();
+    let store_impact = app_state.store.clone();
     let impact_tool = ToolBuilder::new("ares_impact")
         .description("Performs read-only dependency analysis to determine what downstream components break if this entity is modified. Use this for general blast-radius queries without mutating the graph.")
         .handler(move |input: MemoryQueryInput| {
             let session = session_clone_impact_tool.clone();
             let facade = intelligence_facade_impact.clone();
             let project_id = project_id_str_impact.clone();
+            let store = store_impact.clone();
             async move {
                 track_session_call(&session, "ares_impact", &input);
-                let id = ares_core::canonicalize_node_id(&input.id);
+                let id_str = match input.resolve_id(&store) {
+                    Ok(i) => i,
+                    Err(e) => return Err(tower_mcp::Error::invalid_params(e)),
+                };
+                let id = ares_core::canonicalize_node_id(&id_str);
                 let query = EngineeringQuery {
                     entity_id: id.to_string(),
                     project_id,
@@ -630,7 +686,12 @@ async fn main() -> Result<(), BoxError> {
                 track_session_call(&session, "ares_scorecard", &input);
                 let governance = facade.get_governance();
                 match governance
-                    .get_scorecard(&ares_core::ProjectId::from(input.project_id))
+                    .get_scorecard(&ares_core::ProjectId::from(
+                        input
+                            .project_id
+                            .clone()
+                            .unwrap_or_else(|| session.lock().unwrap().project_id.clone()),
+                    ))
                     .await
                 {
                     Ok(result) => serde_json::to_string(&result)
@@ -735,7 +796,11 @@ async fn main() -> Result<(), BoxError> {
             let store = store_cov.clone();
             async move {
                 track_session_call(&session, "ares_coverage", &input);
-                let project_id = ares_core::ProjectId::from(input.project_id);
+                let project_name = input
+                    .project_id
+                    .clone()
+                    .unwrap_or_else(|| session.lock().unwrap().project_id.clone());
+                let project_id = ares_core::ProjectId::from(project_name);
                 let req_store = ares_requirements::storage::RequirementStore::new(store.clone());
                 let reqs = match req_store.list(
                     &project_id,
@@ -778,15 +843,21 @@ async fn main() -> Result<(), BoxError> {
     let intelligence_facade_drift = intelligence_facade.clone();
     let project_id_str_drift = project_path.clone();
     let session_clone_drift_tool = session_state.clone();
+    let store_drift_new = app_state.store.clone();
     let drift_tool = ToolBuilder::new("ares_drift")
         .description("Evaluates structural drift for a given file")
         .handler(move |input: MemoryQueryInput| {
             let session = session_clone_drift_tool.clone();
             let facade = intelligence_facade_drift.clone();
             let project_id = project_id_str_drift.clone();
+            let store = store_drift_new.clone();
             async move {
                 track_session_call(&session, "ares_drift", &input);
-                let id = ares_core::canonicalize_node_id(&input.id);
+                let id_str = match input.resolve_id(&store) {
+                    Ok(i) => i,
+                    Err(e) => return Err(tower_mcp::Error::invalid_params(e)),
+                };
+                let id = ares_core::canonicalize_node_id(&id_str);
                 let query = EngineeringQuery {
                     entity_id: id.to_string(),
                     project_id,
@@ -982,6 +1053,17 @@ async fn main() -> Result<(), BoxError> {
             async move {
                 track_session_call(&session, "ares_search", &input);
                 let start = std::time::Instant::now();
+
+                if input.query.trim().is_empty() {
+                    return Ok(CallToolResult::text(
+                        serde_json::to_string(&serde_json::json!({
+                            "result": { "results": [] },
+                            "evidence": [{"source": "graph", "confidence": 1.0}],
+                            "query_time_ms": start.elapsed().as_millis() as i64
+                        }))
+                        .unwrap(),
+                    ));
+                }
                 let repo =
                     ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
                 let project_name = std::path::Path::new(&pp)
@@ -1130,7 +1212,7 @@ async fn main() -> Result<(), BoxError> {
                 if let Some(ref id) = id_a {
                     if let Ok(edges) = repo.get_edges_from(id) {
                         for e in &edges {
-                            if e.edge_type.as_str() == "depends_on" {
+                            if e.edge_type.as_str() == "depends_on" || e.edge_type.as_str() == "imports" {
                                 deps_a.insert(e.to_node_id.as_str().to_string());
                             }
                         }
@@ -1139,20 +1221,38 @@ async fn main() -> Result<(), BoxError> {
                 if let Some(ref id) = id_b {
                     if let Ok(edges) = repo.get_edges_from(id) {
                         for e in &edges {
-                            if e.edge_type.as_str() == "depends_on" {
+                            if e.edge_type.as_str() == "depends_on" || e.edge_type.as_str() == "imports" {
                                 deps_b.insert(e.to_node_id.as_str().to_string());
                             }
                         }
                     }
                 }
 
-                let shared: Vec<String> = deps_a.intersection(&deps_b).cloned().collect();
-                let union_count = deps_a.union(&deps_b).count();
-                let coupling = if union_count > 0 {
-                    shared.len() as f64 / union_count as f64
+                let shared_ids: Vec<String> = deps_a.intersection(&deps_b).cloned().collect();
+
+                let a_count = deps_a.len();
+                let b_count = deps_b.len();
+                let min_count = a_count.min(b_count);
+
+                let coupling = if min_count > 0 {
+                    shared_ids.len() as f64 / min_count as f64
                 } else {
                     0.0
                 };
+
+                let shared_paths: Vec<String> = shared_ids
+                    .into_iter()
+                    .map(|id_str| {
+                        let node_id = ares_core::NodeId::from(id_str.as_str());
+                        if let Ok(Some(node)) = repo.get_node(&node_id) {
+                            if let Some(fp) = node.file_path {
+                                return fp;
+                            }
+                            return node.label;
+                        }
+                        id_str
+                    })
+                    .collect();
 
                 let relationship = if coupling > 0.5 {
                     "tightly coupled"
@@ -1165,7 +1265,7 @@ async fn main() -> Result<(), BoxError> {
                 Ok(CallToolResult::text(
                     serde_json::to_string(&serde_json::json!({
                         "result": {
-                            "shared_dependencies": shared,
+                            "shared_dependencies": shared_paths,
                             "shared_decisions": [],
                             "relationship": relationship,
                             "coupling_score": (coupling * 100.0).round() as i32
@@ -1200,12 +1300,26 @@ async fn main() -> Result<(), BoxError> {
                 let mut dep_names: std::collections::HashSet<String> = std::collections::HashSet::new();
                 let mut top_files: Vec<(usize, String)> = Vec::new();
                 let mut decisions: Vec<serde_json::Value> = Vec::new();
+                let mut modules_map: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
 
                 if let Ok(all_nodes) = repo.get_all_nodes(&project_id) {
                     for n in &all_nodes {
                         *type_counts.entry(format!("{:?}", n.node_type).to_lowercase()).or_insert(0) += 1;
                         if n.id.as_str().starts_with("DEP-") {
                             dep_names.insert(n.label.clone());
+                        }
+                        if format!("{:?}", n.node_type).to_lowercase() == "file" {
+                            if let Some(fp) = &n.file_path {
+                                let path = std::path::Path::new(fp);
+                                if let Some(parent) = path.parent() {
+                                    let parent_str = parent.to_string_lossy().to_string();
+                                    if !parent_str.is_empty() {
+                                        let top_dir = parent_str.split('/').next().unwrap_or(&parent_str).to_string();
+                                        let top_dir = top_dir.split('\\').next().unwrap_or(&top_dir).to_string();
+                                        *modules_map.entry(top_dir).or_insert(0) += 1;
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -1232,6 +1346,12 @@ async fn main() -> Result<(), BoxError> {
                     decisions.truncate(10);
                 }
 
+                let mut modules: Vec<serde_json::Value> = modules_map.into_iter()
+                    .map(|(name, count)| serde_json::json!({"name": name, "file_count": count}))
+                    .collect();
+                modules.sort_by(|a, b| b["file_count"].as_u64().unwrap_or(0).cmp(&a["file_count"].as_u64().unwrap_or(0)));
+                modules.truncate(15);
+
                 let file_count = type_counts.get("file").copied().unwrap_or(0);
                 let func_count = type_counts.get("function").copied().unwrap_or(0);
                 let commit_count = type_counts.get("commit").copied().unwrap_or(0);
@@ -1243,6 +1363,7 @@ async fn main() -> Result<(), BoxError> {
                     "result": {
                         "summary": format!("{} files, {} functions, {} commits across {} node types", file_count, func_count, commit_count, type_counts.len()),
                         "top_files": top,
+                        "modules": modules,
                         "key_decisions": decisions,
                         "technology_stack": tech_stack,
                         "health_score": 0
@@ -1786,15 +1907,21 @@ async fn main() -> Result<(), BoxError> {
     let intelligence_facade_trace = intelligence_facade.clone();
     let project_id_str_trace = project_path.clone();
     let session_clone_traceability_tool = session_state.clone();
+    let store_traceability = app_state.store.clone();
     let traceability_tool = ToolBuilder::new("ares_traceability")
         .description("Evaluates traceability relationships upstream and downstream")
         .handler(move |input: TraceabilityInput| {
             let session = session_clone_traceability_tool.clone();
             let facade = intelligence_facade_trace.clone();
             let project_id = project_id_str_trace.clone();
+            let store = store_traceability.clone();
             async move {
                 track_session_call(&session, "ares_traceability", &input);
-                let id = ares_core::canonicalize_node_id(&input.entity_id);
+                let id_str = match input.resolve_id(&store) {
+                    Ok(i) => i,
+                    Err(e) => return Err(tower_mcp::Error::invalid_params(e)),
+                };
+                let id = ares_core::canonicalize_node_id(&id_str);
                 let query = EngineeringQuery {
                     entity_id: id.to_string(),
                     project_id,
@@ -1961,7 +2088,11 @@ async fn main() -> Result<(), BoxError> {
             let store = store_graph_metadata.clone();
             async move {
                 track_session_call(&session, "ares_graph_metadata", &input);
-                let node_id_str = ares_core::canonicalize_node_id(&input.id);
+                let node_id_str_str = match input.resolve_id(&store) {
+                    Ok(i) => i,
+                    Err(e) => return Err(tower_mcp::Error::invalid_params(e)),
+                };
+                let node_id_str = ares_core::canonicalize_node_id(&node_id_str_str);
                 let node_id = ares_core::NodeId::from(node_id_str);
                 match ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_metadata(&store, &node_id).await {
                     Ok(node) => serde_json::to_string(&node)
@@ -2171,7 +2302,7 @@ async fn main() -> Result<(), BoxError> {
     let session_clone_health_tool = session_state.clone();
     let health_tool = ToolBuilder::new("ares_health_check")
         .description("Scans the repository memory graph for gaps (code without decisions, stale decisions, missing ownership) and returns a health score")
-        .handler(move |_input: ProjectQueryInput| {
+        .handler(move |_input: ArchitectureQueryInput| {
             let session = session_clone_health_tool.clone();
             let store = store_health.clone();
             async move {

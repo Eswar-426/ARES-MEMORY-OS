@@ -62,8 +62,8 @@ impl SqliteGapRepository {
         let files_with_decisions: i64 = conn
             .query_row(
                 "SELECT COUNT(DISTINCT n.id) FROM graph_nodes n 
-             JOIN graph_edges e ON e.target_id = n.id
-             JOIN graph_nodes d ON e.source_id = d.id 
+             JOIN graph_edges e ON e.to_node_id = n.id
+             JOIN graph_nodes d ON e.from_node_id = d.id 
              WHERE n.project_id = ?1 AND n.node_type = 'file' AND d.node_type = 'decision'",
                 params![project_id.as_str()],
                 |row| row.get(0),
@@ -80,8 +80,8 @@ impl SqliteGapRepository {
 
         let decisions_with_requirements: i64 = conn.query_row(
             "SELECT COUNT(DISTINCT d.id) FROM graph_nodes d
-             JOIN graph_edges e ON e.source_id = d.id OR e.target_id = d.id
-             JOIN graph_nodes r ON (e.target_id = r.id AND r.node_type = 'requirement') OR (e.source_id = r.id AND r.node_type = 'requirement')
+             JOIN graph_edges e ON e.from_node_id = d.id OR e.to_node_id = d.id
+             JOIN graph_nodes r ON (e.to_node_id = r.id AND r.node_type = 'requirement') OR (e.from_node_id = r.id AND r.node_type = 'requirement')
              WHERE d.project_id = ?1 AND d.node_type = 'decision'",
             params![project_id.as_str()],
             |row| row.get(0),
@@ -89,8 +89,8 @@ impl SqliteGapRepository {
 
         let files_with_owners: i64 = conn.query_row(
             "SELECT COUNT(DISTINCT n.id) FROM graph_nodes n
-             JOIN graph_edges e ON e.target_id = n.id
-             JOIN graph_nodes p ON e.source_id = p.id
+             JOIN graph_edges e ON e.to_node_id = n.id
+             JOIN graph_nodes p ON e.from_node_id = p.id
              WHERE n.project_id = ?1 AND n.node_type = 'file' AND p.node_type IN ('person', 'team') AND e.edge_type IN ('authored_by', 'contributed_to')",
             params![project_id.as_str()],
             |row| row.get(0),

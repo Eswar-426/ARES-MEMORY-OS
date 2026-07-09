@@ -199,63 +199,41 @@ impl BlameExtractor {
             "--name-status",
             "--pretty=format:COMMIT|%H|%an|%s|%at",
             "--reverse",
+            "--",
         ]);
+        global_creation_cmd.args(&files);
 
-        use std::process::Stdio;
-        use wait_timeout::ChildExt;
+        if let Ok(output) = global_creation_cmd.output() {
+            if output.status.success() {
+                let output_str = String::from_utf8_lossy(&output.stdout);
+                let mut current_hash = String::new();
+                let mut current_author = String::new();
+                let mut current_subject = String::new();
+                let mut current_timestamp = 0;
 
-        global_creation_cmd
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-        if let Ok(mut child) = global_creation_cmd.spawn() {
-            let timeout = std::time::Duration::from_secs(120);
-            match child.wait_timeout(timeout) {
-                Ok(Some(status)) => {
-                    if status.success() {
-                        let mut stdout = Vec::new();
-                        if let Some(mut out) = child.stdout.take() {
-                            use std::io::Read;
-                            out.read_to_end(&mut stdout).ok();
+                for line in output_str.lines() {
+                    if line.starts_with("COMMIT|") {
+                        let parts: Vec<&str> = line.splitn(5, '|').collect();
+                        if parts.len() == 5 {
+                            current_hash = parts[1].to_string();
+                            current_author = parts[2].to_string();
+                            current_subject = parts[3].to_string();
+                            current_timestamp = parts[4].parse().unwrap_or(captured_at);
                         }
-                        let output_str = String::from_utf8_lossy(&stdout);
-                        let mut current_hash = String::new();
-                        let mut current_author = String::new();
-                        let mut current_subject = String::new();
-                        let mut current_timestamp = 0;
-
-                        for line in output_str.lines() {
-                            if line.starts_with("COMMIT|") {
-                                let parts: Vec<&str> = line.splitn(5, '|').collect();
-                                if parts.len() == 5 {
-                                    current_hash = parts[1].to_string();
-                                    current_author = parts[2].to_string();
-                                    current_subject = parts[3].to_string();
-                                    current_timestamp = parts[4].parse().unwrap_or(captured_at);
-                                }
-                            } else if line.starts_with(|c: char| c.is_ascii_uppercase())
-                                && line.contains('\t')
-                            {
-                                let parts: Vec<&str> = line.split('\t').collect();
-                                if parts.len() >= 2 {
-                                    let file_path = parts.last().unwrap().to_string();
-                                    creation_map.entry(file_path).or_insert(CreationInfo {
-                                        hash: current_hash.clone(),
-                                        author: current_author.clone(),
-                                        reason: current_subject.clone(),
-                                        timestamp: current_timestamp,
-                                    });
-                                }
-                            }
+                    } else if line.starts_with(|c: char| c.is_ascii_uppercase())
+                        && line.contains('\t')
+                    {
+                        let parts: Vec<&str> = line.split('\t').collect();
+                        if parts.len() >= 2 {
+                            let file_path = parts.last().unwrap().to_string();
+                            creation_map.entry(file_path).or_insert(CreationInfo {
+                                hash: current_hash.clone(),
+                                author: current_author.clone(),
+                                reason: current_subject.clone(),
+                                timestamp: current_timestamp,
+                            });
                         }
                     }
-                }
-                Ok(None) => {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    println!("WARN: git log for creation commits timed out");
-                }
-                Err(e) => {
-                    println!("WARN: wait_timeout error for creation commits: {}", e);
                 }
             }
         }
@@ -274,127 +252,102 @@ impl BlameExtractor {
                     .current_dir(project_path)
                     .args(["blame", "--line-porcelain", file]);
 
-                use std::process::Stdio;
-                use std::time::Duration;
-                use wait_timeout::ChildExt;
+                if let Ok(output) = blame_cmd.output() {
+                    if output.status.success() {
+                        let blame_str = String::from_utf8_lossy(&output.stdout);
 
-                blame_cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
-                if let Ok(mut child) = blame_cmd.spawn() {
-                    let timeout = Duration::from_secs(30);
-                    match child.wait_timeout(timeout) {
-                        Ok(Some(status)) => {
-                            if status.success() {
-                                let mut stdout = Vec::new();
-                                if let Some(mut out) = child.stdout.take() {
-                                    use std::io::Read;
-                                    out.read_to_end(&mut stdout).ok();
-                                }
-                                let blame_str = String::from_utf8_lossy(&stdout);
+                        let mut author_lines: HashMap<String, (String, usize)> = HashMap::new(); // email -> (name, count)
+                        let mut total_lines = 0;
 
-                                let mut author_lines: HashMap<String, (String, usize)> =
-                                    HashMap::new(); // email -> (name, count)
-                                let mut total_lines = 0;
+                        let mut current_author = String::new();
+                        let mut current_email = String::new();
 
-                                let mut current_author = String::new();
-                                let mut current_email = String::new();
-
-                                for line in blame_str.lines() {
-                                    if line.starts_with("author ") {
-                                        current_author = line[7..].to_string();
-                                    } else if line.starts_with("author-mail ") {
-                                        current_email = line[12..]
-                                            .trim_matches(|c| c == '<' || c == '>')
-                                            .to_string();
-                                    } else if line.starts_with('\t') {
-                                        // This is the actual line content
-                                        let entry = author_lines
-                                            .entry(current_email.clone())
-                                            .or_insert((current_author.clone(), 0));
-                                        entry.1 += 1;
-                                        total_lines += 1;
-                                    }
-                                }
-
-                                let file_node_id = ares_core::canonicalize_node_id(file);
-
-                                // Generate Person nodes and ContributedTo edges
-                                for (email, (name, count)) in author_lines {
-                                    let person_id = NodeId::from(format!("person:{}", email));
-
-                                    let prov = SourceProvenance {
-                                        source_system: "git_blame".to_string(),
-                                        source_id: file.to_string(),
-                                        capture_method: CaptureMethod::Heuristic,
-                                        captured_at,
-                                        confidence: CaptureMethod::Heuristic.base_confidence(), // 0.4
-                                    };
-
-                                    let prov_val = serde_json::to_value(&prov)
-                                        .unwrap_or(serde_json::json!({}));
-
-                                    let mut props = serde_json::json!({
-                                        "name": name,
-                                        "email": email,
-                                    });
-                                    if let Some(p) = props.as_object_mut() {
-                                        p.insert("provenance".to_string(), prov_val.clone());
-                                    }
-
-                                    local_nodes.push(GraphNode {
-                                        id: person_id.clone(),
-                                        project_id: project_id.clone(),
-                                        node_type: NodeType::Person,
-                                        label: name.clone(),
-                                        properties: props,
-                                        file_path: None,
-                                        created_at: captured_at,
-                                        updated_at: captured_at,
-                                        deleted_at: None,
-                                    });
-
-                                    let percentage = if total_lines > 0 {
-                                        (count as f64) / (total_lines as f64)
-                                    } else {
-                                        0.0
-                                    };
-
-                                    // Compute edge confidence based on percentage
-                                    let edge_confidence = if percentage > 0.5 {
-                                        0.7 // High contribution
-                                    } else if percentage > 0.2 {
-                                        0.5 // Medium
-                                    } else {
-                                        0.4 // Minor
-                                    };
-
-                                    local_edges.push(GraphEdge {
-                                        id: format!(
-                                            "{}-contributedto-{}",
-                                            person_id.as_str(),
-                                            file_node_id
-                                        ),
-                                        project_id: project_id.clone(),
-                                        from_node_id: person_id.clone(),
-                                        to_node_id: NodeId::from(file_node_id.as_str()),
-                                        edge_type: EdgeType::ContributedTo,
-                                        weight: percentage as f32,
-                                        confidence: edge_confidence as f32,
-                                        source: "git_blame".to_string(),
-                                        valid_from: captured_at,
-                                        valid_until: None,
-                                        created_at: captured_at,
-                                    });
-                                }
+                        for line in blame_str.lines() {
+                            if line.starts_with("author ") {
+                                current_author = line[7..].to_string();
+                            } else if line.starts_with("author-mail ") {
+                                current_email = line[12..]
+                                    .trim_matches(|c| c == '<' || c == '>')
+                                    .to_string();
+                            } else if line.starts_with('\t') {
+                                // This is the actual line content
+                                let entry = author_lines
+                                    .entry(current_email.clone())
+                                    .or_insert((current_author.clone(), 0));
+                                entry.1 += 1;
+                                total_lines += 1;
                             }
                         }
-                        Ok(None) => {
-                            // Timeout
-                            let _ = child.kill();
-                            let _ = child.wait();
-                            println!("WARN: git blame timed out for file: {}", file);
-                        }
-                        Err(e) => {
-                            println!("WARN: wait_timeout error for file: {}: {}", file, e);
+
+                        let file_node_id = ares_core::canonicalize_node_id(file);
+
+                        // Generate Person nodes and ContributedTo edges
+                        for (email, (name, count)) in author_lines {
+                            let person_id = NodeId::from(format!("person:{}", email));
+
+                            let prov = SourceProvenance {
+                                source_system: "git_blame".to_string(),
+                                source_id: file.to_string(),
+                                capture_method: CaptureMethod::Heuristic,
+                                captured_at,
+                                confidence: CaptureMethod::Heuristic.base_confidence(), // 0.4
+                            };
+
+                            let prov_val =
+                                serde_json::to_value(&prov).unwrap_or(serde_json::json!({}));
+
+                            let mut props = serde_json::json!({
+                                "name": name,
+                                "email": email,
+                            });
+                            if let Some(p) = props.as_object_mut() {
+                                p.insert("provenance".to_string(), prov_val.clone());
+                            }
+
+                            local_nodes.push(GraphNode {
+                                id: person_id.clone(),
+                                project_id: project_id.clone(),
+                                node_type: NodeType::Person,
+                                label: name.clone(),
+                                properties: props,
+                                file_path: None,
+                                created_at: captured_at,
+                                updated_at: captured_at,
+                                deleted_at: None,
+                            });
+
+                            let percentage = if total_lines > 0 {
+                                (count as f64) / (total_lines as f64)
+                            } else {
+                                0.0
+                            };
+
+                            // Compute edge confidence based on percentage
+                            let edge_confidence = if percentage > 0.5 {
+                                0.7 // High contribution
+                            } else if percentage > 0.2 {
+                                0.5 // Medium
+                            } else {
+                                0.4 // Minor
+                            };
+
+                            local_edges.push(GraphEdge {
+                                id: format!(
+                                    "{}-contributedto-{}",
+                                    person_id.as_str(),
+                                    file_node_id
+                                ),
+                                project_id: project_id.clone(),
+                                from_node_id: person_id.clone(),
+                                to_node_id: NodeId::from(file_node_id.as_str()),
+                                edge_type: EdgeType::ContributedTo,
+                                weight: percentage as f32,
+                                confidence: edge_confidence as f32,
+                                source: "git_blame".to_string(),
+                                valid_from: captured_at,
+                                valid_until: None,
+                                created_at: captured_at,
+                            });
                         }
                     }
                 }
