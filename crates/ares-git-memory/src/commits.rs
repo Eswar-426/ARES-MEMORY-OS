@@ -30,11 +30,10 @@ pub fn extract_pr_decision(
     if let Some(caps) = re_squash.captures(subject) {
         title = caps.get(1).unwrap().as_str().to_string();
         pr_number = caps.get(2).unwrap().as_str().parse::<i64>().ok();
-    } else if let Some(caps) = re_merge.captures(subject) {
+    } else {
+        let caps = re_merge.captures(subject)?;
         title = subject.to_string();
         pr_number = caps.get(1).unwrap().as_str().parse::<i64>().ok();
-    } else {
-        return None;
     }
 
     let headings = vec![
