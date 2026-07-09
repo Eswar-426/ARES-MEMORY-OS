@@ -1232,12 +1232,23 @@ async fn main() -> Result<(), BoxError> {
                     }
                 }
 
-                let id_a_str = id_a.as_ref().map(|id| id.as_str().to_string()).unwrap_or_default();
-                let id_b_str = id_b.as_ref().map(|id| id.as_str().to_string()).unwrap_or_default();
+                let id_a_str = id_a
+                    .as_ref()
+                    .map(|id| id.as_str().to_string())
+                    .unwrap_or_default();
+                let id_b_str = id_b
+                    .as_ref()
+                    .map(|id| id.as_str().to_string())
+                    .unwrap_or_default();
 
-                let mut shared_ids: std::collections::HashSet<String> = deps_a.intersection(&deps_b).cloned().collect();
-                if deps_a.contains(&id_b_str) { shared_ids.insert(id_b_str.clone()); }
-                if deps_b.contains(&id_a_str) { shared_ids.insert(id_a_str.clone()); }
+                let mut shared_ids: std::collections::HashSet<String> =
+                    deps_a.intersection(&deps_b).cloned().collect();
+                if deps_a.contains(&id_b_str) {
+                    shared_ids.insert(id_b_str.clone());
+                }
+                if deps_b.contains(&id_a_str) {
+                    shared_ids.insert(id_a_str.clone());
+                }
 
                 let a_count = deps_a.len();
                 let b_count = deps_b.len();
