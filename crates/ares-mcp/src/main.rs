@@ -1212,7 +1212,9 @@ async fn main() -> Result<(), BoxError> {
                 if let Some(ref id) = id_a {
                     if let Ok(edges) = repo.get_edges_from(id) {
                         for e in &edges {
-                            if e.edge_type.as_str() == "depends_on" || e.edge_type.as_str() == "imports" {
+                            if e.edge_type.as_str() == "depends_on"
+                                || e.edge_type.as_str() == "imports"
+                            {
                                 deps_a.insert(e.to_node_id.as_str().to_string());
                             }
                         }
@@ -1221,7 +1223,9 @@ async fn main() -> Result<(), BoxError> {
                 if let Some(ref id) = id_b {
                     if let Ok(edges) = repo.get_edges_from(id) {
                         for e in &edges {
-                            if e.edge_type.as_str() == "depends_on" || e.edge_type.as_str() == "imports" {
+                            if e.edge_type.as_str() == "depends_on"
+                                || e.edge_type.as_str() == "imports"
+                            {
                                 deps_b.insert(e.to_node_id.as_str().to_string());
                             }
                         }
