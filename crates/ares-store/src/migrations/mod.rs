@@ -13,6 +13,8 @@ pub use manager::MigrationManager;
 /// Run all pending migrations on the given connection.
 pub fn run(conn: &mut Connection) -> Result<(), AresError> {
     embedded::migrations::runner()
+        .set_abort_divergent(false)
+        .set_abort_missing(false)
         .run(conn)
         .map(|_report| ())
         .map_err(|e| AresError::migration(e.to_string()))
