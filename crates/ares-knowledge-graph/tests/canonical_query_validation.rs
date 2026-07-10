@@ -1,6 +1,5 @@
 use ares_knowledge_graph::impact::ImpactEngine;
-use ares_knowledge_graph::models::{DomainEvent, DomainEventType, ProjectionMetrics};
-use ares_knowledge_graph::projection::{ProjectionEngine, ProjectionMode};
+use ares_knowledge_graph::projection::ProjectionEngine;
 use ares_knowledge_graph::projector_registry::{
     DecisionProjector, GapProjector, ProjectorRegistry, RequirementProjector, ResolutionProjector,
 };
@@ -8,7 +7,7 @@ use ares_knowledge_graph::queries::CanonicalQueries;
 use ares_knowledge_graph::store::KnowledgeGraphStore;
 use ares_knowledge_graph::traversal::TraversalEngine;
 use ares_store::Store;
-use rusqlite::params;
+
 use std::sync::Arc;
 use tempfile::tempdir;
 
@@ -92,7 +91,7 @@ async fn seed_authentication_graph(kg_store: &Arc<KnowledgeGraphStore>) {
 
 #[tokio::test]
 async fn test_canonical_queries() {
-    let (store, kg_store, engine, registry, queries) = setup_test_engine().await;
+    let (_store, kg_store, _engine, _registry, queries) = setup_test_engine().await;
 
     seed_authentication_graph(&kg_store).await;
 
