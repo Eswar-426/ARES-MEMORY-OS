@@ -1,84 +1,149 @@
 # ARES MemoryOS
 
-![ARES Quality Report](https://img.shields.io/badge/ARES_Evaluation-96.4%25-brightgreen)
-![Stability](https://img.shields.io/badge/Determinism-100%25-blue)
+Deterministic repository intelligence for AI coding agents. Zero LLM required.
 
-ARES is an AI-powered engineering intelligence system that understands your codebase as a semantic graph, not just raw text.
+## What It Does
 
-## The Problem
-Modern development moves fast. When a Staff Engineer leaves, the context leaves with them. Traditional AI coding tools (like Copilot or Cursor) are incredibly good at writing local functions, but they fundamentally fail at **system architecture**. 
-
-They operate on unstructured chunks of text. When you ask *"Why does this module exist?"* or *"What happens if I change this core database trait?"*, they guess based on keyword proximity.
-
-## What ARES Understands
-ARES parses your repository into a deterministic, queryable Knowledge Graph. It doesn't just read code—it extracts:
-- Abstract Syntax Trees (ASTs)
-- Module relationships
-- Function call graphs
-- Architectural Decision Records (ADRs)
-- Markdown requirements
-- Ownership metadata
-
-## The Five Engines
-
-ARES exposes its graph through five deterministic intelligence engines accessible via our VS Code extension:
-
-1. **Why Exists**: Understand the exact architectural, security, or business requirement that led to a specific piece of code.
-2. **Impact Analysis**: See the exact "blast radius" of a change across files, traits, modules, and deployment pipelines.
-3. **Traceability**: Track a high-level requirement (e.g. `REQ-12`) directly down to the specific functions and tests that implement it.
-4. **Drift Analysis**: Automatically detect when your codebase violates a documented architectural rule (e.g., bypassing a repository layer).
-5. **Simulation**: Ask "What if I delete this?" and get an instant, deterministic list of everything that will break before you write a single line of code.
+ARES parses your repository into a queryable knowledge graph — AST relationships, git history, ownership, and architectural decisions. When an AI agent asks *"What breaks if I change this trait?"*, ARES traverses the actual dependency graph and returns the exact blast radius — not a guess.
 
 ## Installation
 
-ARES MemoryOS is distributed as a zero-configuration VS Code extension with bundled native binaries.
+**VS Code Marketplace** (once published):
 
-1. Download the latest `.vsix` from [GitHub Releases](https://github.com/Eswar-426/ARES-MEMORY-OS/releases).
-2. Install via VS Code: `Extensions` -> `...` -> `Install from VSIX`.
-3. The extension will automatically download the correct native intelligence engine for your OS (Windows, macOS ARM/x64, Linux) on first run. No Rust toolchain required!
+1. Open VS Code
+2. Search "ARES MemoryOS"
+3. Click Install
 
-*(Once approved on the VS Code Marketplace, it will be available with a single click).*
+**Manual install:**
+
+1. Download the latest `.vsix` from [GitHub Releases](https://github.com/Eswar-426/ARES-MEMORY-OS/releases)
+2. `Extensions` → `...` → `Install from VSIX`
+
+No Rust toolchain required. The extension bundles native binaries for Windows, macOS (ARM + x64), and Linux.
 
 ## Quick Start
 
-Once installed, open any project folder in VS Code to see ARES in action:
+1. Open a repository in VS Code
+2. Run **ARES: Ingest Repository** from the Command Palette (`Ctrl+Shift+P`)
+3. Wait for ingestion to complete (1-15 minutes depending on repo size)
+4. Ask questions via the ARES query panel or let your AI agent call MCP tools directly
 
-1. **Ingest your repository:** Run the `ARES: Ingest Repository` command from the Command Palette to build the local Knowledge Graph.
-2. **Access the Chat:** Open the ARES Chat Webview to ask architecture-aware questions.
-3. **Use the Intelligence Engines:**
-   - *"What happens if I change the PaymentProvider trait?"* (Impact Analysis)
-   - *"Show me everything implementing REQ-12."* (Traceability)
-   - *"Are there any architecture violations of ADR-3?"* (Drift Analysis)
+## Example Queries (Tested on Django)
 
-## Architecture
+These are real outputs from the django-full2 repository (7,088 files, 500 commits):
 
-```text
-crates/ares-core       -> Core Graph Data Structures
-crates/ares-store      -> Immutable SQLite Persistence (ares.db)
-crates/ares-scanner    -> Multi-language parser (Rust, JS/TS, Markdown)
-crates/ares-reasoning  -> The Five Intelligence Engines
-crates/ares-mcp        -> Model Context Protocol Server
-crates/ares-cli        -> High-speed CLI (ingest, benchmark, doctor)
-extensions/            -> VS Code Extension & Webview UI
+**Why does this module exist?**
+```
+Introduced for: MERGED MAGIC-REMOVAL BRANCH TO TRUNK.
+This change is highly backwards-incompatible and should only be applied after reviewing 
+the migration guide.
 ```
 
-## Evaluation Platform: Engineering Quality Platform
-
-ARES includes a world-class, **deterministic Evaluation Harness** (`evaluation/`). Unlike standard LLM benchmarks which are notoriously flaky, ARES converts all intelligence outputs into a **Versioned Canonical Fact Model** mapped to strict graph node IDs, producing mathematically verifiable scores across:
-
-- **Recall & Precision**
-- **Evidence Coverage**
-- **Hallucination Penalties**
-- **SHA-256 Stability Fingerprinting**
-
-Run the evaluator:
-```bash
-cargo run --bin ares-evaluation -- run --dataset evaluation/datasets/ares/cases.json --repo .
+**What breaks if I change this file?**
 ```
-Compare regressions:
-```bash
-cargo run --bin ares-evaluation -- compare --latest 2026-06-27_16-15-08 --previous 2026-06-27_16-08-04
+Risk: HIGH
+Affected modules: 12
+- django/http/response.py
+- django/http/request.py
+- django/core/handlers/wsgi.py
+- django/middleware/common.py
+- ...
 ```
+
+**Who owns this file?**
+```
+django-bot: 66%
+Tim Graham: 13%
+Other: 21%
+```
+
+**How are these two files related?**
+```
+Coupling score: 42
+Relationship: loosely coupled
+Shared dependencies: io, urllib.parse, django.utils.http
+```
+
+## Available Tools
+
+### Intelligence Engines (graph traversal, zero LLM)
+| Tool | What It Does |
+|------|-------------|
+| `ares_why_exists` | Finds the architectural reason a file exists |
+| `ares_impact` | Blast radius — what breaks if this file changes |
+| `ares_drift` | Has this file drifted from its documented architecture |
+| `ares_traceability` | Trace a requirement down to implementing functions |
+| `ares_simulate` | "What if I remove this?" — deterministic impact simulation |
+
+### Query Tools (direct graph reads)
+| Tool | What It Does |
+|------|-------------|
+| `ares_who_owns` | Contributor percentages from git blame data |
+| `ares_search` | Exact-match search on file/function/class names |
+| `ares_timeline` | Chronological commit history for a file |
+| `ares_compare` | Coupling score and shared dependencies between two files |
+| `ares_architecture` | Repository overview: file/function counts, top coupled files |
+| `ares_decisions` | Architectural Decision Records linked to files |
+| `requirements` | Requirements linked to implementing files |
+| `ares_health_check` | Gap detection + health score (0-100) |
+
+### Write Tools (agent memory persistence)
+| Tool | What It Does |
+|------|-------------|
+| `ares_record_decision` | Create an architectural decision node linked to files |
+| `ares_record_requirement` | Link a requirement to implementing files |
+| `ares_annotate` | Add a key-value annotation to any node |
+| `ares_correct` | Append a correction record to any node |
+
+### Session Tools (agent continuity)
+| Tool | What It Does |
+|------|-------------|
+| `ares_session_context` | Retrieve last 3 agent sessions for context injection |
+| `ares_end_session` | Flush current session data to DB for next session |
+
+### CLI Commands
+| Command | What It Does |
+|---------|--------------|
+| `ares ingest .` | Full repository scan: AST, file inventory, git history, blame |
+| `ares doctor` | Database integrity check |
+| `ares overview` | Generate `.ares/system_overview.md` for agent context |
+| `ares compact` | Run VACUUM + ANALYZE to reduce DB size |
+| `ares health` | Run health check and print report to terminal |
+
+## Agent Integration
+
+ARES exposes all tools via MCP. Any agent that supports MCP can connect:
+
+```json
+{
+  "mcpServers": {
+    "ares": {
+      "command": "path/to/ares-mcp",
+      "cwd": "/path/to/your/repo",
+      "args": []
+    }
+  }
+}
+```
+
+The agent receives `project_id` automatically from the CWD. No project path configuration needed.
+
+## Supported Languages
+
+Rust, TypeScript, Python, Go, JavaScript, Java, C#, C/C++, Ruby
+
+## Architecture Overview
+
+```
+ares-mcp (MCP Server, thin transport)
+  └── ares-repository-intelligence (deterministic pipeline)
+        ├── EvidenceService (ONLY component that touches DB)
+        ├── InferenceRegistry (maps QueryType → Generator)
+        └── Generators (WhyExists, Impact, Drift, Traceability)
+```
+
+No LLM in the query path. AI is only used for the optional `ares_record_decision` workflow.
 
 ## License
+
 MIT

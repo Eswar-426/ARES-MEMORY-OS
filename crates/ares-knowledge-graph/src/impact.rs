@@ -39,6 +39,7 @@ impl ImpactEngine {
             NodeType::Project => 1,
             NodeType::RepositoryEvent => 1,
             NodeType::RepositorySnapshot => 1,
+            _ => 1,
         }
     }
 

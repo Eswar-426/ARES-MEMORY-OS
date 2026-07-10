@@ -83,6 +83,7 @@ impl GraphIntegrityValidator {
                 (source, target),
                 (NodeType::RepositoryEvent, NodeType::KnowledgeGap)
             ),
+            _ => true,
         }
     }
 

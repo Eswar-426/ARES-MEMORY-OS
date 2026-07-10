@@ -152,7 +152,7 @@ And copy the resulting executables from \`target/release/\` into the \`extension
             timeout: 10_000,
         });
 
-        if (doctorResult.status !== 0 || (doctorResult.stdout && doctorResult.stdout.includes('Corrupted'))) {
+        if (doctorResult.status !== 0 || (doctorResult.stdout && doctorResult.stdout.includes('(Corrupted)'))) {
             aresOutput.appendLine(`Database is corrupted. Output: ${doctorResult.stdout || doctorResult.stderr}`);
             vscode.window.showErrorMessage(
                 'ARES database is corrupted. Would you like to rebuild it now?',

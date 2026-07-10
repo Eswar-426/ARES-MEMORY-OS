@@ -2,7 +2,33 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
 pub enum NodeType {
+    File,
+    Function,
+    Module,
+    Class,
+    Method,
+    Struct,
+    Enum,
+    Trait,
+    Interface,
+    Service,
+    Feature,
+    Bug,
+    Concept,
+    Tag,
+    Folder,
+    Alternative,
+    Assumption,
+    Risk,
+    ReviewTrigger,
+    Person,
+    Team,
+    Commit,
+    Release,
+    Branch,
+    Capability,
     Requirement,
     RequirementRevision,
     Decision,
@@ -79,7 +105,12 @@ pub struct KnowledgeNode {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
 pub enum EdgeType {
+    Imports,
+    Defines,
+    Calls,
+    Extends,
     Implements,
     ImplementedBy,
     Drives,
@@ -106,6 +137,10 @@ pub enum EdgeType {
 impl fmt::Display for EdgeType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
+            EdgeType::Imports => "imports",
+            EdgeType::Defines => "defines",
+            EdgeType::Calls => "calls",
+            EdgeType::Extends => "extends",
             EdgeType::Implements => "Implements",
             EdgeType::ImplementedBy => "ImplementedBy",
             EdgeType::Drives => "Drives",

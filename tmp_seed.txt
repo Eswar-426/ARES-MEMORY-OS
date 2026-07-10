@@ -1,0 +1,166 @@
+async fn seed_authentication_graph(
+    engine: &ProjectionEngine,
+    registry: &ProjectorRegistry,
+    metrics: &mut ProjectionMetrics,
+    kg_store: &Arc<KnowledgeGraphStore>,
+) {
+    // 1. Requirement
+    let req_event = DomainEvent {
+        id: "EVT-1".to_string(),
+        event_type: DomainEventType::RequirementCreated,
+        entity_id: "REQ-AUTH".to_string(),
+        timestamp: 1000,
+        payload: json!({"title": "Authentication Requirement"}),
+    };
+
+    // 2. Decision
+    let dec_event = DomainEvent {
+        id: "EVT-2".to_string(),
+        event_type: DomainEventType::DecisionApproved,
+        entity_id: "DEC-JWT".to_string(),
+        timestamp: 1001,
+        payload: json!({
+            "title": "Use JWT for Authentication",
+            "approved_by": "Alice"
+        }),
+    };
+
+    // 3. Gap
+    let gap_event = DomainEvent {
+        id: "EVT-3".to_string(),
+        event_type: DomainEventType::GapDetected,
+        entity_id: "GAP-AUTH".to_string(),
+        timestamp: 1002,
+        payload: json!({
+            "title": "Missing Token Rotation",
+            "root_cause": "Oversight in DEC-JWT"
+        }),
+    };
+
+    // 4. Resolution
+    let res_event = DomainEvent {
+        id: "EVT-4".to_string(),
+        event_type: DomainEventType::ResolutionGenerated,
+        entity_id: "RES-ROTATION".to_string(),
+        timestamp: 1003,
+        payload: json!({
+            "title": "Implement Rotation Worker",
+            "target_gap": "GAP-AUTH"
+        }),
+    };
+
+    engine
+        .process_event(
+            &req_event,
+            ProjectionMode::Incremental,
+            &registry.projectors,
+            metrics,
+        )
+        .unwrap();
+    engine
+        .process_event(
+            &dec_event,
+            ProjectionMode::Incremental,
+            &registry.projectors,
+            metrics,
+        )
+        .unwrap();
+    engine
+        .process_event(
+            &gap_event,
+            ProjectionMode::Incremental,
+            &registry.projectors,
+            metrics,
+        )
+        .unwrap();
+    engine
+        .process_event(
+            &res_event,
+            ProjectionMode::Incremental,
+            &registry.projectors,
+            metrics,
+        )
+        .unwrap();
+
+    use ares_knowledge_graph::models::{EdgeType, KnowledgeEdge};
+    use serde_json::json;
+
+    // Connect REQ -> DEC (Requirement Drives Decision)
+    kg_store
+        .upsert_edge(&KnowledgeEdge {
+            id: "EDGE-REQ-DEC".to_string(),
+            source_id: "REQ-AUTH".to_string(),
+            target_id: "DEC-JWT".to_string(),
+            edge_type: EdgeType::Drives,
+            confidence: 1.0,
+            created_at: 1004,
+            properties: json!({}),
+        })
+        .unwrap();
+
+    // Connect GAP -> DEC (Gap Caused By Decision)
+    kg_store
+        .upsert_edge(&KnowledgeEdge {
+            id: "EDGE-GAP-DEC".to_string(),
+            source_id: "GAP-AUTH".to_string(),
+            target_id: "DEC-JWT".to_string(),
+            edge_type: EdgeType::Causes, // GAP -> DEC is CausedBy. We'll use Causes for now.
+            confidence: 1.0,
+            created_at: 1004,
+            properties: json!({}),
+        })
+        .unwrap();
+    // Re-insert edge as DEC -> GAP
+    kg_store
+        .upsert_edge(&KnowledgeEdge {
+            id: "EDGE-DEC-GAP".to_string(),
+            source_id: "DEC-JWT".to_string(),
+            target_id: "GAP-AUTH".to_string(),
+            edge_type: EdgeType::Causes,
+            confidence: 1.0,
+            created_at: 1004,
+            properties: json!({}),
+        })
+        .unwrap();
+
+    // Re-insert edge as DEC -> RES
+    kg_store
+        .upsert_edge(&KnowledgeEdge {
+            id: "EDGE-GAP-RES".to_string(),
+            source_id: "GAP-AUTH".to_string(),
+            target_id: "RES-ROTATION".to_string(),
+            edge_type: EdgeType::Causes,
+            confidence: 1.0,
+            created_at: 1004,
+            properties: json!({}),
+        })
+        .unwrap();
+
+    use ares_knowledge_graph::models::KnowledgeNode;
+    use ares_knowledge_graph::models::NodeType;
+
+    // Add Owner
+    kg_store
+        .upsert_node(&KnowledgeNode {
+            id: "OWNER-ALICE".to_string(),
+            node_type: NodeType::Owner,
+            name: "Alice".to_string(),
+            properties: json!({}),
+            created_at: 1000,
+        })
+        .unwrap();
+
+    // Connect DEC -> OWNER (Decision ApprovedBy Owner)
+    kg_store
+        .upsert_edge(&KnowledgeEdge {
+            id: "EDGE-OWNER-DEC".to_string(),
+            source_id: "DEC-JWT".to_string(),
+            target_id: "OWNER-ALICE".to_string(),
+            edge_type: EdgeType::ApprovedBy,
+            confidence: 1.0,
+            created_at: 1004,
+            properties: json!({}),
+        })
+        .unwrap();
+}
+

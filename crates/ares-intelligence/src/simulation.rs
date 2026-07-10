@@ -243,17 +243,17 @@ mod tests {
         conn.execute("INSERT INTO memories (id, project_id, memory_type, title, content, status, version, confidence, source, created_at, updated_at) VALUES ('m1', 'p1', 'project', 'title', 'content', 'active', 1, 1.0, 'human', 0, 0)", []).unwrap();
 
         // Insert some nodes for traversal
-        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('target', 'CodeArtifact', 'target', '{}', 0, 0)", []).unwrap();
-        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('file1', 'CodeArtifact', 'file1', '{}', 0, 0)", []).unwrap();
-        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('decision1', 'Decision', 'decision1', '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('target', 'code_artifact', 'target', '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('file1', 'code_artifact', 'file1', '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('decision1', 'decision', 'decision1', '{}', 0, 0)", []).unwrap();
 
         // Target -> File1 -> Decision1 (downstream)
-        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, created_at, updated_at, properties) VALUES ('e1', 'target', 'file1', 'depends_on', 1.0, 0, 0, '{}')", []).unwrap();
-        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, created_at, updated_at, properties) VALUES ('e2', 'file1', 'decision1', 'motivated_by', 1.0, 0, 0, '{}')", []).unwrap();
+        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, properties, created_at, updated_at) VALUES ('e1', 'target', 'file1', 'depends_on', '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, properties, created_at, updated_at) VALUES ('e2', 'file1', 'decision1', 'motivated_by', '{}', 0, 0)", []).unwrap();
 
         // Target <- Test1 (upstream)
-        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('test1', 'Test', 'test1', '{}', 0, 0)", []).unwrap();
-        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, created_at, updated_at, properties) VALUES ('e3', 'test1', 'target', 'references', 1.0, 0, 0, '{}')", []).unwrap();
+        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('test1', 'test', 'test1', '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, properties, created_at, updated_at) VALUES ('e3', 'test1', 'target', 'references', '{}', 0, 0)", []).unwrap();
 
         (store, dir)
     }

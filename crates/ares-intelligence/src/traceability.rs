@@ -49,7 +49,8 @@ pub async fn trace(
     let kg_store = Arc::new(KnowledgeGraphStore::new(Arc::new(store.clone())));
     let traversal = TraversalEngine::new(kg_store);
 
-    if let Ok(down) = traversal.downstream(entity_id, depth) {
+    let down = traversal.downstream(entity_id, depth).unwrap();
+    {
         let mut path_nodes = Vec::new();
         for node in &down.nodes {
             nodes_visited += 1;
@@ -57,6 +58,7 @@ pub async fn trace(
             if node.id != entity_id {
                 downstream.insert(node.id.clone());
                 let node_type_str = format!("{:?}", node.node_type);
+                println!("DOWNSTREAM NODE: id={}, type={:?}", node.id, node_type_str);
                 match node_type_str.as_str() {
                     "Requirement" => {
                         requirements.insert(node.id.clone());
@@ -64,12 +66,11 @@ pub async fn trace(
                     "Decision" | "Architecture" => {
                         decisions.insert(node.id.clone());
                     }
-                    "CodeArtifact" => {
-                        if node.name.contains('.') {
-                            files.insert(node.id.clone());
-                        } else {
-                            functions.insert(node.id.clone());
-                        }
+                    "File" => {
+                        files.insert(node.id.clone());
+                    }
+                    "Function" => {
+                        functions.insert(node.id.clone());
                     }
                     "Test" => {
                         tests.insert(node.id.clone());
@@ -91,7 +92,8 @@ pub async fn trace(
         }
     }
 
-    if let Ok(up) = traversal.upstream(entity_id, depth) {
+    let up = traversal.upstream(entity_id, depth).unwrap();
+    {
         let mut path_nodes = Vec::new();
         for node in &up.nodes {
             if node.id != entity_id {
@@ -100,6 +102,7 @@ pub async fn trace(
                 }
                 upstream.insert(node.id.clone());
                 let node_type_str = format!("{:?}", node.node_type);
+                println!("UPSTREAM NODE: id={}, type={:?}", node.id, node_type_str);
                 match node_type_str.as_str() {
                     "Requirement" => {
                         requirements.insert(node.id.clone());
@@ -107,12 +110,11 @@ pub async fn trace(
                     "Decision" | "Architecture" => {
                         decisions.insert(node.id.clone());
                     }
-                    "CodeArtifact" => {
-                        if node.name.contains('.') {
-                            files.insert(node.id.clone());
-                        } else {
-                            functions.insert(node.id.clone());
-                        }
+                    "File" => {
+                        files.insert(node.id.clone());
+                    }
+                    "Function" => {
+                        functions.insert(node.id.clone());
                     }
                     "Test" => {
                         tests.insert(node.id.clone());
@@ -215,26 +217,26 @@ mod tests {
         conn.execute("INSERT INTO projects (id, name, root_path, primary_language, domain, maturity, created_at, updated_at) VALUES ('p1', 'test', '/test', 'rust', 'domain', 'greenfield', 0, 0)", []).unwrap();
 
         // Nodes
-        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('req1', 'Requirement', 'req1', '{}', 0, 0)", []).unwrap();
-        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('dec1', 'Decision', 'dec1', '{}', 0, 0)", []).unwrap();
-        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('file1.rs', 'CodeArtifact', 'file1.rs', '{}', 0, 0)", []).unwrap();
-        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('func1', 'CodeArtifact', 'func1', '{}', 0, 0)", []).unwrap();
-        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('test1', 'Test', 'test1', '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('req1', 'requirement', 'req1', '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('dec1', 'decision', 'dec1', '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('file1.rs', 'file', 'file1.rs', '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('func1', 'function', 'func1', '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('test1', 'test', 'test1', '{}', 0, 0)", []).unwrap();
 
         // Cycle nodes
-        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('c1', 'CodeArtifact', 'c1.rs', '{}', 0, 0)", []).unwrap();
-        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('c2', 'CodeArtifact', 'c2.rs', '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('c1', 'file', 'c1.rs', '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('c2', 'file', 'c2.rs', '{}', 0, 0)", []).unwrap();
 
         // Edges
         // req1 -> dec1 -> file1.rs -> func1 -> test1
-        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, created_at, updated_at, properties) VALUES ('e1', 'req1', 'dec1', 'motivated_by', 1.0, 0, 0, '{}')", []).unwrap();
-        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, created_at, updated_at, properties) VALUES ('e2', 'dec1', 'file1.rs', 'motivated_by', 1.0, 0, 0, '{}')", []).unwrap();
-        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, created_at, updated_at, properties) VALUES ('e3', 'file1.rs', 'func1', 'contains', 1.0, 0, 0, '{}')", []).unwrap();
-        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, created_at, updated_at, properties) VALUES ('e4', 'func1', 'test1', 'tested_by', 1.0, 0, 0, '{}')", []).unwrap();
+        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, properties, created_at, updated_at) VALUES ('e1', 'req1', 'dec1', 'motivated_by', 1.0, '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, properties, created_at, updated_at) VALUES ('e2', 'dec1', 'file1.rs', 'motivated_by', 1.0, '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, properties, created_at, updated_at) VALUES ('e3', 'file1.rs', 'func1', 'contains', 1.0, '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, properties, created_at, updated_at) VALUES ('e4', 'func1', 'test1', 'validated_by', 1.0, '{}', 0, 0)", []).unwrap();
 
         // Cycle edges c1 -> c2 -> c1
-        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, created_at, updated_at, properties) VALUES ('e5', 'c1', 'c2', 'depends_on', 1.0, 0, 0, '{}')", []).unwrap();
-        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, created_at, updated_at, properties) VALUES ('e6', 'c2', 'c1', 'depends_on', 1.0, 0, 0, '{}')", []).unwrap();
+        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, properties, created_at, updated_at) VALUES ('e5', 'c1', 'c2', 'depends_on', 1.0, '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, properties, created_at, updated_at) VALUES ('e6', 'c2', 'c1', 'depends_on', 1.0, '{}', 0, 0)", []).unwrap();
 
         (store, dir)
     }
@@ -243,6 +245,7 @@ mod tests {
     async fn test_requirement_traversal() {
         let (store, _dir) = setup_test_db();
         let report = trace("req1", 3, &store).await.unwrap();
+        println!("REPORT: {:#?}", report);
         assert_eq!(report.root, "req1");
         assert!(report.decisions.contains(&"dec1".to_string()));
         assert!(report.files.contains(&"file1.rs".to_string()));

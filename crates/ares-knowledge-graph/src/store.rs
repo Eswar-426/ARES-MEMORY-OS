@@ -13,7 +13,7 @@ impl KnowledgeGraphStore {
         Self { store }
     }
 
-    pub(crate) fn get_raw_store(&self) -> Arc<ares_store::Store> {
+    pub fn get_raw_store(&self) -> Arc<ares_store::Store> {
         self.store.clone()
     }
 
@@ -26,13 +26,19 @@ impl KnowledgeGraphStore {
             AresError::Serialization(format!("Failed to serialize properties: {}", e))
         })?;
 
+        let node_type_str = serde_json::to_value(&node.node_type)
+            .unwrap_or(serde_json::json!("code_artifact"))
+            .as_str()
+            .unwrap_or("code_artifact")
+            .to_string();
+
         conn.execute(
             "INSERT OR REPLACE INTO graph_entities (
                 id, entity_type, name, properties, created_at, updated_at
             ) VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
             params![
                 node.id,
-                node.node_type.to_string(),
+                node_type_str,
                 node.name,
                 props_str,
                 node.created_at.to_string()
@@ -52,6 +58,12 @@ impl KnowledgeGraphStore {
             AresError::Serialization(format!("Failed to serialize edge properties: {}", e))
         })?;
 
+        let edge_type_str = serde_json::to_value(&edge.edge_type)
+            .unwrap_or(serde_json::json!("references"))
+            .as_str()
+            .unwrap_or("references")
+            .to_string();
+
         conn.execute(
             "INSERT OR REPLACE INTO graph_relationships (
                 id, source_entity, target_entity, relationship_type, 
@@ -61,7 +73,7 @@ impl KnowledgeGraphStore {
                 edge.id,
                 edge.source_id,
                 edge.target_id,
-                edge.edge_type.to_string(),
+                edge_type_str,
                 edge.confidence,
                 props_str,
                 edge.created_at.to_string()
