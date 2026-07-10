@@ -31,7 +31,10 @@ impl TraversalEngine {
 
     fn load_node(&self, id: &str) -> Result<Option<KnowledgeNode>, AresError> {
         let conn = self.store.get_raw_store().get_conn()?;
-        let mut stmt = conn.prepare("SELECT id, entity_type, name, properties, created_at FROM graph_entities WHERE id = ?")
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, node_type, label, properties, created_at FROM graph_nodes WHERE id = ?",
+            )
             .map_err(|e| AresError::Database(e.to_string()))?;
 
         let mut rows = stmt
@@ -46,9 +49,7 @@ impl TraversalEngine {
                 row.get(1).map_err(|e| AresError::Database(e.to_string()))?;
             let name: String = row.get(2).map_err(|e| AresError::Database(e.to_string()))?;
             let props_str: String = row.get(3).map_err(|e| AresError::Database(e.to_string()))?;
-            let created_at_str: String =
-                row.get(4).map_err(|e| AresError::Database(e.to_string()))?;
-            let created_at: i64 = created_at_str.parse().unwrap_or(0);
+            let created_at: i64 = row.get(4).unwrap_or(0);
 
             let properties: serde_json::Value =
                 serde_json::from_str(&props_str).unwrap_or(serde_json::json!({}));
@@ -73,10 +74,12 @@ impl TraversalEngine {
         direction_downstream: bool,
     ) -> Result<Vec<KnowledgeEdge>, AresError> {
         let conn = self.store.get_raw_store().get_conn()?;
+        // downstream = find dependents (things that depend ON this node) = incoming edges
+        // upstream = find dependencies (things this node depends on) = outgoing edges
         let query = if direction_downstream {
-            "SELECT id, source_entity, target_entity, relationship_type, confidence_score, created_at, properties FROM graph_relationships WHERE source_entity = ?"
+            "SELECT id, from_node_id, to_node_id, edge_type, source, created_at, properties FROM graph_edges WHERE to_node_id = ?"
         } else {
-            "SELECT id, source_entity, target_entity, relationship_type, confidence_score, created_at, properties FROM graph_relationships WHERE target_entity = ?"
+            "SELECT id, from_node_id, to_node_id, edge_type, source, created_at, properties FROM graph_edges WHERE from_node_id = ?"
         };
         let mut stmt = conn
             .prepare(query)
@@ -95,10 +98,9 @@ impl TraversalEngine {
             let target_id: String = row.get(2).map_err(|e| AresError::Database(e.to_string()))?;
             let edge_type_str: String =
                 row.get(3).map_err(|e| AresError::Database(e.to_string()))?;
-            let confidence: f64 = row.get(4).unwrap_or(1.0);
-            let created_at_str: String = row.get(5).unwrap_or_else(|_| "0".to_string());
-            let created_at = created_at_str.parse().unwrap_or(0);
-            let props_str: String = row.get(6).unwrap_or("{}".to_string());
+            let _source: String = row.get(4).unwrap_or_default();
+            let created_at: i64 = row.get(5).unwrap_or(0);
+            let props_str: String = row.get(6).unwrap_or_else(|_| "{}".to_string());
 
             let properties: serde_json::Value =
                 serde_json::from_str(&props_str).unwrap_or(serde_json::json!({}));
@@ -110,7 +112,7 @@ impl TraversalEngine {
                 source_id,
                 target_id,
                 edge_type,
-                confidence: confidence as f32,
+                confidence: 1.0,
                 created_at,
                 properties,
             });

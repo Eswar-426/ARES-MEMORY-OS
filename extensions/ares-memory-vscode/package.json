@@ -1,199 +1,206 @@
 {
-  "name": "ares-memory-vscode",
-  "publisher": "eswar426",
-  "displayName": "ARES Memory OS",
-  "description": "Zero-context-loss continuity for ARES Memory OS. AI-powered engineering intelligence system.",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Eswar-426/ARES-MEMORY-OS"
-  },
-  "version": "0.1.0",
-  "license": "MIT",
-  "author": "Eswar-426",
-  "homepage": "https://github.com/Eswar-426/ARES-MEMORY-OS",
-  "bugs": {
-    "url": "https://github.com/Eswar-426/ARES-MEMORY-OS/issues"
-  },
-  "engines": {
-    "vscode": "^1.80.0"
-  },
-  "keywords": [
-    "ai",
-    "memory",
-    "code-analysis",
-    "mcp",
-    "graph"
-  ],
-  "categories": [
-    "Other"
-  ],
-  "main": "./out/extension.js",
-  "activationEvents": [
-    "*"
-  ],
-  "contributes": {
-    "commands": [
-      {
-        "command": "ares.demo",
-        "title": "ARES: Demo"
-      },
-      {
-        "command": "ares.selfTest",
-        "title": "ARES: Self Test"
-      },
-      {
-        "command": "ares.doctor",
-        "title": "ARES: Doctor"
-      },
-      {
-        "command": "ares.ingest",
-        "title": "ARES: Ingest Repository"
-      },
-      {
-        "command": "ares.whyExists",
-        "title": "ARES: Why Exists"
-      },
-      {
-        "command": "ares.impactAnalysis",
-        "title": "ARES: Impact Analysis"
-      },
-      {
-        "command": "ares.coverageAnalysis",
-        "title": "ARES: Coverage Analysis"
-      },
-      {
-        "command": "ares.simulateChange",
-        "title": "ARES: Simulate Change"
-      },
-      {
-        "command": "ares.driftAnalysis",
-        "title": "ARES: Drift Analysis"
-      },
-      {
-        "command": "ares.traceabilityAnalysis",
-        "title": "ARES: Traceability Analysis"
-      },
-      {
-        "command": "ares.aresHome",
-        "title": "ARES: ARES Home"
-      },
-      {
-        "command": "ares.graphExplorer",
-        "title": "ARES: Graph Explorer"
-      },
-      {
-        "command": "ares.chat",
-        "title": "ARES: Chat"
-      },
-      {
-        "command": "ares.benchmark",
-        "title": "ARES: Benchmark Repository"
-      },
-      {
-        "command": "ares.showDiagnostics",
-        "title": "ARES: Show Diagnostics",
-        "category": "ARES"
-      },
-      {
-        "command": "ares.healthCheck",
-        "title": "ARES: Health Check"
-      },
-      {
-        "command": "ares.recordDecision",
-        "title": "ARES: Record Inline Decision"
-      }
-    ],
-    "menus": {
-      "editor/context": [
-        {
-          "command": "ares.whyExists",
-          "group": "ares@1"
-        },
-        {
-          "command": "ares.impactAnalysis",
-          "group": "ares@2"
-        },
-        {
-          "command": "ares.traceabilityAnalysis",
-          "when": "explorerResourceIsFolder || explorerResourceIsFile",
-          "group": "ares@4"
-        },
-        {
-          "command": "ares.simulateChange",
-          "when": "explorerResourceIsFolder || explorerResourceIsFile",
-          "group": "ares@5"
-        },
-        {
-          "command": "ares.driftAnalysis",
-          "group": "ares@4"
-        },
-        {
-          "command": "ares.traceabilityAnalysis",
-          "group": "ares@5"
-        },
-        {
-          "command": "ares.recordDecision",
-          "group": "navigation"
-        }
-      ],
-      "explorer/context": [
-        {
-          "command": "ares.whyExists",
-          "group": "ares@1"
-        },
-        {
-          "command": "ares.impactAnalysis",
-          "group": "ares@2"
-        },
-        {
-          "command": "ares.driftAnalysis",
-          "group": "ares@4"
-        },
-        {
-          "command": "ares.traceabilityAnalysis",
-          "when": "explorerResourceIsFolder || explorerResourceIsFile",
-          "group": "ares@5"
-        },
-        {
-          "command": "ares.simulateChange",
-          "when": "explorerResourceIsFolder || explorerResourceIsFile",
-          "group": "ares@6"
-        }
-      ]
+    "name": "ares-memory-vscode",
+    "publisher": "eswar426",
+    "displayName": "ARES Memory OS",
+    "description": "Zero-context-loss continuity for ARES Memory OS. AI-powered engineering intelligence system.",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Eswar-426/ARES-MEMORY-OS"
     },
-    "configuration": {
-      "title": "ARES Memory OS",
-      "properties": {
-        "ares.cliPath": {
-          "type": "string",
-          "default": "",
-          "description": "Path to the ares executable."
+    "version": "0.1.0",
+    "license": "MIT",
+    "author": "Eswar-426",
+    "homepage": "https://github.com/Eswar-426/ARES-MEMORY-OS",
+    "bugs": {
+        "url": "https://github.com/Eswar-426/ARES-MEMORY-OS/issues"
+    },
+    "engines": {
+        "vscode": "^1.80.0"
+    },
+    "keywords": [
+        "ai",
+        "memory",
+        "code-analysis",
+        "mcp",
+        "graph"
+    ],
+    "categories": [
+        "Other"
+    ],
+    "main": "./out/extension.js",
+    "activationEvents": [
+        "*"
+    ],
+    "contributes": {
+        "commands": [
+            {
+                "command": "ares.demo",
+                "title": "ARES: Demo"
+            },
+            {
+                "command": "ares.selfTest",
+                "title": "ARES: Self Test"
+            },
+            {
+                "command": "ares.doctor",
+                "title": "ARES: Doctor"
+            },
+            {
+                "command": "ares.ingest",
+                "title": "ARES: Ingest Repository"
+            },
+            {
+                "command": "ares.whyExists",
+                "title": "ARES: Why Exists"
+            },
+            {
+                "command": "ares.impactAnalysis",
+                "title": "ARES: Impact Analysis"
+            },
+            {
+                "command": "ares.coverageAnalysis",
+                "title": "ARES: Coverage Analysis"
+            },
+            {
+                "command": "ares.simulateChange",
+                "title": "ARES: Simulate Change"
+            },
+            {
+                "command": "ares.driftAnalysis",
+                "title": "ARES: Drift Analysis"
+            },
+            {
+                "command": "ares.traceabilityAnalysis",
+                "title": "ARES: Traceability Analysis"
+            },
+            {
+                "command": "ares.aresHome",
+                "title": "ARES: ARES Home"
+            },
+            {
+                "command": "ares.graphExplorer",
+                "title": "ARES: Graph Explorer"
+            },
+            {
+                "command": "ares.chat",
+                "title": "ARES: Chat"
+            },
+            {
+                "command": "ares.benchmark",
+                "title": "ARES: Benchmark Repository"
+            },
+            {
+                "command": "ares.showDiagnostics",
+                "title": "ARES: Show Diagnostics",
+                "category": "ARES"
+            },
+            {
+                "command": "ares.healthCheck",
+                "title": "ARES: Health Check"
+            },
+            {
+                "command": "ares.recordDecision",
+                "title": "ARES: Record Inline Decision"
+            }
+        ],
+        "menus": {
+            "editor/context": [
+                {
+                    "command": "ares.whyExists",
+                    "group": "ares@1"
+                },
+                {
+                    "command": "ares.impactAnalysis",
+                    "group": "ares@2"
+                },
+                {
+                    "command": "ares.traceabilityAnalysis",
+                    "when": "explorerResourceIsFolder || explorerResourceIsFile",
+                    "group": "ares@4"
+                },
+                {
+                    "command": "ares.simulateChange",
+                    "when": "explorerResourceIsFolder || explorerResourceIsFile",
+                    "group": "ares@5"
+                },
+                {
+                    "command": "ares.driftAnalysis",
+                    "group": "ares@4"
+                },
+                {
+                    "command": "ares.traceabilityAnalysis",
+                    "group": "ares@5"
+                },
+                {
+                    "command": "ares.recordDecision",
+                    "group": "navigation"
+                }
+            ],
+            "explorer/context": [
+                {
+                    "command": "ares.whyExists",
+                    "group": "ares@1"
+                },
+                {
+                    "command": "ares.impactAnalysis",
+                    "group": "ares@2"
+                },
+                {
+                    "command": "ares.driftAnalysis",
+                    "group": "ares@4"
+                },
+                {
+                    "command": "ares.traceabilityAnalysis",
+                    "when": "explorerResourceIsFolder || explorerResourceIsFile",
+                    "group": "ares@5"
+                },
+                {
+                    "command": "ares.simulateChange",
+                    "when": "explorerResourceIsFolder || explorerResourceIsFile",
+                    "group": "ares@6"
+                }
+            ]
         },
-        "ares.mcpPath": {
-          "type": "string",
-          "default": "",
-          "description": "Path to the ares-mcp executable."
+        "configuration": {
+            "title": "ARES Memory OS",
+            "properties": {
+                "ares.cliPath": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Path to the ares executable."
+                },
+                "ares.mcpPath": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Path to the ares-mcp executable."
+                }
+            }
+        },
+        "mcpServers": {
+            "ares-memory-os": {
+                "command": "ares-mcp",
+                "args": [],
+                "cwd": ""
+            }
         }
-      }
-    }
-  },
-  "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "package": "powershell ../../package.ps1",
-    "compile": "esbuild src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node",
-    "watch": "esbuild src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --watch",
-    "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js"
-  },
-  "devDependencies": {
-    "@types/node": "16.x",
-    "@types/vscode": "^1.80.0",
-    "@vscode/vsce": "^3.9.2",
-    "esbuild": "^0.28.1",
-    "typescript": "^5.1.3",
-    "@modelcontextprotocol/sdk": "^1.0.1",
-    "jsdom": "^29.1.1"
-  },
-  "dependencies": {}
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "package": "powershell ../../package.ps1",
+        "compile": "esbuild src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node",
+        "watch": "esbuild src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --watch",
+        "pretest": "npm run compile && npm run lint",
+        "lint": "eslint src --ext ts",
+        "test": "node ./out/test/runTest.js"
+    },
+    "devDependencies": {
+        "@types/node": "16.x",
+        "@types/vscode": "^1.80.0",
+        "@vscode/vsce": "^3.9.2",
+        "esbuild": "^0.28.1",
+        "typescript": "^5.1.3",
+        "@modelcontextprotocol/sdk": "^1.0.1",
+        "jsdom": "^29.1.1"
+    },
+    "dependencies": {}
 }

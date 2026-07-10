@@ -40,10 +40,34 @@ impl EvidenceService {
         repo: &SqliteGraphRepository,
         raw_id: &str,
     ) -> Result<String, AresError> {
-        if raw_id.len() == 36 && raw_id.chars().filter(|&c| c == '-').count() == 4 {
-            return Ok(raw_id.to_string());
+        // Strip canonical prefixes (FILE-, MODULE-, FUNC-, etc.) that get
+        // incorrectly applied to UUIDs by callers like ares_impact
+        let mut cleaned = raw_id;
+        let prefixes = [
+            "FILE-",
+            "MODULE-",
+            "FUNC-",
+            "CLASS-",
+            "STRUCT-",
+            "TRAIT-",
+            "ENUM-",
+            "INTERFACE-",
+            "FOLDER-",
+        ];
+        for prefix in prefixes.iter() {
+            if let Some(stripped) = cleaned.strip_prefix(prefix) {
+                cleaned = stripped;
+                break;
+            }
         }
-        repo.get_id_by_path(raw_id)
+
+        // If stripping produced a UUID, use it directly
+        if cleaned.len() == 36 && cleaned.chars().filter(|&c| c == '-').count() == 4 {
+            return Ok(cleaned.to_string());
+        }
+
+        // Otherwise try the cleaned string as a file path
+        repo.get_id_by_path(cleaned)
     }
 
     pub fn collect(&self, query: &EngineeringQuery) -> Result<EngineeringEvidence, AresError> {
@@ -121,6 +145,85 @@ impl EvidenceService {
                         relationship: etype.to_string(),
                         is_test: Self::is_test_entity(&neighbor.label, &neighbor.file_path, ntype),
                     });
+                }
+            }
+        }
+
+        // --- FIX FOR ARES_IMPACT DEPENDENTS ---
+        // 1. Unresolved module dependents (e.g. imports of unresolved_django.http.request)
+        let mut module_name = node.file_path.clone().unwrap_or(node.label.clone());
+        if let Some(stripped) = module_name.strip_prefix("FILE-") {
+            module_name = stripped.to_string();
+        }
+        if module_name.ends_with(".py") {
+            let mut mod_path = module_name.strip_suffix(".py").unwrap().to_string();
+            mod_path = mod_path.replace("/", ".").replace("\\", ".");
+            if mod_path.ends_with(".__init__") {
+                mod_path = mod_path.strip_suffix(".__init__").unwrap().to_string();
+            }
+            let unresolved_id = format!("unresolved_{}", mod_path);
+            let unresolved_node_id = ares_core::id::NodeId(unresolved_id.clone());
+
+            let mut log_output = format!(
+                "Trying to resolve {} for UUID {}\n",
+                unresolved_id, query.entity_id
+            );
+
+            if let Ok(unresolved_incoming) = repo.get_edges_to(&unresolved_node_id) {
+                log_output.push_str(&format!("Found {} edges\n", unresolved_incoming.len()));
+                for edge in unresolved_incoming {
+                    if let Some(neighbor) = repo.get_node(&edge.from_node_id).ok().flatten() {
+                        let etype = edge.edge_type.as_str();
+                        let ntype = neighbor.node_type.as_str();
+                        log_output.push_str(&format!("Neighbor: {} ({})\n", neighbor.label, ntype));
+                        dependents.push(DependencyRef {
+                            id: edge.from_node_id.as_str().to_string(),
+                            label: neighbor.label.clone(),
+                            node_type: ntype.to_string(),
+                            file_path: neighbor.file_path.clone(),
+                            relationship: format!("{} (module)", etype),
+                            is_test: Self::is_test_entity(
+                                &neighbor.label,
+                                &neighbor.file_path,
+                                ntype,
+                            ),
+                        });
+                    }
+                }
+            } else {
+                log_output.push_str("get_edges_to returned Error\n");
+            }
+            std::fs::write("C:/Users/eswar/.gemini/antigravity-ide/brain/e99bab2d-b695-4fe2-a9e0-6579d3f6bd9f/scratch/rust_debug.txt", log_output).ok();
+        }
+
+        // 2. Dependents of contained nodes (e.g. classes, functions defined in this file)
+        for edge in &outgoing_edges {
+            let etype = edge.edge_type.as_str();
+            if etype == "defines" || etype == "contains" {
+                if let Ok(child_incoming) = repo.get_edges_to(&edge.to_node_id) {
+                    for child_edge in child_incoming {
+                        if child_edge.from_node_id.as_str() == node_id.as_str() {
+                            continue;
+                        }
+                        if let Some(neighbor) =
+                            repo.get_node(&child_edge.from_node_id).ok().flatten()
+                        {
+                            let etype2 = child_edge.edge_type.as_str();
+                            let ntype2 = neighbor.node_type.as_str();
+                            dependents.push(DependencyRef {
+                                id: child_edge.from_node_id.as_str().to_string(),
+                                label: neighbor.label.clone(),
+                                node_type: ntype2.to_string(),
+                                file_path: neighbor.file_path.clone(),
+                                relationship: format!("{} (child)", etype2),
+                                is_test: Self::is_test_entity(
+                                    &neighbor.label,
+                                    &neighbor.file_path,
+                                    ntype2,
+                                ),
+                            });
+                        }
+                    }
                 }
             }
         }

@@ -101,3 +101,5 @@ datasets/repositories/serde/
 datasets/repositories/tiny_repo/
 datasets/repositories/ripgrep/
 datasets/repositories/tokio/
+
+binaries/

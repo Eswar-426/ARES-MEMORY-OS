@@ -226,7 +226,6 @@ struct RecordNavigateInput {
 #[derive(Debug, Deserialize, serde::Serialize, JsonSchema)]
 #[allow(dead_code)]
 struct SimulationInput {
-    project_id: String,
     action: String,
     target_id: String,
     related_id: Option<String>,
