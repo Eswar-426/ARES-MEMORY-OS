@@ -2,7 +2,7 @@
     "name": "ares-memory-vscode",
     "publisher": "eswar426",
     "displayName": "ARES Memory OS",
-    "description": "Zero-context-loss continuity for ARES Memory OS. AI-powered engineering intelligence system.",
+    "description": "Deterministic repository intelligence for AI coding agents. Zero LLM required.",
     "repository": {
         "type": "git",
         "url": "https://github.com/Eswar-426/ARES-MEMORY-OS"
@@ -18,13 +18,16 @@
         "vscode": "^1.80.0"
     },
     "keywords": [
-        "ai",
-        "memory",
-        "code-analysis",
         "mcp",
-        "graph"
+        "knowledge-graph",
+        "code-intelligence",
+        "impact-analysis",
+        "architecture",
+        "traceability",
+        "ai-agents"
     ],
     "categories": [
+        "Programming Languages",
         "Other"
     ],
     "main": "./out/extension.js",
