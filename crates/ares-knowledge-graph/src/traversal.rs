@@ -50,7 +50,8 @@ impl TraversalEngine {
             let name: String = row.get(2).map_err(|e| AresError::Database(e.to_string()))?;
             let props_str: String = row.get(3).map_err(|e| AresError::Database(e.to_string()))?;
             let created_at_str: String = row.get(4).unwrap_or_else(|_| "0".to_string());
-            let created_at: i64 = created_at_str.parse().unwrap_or(0);            let properties: serde_json::Value =
+            let created_at: i64 = created_at_str.parse().unwrap_or(0);
+            let properties: serde_json::Value =
                 serde_json::from_str(&props_str).unwrap_or(serde_json::json!({}));
 
             let node_type = serde_json::from_value(serde_json::json!(node_type_str.clone()))

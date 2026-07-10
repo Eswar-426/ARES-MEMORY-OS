@@ -39,10 +39,8 @@ async fn setup_test_engine() -> (
     (store, kg_store, engine, registry, queries)
 }
 
-async fn seed_authentication_graph(
-    kg_store: &Arc<KnowledgeGraphStore>,
-) {
-    use ares_knowledge_graph::models::{KnowledgeNode, KnowledgeEdge, NodeType, EdgeType};
+async fn seed_authentication_graph(kg_store: &Arc<KnowledgeGraphStore>) {
+    use ares_knowledge_graph::models::{EdgeType, KnowledgeEdge, KnowledgeNode, NodeType};
     use serde_json::json;
 
     let nodes = vec![
@@ -53,33 +51,42 @@ async fn seed_authentication_graph(
         ("OWNER-ALICE", NodeType::Owner, "Alice"),
     ];
     for (id, node_type, name) in nodes {
-        kg_store.upsert_node(&KnowledgeNode {
-            id: id.to_string(),
-            node_type,
-            name: name.to_string(),
-            properties: json!({}),
-            created_at: 1000,
-        }).unwrap();
+        kg_store
+            .upsert_node(&KnowledgeNode {
+                id: id.to_string(),
+                node_type,
+                name: name.to_string(),
+                properties: json!({}),
+                created_at: 1000,
+            })
+            .unwrap();
     }
-    
+
     // Insert edges
     let edges = vec![
         ("EDGE-REQ-DEC", "REQ-AUTH", "DEC-JWT", EdgeType::Drives),
         ("EDGE-GAP-DEC", "GAP-AUTH", "DEC-JWT", EdgeType::Causes),
         ("EDGE-DEC-GAP", "DEC-JWT", "GAP-AUTH", EdgeType::Causes),
         ("EDGE-GAP-RES", "GAP-AUTH", "RES-ROTATION", EdgeType::Causes),
-        ("EDGE-OWNER-DEC", "DEC-JWT", "OWNER-ALICE", EdgeType::ApprovedBy),
+        (
+            "EDGE-OWNER-DEC",
+            "DEC-JWT",
+            "OWNER-ALICE",
+            EdgeType::ApprovedBy,
+        ),
     ];
     for (id, source, target, edge_type) in edges {
-        kg_store.upsert_edge(&KnowledgeEdge {
-            id: id.to_string(),
-            source_id: source.to_string(),
-            target_id: target.to_string(),
-            edge_type,
-            confidence: 1.0,
-            created_at: 1000,
-            properties: json!({}),
-        }).unwrap();
+        kg_store
+            .upsert_edge(&KnowledgeEdge {
+                id: id.to_string(),
+                source_id: source.to_string(),
+                target_id: target.to_string(),
+                edge_type,
+                confidence: 1.0,
+                created_at: 1000,
+                properties: json!({}),
+            })
+            .unwrap();
     }
 }
 
