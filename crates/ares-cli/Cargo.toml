@@ -33,6 +33,7 @@ ares-git-memory = { version = "0.1.0", path = "../ares-git-memory" }
 ares-memory-server = { version = "0.1.0", path = "../ares-memory-server" }
 ares-memory-bootstrap = { path = "../ares-memory-bootstrap" }
 ignore.workspace = true
+ares-intelligence = { version = "0.1.0", path = "../ares-intelligence" }
 
 [[bin]]
 name = "ares"

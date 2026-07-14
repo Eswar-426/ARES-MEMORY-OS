@@ -104,10 +104,40 @@
             {
                 "command": "ares.recordDecision",
                 "title": "ARES: Record Inline Decision"
+            },
+            {
+                "command": "ares.briefing",
+                "title": "ARES: Briefing",
+                "category": "ARES"
+            },
+            {
+                "command": "ares.findDeadCode",
+                "title": "ARES: Find Dead Code",
+                "category": "ARES"
+            },
+            {
+                "command": "ares.generateContextFile",
+                "title": "ARES: Generate Context File (CLAUDE.md)",
+                "category": "ARES"
+            },
+            {
+                "command": "ares.whoOwns",
+                "title": "ARES: Who Owns This",
+                "category": "ARES"
+            },
+            {
+                "command": "ares.decisions",
+                "title": "ARES: Decisions",
+                "category": "ARES"
             }
         ],
         "menus": {
             "editor/context": [
+                {
+                    "command": "ares.whoOwns",
+                    "when": "editorTextFocus",
+                    "group": "navigation"
+                },
                 {
                     "command": "ares.whyExists",
                     "group": "ares@1"

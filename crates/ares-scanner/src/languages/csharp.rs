@@ -3,7 +3,7 @@ use ares_core::{types::event::now_micros, GraphNode, NodeId, NodeType, ProjectId
 use tree_sitter::{Parser, Query, QueryCursor};
 
 pub struct CSharpExtractor {
-    query: Query,
+    query: Option<Query>,
 }
 
 impl CSharpExtractor {
@@ -21,7 +21,7 @@ impl CSharpExtractor {
             (invocation_expression function: (member_access_expression name: (identifier) @name)) @call
             (object_creation_expression type: (identifier) @name) @construct
         "#;
-        let query = Query::new(&language, query_str).expect("Invalid C# Tree-sitter query");
+        let query = super::try_build_query(language, query_str, "C#");
         Self { query }
     }
 }
@@ -57,6 +57,11 @@ impl LanguageExtractor for CSharpExtractor {
         file_path: &str,
         source_code: &str,
     ) -> Result<ExtractionResult, Box<dyn std::error::Error + Send + Sync>> {
+        let query = match &self.query {
+            Some(q) => q,
+            None => return Ok(ExtractionResult { nodes: Vec::new(), edges: Vec::new() }),
+        };
+
         let mut parser = Parser::new();
         parser.set_language(&tree_sitter_c_sharp::language())?;
 
@@ -72,7 +77,7 @@ impl LanguageExtractor for CSharpExtractor {
         let mut references = Vec::new();
 
         let mut cursor = QueryCursor::new();
-        let matches = cursor.matches(&self.query, tree.root_node(), source_code.as_bytes());
+        let matches = cursor.matches(query, tree.root_node(), source_code.as_bytes());
 
         let now = now_micros();
 
@@ -84,7 +89,7 @@ impl LanguageExtractor for CSharpExtractor {
             let mut end_line = 0;
 
             for capture in m.captures {
-                let capture_name = self.query.capture_names()[capture.index as usize];
+                let capture_name = query.capture_names()[capture.index as usize];
                 let text = capture.node.utf8_text(source_code.as_bytes()).unwrap_or("");
 
                 if capture_name == "name" {
@@ -116,7 +121,7 @@ impl LanguageExtractor for CSharpExtractor {
 
             if !name.is_empty() {
                 if let Some(node_type) = node_type_opt {
-                    if node_type == NodeType::Tag && capture_names_contains_import(&m, &self.query)
+                    if node_type == NodeType::Tag && capture_names_contains_import(&m, query)
                     {
                         let import_path = name
                             .replace("using", "")

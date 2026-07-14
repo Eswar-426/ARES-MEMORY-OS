@@ -23,6 +23,7 @@ ares-store = { path = "../ares-store" }
 ares-candidates = { path = "../ares-candidates" }
 ares-git-memory = { path = "../ares-git-memory" }
 ares-knowledge-graph = { path = "../ares-knowledge-graph" }
+rusqlite = "0.32.1"
 
 [dev-dependencies]
 tokio = { workspace = true }

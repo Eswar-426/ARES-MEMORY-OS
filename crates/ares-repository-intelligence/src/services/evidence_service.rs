@@ -190,10 +190,7 @@ impl EvidenceService {
                         });
                     }
                 }
-            } else {
-                log_output.push_str("get_edges_to returned Error\n");
             }
-            std::fs::write("C:/Users/eswar/.gemini/antigravity-ide/brain/e99bab2d-b695-4fe2-a9e0-6579d3f6bd9f/scratch/rust_debug.txt", log_output).ok();
         }
 
         // 2. Dependents of contained nodes (e.g. classes, functions defined in this file)
@@ -270,6 +267,11 @@ impl EvidenceService {
                 }
             }
         }
+
+        // Deduplicate dependents by ID (unresolved-module and child-node
+        // workarounds above can push the same dependent multiple times)
+        let mut seen = std::collections::HashSet::new();
+        dependents.retain(|d| seen.insert(d.id.clone()));
 
         // ── 2. Resolve owner labels ──────────────────────────────
         let owners: Vec<String> = owner_ids

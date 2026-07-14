@@ -1,11 +1,11 @@
 .vscode/**
 .vscode-test/**
 src/**
-media/**
 node_modules/**
 bin/**
 **/*.map
 **/*.ts
 !package.json
 !**/*.js
+!media/**
 tsconfig.json

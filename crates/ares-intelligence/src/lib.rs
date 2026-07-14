@@ -36,3 +36,10 @@ pub mod telemetry;
 pub mod tokens;
 pub mod tools;
 pub mod traceability;
+
+pub mod briefing;
+pub mod context_file;
+pub mod dead_code;
+pub mod hotspots;
+pub mod co_change;
+pub mod decay;

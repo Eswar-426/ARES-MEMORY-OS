@@ -103,3 +103,4 @@ datasets/repositories/ripgrep/
 datasets/repositories/tokio/
 
 binaries/
+PHASE1_TEST_REPORT.md

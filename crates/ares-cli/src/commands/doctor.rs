@@ -17,24 +17,59 @@ pub async fn execute_doctor() -> Result<(), AresError> {
     // 2. Knowledge Graph
     let db_path = ares_dir.join("ares.db");
     if db_path.exists() {
-        if let Ok(store) = ares_store::db::Store::open(&db_path) {
-            if let Ok(conn) = store.get_conn() {
-                if conn
-                    .execute("SELECT 1 FROM graph_nodes LIMIT 1", [])
-                    .is_ok()
-                {
-                    println!("✓ Knowledge Graph (Integrity OK)");
-                } else {
-                    println!("✗ Knowledge Graph (Corrupted)");
-                    std::process::exit(1);
+        match ares_store::db::Store::open(&db_path) {
+            Ok(store) => {
+                match store.get_conn() {
+                    Ok(conn) => {
+                        // Retry logic: transient locks are NOT corruption
+                        let mut last_error = None;
+                        for attempt in 0..3 {
+                            match conn.query_row("SELECT 1 FROM graph_nodes LIMIT 1", [], |_| Ok(())) {
+                                Ok(_) => {
+                                    println!("✓ Knowledge Graph (Integrity OK)");
+                                    last_error = None;
+                                    break;
+                                }
+                                Err(e) => {
+                                    let msg = e.to_string();
+                                    if msg.contains("database is locked") || msg.contains("busy") {
+                                        if attempt < 2 {
+                                            std::thread::sleep(std::time::Duration::from_millis(200));
+                                            continue;
+                                        }
+                                        println!("✗ Knowledge Graph (Locked - another process using it)");
+                                        last_error = Some(e);
+                                    } else if msg.contains("corrupt") || msg.contains("disk I/O error") {
+                                        println!("✗ Knowledge Graph (Corrupted)");
+                                        last_error = Some(e);
+                                        break;
+                                    } else {
+                                        println!("✗ Knowledge Graph (Error: {})", msg);
+                                        last_error = Some(e);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if let Some(_e) = last_error {
+                            std::process::exit(1);
+                        }
+                    }
+                    Err(e) => {
+                        println!("✗ Knowledge Graph (Connection Failed: {})", e);
+                        std::process::exit(1);
+                    }
                 }
-            } else {
-                println!("✗ Knowledge Graph (Connection Failed)");
+            }
+            Err(e) => {
+                let msg = e.to_string();
+                if msg.contains("corrupt") {
+                    println!("✗ Knowledge Graph (Corrupted)");
+                } else {
+                    println!("✗ Knowledge Graph (Failed to open: {})", msg);
+                }
                 std::process::exit(1);
             }
-        } else {
-            println!("✗ Knowledge Graph (Failed to open)");
-            std::process::exit(1);
         }
     } else {
         println!("✗ Knowledge Graph (Not Found)");

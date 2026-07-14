@@ -11,6 +11,11 @@ interface PlatformInfo {
     assetPrefix: string;
 }
 
+export interface EnsureResult {
+    path: string;
+    source: 'bundled' | 'downloaded';
+}
+
 export function getPlatformInfo(): PlatformInfo {
     const platform = process.platform;
     const arch = process.arch;
@@ -85,13 +90,13 @@ function parseTar(buffer: Buffer): Map<string, Buffer> {
     return files;
 }
 
-export async function ensureBinaries(context: vscode.ExtensionContext): Promise<string> {
+export async function ensureBinaries(context: vscode.ExtensionContext): Promise<EnsureResult> {
     const info = getPlatformInfo();
     const binariesDir = path.join(context.extensionPath, 'binaries', info.dir);
     const binaryPath = path.join(binariesDir, info.binaryName);
     
     if (fs.existsSync(binaryPath)) {
-        return binaryPath;
+        return { path: binaryPath, source: 'bundled' };
     }
     
     fs.mkdirSync(binariesDir, { recursive: true });
@@ -145,7 +150,7 @@ export async function ensureBinaries(context: vscode.ExtensionContext): Promise<
                 vscode.window.showInformationMessage('ARES: Engine ready');
             }
         );
-        return binaryPath;
+        return { path: binaryPath, source: 'downloaded' };
     } catch (e: any) {
         const action = await vscode.window.showErrorMessage(
             `ARES engine download failed: ${e.message}`,

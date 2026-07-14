@@ -36,6 +36,16 @@ impl Store {
         conn.execute_batch("PRAGMA journal_mode = WAL;").ok();
         drop(conn);
 
+        // Crash recovery: checkpoint any stale WAL left from a previous crash
+        // This is safe to run every time — if there's nothing to checkpoint, it's a no-op
+        let recovery_conn = rusqlite::Connection::open(path)
+            .map_err(|e| AresError::db(format!("Failed to open DB for crash recovery: {}", e)))?;
+        match recovery_conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);") {
+            Ok(_) => info!("WAL checkpoint completed on open"),
+            Err(e) => tracing::warn!("WAL checkpoint warning (non-fatal): {}", e),
+        }
+        drop(recovery_conn);
+
         let manager =
             SqliteConnectionManager::file(path).with_init(|conn| configure_connection(conn));
 
@@ -299,6 +309,7 @@ fn configure_connection(conn: &Connection) -> Result<(), rusqlite::Error> {
         PRAGMA mmap_size = 268435456;
         PRAGMA cache_size = -8000;
         PRAGMA busy_timeout = 5000;
+        PRAGMA wal_autocheckpoint = 1000;
         ",
     )
 }

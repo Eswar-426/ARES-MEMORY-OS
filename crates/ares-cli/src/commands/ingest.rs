@@ -677,6 +677,29 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         println!("\nCompleted in {}", format_duration(elapsed));
     }
 
+    let project_id = args.path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .filter(|s| !s.is_empty() && *s != ".")
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| {
+            std::env::current_dir()
+                .ok()
+                .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
+                .unwrap_or_else(|| "unknown".to_string())
+        });
+    let workspace_root = args.path.to_str().unwrap_or(".");
+    if let Err(e) = ares_intelligence::context_file::generate_context_file(
+        &raw_store,
+        workspace_root,
+        &project_id,
+        None,
+    ).await {
+        eprintln!("Warning: Failed to auto-generate CLAUDE.md: {}", e);
+    } else {
+        println!("✓ Generated .ares/CLAUDE.md");
+    }
+
     Ok(())
 }
 

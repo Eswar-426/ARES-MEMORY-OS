@@ -25,6 +25,61 @@ function parseAresResponse(result: any, filePath?: string): AresResponse {
         raw = result;
     }
 
+    // Map ares_generate_context_file — result is a file path string
+    if (typeof raw.result === 'string' && (raw.result as string).endsWith('.md')) {
+        raw.query_type = 'context_file';
+        raw.answer = 'Context file written to: ' + raw.result;
+        raw.file_path = raw.result;
+    }
+
+    // Map ares_dead_code — fields are at top level, no result wrapper
+    if (raw.dead_files !== undefined) {
+        raw.query_type = 'dead_code';
+        raw.answer = `${raw.total_dead_files || 0} dead files, ${raw.total_dead_functions || 0} dead functions detected.`;
+    }
+
+    // Map ares_who_owns — contributors in result wrapper
+    if (raw.query_type === 'who_owns' ||
+        (raw.result && Array.isArray(raw.result.contributors)) ||
+        (raw.result && Array.isArray(raw.result) && raw.result.length > 0 && raw.result[0].owner)) {
+        raw.query_type = 'who_owns';
+        raw.owners = raw.result.contributors ? raw.result : raw.result;
+    }
+
+    // Map ares_decisions nested result to flat structure
+    if (raw.query_type === 'decisions' ||
+        (raw.result && Array.isArray(raw.result.decisions)) ||
+        (raw.result && Array.isArray(raw.result) && raw.result.length > 0 && raw.result[0].summary)) {
+        raw.query_type = 'decisions';
+        raw.related_decisions = raw.result.decisions || raw.result || [];
+    }
+
+    // Map ares_briefing nested result to flat structure for webview
+    if (raw.result?.project !== undefined) {
+        raw.query_type = 'briefing';
+        raw.answer = raw.result.recommended_first_action || 'Briefing generated';
+        raw.project = raw.result.project;
+        raw.recent_activity = raw.result.recent_activity;
+        raw.agent_handoff = raw.result.agent_handoff;
+        raw.critical_gaps = raw.result.critical_gaps;
+        raw.context_freshness_hours = raw.result.context_freshness_hours;
+        raw.recommended_first_action = raw.result.recommended_first_action;
+    }
+
+    // Infer query_type from response content when not explicitly set
+    if (!raw.query_type) {
+        const ans = typeof raw.answer === 'string' ? raw.answer : '';
+        if (ans.includes('**Purpose**') && raw.entity) {
+            raw.query_type = 'why_exists';
+        } else if (ans.includes('**Blast Radius**')) {
+            raw.query_type = 'impact';
+        } else if (ans.includes('**Drift Verdict**') || ans.includes('**Stability**')) {
+            raw.query_type = 'drift';
+        } else if (Array.isArray(raw.decisions) || Array.isArray(raw.related_decisions)) {
+            raw.query_type = 'decisions';
+        }
+    }
+
     return {
         ...raw,
         answer: raw.answer ?? raw.explanation ?? '',
@@ -67,6 +122,7 @@ async function runToolCommand(
     output: vscode.OutputChannel,
     commandName: string,
     toolName: string,
+    paramKey: string = 'id',
     uri?: vscode.Uri,
 ): Promise<void> {
     output.appendLine(`\n--- ${commandName} ---`);
@@ -83,8 +139,8 @@ async function runToolCommand(
 
     try {
         const t = Date.now();
-        DiagnosticsPanel.logMcpTraffic('SEND', toolName, { id: targetId });
-        const result = await mcpClient.callTool(toolName, { id: targetId });
+        DiagnosticsPanel.logMcpTraffic('SEND', toolName, { [paramKey]: targetId });
+        const result = await mcpClient.callTool(toolName, { [paramKey]: targetId });
         const response = parseAresResponse(result, targetId);
         DiagnosticsPanel.logMcpTraffic('RECEIVE', toolName, response);
         response.execution_time_ms = Date.now() - t;
@@ -106,16 +162,18 @@ export function registerQueryCommands(
     output: vscode.OutputChannel,
 ): void {
     // Simple tool commands
-    const simple: [string, string, string][] = [
-        ['ares.whyExists',       'Why Exists',       'ares_why_exists'],
-        ['ares.impactAnalysis',  'Impact Analysis',  'ares_impact'],
-        ['ares.driftAnalysis',   'Drift Analysis',   'ares_drift'],
+    const simple: [string, string, string, string][] = [
+        ['ares.whyExists',       'Why Exists',       'ares_why_exists',     'id'],
+        ['ares.impactAnalysis',  'Impact Analysis',  'ares_impact',         'id'],
+        ['ares.driftAnalysis',   'Drift Analysis',   'ares_drift',          'id'],
+        ['ares.whoOwns',         'Who Owns This',    'ares_who_owns',       'file_path'],
+        ['ares.decisions',       'Decisions',        'ares_decisions',      'project_id'],
     ];
 
-    for (const [cmd, name, tool] of simple) {
+    for (const [cmd, name, tool, paramKey] of simple) {
         context.subscriptions.push(
             vscode.commands.registerCommand(cmd, (uri?: vscode.Uri) => {
-                runToolCommand(context, mcpClient, output, name, tool, uri);
+                runToolCommand(context, mcpClient, output, name, tool, paramKey, uri);
             })
         );
     }
@@ -193,4 +251,72 @@ export function registerQueryCommands(
             }
         })
     );
+
+    // ── Briefing ──────────────────────────────────────────────
+    context.subscriptions.push(
+        vscode.commands.registerCommand('ares.briefing', async () => {
+            output.appendLine('\\n--- ARES Briefing ---');
+            const panel = AresQueryPanel.showLoading(context);
+            try {
+                const t = Date.now();
+                const result = await mcpClient.callTool('ares_briefing', {});
+                const response = parseAresResponse(result);
+                response.execution_time_ms = Date.now() - t;
+                AresQueryPanel.show(context, response);
+            } catch (e: any) {
+                AresQueryPanel.showError(context, { message: 'Unable to generate briefing', detail: e.message });
+            }
+        })
+    );
+
+    // ── Dead Code ────────────────────────────────────────────
+    context.subscriptions.push(
+        vscode.commands.registerCommand('ares.findDeadCode', async () => {
+            output.appendLine('\\n--- ARES Dead Code ---');
+            const thresholdStr = await vscode.window.showInputBox({
+                prompt: 'Threshold in days (files older than this are candidates)',
+                placeHolder: '30',
+                validateInput: (v) => {
+                    const n = parseInt(v);
+                    return (isNaN(n) || n < 1) ? 'Must be a positive number' : undefined;
+                }
+            });
+            const args: any = {};
+            if (thresholdStr) { args.threshold_days = parseInt(thresholdStr); }
+            const panel = AresQueryPanel.showLoading(context);
+            try {
+                const t = Date.now();
+                const result = await mcpClient.callTool('ares_dead_code', args);
+                const response = parseAresResponse(result);
+                response.execution_time_ms = Date.now() - t;
+                AresQueryPanel.show(context, response);
+            } catch (e: any) {
+                AresQueryPanel.showError(context, { message: 'Unable to find dead code', detail: e.message });
+            }
+        })
+    );
+
+    // ── Generate Context File (CLAUDE.md) ─────────────────────
+    context.subscriptions.push(
+        vscode.commands.registerCommand('ares.generateContextFile', async () => {
+            output.appendLine('\\n--- Generating Context File ---');
+            const outputPath = await vscode.window.showInputBox({
+                prompt: 'Output path for CLAUDE.md (leave empty for default .ares/CLAUDE.md)',
+                placeHolder: '.ares/CLAUDE.md'
+            });
+            const args: any = {};
+            if (outputPath && outputPath.trim()) { args.output_path = outputPath.trim(); }
+            const panel = AresQueryPanel.showLoading(context);
+            try {
+                const t = Date.now();
+                const result = await mcpClient.callTool('ares_generate_context_file', args);
+                const response = parseAresResponse(result);
+                response.execution_time_ms = Date.now() - t;
+                AresQueryPanel.show(context, response);
+            } catch (e: any) {
+                AresQueryPanel.showError(context, { message: 'Unable to generate context file', detail: e.message });
+            }
+        })
+    );
+
 }

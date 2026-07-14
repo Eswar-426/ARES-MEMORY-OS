@@ -1868,35 +1868,44 @@ async fn main() -> Result<(), BoxError> {
         })
         .build();
 
-    let session_clone_gaps_tool = session_state.clone();
-    let gaps_tool = ToolBuilder::new("ares_gaps")
-        .description("Evaluates knowledge gaps in the traceability graph")
-        .handler(move |_input: ProjectQueryInput| async move {
-            let graph = ares_traceability::TraceabilityGraph::new();
-            let engine = ares_requirements::gaps::KnowledgeGapEngine::new(&graph);
-            let gaps = engine.evaluate_gaps();
-            serde_json::to_string(&gaps)
-                .map(CallToolResult::text)
-                .map_err(|e| {
-                    tower_mcp::Error::internal(format_mcp_error(
-                        "Failed to serialize gaps evaluation",
-                        &e.to_string(),
-                    ))
-                })
-        })
-        .build();
+      let store_gaps = app_state.store.clone();
+      let session_clone_gaps_tool = session_state.clone();
+      let gaps_tool = ToolBuilder::new("ares_gaps")
+          .description("Evaluates knowledge gaps in the traceability graph")
+          .handler(move |input: ProjectQueryInput| {
+              let store = store_gaps.clone();
+              let session = session_clone_gaps_tool.clone();
+              async move {
+                  track_session_call(&session, "ares_gaps", &input);
+                  let mut graph = ares_traceability::TraceabilityGraph::new();
+                  graph.add_provider(Box::new(ares_requirements::RequirementEdgeProvider::new(
+                      store.clone(),
+                  )));
+                  let engine = ares_requirements::gaps::KnowledgeGapEngine::new(&graph);
+                  let gaps = engine.evaluate_gaps();
+                  serde_json::to_string(&gaps)
+                      .map(CallToolResult::text)
+                      .map_err(|e| {
+                          tower_mcp::Error::internal(format_mcp_error(
+                              "Failed to serialize gaps evaluation",
+                              &e.to_string(),
+                          ))
+                      })
+              }
+          })
+          .build();
 
-    let store_sim = app_state.store.clone();
+      let store_sim = app_state.store.clone();
+      let session_clone_sim = session_state.clone();
 
-    let simulate_tool = ToolBuilder::new("ares_simulate")
-        .description("Performs mutation analysis only. Simulates structural changes (e.g., removing a node) to project coverage drops, new gaps, and drift before they happen.")
-        .handler(move |input: SimulationInput| {
-            let session = session_clone_gaps_tool.clone();
-            let store = store_sim.clone();
-            async move {
-                track_session_call(&session, "ares_simulate", &input);
-                track_session_call(&session, "ares_gaps", &input);
-                let target_id = ares_core::canonicalize_node_id(&input.target_id);
+      let simulate_tool = ToolBuilder::new("ares_simulate")
+          .description("Performs mutation analysis only. Simulates structural changes (e.g., removing a node) to project coverage drops, new gaps, and drift before they happen.")
+          .handler(move |input: SimulationInput| {
+              let session = session_clone_sim.clone();
+              let store = store_sim.clone();
+              async move {
+                  track_session_call(&session, "ares_simulate", &input);
+                  let target_id = ares_core::canonicalize_node_id(&input.target_id);
                 let related = input.related_id.as_deref().map(ares_core::canonicalize_node_id);
 
                 let action_enum = match input.action.parse::<ares_intelligence::simulation::SimulationAction>() {
@@ -2315,6 +2324,69 @@ async fn main() -> Result<(), BoxError> {
 
     let store_health = app_state.store.clone();
     let session_clone_health_tool = session_state.clone();
+
+
+
+
+
+
+    let store_dead = app_state.store.clone();
+    let dead_code_tool = ToolBuilder::new("ares_dead_code")
+        .description("Finds dead code in the repository by detecting nodes without incoming dependencies.")
+        .handler(move |_input: EmptyInput| {
+            let store = store_dead.clone();
+            async move {
+                match ares_intelligence::dead_code::find_dead_code(&store, 30).await {
+                    Ok(report) => Ok(CallToolResult::text(serde_json::to_string(&report).unwrap_or_default())),
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed dead code", &e.to_string()))),
+                }
+            }
+        }).build();
+
+    let store_ctxf = app_state.store.clone();
+    let pp_ctxf = project_path.clone();
+    let pid_ctxf = session_state.lock().unwrap().project_id.clone();
+    let context_file_tool = ToolBuilder::new("ares_generate_context_file")
+        .description("Generates a CLAUDE.md context file with hotspots and decisions.")
+        .handler(move |_input: EmptyInput| {
+            let store = store_ctxf.clone();
+            let pp = pp_ctxf.clone();
+            let pid = pid_ctxf.clone();
+            async move {
+                let start = std::time::Instant::now();
+                match ares_intelligence::context_file::generate_context_file(&store, &pp, &pid, None).await {
+                    Ok(report) => Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
+                        "ares_version": "0.1.0",
+                        "evidence": [],
+                        "query_time_ms": start.elapsed().as_millis() as u64,
+                        "result": report
+                    })).unwrap_or_default())),
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed context file", &e.to_string()))),
+                }
+            }
+        }).build();
+
+    let store_brf = app_state.store.clone();
+    let pp_brf = project_path.clone();
+    let briefing_tool = ToolBuilder::new("ares_briefing")
+        .description("Generates a high-level briefing report of the repository.")
+        .handler(move |_input: EmptyInput| {
+            let store = store_brf.clone();
+            let pp = pp_brf.clone();
+            async move {
+                let start = std::time::Instant::now();
+                match ares_intelligence::briefing::generate_briefing(&store, &pp).await {
+                    Ok(report) => Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
+                        "ares_version": "0.1.0",
+                        "evidence": [],
+                        "query_time_ms": start.elapsed().as_millis() as u64,
+                        "result": report
+                    })).unwrap_or_default())),
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed briefing", &e.to_string()))),
+                }
+            }
+        }).build();
+
     let health_tool = ToolBuilder::new("ares_health_check")
         .description("Scans the repository memory graph for gaps (code without decisions, stale decisions, missing ownership) and returns a health score")
         .handler(move |_input: ArchitectureQueryInput| {
@@ -2325,7 +2397,7 @@ async fn main() -> Result<(), BoxError> {
                 let project_name = session.lock().unwrap().project_id.clone();
                 let project_id = ares_core::ProjectId::from(project_name);
 
-                let repo = ares_store::repositories::gaps::SqliteGapRepository::new(store);
+                let repo = ares_store::repositories::gaps::SqliteGapRepository::new(store.clone());
 
                 let mut all_gaps = Vec::new();
                 if let Ok(mut gaps) = repo.get_code_without_decision(&project_id, 30) {
@@ -2351,10 +2423,17 @@ async fn main() -> Result<(), BoxError> {
                     score_breakdown = serde_json::to_value(score).unwrap_or_default();
                 }
 
+                let hotspots = if let Ok(conn) = store.get_conn() {
+                    ares_intelligence::hotspots::calculate_hotspots(&conn, 10).unwrap_or_default()
+                } else {
+                    Vec::new()
+                };
+
                 let result = serde_json::json!({
                     "gaps": all_gaps,
                     "health_score": health_score,
-                    "score_breakdown": score_breakdown
+                    "score_breakdown": score_breakdown,
+                    "hotspots": hotspots
                 });
 
                 Ok(CallToolResult::text(result.to_string()))
@@ -2379,6 +2458,9 @@ async fn main() -> Result<(), BoxError> {
         .tool(scorecard_tool)
         .tool(dashboard_tool)
         .tool(health_tool)
+        .tool(briefing_tool)
+        .tool(context_file_tool)
+        .tool(dead_code_tool)
         .tool(coverage_tool)
         .tool(drift_tool)
         .tool(who_owns_tool)

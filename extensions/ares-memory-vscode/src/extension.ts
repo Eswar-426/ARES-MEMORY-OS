@@ -13,6 +13,7 @@ import { registerHealthCommands } from './commands/health';
 import { registerDiagnosticsCommand } from './diagnosticsPanel';
 import { recordInlineDecision } from './commands/recordDecision';
 import { ensureBinaries, getPlatformInfo } from './binaryDownloader';
+import { setState, AresState } from './state';
 let mcpClient: McpClient;
 let requestManager: RequestManager;
 let aresOutput: vscode.OutputChannel;
@@ -36,9 +37,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // ── Resolve Binaries ─────────────────────────────────────
     let binariesEnsured = false;
+    let binaryEnsureSource = 'none';
     try {
-        await ensureBinaries(context);
+        const ensureResult = await ensureBinaries(context);
         binariesEnsured = true;
+        binaryEnsureSource = ensureResult.source;
+        aresOutput.appendLine(`Binary ensure: ${ensureResult.source} → ${ensureResult.path}`);
     } catch (e) {
         aresOutput.appendLine(`Auto-download failed: ${e}`);
         // Continue to fallback discovery
@@ -48,8 +52,8 @@ export async function activate(context: vscode.ExtensionContext) {
         const info = getPlatformInfo();
         const binDir = path.join(context.extensionPath, 'binaries', info.dir);
         const cliName = info.binaryName.replace('-mcp', ''); // 'ares.exe' or 'ares'
-        aresCliCache = { path: path.join(binDir, cliName), source: 'Auto-Downloaded' };
-        aresMcpCache = { path: path.join(binDir, info.binaryName), source: 'Auto-Downloaded' };
+        aresCliCache = { path: path.join(binDir, cliName), source: binaryEnsureSource === 'bundled' ? 'Bundled' : 'Auto-Downloaded' };
+        aresMcpCache = { path: path.join(binDir, info.binaryName), source: binaryEnsureSource === 'bundled' ? 'Bundled' : 'Auto-Downloaded' };
     } else {
         aresCliCache = await resolveAresCli(context);
         aresMcpCache = await resolveAresMcp(context);
@@ -113,35 +117,35 @@ And copy the resulting executables from \`target/release/\` into the \`extension
     const aresDb = path.join(aresDir, 'ares.db');
     if (!fs.existsSync(aresDb)) {
         if (!aresCliCache) {
-            aresOutput.appendLine('Workspace not initialized and ares CLI not found. Cannot auto-scan.');
-            vscode.window.showErrorMessage('ARES: Workspace not scanned. Please run `ares scan .` manually.');
+            aresOutput.appendLine('Workspace not initialized and ares CLI not found. Cannot auto-ingest.');
+            vscode.window.showErrorMessage('ARES: Workspace not ingested. Please run `ares ingest .` manually.');
             return;
         }
 
-        aresOutput.appendLine(`Workspace not initialized. Running: ${aresCliCache.path} scan .`);
+        aresOutput.appendLine(`Workspace not initialized. Running: ${aresCliCache.path} ingest .`);
         aresOutput.show();
 
         const { spawnSync } = require('child_process') as typeof import('child_process');
-        const result = spawnSync(aresCliCache.path, ['scan'], {
+        const result = spawnSync(aresCliCache.path, ['ingest', '.'], {
             cwd: workspace,
             encoding: 'utf-8',
-            timeout: 120_000,
+            timeout: 300_000,
         });
 
         if (result.error) {
-            aresOutput.appendLine(`Scan failed: ${result.error.message}`);
-            vscode.window.showErrorMessage(`ARES scan failed: ${result.error.message}`);
+            aresOutput.appendLine(`Ingest failed: ${result.error.message}`);
+            vscode.window.showErrorMessage(`ARES ingest failed: ${result.error.message}`);
             return;
         }
 
         if (result.status !== 0) {
-            aresOutput.appendLine(`Scan exited with code ${result.status}`);
+            aresOutput.appendLine(`Ingest exited with code ${result.status}`);
             aresOutput.appendLine(result.stderr || result.stdout);
-            vscode.window.showErrorMessage(`ARES scan failed (exit code ${result.status}). Check ARES output channel.`);
+            vscode.window.showErrorMessage(`ARES ingest failed (exit code ${result.status}). Check ARES output channel.`);
             return;
         }
 
-        aresOutput.appendLine('Scan completed successfully.');
+        aresOutput.appendLine('Ingest completed successfully.');
     } else {
         aresOutput.appendLine(`Database found: ${aresDb}`);
         aresOutput.appendLine(`Checking database integrity...`);
@@ -185,6 +189,7 @@ And copy the resulting executables from \`target/release/\` into the \`extension
     }
 
     aresOutput.appendLine('\nActivation Status: READY\n');
+    setState(AresState.READY);
 
     // ── Initialize Services ──────────────────────────────────
     requestManager = new RequestManager(mcpClient, aresOutput);

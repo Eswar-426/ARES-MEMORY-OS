@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { getState, AresState } from './state';
 import { spawn } from 'child_process';
 import { ResolvedBinary } from './binary-discovery';
 
@@ -6,19 +7,19 @@ export class RepositoryWatcher {
     private dirtyFiles: Set<string> = new Set();
     private debounceTimer: NodeJS.Timeout | null = null;
     private readonly DEBOUNCE_MS = 2000;
-    
+
     constructor(
         private aresOutput: vscode.OutputChannel,
         private aresCli: ResolvedBinary
-    ) {}
+    ) { }
 
     public watch() {
-        const watcher = vscode.workspace.createFileSystemWatcher('**/*.{rs,ts,tsx,js,jsx,md,toml,json}');
-        
+        const watcher = vscode.workspace.createFileSystemWatcher('**/*.{rs,ts,tsx,js,jsx,md,toml,json,py,go,java,c,cpp,h,hpp,cc,cxx,rb,cs,php,kt,kts}');
+
         watcher.onDidChange(uri => this.handleFileEvent(uri));
         watcher.onDidCreate(uri => this.handleFileEvent(uri));
         watcher.onDidDelete(uri => this.handleFileEvent(uri));
-        
+
         this.aresOutput.appendLine('RepositoryWatcher: Listening for file changes...');
     }
 
@@ -48,23 +49,37 @@ export class RepositoryWatcher {
             '/.git/',
             '/.ares/'
         ];
-        
+
         return ignorePatterns.some(pattern => pathStr.includes(pattern));
     }
 
     private flushQueue() {
         if (this.dirtyFiles.size === 0) return;
 
+        const currentState = getState();
+        if (currentState !== AresState.READY) {
+            this.aresOutput.appendLine(`[Watcher] Skipped ${this.dirtyFiles.size} file(s) — state is ${currentState}, not READY`);
+            this.dirtyFiles.clear();
+            return;
+        }
+
+        if (!this.aresCli || !this.aresCli.path) {
+            this.aresOutput.appendLine('[Watcher] Skipped — CLI binary not available');
+            this.dirtyFiles.clear();
+            return;
+        }
+
         const filesToProcess = Array.from(this.dirtyFiles);
         this.dirtyFiles.clear();
 
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (!workspaceFolders) return;
-        
+
         const cwd = workspaceFolders[0].uri.fsPath;
 
         this.aresOutput.appendLine(`\n--- Incremental Ingestion ---`);
         this.aresOutput.appendLine(`Processing ${filesToProcess.length} changed file(s)...`);
+        this.aresOutput.appendLine(`Files: ${filesToProcess.slice(0, 5).join(', ')}${filesToProcess.length > 5 ? '...' : ''}`);
 
         const args = ['ingest', '.', '--incremental', '--files', filesToProcess.join(',')];
 
