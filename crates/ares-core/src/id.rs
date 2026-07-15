@@ -51,13 +51,13 @@ macro_rules! define_id {
 
         impl From<String> for $name {
             fn from(s: String) -> Self {
-                Self(s)
+                Self(s.to_lowercase())
             }
         }
 
         impl From<&str> for $name {
             fn from(s: &str) -> Self {
-                Self(s.to_string())
+                Self(s.to_lowercase())
             }
         }
 

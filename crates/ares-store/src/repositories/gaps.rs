@@ -25,6 +25,8 @@ pub struct GapAlert {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HealthScore {
     pub overall: f64,
+    pub base_score: f64,
+    pub decision_bonus: f64,
     pub files_with_decisions_term: f64,
     pub decisions_with_requirements_term: f64,
     pub files_with_owners_term: f64,
@@ -56,8 +58,7 @@ impl SqliteGapRepository {
                 "SELECT COUNT(*) FROM graph_nodes WHERE project_id = ?1 AND node_type = 'file'",
                 params![project_id.as_str()],
                 |row| row.get(0),
-            )
-            .unwrap_or(0);
+            ).map_err(|e| AresError::Database(e.to_string()))?;
 
         let files_with_decisions: i64 = conn
             .query_row(
@@ -67,16 +68,14 @@ impl SqliteGapRepository {
              WHERE n.project_id = ?1 AND n.node_type = 'file' AND d.node_type = 'decision'",
                 params![project_id.as_str()],
                 |row| row.get(0),
-            )
-            .unwrap_or(0);
+            ).map_err(|e| AresError::Database(e.to_string()))?;
 
         let total_decisions: i64 = conn
             .query_row(
                 "SELECT COUNT(*) FROM graph_nodes WHERE project_id = ?1 AND node_type = 'decision'",
                 params![project_id.as_str()],
                 |row| row.get(0),
-            )
-            .unwrap_or(0);
+            ).map_err(|e| AresError::Database(e.to_string()))?;
 
         let decisions_with_requirements: i64 = conn.query_row(
             "SELECT COUNT(DISTINCT d.id) FROM graph_nodes d
@@ -85,7 +84,7 @@ impl SqliteGapRepository {
              WHERE d.project_id = ?1 AND d.node_type = 'decision'",
             params![project_id.as_str()],
             |row| row.get(0),
-        ).unwrap_or(0);
+        ).map_err(|e| AresError::Database(e.to_string()))?;
 
         let files_with_owners: i64 = conn.query_row(
             "SELECT COUNT(DISTINCT n.id) FROM graph_nodes n
@@ -94,7 +93,7 @@ impl SqliteGapRepository {
              WHERE n.project_id = ?1 AND n.node_type = 'file' AND p.node_type IN ('person', 'team') AND e.edge_type IN ('authored_by', 'contributed_to')",
             params![project_id.as_str()],
             |row| row.get(0),
-        ).unwrap_or(0);
+        ).map_err(|e| AresError::Database(e.to_string()))?;
 
         let thirty_days_micros = 30 * 24 * 60 * 60 * 1_000_000_i64;
         let threshold = Self::now_micros() - thirty_days_micros;
@@ -105,47 +104,47 @@ impl SqliteGapRepository {
              WHERE project_id = ?1 AND node_type = 'decision' AND created_at > ?2",
                 params![project_id.as_str(), threshold],
                 |row| row.get(0),
-            )
-            .unwrap_or(0);
+            ).map_err(|e| AresError::Database(e.to_string()))?;
 
         let stale_decisions = total_decisions - fresh_decisions;
 
-        let term1 = if total_files == 0 {
-            1.0
+        // --- Health Score Calculation ---
+        // Base score: file ownership (always measurable via git blame)
+        let base_score = if total_files == 0 {
+            100.0
         } else {
-            (files_with_decisions as f64) / (total_files as f64)
-        };
-        let term2 = if total_decisions == 0 {
-            1.0
-        } else {
-            (decisions_with_requirements as f64) / (total_decisions as f64)
-        };
-        let term3 = if total_files == 0 {
-            1.0
-        } else {
-            (files_with_owners as f64) / (total_files as f64)
+            (files_with_owners as f64 / (total_files as f64)) * 100.0
         };
 
-        let term4 = if total_decisions == 0 {
+        // Decision health bonus: 0-20 points, only calculated when decisions exist
+        let decision_bonus = if total_decisions == 0 {
             0.0
-        } else if stale_decisions == 0 {
-            if fresh_decisions > 0 {
-                1.0
-            } else {
-                0.0
-            }
         } else {
-            ((fresh_decisions as f64) / (stale_decisions as f64)).min(1.0)
+            let coverage = ((files_with_decisions as f64) / (total_files as f64)).min(1.0);
+            let quality = if total_decisions == 0 {
+                0.0
+            } else {
+                ((decisions_with_requirements as f64) / (total_decisions as f64)).min(1.0)
+            };
+            let freshness = if stale_decisions == 0 {
+                if fresh_decisions > 0 { 1.0 } else { 0.5 }
+            } else {
+                ((fresh_decisions as f64) / (stale_decisions as f64)).min(1.0)
+            };
+            // Weighted: coverage 30%, quality 30%, freshness 40%, max 20 points
+            (coverage * 0.30 + quality * 0.30 + freshness * 0.40) * 20.0
         };
 
-        let overall = (term1 * 0.4 + term2 * 0.3 + term3 * 0.2 + term4 * 0.1) * 100.0;
+        let overall = (base_score + decision_bonus).min(100.0);
 
         Ok(HealthScore {
             overall,
-            files_with_decisions_term: term1,
-            decisions_with_requirements_term: term2,
-            files_with_owners_term: term3,
-            fresh_decisions_term: term4,
+            base_score,
+            decision_bonus,
+            files_with_decisions_term: 0.0,
+            decisions_with_requirements_term: 0.0,
+            files_with_owners_term: 0.0,
+            fresh_decisions_term: 0.0,
             total_files,
             files_with_decisions,
             total_decisions,

@@ -2443,11 +2443,17 @@ async fn main() -> Result<(), BoxError> {
                     all_gaps.append(&mut gaps);
                 }
 
-                let mut health_score = 100.0;
+                let mut health_score = 0.0;
                 let mut score_breakdown = serde_json::json!({});
-                if let Ok(score) = repo.calculate_health_score(&project_id) {
-                    health_score = score.overall;
-                    score_breakdown = serde_json::to_value(score).unwrap_or_default();
+                match repo.calculate_health_score(&project_id) {
+                    Ok(score) => {
+                        health_score = score.overall;
+                        score_breakdown = serde_json::to_value(score).unwrap_or_default();
+                    }
+                    Err(e) => {
+                        // Log so discrepancies like this are visible
+                        eprintln!("[Health] score calculation failed: {}", e);
+                    }
                 }
 
                 let hotspots = if let Ok(conn) = store.get_conn() {
