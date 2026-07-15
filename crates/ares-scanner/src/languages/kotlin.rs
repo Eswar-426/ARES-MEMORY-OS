@@ -14,7 +14,7 @@ impl KotlinExtractor {
             (function_declaration) @function
             (object_declaration) @class
             (package_header) @module
-            (import_header) @import
+            (import) @import
         "#;
         Self { query: super::try_build_query(language, query_str, "Kotlin") }
     }

@@ -30,6 +30,7 @@ const IGNORED_DIRS: &[&str] = &[
     "artifacts",
     "node_modules",
     "dist",
+    "out",
     ".turbo",
     ".ares",
     "scratch",

@@ -44,10 +44,14 @@ export class RepositoryWatcher {
         const ignorePatterns = [
             '/node_modules/',
             '/target/',
+            '/.git/',
             '/dist/',
             '/build/',
-            '/.git/',
-            '/.ares/'
+            '/out/',
+            'package-lock.json',
+            'yarn.lock',
+            'pnpm-lock.yaml',
+            '.ares/CLAUDE.md',
         ];
 
         return ignorePatterns.some(pattern => pathStr.includes(pattern));

@@ -54,7 +54,21 @@ export class McpClient {
 
     async disconnect() {
         if (this.transport) {
-            await this.transport.close();
+            try {
+                // Force-kill the child process to prevent orphans
+                const proc = (this.transport as any).process;
+                if (proc && typeof proc.kill === 'function') {
+                    proc.kill('SIGKILL');
+                }
+            } catch (_e) {
+                // Ignore — process may already be dead
+            }
+            try {
+                await this.transport.close();
+            } catch (_e) {
+                // Ignore — transport may already be closed
+            }
+            this.transport = undefined;
         }
     }
 
