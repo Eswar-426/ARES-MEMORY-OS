@@ -784,7 +784,11 @@ body{background:var(--vscode-editor-background);color:var(--vscode-editor-foregr
                 if (author && author.toLowerCase() !== 'agent') {
                     provenanceBadge = '<span class="provenance-badge provenance-human">human</span>';
                 }
-                var stalenessBadge = '<span class="staleness-badge staleness-fresh">fresh</span>';
+                var stalenessBadge = '';
+                if (dec.staleness) {
+                    var stalenessClass = 'staleness-' + (dec.staleness || 'fresh');
+                    stalenessBadge = '<span class="' + stalenessClass + '" style="font-size:10px;font-weight:600;text-transform:uppercase;margin-left:8px">' + escHtml(dec.staleness) + '</span>';
+                }
                 
                 html += '<div class="a-decision-card">';
                 html += '  <div class="a-decision-meta">';

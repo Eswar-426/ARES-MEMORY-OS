@@ -999,7 +999,11 @@ async fn main() -> Result<(), BoxError> {
 
                         if let Ok(edges) = repo.get_edges_from(&dn.id) {
                             for e in &edges {
-                                files.push(e.to_node_id.as_str().to_string());
+                                if let Ok(Some(node)) = repo.get_node(&e.to_node_id) {
+                                    if let Some(path) = node.file_path {
+                                        files.push(path);
+                                    }
+                                }
                                 if let Some(ref fid) = target_file_id {
                                     if e.to_node_id.as_str() == fid.as_str() {
                                         matches = true;
@@ -1016,12 +1020,20 @@ async fn main() -> Result<(), BoxError> {
                                     }
                                 }
                             }
+                            let decay = if let Ok(conn) = store_arc.get_conn() {
+                                ares_intelligence::decay::calculate_decision_decay(&conn, &dn.created_at.to_string(), &files)
+                            } else {
+                                ares_intelligence::decay::DecayResult { decay_score: 1.0, staleness: "fresh".to_string() }
+                            };
+
                             decisions.push(serde_json::json!({
                                 "id": dn.id.as_str(),
                                 "date": dn.created_at,
                                 "summary": summary,
                                 "author": author,
-                                "files": files
+                                "files": files,
+                                "decay_score": decay.decay_score,
+                                "staleness": decay.staleness
                             }));
                         }
                     }
