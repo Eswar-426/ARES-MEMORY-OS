@@ -55,7 +55,15 @@ impl SqliteGapRepository {
 
         let total_files: i64 = conn
             .query_row(
-                "SELECT COUNT(*) FROM graph_nodes WHERE project_id = ?1 AND node_type = 'file'",
+                "SELECT COUNT(*) FROM graph_nodes WHERE project_id = ?1 AND node_type = 'file' AND (
+                    file_path LIKE '%.rs' OR file_path LIKE '%.ts' OR file_path LIKE '%.tsx' 
+                    OR file_path LIKE '%.js' OR file_path LIKE '%.jsx' OR file_path LIKE '%.py' 
+                    OR file_path LIKE '%.go' OR file_path LIKE '%.java' OR file_path LIKE '%.cpp' 
+                    OR file_path LIKE '%.c' OR file_path LIKE '%.h' OR file_path LIKE '%.cc' 
+                    OR file_path LIKE '%.cxx' OR file_path LIKE '%.hpp' OR file_path LIKE '%.rb' 
+                    OR file_path LIKE '%.cs' OR file_path LIKE '%.php' OR file_path LIKE '%.kt' 
+                    OR file_path LIKE '%.kts'
+                )",
                 params![project_id.as_str()],
                 |row| row.get(0),
             ).map_err(|e| AresError::Database(e.to_string()))?;
@@ -65,7 +73,15 @@ impl SqliteGapRepository {
                 "SELECT COUNT(DISTINCT n.id) FROM graph_nodes n 
              JOIN graph_edges e ON e.to_node_id = n.id
              JOIN graph_nodes d ON e.from_node_id = d.id 
-             WHERE n.project_id = ?1 AND n.node_type = 'file' AND d.node_type = 'decision'",
+             WHERE n.project_id = ?1 AND n.node_type = 'file' AND d.node_type = 'decision' AND (
+                    n.file_path LIKE '%.rs' OR n.file_path LIKE '%.ts' OR n.file_path LIKE '%.tsx' 
+                    OR n.file_path LIKE '%.js' OR n.file_path LIKE '%.jsx' OR n.file_path LIKE '%.py' 
+                    OR n.file_path LIKE '%.go' OR n.file_path LIKE '%.java' OR n.file_path LIKE '%.cpp' 
+                    OR n.file_path LIKE '%.c' OR n.file_path LIKE '%.h' OR n.file_path LIKE '%.cc' 
+                    OR n.file_path LIKE '%.cxx' OR n.file_path LIKE '%.hpp' OR n.file_path LIKE '%.rb' 
+                    OR n.file_path LIKE '%.cs' OR n.file_path LIKE '%.php' OR n.file_path LIKE '%.kt' 
+                    OR n.file_path LIKE '%.kts'
+                )",
                 params![project_id.as_str()],
                 |row| row.get(0),
             ).map_err(|e| AresError::Database(e.to_string()))?;
@@ -90,7 +106,15 @@ impl SqliteGapRepository {
             "SELECT COUNT(DISTINCT n.id) FROM graph_nodes n
              JOIN graph_edges e ON e.to_node_id = n.id
              JOIN graph_nodes p ON e.from_node_id = p.id
-             WHERE n.project_id = ?1 AND n.node_type = 'file' AND p.node_type IN ('person', 'team') AND e.edge_type IN ('authored_by', 'contributed_to')",
+             WHERE n.project_id = ?1 AND n.node_type = 'file' AND p.node_type IN ('person', 'team') AND e.edge_type IN ('authored_by', 'contributed_to') AND (
+                    n.file_path LIKE '%.rs' OR n.file_path LIKE '%.ts' OR n.file_path LIKE '%.tsx' 
+                    OR n.file_path LIKE '%.js' OR n.file_path LIKE '%.jsx' OR n.file_path LIKE '%.py' 
+                    OR n.file_path LIKE '%.go' OR n.file_path LIKE '%.java' OR n.file_path LIKE '%.cpp' 
+                    OR n.file_path LIKE '%.c' OR n.file_path LIKE '%.h' OR n.file_path LIKE '%.cc' 
+                    OR n.file_path LIKE '%.cxx' OR n.file_path LIKE '%.hpp' OR n.file_path LIKE '%.rb' 
+                    OR n.file_path LIKE '%.cs' OR n.file_path LIKE '%.php' OR n.file_path LIKE '%.kt' 
+                    OR n.file_path LIKE '%.kts'
+                )",
             params![project_id.as_str()],
             |row| row.get(0),
         ).map_err(|e| AresError::Database(e.to_string()))?;
@@ -201,6 +225,15 @@ impl SqliteGapRepository {
                AND node_type = 'file' 
                AND created_at < ?2
                AND deleted_at IS NULL
+               AND (
+                    file_path LIKE '%.rs' OR file_path LIKE '%.ts' OR file_path LIKE '%.tsx' 
+                    OR file_path LIKE '%.js' OR file_path LIKE '%.jsx' OR file_path LIKE '%.py' 
+                    OR file_path LIKE '%.go' OR file_path LIKE '%.java' OR file_path LIKE '%.cpp' 
+                    OR file_path LIKE '%.c' OR file_path LIKE '%.h' OR file_path LIKE '%.cc' 
+                    OR file_path LIKE '%.cxx' OR file_path LIKE '%.hpp' OR file_path LIKE '%.rb' 
+                    OR file_path LIKE '%.cs' OR file_path LIKE '%.php' OR file_path LIKE '%.kt' 
+                    OR file_path LIKE '%.kts'
+               )
                AND NOT EXISTS (
                    SELECT 1 FROM graph_edges e
                    JOIN graph_nodes dn ON (e.from_node_id = dn.id OR e.to_node_id = dn.id)
@@ -394,6 +427,15 @@ impl SqliteGapRepository {
              WHERE project_id = ?1 
                AND node_type = 'file'
                AND deleted_at IS NULL
+               AND (
+                    file_path LIKE '%.rs' OR file_path LIKE '%.ts' OR file_path LIKE '%.tsx' 
+                    OR file_path LIKE '%.js' OR file_path LIKE '%.jsx' OR file_path LIKE '%.py' 
+                    OR file_path LIKE '%.go' OR file_path LIKE '%.java' OR file_path LIKE '%.cpp' 
+                    OR file_path LIKE '%.c' OR file_path LIKE '%.h' OR file_path LIKE '%.cc' 
+                    OR file_path LIKE '%.cxx' OR file_path LIKE '%.hpp' OR file_path LIKE '%.rb' 
+                    OR file_path LIKE '%.cs' OR file_path LIKE '%.php' OR file_path LIKE '%.kt' 
+                    OR file_path LIKE '%.kts'
+               )
                AND NOT EXISTS (
                    SELECT 1 FROM graph_edges e
                    WHERE (e.from_node_id = graph_nodes.id OR e.to_node_id = graph_nodes.id)

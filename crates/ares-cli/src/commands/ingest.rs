@@ -160,12 +160,18 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                             | "artifacts"
                             | "node_modules"
                             | "dist"
+                            | "out"
+                            | "build"
                             | ".turbo"
                             | ".ares"
                             | "scratch"
                             | "cert_synthetic"
                             | "apps"
                             | "evaluation"
+                            | "package-lock.json"
+                            | "yarn.lock"
+                            | "pnpm-lock.yaml"
+                            | "Cargo.lock"
                     )
                 })
                 .build();
@@ -237,6 +243,9 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                     let canonical = ares_core::canonicalize_node_id(node.id.as_str());
                     if let Some(scanner_id) = path_to_scanner_id.get(&canonical) {
                         node.id = ares_core::NodeId::from(scanner_id.as_str());
+                    } else {
+                        // Skip file nodes that were not scanned (ghost nodes)
+                        continue;
                     }
                 }
                 if let Err(e) = repo.upsert_node(node) {

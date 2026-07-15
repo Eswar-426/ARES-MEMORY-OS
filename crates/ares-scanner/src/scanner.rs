@@ -22,6 +22,12 @@ const EXTENSIONLESS_FILES: &[&str] = &[
     "Gemfile",
     "Rakefile",
 ];
+const IGNORED_FILES: &[&str] = &[
+    "package-lock.json",
+    "yarn.lock",
+    "pnpm-lock.yaml",
+    "Cargo.lock",
+];
 
 const IGNORED_DIRS: &[&str] = &[
     ".git",
@@ -185,7 +191,7 @@ impl Scanner {
                         } else {
                             name == ignored
                         }
-                    })
+                    }) && !IGNORED_FILES.iter().any(|&ignored_file| name == ignored_file)
                 })
                 .build();
 

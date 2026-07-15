@@ -870,10 +870,10 @@ body{background:var(--vscode-editor-background);color:var(--vscode-editor-foregr
         if (data.score_breakdown && data.score_breakdown.overall !== undefined) {
             var bd = data.score_breakdown;
             html += '<div style="display:flex;gap:16px;margin-top:12px;flex-wrap:wrap">';
-            html += '<div style="font-size:11px;color:var(--vscode-descriptionForeground)">Files w/ Decisions <b style="color:var(--vscode-foreground)">' + Math.round((bd.files_with_decisions_term || 0) * 100) + '%</b></div>';
-            html += '<div style="font-size:11px;color:var(--vscode-descriptionForeground)">Decisions w/ Reqs <b style="color:var(--vscode-foreground)">' + Math.round((bd.decisions_with_requirements_term || 0) * 100) + '%</b></div>';
-            html += '<div style="font-size:11px;color:var(--vscode-descriptionForeground)">Files w/ Owners <b style="color:var(--vscode-foreground)">' + Math.round((bd.files_with_owners_term || 0) * 100) + '%</b></div>';
-            html += '<div style="font-size:11px;color:var(--vscode-descriptionForeground)">Fresh Decisions <b style="color:var(--vscode-foreground)">' + Math.round((bd.fresh_decisions_term || 0) * 100) + '%</b></div>';
+            html += '<div style="font-size:11px;color:var(--vscode-descriptionForeground)">Files w/ Decisions <b style="color:var(--vscode-foreground)">' + Math.round(bd.files_with_decisions_term || 0) + '%</b></div>';
+            html += '<div style="font-size:11px;color:var(--vscode-descriptionForeground)">Decisions w/ Reqs <b style="color:var(--vscode-foreground)">' + Math.round(bd.decisions_with_requirements_term || 0) + '%</b></div>';
+            html += '<div style="font-size:11px;color:var(--vscode-descriptionForeground)">Files w/ Owners <b style="color:var(--vscode-foreground)">' + Math.round(bd.files_with_owners_term || 0) + '%</b></div>';
+            html += '<div style="font-size:11px;color:var(--vscode-descriptionForeground)">Fresh Decisions <b style="color:var(--vscode-foreground)">' + Math.round(bd.fresh_decisions_term || 0) + '%</b></div>';
             html += '</div>';
         }
         html += '</div>';
