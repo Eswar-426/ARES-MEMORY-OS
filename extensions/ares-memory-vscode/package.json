@@ -129,6 +129,10 @@
                 "command": "ares.decisions",
                 "title": "ARES: Decisions",
                 "category": "ARES"
+            },
+            {
+                "command": "ares.architecture",
+                "title": "ARES: Architecture Map"
             }
         ],
         "menus": {

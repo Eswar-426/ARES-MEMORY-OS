@@ -9,7 +9,7 @@ import { AresQueryPanel, AresResponse, AresError } from '../queryPanel';
 // ─────────────────────────────────────────────────────────────
 // Shared MCP response parser
 // ─────────────────────────────────────────────────────────────
-function parseAresResponse(result: any, filePath?: string): AresResponse {
+export function parseAresResponse(result: any, filePath?: string): AresResponse {
     let raw: any = {};
 
     if (result?.content && Array.isArray(result.content)) {

@@ -7,7 +7,8 @@ import { RepositoryWatcher } from './watcher';
 import { RequestManager } from './requestManager';
 import { registerGraphCommand } from './commands/graph';
 import { registerCliCommands } from './commands/cli';
-import { registerQueryCommands } from './commands/query';
+import { registerQueryCommands, parseAresResponse } from './commands/query';
+import { AresQueryPanel } from './queryPanel';
 import { registerDashboardCommand } from './commands/dashboard';
 import { registerHealthCommands } from './commands/health';
 import { registerDiagnosticsCommand } from './diagnosticsPanel';
@@ -207,6 +208,23 @@ And copy the resulting executables from \`target/release/\` into the \`extension
     context.subscriptions.push(vscode.commands.registerCommand('ares.recordDecision', async () => {
         await recordInlineDecision(context, mcpClient);
     }));
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('ares.architecture', async () => {
+            aresOutput.appendLine('\n--- Architecture Map ---');
+            const panel = AresQueryPanel.showLoading(context);
+            try {
+                const t = Date.now();
+                const result = await mcpClient.callTool('ares_architecture', {});
+                const response = parseAresResponse(result);
+                response.query_type = 'architecture';
+                response.execution_time_ms = Date.now() - t;
+                AresQueryPanel.show(context, response);
+            } catch (e: any) {
+                AresQueryPanel.showError(context, { message: 'Architecture analysis failed', detail: e.message });
+            }
+        })
+    );
 }
 
 export function deactivate() {

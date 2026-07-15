@@ -1374,6 +1374,15 @@ async fn main() -> Result<(), BoxError> {
                 let tech_stack: Vec<String> = dep_names.into_iter().take(20).collect();
                 let top: Vec<serde_json::Value> = top_files.iter().map(|(c, p)| serde_json::json!({"path": p, "dependents": c})).collect();
 
+                let cochanges = if let Ok(conn) = store_arc.get_conn() {
+                    ares_intelligence::cochange::detect_hidden_coupling(
+                        &conn, 3, 90, 20,
+                    )
+                    .unwrap_or_default()
+                } else {
+                    Vec::new()
+                };
+
                 Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
                     "result": {
                         "summary": format!("{} files, {} functions, {} commits across {} node types", file_count, func_count, commit_count, type_counts.len()),
@@ -1383,6 +1392,7 @@ async fn main() -> Result<(), BoxError> {
                         "technology_stack": tech_stack,
                         "health_score": 0
                     },
+                    "hidden_coupling": cochanges,
                     "evidence": [{"source": "graph", "confidence": 1.0}],
                     "query_time_ms": start.elapsed().as_millis() as i64
                 })).unwrap()))

@@ -1073,6 +1073,7 @@ body{background:var(--vscode-editor-background);color:var(--vscode-editor-foregr
             { icon: '📋', label: 'Briefing', cmd: 'ares.briefing' },
             { icon: '🔍', label: 'Find Dead Code', cmd: 'ares.findDeadCode' },
             { icon: '🌐', label: 'Graph Explorer', cmd: 'ares.graphExplorer' },
+            { icon: '\uD83C\uDF10', label: 'Architecture Map', cmd: 'ares.architecture' },
             { icon: '🔄', label: 'Ingest / Refresh', cmd: 'ares.ingest' },
         ];
         for (var aj = 0; aj < actions.length; aj++) {
@@ -1125,34 +1126,35 @@ body{background:var(--vscode-editor-background);color:var(--vscode-editor-foregr
             html += '<div class="a-card"><div class="a-card-head">Answer</div><div class="a-card-body">' + renderMarkdown(data.answer) + '</div></div>';
         }
 
-        // Confidence Section
+        // Confidence Section — only show for evidence-based queries
         var raw = data.confidence;
         var score = 0;
         if (typeof raw === 'number') { score = raw; }
         else if (typeof raw === 'string') { score = parseFloat(raw) || 0; }
         else if (raw && typeof raw === 'object') { score = parseFloat(raw.score) || 0; }
         var pct = Math.min(100, Math.max(0, Math.round(score)));
-        var level = pct <= 33 ? 'low' : pct <= 66 ? 'medium' : 'high';
-        var levelText = pct <= 33 ? 'Low' : pct <= 66 ? 'Medium' : 'High';
-        
-        var barColor = pct <= 33 ? 'var(--vscode-problemsErrorIcon-foreground)' : pct <= 66 ? 'var(--vscode-problemsWarningIcon-foreground)' : 'var(--vscode-terminal-ansiGreen)';
-        
-        html += '<div class="a-card"><div class="a-card-head">Confidence</div><div class="a-card-body" style="display:flex;align-items:center;gap:12px">';
-        html += '<div style="font-size:13px;font-weight:600;min-width:60px;color:' + barColor + '">' + levelText + '</div>';
-        html += '<div style="flex:1;height:6px;background:var(--vscode-editor-background);border:1px solid var(--vscode-panel-border);border-radius:3px;overflow:hidden">';
-        html += '<div style="height:100%;width:' + pct + '%;background:' + barColor + ';border-radius:2px"></div></div>';
-        html += '<div style="font-size:13px;font-weight:700;color:' + barColor + '">' + pct + '%</div>';
-        html += '</div>';
-        
         var reasons = (raw && typeof raw === 'object' && Array.isArray(raw.reasons)) ? raw.reasons : [];
-        if (reasons.length > 0) {
-            html += '<div class="a-card-body" style="padding-top:0">';
-            for (var i = 0; i < reasons.length; i++) {
-                html += '<div style="font-size:12px;color:var(--vscode-descriptionForeground);margin-bottom:4px">✓ ' + escHtml(reasons[i]) + '</div>';
+
+        if (pct > 0 || reasons.length > 0) {
+            var level = pct <= 33 ? 'low' : pct <= 66 ? 'medium' : 'high';
+            var levelText = pct <= 33 ? 'Low' : pct <= 66 ? 'Medium' : 'High';
+            var barColor = pct <= 33 ? 'var(--vscode-problemsErrorIcon-foreground)' : pct <= 66 ? 'var(--vscode-problemsWarningIcon-foreground)' : 'var(--vscode-terminal-ansiGreen)';
+
+            html += '<div class="a-card"><div class="a-card-head">Confidence</div><div class="a-card-body" style="display:flex;align-items:center;gap:12px">';
+            html += '<div style="font-size:13px;font-weight:600;min-width:60px;color:' + barColor + '">' + levelText + '</div>';
+            html += '<div style="flex:1;height:6px;background:var(--vscode-editor-background);border:1px solid var(--vscode-panel-border);border-radius:3px;overflow:hidden">';
+            html += '<div style="height:100%;width:' + pct + '%;background:' + barColor + ';border-radius:2px"></div></div>';
+            html += '<div style="font-size:13px;font-weight:700;color:' + barColor + '">' + pct + '%</div>';
+            html += '</div>';
+            if (reasons.length > 0) {
+                html += '<div class="a-card-body" style="padding-top:0">';
+                for (var i = 0; i < reasons.length; i++) {
+                    html += '<div style="font-size:12px;color:var(--vscode-descriptionForeground);margin-bottom:4px">\u2713 ' + escHtml(reasons[i]) + '</div>';
+                }
+                html += '</div>';
             }
             html += '</div>';
         }
-        html += '</div>';
 
         // Evidence Section
         if (data.evidence && data.evidence.length > 0) {
@@ -1219,6 +1221,29 @@ body{background:var(--vscode-editor-background);color:var(--vscode-editor-foregr
                     html += '<div style="font-size:12px;color:var(--vscode-foreground);margin-top:4px;border-left:2px solid var(--vscode-panel-border);padding-left:8px">' + escHtml(orphan) + '</div>';
                 });
             }
+            html += '</div></div>';
+        }
+
+        // Hidden Coupling Section (co-change detection from ares_architecture)
+        if (data.hidden_coupling && data.hidden_coupling.length > 0) {
+            html += '<div class="a-card a-animate-in"><div class="a-card-head">Hidden Coupling Detected</div><div class="a-card-body">';
+            html += '<div style="font-size:12px;color:var(--vscode-descriptionForeground);margin-bottom:12px">Files that change together frequently but have no declared dependency.</div>';
+            data.hidden_coupling.forEach(function(pair, idx) {
+                html += '<div style="border:1px solid var(--vscode-panel-border);border-radius:6px;padding:12px;margin-bottom:8px;animation:slideUp ' + (0.3 + idx * 0.05) + 's ease">';
+                html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+                html += '<span style="font-size:14px;color:var(--vscode-terminal-ansiYellow)">\u26A0\uFE0F</span>';
+                html += '<span style="font-size:12px;font-weight:700;color:var(--vscode-terminal-ansiYellow)">' + pair.co_change_count + ' co-changes in ' + pair.period_days + ' days</span>';
+                html += '</div>';
+                html += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">';
+                html += '<code style="font-size:12px;color:var(--vscode-textLink-foreground);word-break:break-all">' + escHtml(pair.file_a) + '</code>';
+                html += '<div style="text-align:center;font-size:11px;color:var(--vscode-descriptionForeground)">\u2195</div>';
+                html += '<code style="font-size:12px;color:var(--vscode-textLink-foreground);word-break:break-all">' + escHtml(pair.file_b) + '</code>';
+                html += '</div>';
+                if (pair.risk) {
+                    html += '<div style="font-size:11px;color:var(--vscode-problemsWarningIcon-foreground);line-height:1.5">' + escHtml(pair.risk) + '</div>';
+                }
+                html += '</div>';
+            });
             html += '</div></div>';
         }
 

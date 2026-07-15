@@ -41,5 +41,6 @@ pub mod briefing;
 pub mod context_file;
 pub mod dead_code;
 pub mod hotspots;
+pub mod cochange;
 pub mod co_change;
 pub mod decay;
