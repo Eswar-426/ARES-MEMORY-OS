@@ -781,7 +781,7 @@ body{background:var(--vscode-editor-background);color:var(--vscode-editor-foregr
                 var date = escHtml(dec.date || 'Unknown Date');
                 var summary = escHtml(dec.summary || '');
                 var provenanceBadge = '<span class="provenance-badge provenance-agent">agent</span>';
-                if (author && author.toLowerCase() !== 'agent') {
+                if (!dec.source || dec.source !== 'agent') {
                     provenanceBadge = '<span class="provenance-badge provenance-human">human</span>';
                 }
                 var stalenessBadge = '';
@@ -1191,7 +1191,7 @@ body{background:var(--vscode-editor-background);color:var(--vscode-editor-foregr
                 var date = escHtml(dec.date || 'Unknown Date');
                 var summary = escHtml(dec.summary || '');
                 var provenanceBadge = '<span class="provenance-badge provenance-agent">agent</span>';
-                if (author && author.toLowerCase() !== 'agent') {
+                if (!dec.source || dec.source !== 'agent') {
                     provenanceBadge = '<span class="provenance-badge provenance-human">human</span>';
                 }
                 var stalenessBadge = '<span class="staleness-badge staleness-fresh">fresh</span>';

@@ -993,6 +993,10 @@ async fn main() -> Result<(), BoxError> {
                             .get("author")
                             .and_then(|v| v.as_str())
                             .unwrap_or("unknown");
+                        let source = props
+                            .get("source")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("unknown");
 
                         let mut matches = target_file_id.is_none();
                         let mut files: Vec<String> = Vec::new();
@@ -1031,6 +1035,7 @@ async fn main() -> Result<(), BoxError> {
                                 "date": dn.created_at,
                                 "summary": summary,
                                 "author": author,
+                                "source": source.to_string(),
                                 "files": files,
                                 "decay_score": decay.decay_score,
                                 "staleness": decay.staleness
