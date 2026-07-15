@@ -59,6 +59,7 @@ export function registerHealthCommands(
                     gaps: rawResult.gaps || [],
                     health_score: rawResult.health_score || 0,
                     score_breakdown: scoreBreakdown,
+                    hotspots: rawResult.hotspots || [],
                     recent_queries: context.workspaceState.get('ares.recentQueries', []),
                     execution_time_ms: 0,
                 };

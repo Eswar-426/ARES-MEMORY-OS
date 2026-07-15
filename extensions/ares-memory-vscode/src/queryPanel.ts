@@ -895,6 +895,38 @@ body{background:var(--vscode-editor-background);color:var(--vscode-editor-foregr
         countsHtml += '</div>';
         dom.gapCounts.innerHTML = countsHtml;
 
+        // Hotspots section
+        var hotspots = data.hotspots || [];
+        console.log('[Webview] hotspots count:', hotspots.length);
+        if (hotspots.length > 0) {
+            var hotHtml = '<div style="margin-bottom:24px;animation:slideUp .45s ease">';
+            hotHtml += '<div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--vscode-descriptionForeground);margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--vscode-panel-border)">Hotspots (High Churn \u00D7 Complexity)</div>';
+            hotspots.forEach(function(h, idx) {
+                var scorePct = Math.round((h.hotspot_score || 0) * 100);
+                var scoreColor = scorePct > 80 ? 'var(--vscode-problemsErrorIcon-foreground)' : scorePct > 60 ? 'var(--vscode-problemsWarningIcon-foreground)' : 'var(--vscode-terminal-ansiGreen)';
+                var recColor = scorePct > 80 ? 'var(--vscode-problemsErrorIcon-foreground)' : scorePct > 60 ? 'var(--vscode-problemsWarningIcon-foreground)' : 'var(--vscode-descriptionForeground)';
+                hotHtml += '<div style="background:var(--vscode-editor-background);border:1px solid var(--vscode-panel-border);border-radius:8px;padding:12px 16px;margin-bottom:8px;animation:slideUp ' + (0.4 + idx * 0.04) + 's ease">';
+                hotHtml += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+                hotHtml += '<code style="font-size:12px;color:var(--vscode-textLink-foreground);word-break:break-all;flex:1;min-width:0">' + (h.path || '') + '</code>';
+                hotHtml += '<span style="font-size:14px;font-weight:700;color:' + scoreColor + ';margin-left:12px;white-space:nowrap">' + scorePct + '%</span>';
+                hotHtml += '</div>';
+                hotHtml += '<div style="height:4px;background:color-mix(in srgb, var(--vscode-panel-border) 50%, transparent);border-radius:2px;overflow:hidden;margin-bottom:8px">';
+                hotHtml += '<div style="height:100%;width:' + Math.max(2, scorePct) + '%;background:' + scoreColor + ';border-radius:2px"></div>';
+                hotHtml += '</div>';
+                hotHtml += '<div style="display:flex;gap:16px;font-size:11px;color:var(--vscode-descriptionForeground);margin-bottom:6px">';
+                hotHtml += '<span>\uD83D\uDD50 ' + (h.commits_30_days || 0) + ' commits (30d)</span>';
+                hotHtml += '<span>\u2699\uFE0F Complexity: ' + (h.complexity_proxy || 0) + '</span>';
+                hotHtml += '<span>\uD83D\uDC64 ' + (h.owner || 'Unknown') + '</span>';
+                hotHtml += '</div>';
+                if (h.recommendation) {
+                    hotHtml += '<div style="font-size:11px;color:' + recColor + '">' + h.recommendation + '</div>';
+                }
+                hotHtml += '</div>';
+            });
+            hotHtml += '</div>';
+            dom.gapList.innerHTML = hotHtml + dom.gapList.innerHTML;
+        }
+
         var prio = { 'unknown_ownership': 1, 'code_without_decision': 2, 'stale_decision': 3, 'decision_without_code': 4, 'orphaned_requirement': 5 };
         var sorted = gaps.slice().sort(function(a, b) { return (prio[a.gap_type] || 9) - (prio[b.gap_type] || 9); });
         var top10 = sorted.slice(0, 10);
@@ -912,7 +944,7 @@ body{background:var(--vscode-editor-background);color:var(--vscode-editor-foregr
                 listHtml += '<button class="nav-button gap-action" style="width:100%;padding:6px 12px;font-size:12px" data-node="' + (gap.node_label || gap.node_id || '').replace(/"/g, '&quot;') + '" data-details="' + (gap.details || '').replace(/"/g, '&quot;') + '">Create Decision →</button>';
                 listHtml += '</div>';
             });
-            dom.gapList.innerHTML = listHtml;
+            dom.gapList.innerHTML += listHtml;
             
             document.querySelectorAll('.gap-action').forEach(function(btn) {
                 btn.addEventListener('click', function() {
