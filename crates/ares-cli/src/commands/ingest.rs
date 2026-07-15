@@ -163,6 +163,9 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                             | ".turbo"
                             | ".ares"
                             | "scratch"
+                            | "cert_synthetic"
+                            | "apps"
+                            | "evaluation"
                     )
                 })
                 .build();
@@ -511,19 +514,17 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
                 _ => ares_core::EdgeType::RelatedTo,
             };
             // Remap source/target IDs: if a path-based ID has a scanner counterpart, use that
-            let from_id = path_to_scanner_id
-                .get(&edge.source_id)
-                .cloned()
-                .unwrap_or_else(|| normalize_owner_id(&edge.source_id, "from_id"));
-            let to_id = path_to_scanner_id
-                .get(&edge.target_id)
-                .cloned()
-                .unwrap_or_else(|| normalize_owner_id(&edge.target_id, "to_id"));
+            // Only upsert edges where BOTH endpoints exist in the scanner map
+            let from_id = path_to_scanner_id.get(&edge.source_id);
+            let to_id = path_to_scanner_id.get(&edge.target_id);
+            if from_id.is_none() || to_id.is_none() {
+                continue;
+            }
             let ge = ares_core::GraphEdge {
                 id: edge.id.clone(),
                 project_id: project_id.clone(),
-                from_node_id: ares_core::NodeId::from(from_id.as_str()),
-                to_node_id: ares_core::NodeId::from(to_id.as_str()),
+                from_node_id: ares_core::NodeId::from(from_id.unwrap().as_str()),
+                to_node_id: ares_core::NodeId::from(to_id.unwrap().as_str()),
                 edge_type: etype,
                 weight: 1.0,
                 confidence: edge.confidence,

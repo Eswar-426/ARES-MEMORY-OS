@@ -31,9 +31,13 @@ const IGNORED_DIRS: &[&str] = &[
     "node_modules",
     "dist",
     "out",
+    "build",
     ".turbo",
     ".ares",
     "scratch",
+    "cert_synthetic",
+    "evaluation",
+    "apps/dashboard",
 ];
 
 fn should_scan_file(path: &Path) -> bool {
@@ -174,7 +178,14 @@ impl Scanner {
                 .hidden(false)
                 .filter_entry(|e| {
                     let name = e.file_name().to_string_lossy();
-                    !IGNORED_DIRS.contains(&name.as_ref())
+                    let path = e.path().to_string_lossy().replace("\\", "/");
+                    !IGNORED_DIRS.iter().any(|&ignored| {
+                        if ignored.contains('/') {
+                            path.ends_with(ignored) || path.contains(&format!("/{}/", ignored)) || path.contains(&format!("/{}", ignored))
+                        } else {
+                            name == ignored
+                        }
+                    })
                 })
                 .build();
 

@@ -171,6 +171,9 @@ impl BlameExtractor {
             "vendor/",
             ".next/",
             ".nuxt/",
+            "cert_synthetic/",
+            "evaluation/",
+            "apps/dashboard/",
         ];
 
         files.retain(|f| {

@@ -137,14 +137,38 @@ impl SqliteGapRepository {
 
         let overall = (base_score + decision_bonus).min(100.0);
 
+        // Calculate term values for UI display (0-100 scale)
+        let files_with_owners_term = if total_files == 0 {
+            100.0
+        } else {
+            (files_with_owners as f64 / total_files as f64) * 100.0
+        };
+        let files_with_decisions_term = if total_files == 0 {
+            0.0
+        } else {
+            (files_with_decisions as f64 / total_files as f64) * 100.0
+        };
+        let decisions_with_requirements_term = if total_decisions == 0 {
+            0.0
+        } else {
+            (decisions_with_requirements as f64 / total_decisions as f64) * 100.0
+        };
+        let fresh_decisions_term = if total_decisions == 0 {
+            0.0
+        } else if stale_decisions == 0 {
+            if fresh_decisions > 0 { 100.0 } else { 0.0 }
+        } else {
+            (fresh_decisions as f64 / stale_decisions as f64) * 100.0
+        };
+
         Ok(HealthScore {
             overall,
             base_score,
             decision_bonus,
-            files_with_decisions_term: 0.0,
-            decisions_with_requirements_term: 0.0,
-            files_with_owners_term: 0.0,
-            fresh_decisions_term: 0.0,
+            files_with_decisions_term,
+            decisions_with_requirements_term,
+            files_with_owners_term,
+            fresh_decisions_term,
             total_files,
             files_with_decisions,
             total_decisions,
