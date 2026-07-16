@@ -2,11 +2,13 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import * as vscode from "vscode";
 import * as fs from "fs";
+import * as path from "path";
 
 export class McpClient {
     private client: Client;
     private transport?: StdioClientTransport;
     private outputChannel: vscode.OutputChannel;
+    private pidFile?: string;
     public lastError?: string;
 
     constructor(outputChannel: vscode.OutputChannel) {
@@ -17,6 +19,30 @@ export class McpClient {
         }, {
             capabilities: {}
         });
+    }
+
+    /** Kill any previously orphaned MCP process recorded in the PID file. */
+    static killOrphan(workspace: string, outputChannel: vscode.OutputChannel) {
+        const pidFile = path.join(workspace, '.ares', 'ares-mcp.pid');
+        try {
+            if (!fs.existsSync(pidFile)) { return; }
+            const pid = parseInt(fs.readFileSync(pidFile, 'utf-8').trim(), 10);
+            if (isNaN(pid)) { return; }
+            try {
+                // process.kill(pid, 0) throws if PID doesn't exist
+                process.kill(pid, 0);
+                // PID is alive — kill it
+                process.kill(pid);
+                outputChannel.appendLine(`Killed orphaned ares-mcp.exe (PID ${pid})`);
+            } catch (_e) {
+                // PID already gone — nothing to do
+                outputChannel.appendLine(`Orphan PID ${pid} already gone`);
+            }
+        } catch (_e) {
+            // Ignore any file I/O errors
+        } finally {
+            try { fs.rmSync(pidFile, { force: true }); } catch (_e) {}
+        }
     }
 
     async connect(mcpPath: string, source: string): Promise<boolean> {
@@ -43,6 +69,22 @@ export class McpClient {
             });
 
             await this.client.connect(this.transport);
+
+            // Write PID file so next activation can clean up if we crash
+            if (workspace) {
+                const proc = (this.transport as any).process;
+                if (proc?.pid) {
+                    this.pidFile = path.join(workspace, '.ares', 'ares-mcp.pid');
+                    try {
+                        fs.mkdirSync(path.dirname(this.pidFile), { recursive: true });
+                        fs.writeFileSync(this.pidFile, String(proc.pid), 'utf-8');
+                        this.outputChannel.appendLine(`MCP PID ${proc.pid} written to ${this.pidFile}`);
+                    } catch (_e) {
+                        // Non-fatal — PID file is a safety net, not required
+                    }
+                }
+            }
+
             this.outputChannel.appendLine("Successfully connected to ARES MCP.");
             return true;
         } catch (e: any) {
@@ -53,12 +95,19 @@ export class McpClient {
     }
 
     async disconnect() {
+        // Delete PID file first — we are doing a clean shutdown
+        if (this.pidFile) {
+            try { fs.rmSync(this.pidFile, { force: true }); } catch (_e) {}
+            this.pidFile = undefined;
+        }
+
         if (this.transport) {
             try {
-                // Force-kill the child process to prevent orphans
+                // Force-kill the child process to prevent orphans.
+                // No signal argument — on Windows this maps to TerminateProcess.
                 const proc = (this.transport as any).process;
                 if (proc && typeof proc.kill === 'function') {
-                    proc.kill('SIGKILL');
+                    proc.kill();
                 }
             } catch (_e) {
                 // Ignore — process may already be dead

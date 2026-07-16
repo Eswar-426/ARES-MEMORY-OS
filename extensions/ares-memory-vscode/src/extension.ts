@@ -179,6 +179,9 @@ And copy the resulting executables from \`target/release/\` into the \`extension
         }
     }
 
+    // ── Kill any orphaned MCP from a previous crash/uninstall ──
+    McpClient.killOrphan(workspace, aresOutput);
+
     // ── Connect MCP ──────────────────────────────────────────
     aresOutput.appendLine('\n--- Connecting to ARES MCP ---');
     mcpClient = new McpClient(aresOutput);
