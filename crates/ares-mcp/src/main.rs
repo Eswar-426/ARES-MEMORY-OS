@@ -940,6 +940,13 @@ async fn main() -> Result<(), BoxError> {
 
                 contributors.sort_by(|a, b| b["percentage"].as_i64().cmp(&a["percentage"].as_i64()));
 
+                if owner_name.is_empty() && !contributors.is_empty() {
+                    owner_name = contributors[0]["name"].as_str().unwrap_or("").to_string();
+                }
+                if owner_confidence == 0.0 && !contributors.is_empty() {
+                    owner_confidence = 1.0;
+                }
+
                 Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
                     "result": {
                         "owner": owner_name,
@@ -1088,17 +1095,19 @@ async fn main() -> Result<(), BoxError> {
                     .to_string_lossy()
                     .to_string();
                 let project_id = ares_core::ProjectId::from(project_name);
-                let _pattern = format!("%{}%", input.query);
-
+                let query_lower = input.query.to_lowercase();
+                let terms: Vec<&str> = query_lower.split_whitespace().collect();
+                
                 let mut results = Vec::new();
                 if let Ok(all) = repo.get_all_nodes(&project_id) {
                     let mut matched: Vec<_> = all
                         .into_iter()
                         .filter(|n| {
-                            n.label.to_lowercase().contains(&input.query.to_lowercase())
-                                || n.file_path.as_ref().is_some_and(|fp| {
-                                    fp.to_lowercase().contains(&input.query.to_lowercase())
-                                })
+                            let label_lower = n.label.to_lowercase();
+                            let fp_lower = n.file_path.as_ref().map(|s| s.to_lowercase()).unwrap_or_default();
+                            terms.iter().all(|&term| {
+                                label_lower.contains(term) || fp_lower.contains(term)
+                            })
                         })
                         .collect();
                     matched.truncate(input.limit);
@@ -1168,8 +1177,12 @@ async fn main() -> Result<(), BoxError> {
                                     .get("subject")
                                     .and_then(|v| v.as_str())
                                     .unwrap_or("");
+                                let date_str = chrono::DateTime::from_timestamp_micros(*ts)
+                                    .map(|dt| dt.to_rfc3339())
+                                    .unwrap_or_else(|| ts.to_string());
+                                
                                 events.push(serde_json::json!({
-                                    "date": *ts,
+                                    "date": date_str,
                                     "type": "commit",
                                     "summary": subject,
                                     "author": author
@@ -1547,7 +1560,7 @@ async fn main() -> Result<(), BoxError> {
 
                 let mut linked_files = Vec::new();
                 for path in input.impacted_paths {
-                    if let Ok(file_id_str) = repo.get_id_by_path(&path) {
+                    if let Ok(file_id_str) = repo.get_id_by_path_loose(&path) {
                         let file_id = ares_core::NodeId::from(file_id_str);
                         let edge = ares_core::GraphEdge {
                             id: ares_core::new_id(),
@@ -1634,7 +1647,7 @@ async fn main() -> Result<(), BoxError> {
 
                 let mut linked_files = Vec::new();
                 for path in input.satisfies_paths {
-                    if let Ok(file_id_str) = repo.get_id_by_path(&path) {
+                    if let Ok(file_id_str) = repo.get_id_by_path_loose(&path) {
                         let file_id = ares_core::NodeId::from(file_id_str);
                         let edge = ares_core::GraphEdge {
                             id: ares_core::new_id(),

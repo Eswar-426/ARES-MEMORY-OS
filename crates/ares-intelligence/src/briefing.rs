@@ -96,10 +96,12 @@ pub async fn generate_briefing(store: &Store, workspace_root: &str) -> Result<Br
         }
     }
     let ext_map: HashMap<&str, &str> = [
-        ("rs", "Rust"), ("py", "Python"), ("ts", "TypeScript"), ("tsx", "TypeScript"),
-        ("js", "JavaScript"), ("jsx", "JavaScript"), ("go", "Go"), ("java", "Java"),
-        ("cpp", "C++"), ("cc", "C++"), ("h", "C/C++"),
+        ("rs", "Rust"), ("py", "Python"), ("ts", "TypeScript"), ("tsx", "TypeScript/React"),
+        ("js", "JavaScript"), ("jsx", "JavaScript/React"), ("go", "Go"), ("java", "Java"),
+        ("c", "C"), ("cpp", "C++"), ("cc", "C++"), ("cxx", "C++"), ("h", "C/C++"),
         ("rb", "Ruby"), ("cs", "C#"), ("php", "PHP"), ("kt", "Kotlin"),
+        ("toml", "TOML"), ("yaml", "YAML"), ("yml", "YAML"), ("json", "JSON"),
+        ("md", "Markdown"), ("sql", "SQL"), ("ps1", "PowerShell")
     ].iter().copied().collect();
 
     // Primary language: most common file extension
@@ -108,29 +110,44 @@ pub async fn generate_briefing(store: &Store, workspace_root: &str) -> Result<Br
     } else {
         "Unknown".to_string()
     };
-    let tech_stack: Vec<String> = ext_counts.keys()
-        .map(|ext| ext_map.get(ext.as_str()).copied().unwrap_or(ext).to_string())
-        .take(8)
+    
+    let mut sorted_exts: Vec<_> = ext_counts.iter().collect();
+    sorted_exts.sort_by_key(|(_, &c)| std::cmp::Reverse(c));
+    let mut tech_stack: Vec<String> = sorted_exts.into_iter()
+        .filter_map(|(ext, _)| ext_map.get(ext.as_str()).map(|&s| s.to_string()))
         .collect();
+    tech_stack.dedup();
+    tech_stack.truncate(8);
 
-    // Key modules: top 5 files by inbound edge count
+    // Key modules: top 5 files by inbound edge count, plus function count for purpose
     let mut key_modules = Vec::new();
     if let Ok(mut stmt) = conn.prepare(
-        "SELECT n.file_path, COUNT(e.id) as inbound FROM graph_nodes n LEFT JOIN graph_edges e ON e.to_node_id = n.id AND e.valid_until IS NULL WHERE n.node_type = 'file' AND n.file_path IS NOT NULL GROUP BY n.id ORDER BY inbound DESC LIMIT 5"
+        "SELECT n.file_path, n.id, COUNT(e.id) as inbound FROM graph_nodes n LEFT JOIN graph_edges e ON e.to_node_id = n.id AND e.valid_until IS NULL WHERE n.node_type = 'file' AND n.file_path IS NOT NULL GROUP BY n.id ORDER BY inbound DESC LIMIT 5"
     ) {
         let rows = stmt.query_map([], |row| {
             let path: String = row.get(0)?;
-            let inbound: i64 = row.get(1)?;
-            Ok((path, inbound))
+            let id: String = row.get(1)?;
+            let inbound: i64 = row.get(2)?;
+            Ok((path, id, inbound))
         });
         if let Ok(rows) = rows {
             for row in rows.flatten() {
                 let owner = get_owner_for_file(&conn, &row.0);
+                
+                // Count functions in this file for purpose
+                let fn_count: i64 = conn.query_row(
+                    "SELECT COUNT(*) FROM graph_edges e JOIN graph_nodes n ON e.to_node_id = n.id WHERE e.from_node_id = ?1 AND n.node_type IN ('function', 'method')",
+                    [&row.1],
+                    |r| r.get(0)
+                ).unwrap_or(0);
+                
+                let purpose = format!("{} functions, {} inbound dependencies", fn_count, row.2);
+                
                 key_modules.push(KeyModule {
                     path: row.0,
-                    purpose: String::new(),  // Briefing doesn't call why_exists to stay fast
+                    purpose,
                     owner,
-                    inbound_edges: row.1,
+                    inbound_edges: row.2,
                 });
             }
         }
@@ -198,7 +215,7 @@ pub async fn generate_briefing(store: &Store, workspace_root: &str) -> Result<Br
         }
     }
 
-    let recent_summary = if commits_analyzed > 0 {
+    let _recent_summary = if commits_analyzed > 0 {
         format!(
             "{} commits in the last {} days. {} files modified.",
             commits_analyzed, since_days,
@@ -261,6 +278,12 @@ pub async fn generate_briefing(store: &Store, workspace_root: &str) -> Result<Br
     // ── Context Freshness ──────────────────────────────────────
     let context_freshness_hours: f64 = get_context_freshness(&conn);
 
+    let files_changed_count: i64 = conn.query_row(
+        "SELECT COUNT(DISTINCT n.file_path) FROM graph_nodes n JOIN graph_edges e ON (e.from_node_id = n.id OR e.to_node_id = n.id) JOIN graph_nodes c ON (e.from_node_id = c.id OR e.to_node_id = c.id) WHERE n.node_type = 'file' AND c.node_type = 'commit' AND e.edge_type = 'touches' AND c.created_at > ?1",
+        [since_ts],
+        |r| r.get(0)
+    ).unwrap_or(0);
+
     Ok(BriefingPackage {
         project: ProjectSnapshot {
             name: project_name.to_string(),
@@ -278,7 +301,7 @@ pub async fn generate_briefing(store: &Store, workspace_root: &str) -> Result<Br
             files_changed,
             decisions_recorded,
             most_active_module,
-            summary: recent_summary,
+            summary: format!("{} commits analyzed, {} files modified in the last 7 days", commits_analyzed, files_changed_count),
         },
         agent_handoff: AgentHandoff {
             sessions_available,

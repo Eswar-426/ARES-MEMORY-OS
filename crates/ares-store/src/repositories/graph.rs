@@ -283,6 +283,23 @@ impl SqliteGraphRepository {
             })
     }
 
+    /// Resolves a file path to its node UUID using an exact or suffix match
+    pub fn get_id_by_path_loose(&self, file_path: &str) -> Result<String, AresError> {
+        let conn = self.store.get_conn()?;
+        let suffix = format!("%/{}", file_path);
+        let mut stmt = conn
+            .prepare(
+                "SELECT id FROM graph_nodes WHERE (file_path = ?1 OR file_path LIKE ?2) AND node_type = 'file' AND deleted_at IS NULL ORDER BY LENGTH(file_path) ASC LIMIT 1",
+            )
+            .map_err(AresError::db)?;
+
+        stmt.query_row(params![file_path, suffix], |row| row.get(0))
+            .map_err(|_| AresError::NotFound {
+                resource_type: "node",
+                id: file_path.to_string(),
+            })
+    }
+
     pub fn get_by_file_path(
         &self,
         project_id: &ProjectId,

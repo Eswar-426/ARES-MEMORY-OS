@@ -154,15 +154,7 @@ pub async fn simulate(
                         let node_type_str = format!("{:?}", node.node_type);
                         if node_type_str == "Decision" || node_type_str == "Architecture" {
                             impact.affected_decisions.push(node.id.clone());
-                        }
-                    }
-                }
-            }
-            if let Ok(up) = traversal.upstream(target, 5) {
-                for node in up.nodes {
-                    if node.id != target {
-                        let node_type_str = format!("{:?}", node.node_type);
-                        if node_type_str == "Test" {
+                        } else if node_type_str == "Test" {
                             impact.affected_tests.push(node.id.clone());
                         } else {
                             impact.affected_functions.push(node.id.clone());
