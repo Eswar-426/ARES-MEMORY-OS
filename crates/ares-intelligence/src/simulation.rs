@@ -113,10 +113,12 @@ pub async fn simulate(
             if let Ok(down) = traversal.downstream(target, 10) {
                 for node in down.nodes {
                     if node.id != target {
-                        impact.affected_files.push(node.id.clone());
+                        let file_label = node.name.clone();
+                        impact.affected_files.push(file_label);
                         let node_type_str = format!("{:?}", node.node_type);
                         if node_type_str == "Decision" || node_type_str == "Architecture" {
-                            impact.affected_decisions.push(node.id);
+                            let formatted = format!("[{}] {}", node_type_str, node.name);
+                            impact.affected_decisions.push(formatted);
                         }
                     }
                 }
@@ -132,10 +134,12 @@ pub async fn simulate(
             if let Ok(up) = traversal.upstream(target, 5) {
                 for node in up.nodes {
                     if node.id != target {
-                        impact.affected_files.push(node.id.clone());
+                        let file_label = node.name.clone();
+                        impact.affected_files.push(file_label);
                         let node_type_str = format!("{:?}", node.node_type);
                         if node_type_str == "Decision" || node_type_str == "Architecture" {
-                            impact.affected_decisions.push(node.id);
+                            let formatted = format!("[{}] {}", node_type_str, node.name);
+                            impact.affected_decisions.push(formatted);
                         }
                     }
                 }
@@ -153,11 +157,14 @@ pub async fn simulate(
                     if node.id != target {
                         let node_type_str = format!("{:?}", node.node_type);
                         if node_type_str == "Decision" || node_type_str == "Architecture" {
-                            impact.affected_decisions.push(node.id.clone());
+                            let formatted = format!("[{}] {}", node_type_str, node.name);
+                            impact.affected_decisions.push(formatted);
                         } else if node_type_str == "Test" {
-                            impact.affected_tests.push(node.id.clone());
+                            let formatted = format!("[{}] {}", node_type_str, node.name);
+                            impact.affected_tests.push(formatted);
                         } else {
-                            impact.affected_functions.push(node.id.clone());
+                            let formatted = format!("[{}] {}", node_type_str, node.name);
+                            impact.affected_functions.push(formatted);
                         }
                     }
                 }
@@ -173,10 +180,12 @@ pub async fn simulate(
             if let Ok(down) = traversal.downstream(target, 10) {
                 for node in down.nodes {
                     if node.id != target {
-                        impact.affected_files.push(node.id.clone());
+                        let file_label = node.name.clone();
+                        impact.affected_files.push(file_label);
                         let node_type_str = format!("{:?}", node.node_type);
                         if node_type_str == "Decision" || node_type_str == "Architecture" {
-                            impact.affected_decisions.push(node.id);
+                            let formatted = format!("[{}] {}", node_type_str, node.name);
+                            impact.affected_decisions.push(formatted);
                         }
                     }
                 }

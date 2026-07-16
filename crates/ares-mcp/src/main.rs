@@ -1559,6 +1559,7 @@ async fn main() -> Result<(), BoxError> {
                 }
 
                 let mut linked_files = Vec::new();
+                let mut linking_errors = Vec::new();
                 for path in input.impacted_paths {
                     if let Ok(file_id_str) = repo.get_id_by_path_loose(&path) {
                         let file_id = ares_core::NodeId::from(file_id_str);
@@ -1570,14 +1571,17 @@ async fn main() -> Result<(), BoxError> {
                             edge_type: ares_core::EdgeType::RelatedTo,
                             weight: 1.0,
                             confidence: 1.0,
-                            source: "agent_decision".to_string(),
+                            source: "agent".to_string(),
                             valid_from: now,
                             valid_until: None,
                             created_at: now,
                         };
-                        if repo.upsert_edge(edge).is_ok() {
-                            linked_files.push(path);
+                        match repo.upsert_edge(edge) {
+                            Ok(_) => linked_files.push(path),
+                            Err(e) => linking_errors.push(format!("{}: {}", path, e)),
                         }
+                    } else {
+                        linking_errors.push(format!("{}: Not found in graph", path));
                     }
                 }
 
@@ -1585,7 +1589,8 @@ async fn main() -> Result<(), BoxError> {
                     serde_json::to_string(&serde_json::json!({
                         "result": "Decision recorded",
                         "decision_id": node_id.as_str(),
-                        "linked_files": linked_files
+                        "linked_files": linked_files,
+                        "linking_errors": linking_errors
                     }))
                     .unwrap_or_default(),
                 ))
@@ -1646,6 +1651,7 @@ async fn main() -> Result<(), BoxError> {
                 }
 
                 let mut linked_files = Vec::new();
+                let mut linking_errors = Vec::new();
                 for path in input.satisfies_paths {
                     if let Ok(file_id_str) = repo.get_id_by_path_loose(&path) {
                         let file_id = ares_core::NodeId::from(file_id_str);
@@ -1657,14 +1663,17 @@ async fn main() -> Result<(), BoxError> {
                             edge_type: ares_core::EdgeType::RelatedTo,
                             weight: 1.0,
                             confidence: 1.0,
-                            source: "agent_requirement".to_string(),
+                            source: "agent".to_string(),
                             valid_from: now,
                             valid_until: None,
                             created_at: now,
                         };
-                        if repo.upsert_edge(edge).is_ok() {
-                            linked_files.push(path);
+                        match repo.upsert_edge(edge) {
+                            Ok(_) => linked_files.push(path),
+                            Err(e) => linking_errors.push(format!("{}: {}", path, e)),
                         }
+                    } else {
+                        linking_errors.push(format!("{}: Not found in graph", path));
                     }
                 }
 
@@ -1672,7 +1681,8 @@ async fn main() -> Result<(), BoxError> {
                     serde_json::to_string(&serde_json::json!({
                         "result": "Requirement recorded",
                         "requirement_id": node_id.as_str(),
-                        "linked_files": linked_files
+                        "linked_files": linked_files,
+                        "linking_errors": linking_errors
                     }))
                     .unwrap_or_default(),
                 ))

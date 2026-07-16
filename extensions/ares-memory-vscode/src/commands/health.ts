@@ -43,10 +43,10 @@ export function registerHealthCommands(
                 let tooltip = `ARES Repository Health: ${healthScore}/100\n`;
                 if (scoreBreakdown.overall !== undefined) {
                     tooltip += `---\n`;
-                    tooltip += `Files w/ Decisions (40%): ${Math.round((scoreBreakdown.files_with_decisions_term || 0) * 100)}%\n`;
-                    tooltip += `Decisions w/ Reqs (30%): ${Math.round((scoreBreakdown.decisions_with_requirements_term || 0) * 100)}%\n`;
-                    tooltip += `Files w/ Owners (20%): ${Math.round((scoreBreakdown.files_with_owners_term || 0) * 100)}%\n`;
-                    tooltip += `Fresh Decisions (10%): ${Math.round((scoreBreakdown.fresh_decisions_term || 0) * 100)}%`;
+                    tooltip += `Files w/ Decisions (40%): ${Math.round(scoreBreakdown.files_with_decisions_term || 0)}%\n`;
+                    tooltip += `Decisions w/ Reqs (30%): ${Math.round(scoreBreakdown.decisions_with_requirements_term || 0)}%\n`;
+                    tooltip += `Files w/ Owners (20%): ${Math.round(scoreBreakdown.files_with_owners_term || 0)}%\n`;
+                    tooltip += `Fresh Decisions (10%): ${Math.round(scoreBreakdown.fresh_decisions_term || 0)}%`;
                 }
                 aresStatusBar.tooltip = tooltip;
 
