@@ -174,6 +174,12 @@ struct AnnotateInput {
 }
 
 #[derive(Debug, Deserialize, serde::Serialize, JsonSchema)]
+struct EndSessionInput {
+    left_incomplete: Option<String>,
+    recommended_next: Option<String>,
+}
+
+#[derive(Debug, Deserialize, serde::Serialize, JsonSchema)]
 struct CorrectInput {
     target_path: String,
     correction_notes: String,
@@ -1599,7 +1605,15 @@ async fn main() -> Result<(), BoxError> {
             let store_arc = store_rec_dec.clone();
             let pp_local = pp_rec_dec.clone();
             async move {
+                let start = std::time::Instant::now();
                 track_session_call(&session, "ares_record_decision", &input);
+                // Validate required fields
+                if input.title.trim().is_empty() {
+                    return Err(tower_mcp::Error::invalid_params("title is required and must not be empty"));
+                }
+                if input.description.trim().is_empty() {
+                    return Err(tower_mcp::Error::invalid_params("description is required and must not be empty"));
+                }
                 let repo =
                     ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
                 let project_name = std::path::Path::new(&pp_local)
@@ -1670,12 +1684,15 @@ async fn main() -> Result<(), BoxError> {
 
                 Ok(CallToolResult::text(
                     serde_json::to_string(&serde_json::json!({
-                        "result": "Decision recorded",
-                        "decision_id": node_id.as_str(),
-                        "linked_files": linked_files,
-                        "linking_errors": linking_errors
-                    }))
-                    .unwrap_or_default(),
+                        "result": {
+                            "status": "recorded",
+                            "linked_files": linked_files,
+                            "linking_errors": linking_errors
+                        },
+                        "node_id": node_id.as_str(),
+                        "evidence": [{"source": "agent", "confidence": 1.0}],
+                        "query_time_ms": start.elapsed().as_millis() as i64
+                    })).unwrap_or_default(),
                 ))
             }
         })
@@ -1691,7 +1708,14 @@ async fn main() -> Result<(), BoxError> {
             let store_arc = store_rec_req.clone();
             let pp_local = pp_rec_req.clone();
             async move {
+                let start = std::time::Instant::now();
                 track_session_call(&session, "ares_record_requirement", &input);
+                if input.title.trim().is_empty() {
+                    return Err(tower_mcp::Error::invalid_params("title is required and must not be empty"));
+                }
+                if input.description.trim().is_empty() {
+                    return Err(tower_mcp::Error::invalid_params("description is required and must not be empty"));
+                }
                 let repo =
                     ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
                 let project_name = std::path::Path::new(&pp_local)
@@ -1762,12 +1786,15 @@ async fn main() -> Result<(), BoxError> {
 
                 Ok(CallToolResult::text(
                     serde_json::to_string(&serde_json::json!({
-                        "result": "Requirement recorded",
-                        "requirement_id": node_id.as_str(),
-                        "linked_files": linked_files,
-                        "linking_errors": linking_errors
-                    }))
-                    .unwrap_or_default(),
+                        "result": {
+                            "status": "recorded",
+                            "linked_files": linked_files,
+                            "linking_errors": linking_errors
+                        },
+                        "node_id": node_id.as_str(),
+                        "evidence": [{"source": "agent", "confidence": 1.0}],
+                        "query_time_ms": start.elapsed().as_millis() as i64
+                    })).unwrap_or_default(),
                 ))
             }
         })
@@ -1781,51 +1808,69 @@ async fn main() -> Result<(), BoxError> {
             let session = session_clone_annotate_tool.clone();
             let store_arc = store_ann.clone();
             async move {
+                let start = std::time::Instant::now();
                 track_session_call(&session, "ares_annotate", &input);
+                if input.target_path.trim().is_empty() {
+                    return Err(tower_mcp::Error::invalid_params("target_path is required"));
+                }
+                if input.key.trim().is_empty() {
+                    return Err(tower_mcp::Error::invalid_params("key is required"));
+                }
                 let repo =
                     ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
 
-                if let Ok(file_id_str) = repo.get_id_by_path(&input.target_path) {
+                let result = if let Ok(file_id_str) = repo.get_id_by_path(&input.target_path) {
                     let file_id = ares_core::NodeId::from(file_id_str);
                     if let Ok(Some(mut node)) = repo.get_node(&file_id) {
                         if let Some(obj) = node.properties.as_object_mut() {
-                            let mut annotations = obj
-                                .remove("annotations")
-                                .unwrap_or_else(|| serde_json::json!({}));
+                            let mut annotations = obj.remove("annotations").unwrap_or_else(|| serde_json::json!({}));
                             if let Some(ann_obj) = annotations.as_object_mut() {
                                 ann_obj.insert(input.key.clone(), serde_json::json!(input.value));
                             } else {
                                 let mut new_ann_obj = serde_json::Map::new();
-                                new_ann_obj
-                                    .insert(input.key.clone(), serde_json::json!(input.value));
+                                new_ann_obj.insert(input.key.clone(), serde_json::json!(input.value));
                                 annotations = serde_json::Value::Object(new_ann_obj);
                             }
                             obj.insert("annotations".to_string(), annotations);
                             node.updated_at = std::time::SystemTime::now()
-                                .duration_since(std::time::UNIX_EPOCH)
-                                .unwrap()
-                                .as_micros() as i64;
-
+                                .duration_since(std::time::UNIX_EPOCH).unwrap().as_micros() as i64;
                             if repo.upsert_node(node).is_ok() {
-                                return Ok(CallToolResult::text(
-                                    serde_json::to_string(&serde_json::json!({
-                                        "result": "Annotation added",
-                                        "target": input.target_path,
-                                        "key": input.key
-                                    }))
-                                    .unwrap_or_default(),
-                                ));
+                                Some(serde_json::json!({
+                                    "status": "added",
+                                    "target": input.target_path,
+                                    "key": input.key
+                                }))
+                            } else {
+                                Some(serde_json::json!({
+                                    "status": "error",
+                                    "error": "Failed to persist annotation to database"
+                                }))
                             }
+                        } else {
+                            None
                         }
+                    } else {
+                        None
                     }
-                }
+                } else {
+                    None
+                };
 
-                Ok(CallToolResult::text(
-                    serde_json::to_string(&serde_json::json!({
-                        "error": "Failed to add annotation: node not found"
-                    }))
-                    .unwrap_or_default(),
-                ))
+                let response = match result {
+                    Some(r) => serde_json::json!({
+                        "result": r,
+                        "evidence": [{"source": "agent", "confidence": 1.0}],
+                        "query_time_ms": start.elapsed().as_millis() as i64
+                    }),
+                    None => serde_json::json!({
+                        "result": null,
+                        "error": format!("File not found in graph: {}", input.target_path),
+                        "evidence": [],
+                        "query_time_ms": start.elapsed().as_millis() as i64
+                    }),
+                };
+
+                Ok(CallToolResult::text(serde_json::to_string(&response).unwrap_or_default()))
             }
         })
         .build();
@@ -1925,78 +1970,102 @@ async fn main() -> Result<(), BoxError> {
     let session_clone_for_end = session_state.clone();
     let end_session_tool = ToolBuilder::new("ares_end_session")
         .description("Ends the current agent session and persists it to the database")
-        .handler(move |_input: EmptyInput| {
-            let store_arc = store_end.clone();
+        .handler(move |input: EndSessionInput| {
             let session = session_clone_for_end.clone();
+            let store_arc = store_end.clone();
+            let start = std::time::Instant::now();
             async move {
                 let conn = store_arc.get_conn().ok();
 
                 let (tool_calls, files_touched, project_id_str) = {
                     let mut state = session.lock().unwrap();
-                    (
-                        state.tool_calls.drain(..).collect::<Vec<_>>(),
-                        state.files_touched.drain().collect::<Vec<_>>(),
-                        state.project_id.clone(),
-                    )
+                    (state.tool_calls.drain(..).collect::<Vec<_>>(), state.files_touched.drain().collect::<Vec<_>>(), state.project_id.clone())
                 };
 
                 let summary = if tool_calls.is_empty() {
                     "Empty session".to_string()
                 } else {
-                    let tool_names: Vec<&str> = tool_calls.iter().map(|(name, _)| name.as_str()).collect();
-                    let file_list: Vec<&str> = files_touched.iter().map(|s| s.as_str()).collect();
                     format!(
-                        "Tools called: {}. Files touched: {}.",
-                        tool_names.join(", "),
-                        if file_list.len() > 5 {
-                            format!("{} +{} more", file_list[..5].join(", "), file_list.len() - 5)
-                        } else {
-                            file_list.join(", ")
-                        }
+                        "{} tool calls, {} files touched. Top tools: {}",
+                        tool_calls.len(),
+                        files_touched.len(),
+                        tool_calls.iter()
+                            .take(5)
+                            .map(|(name, _)| name.as_str())
+                            .collect::<Vec<_>>()
+                            .join(", ")
                     )
                 };
 
-                let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_micros() as i64;
-                let started = session.lock().unwrap().started_at.elapsed().as_micros() as i64;
                 let session_id = format!("ses_{}", uuid::Uuid::new_v4().simple());
-
                 let mut inserted = false;
+                let mut db_error = None;
+
                 if let Some(conn) = conn {
                     if let Ok(mut stmt) = conn.prepare(
-                        "INSERT INTO agent_sessions (id, project_id, started_at, ended_at, tool_calls, summary, files_touched, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)"
+                        "INSERT INTO agent_sessions (id, project_id, summary, tool_calls, files_touched, started_at, ended_at, left_incomplete, recommended_next) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)"
                     ) {
-                        if stmt.execute(rusqlite::params![
+                        let left_incomplete = input.left_incomplete.as_deref().unwrap_or("");
+                        let recommended_next = input.recommended_next.as_deref().unwrap_or("");
+                        let ended = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_micros() as i64;
+                        match stmt.execute(rusqlite::params![
                             session_id,
                             project_id_str,
-                            started,
-                            now,
-                            serde_json::to_string(&tool_calls).unwrap_or_default(),
                             summary,
+                            serde_json::to_string(&tool_calls).unwrap_or_default(),
                             serde_json::to_string(&files_touched).unwrap_or_default(),
-                            now,
-                            now,
-                        ]).is_ok() {
-                            inserted = true;
+                            start.elapsed().as_secs() as i64,
+                            ended,
+                            left_incomplete,
+                            recommended_next,
+                        ]) {
+                            Ok(_) => inserted = true,
+                            Err(e) => db_error = Some(format!("Database error: {}", e)),
                         }
+                    } else {
+                        db_error = Some("Failed to prepare session insert statement".to_string());
                     }
+                } else {
+                    db_error = Some("No database connection available".to_string());
                 }
 
-                {
+                // ONLY clear session state if successfully persisted
+                if inserted {
                     let mut state = session.lock().unwrap();
                     state.tool_calls.clear();
                     state.files_touched.clear();
                     state.started_at = std::time::Instant::now();
                 }
 
-                Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
-                    "result": {
-                        "session_id": session_id,
-                        "inserted": inserted,
-                        "summary": summary
-                    },
-                    "evidence": [{"source": "agent_sessions", "state": if inserted { "persisted" } else { "failed" }, "confidence": 1.0}],
-                    "query_time_ms": std::time::Instant::now().elapsed().as_millis() as i64
-                })).unwrap_or_default()))
+                let response = if inserted {
+                    serde_json::json!({
+                        "result": {
+                            "session_id": session_id,
+                            "status": "persisted",
+                            "summary": summary,
+                            "tool_calls": tool_calls.len(),
+                            "files_touched": files_touched.len(),
+                            "left_incomplete": input.left_incomplete,
+                            "recommended_next": input.recommended_next
+                        },
+                        "evidence": [{"source": "agent_sessions", "state": "persisted", "confidence": 1.0}],
+                        "query_time_ms": start.elapsed().as_millis() as i64
+                    })
+                } else {
+                    serde_json::json!({
+                        "result": {
+                            "session_id": session_id,
+                            "status": "failed",
+                            "summary": summary,
+                            "error": db_error
+                        },
+                        "evidence": [{"source": "agent_sessions", "state": "failed", "confidence": 0.0}],
+                        "query_time_ms": start.elapsed().as_millis() as i64,
+                        "warnings": ["Session data preserved in memory but not persisted to database. Try again or check database health."]
+                    })
+                };
+
+                Ok(CallToolResult::text(serde_json::to_string(&response).unwrap_or_default()))
             }
         })
         .build();
