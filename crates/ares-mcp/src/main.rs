@@ -2173,8 +2173,8 @@ async fn main() -> Result<(), BoxError> {
                             "warnings": insight.warnings,
                             "recommendations": insight.recommendations,
                             "summary": insight.summary,
-                            "file_path": &input.entity_id,
-                            "entity": &input.entity_id,
+                            "file_path": input.file_path.as_ref().or(input.entity_id.as_ref()),
+                            "entity": input.file_path.as_ref().or(input.entity_id.as_ref()),
                             "mode": insight.mode,
                             "metadata": insight.metadata,
                         });
