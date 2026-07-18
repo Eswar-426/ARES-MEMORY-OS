@@ -438,40 +438,7 @@ async fn main() -> Result<(), BoxError> {
         .build();
 
 
-    // Create the Evolution tool
-    let facade_evolution = facade.clone();
-    let session_clone_evolution_tool = session_state.clone();
-    let store_evolution = app_state.store.clone();
-    let evolution_tool = ToolBuilder::new("ares_evolution")
-        .description("Retrieves the evolutionary timeline of an entity")
-        .handler(move |input: MemoryQueryInput| {
-            let session = session_clone_evolution_tool.clone();
-            let facade = facade_evolution.clone();
-            let store = store_evolution.clone();
-            async move {
-                track_session_call(&session, "ares_evolution", &input);
-                let id_str = match input.resolve_id(&store) {
-                    Ok(i) => i,
-                    Err(e) => return Err(tower_mcp::Error::invalid_params(e)),
-                };
-                let id = ares_core::canonicalize_node_id(&id_str);
-                match facade.evolution(&id) {
-                    Ok(result) => serde_json::to_string(&result)
-                        .map(CallToolResult::text)
-                        .map_err(|e| {
-                            tower_mcp::Error::internal(format_mcp_error(
-                                "Failed to serialize evolution timeline",
-                                &e.to_string(),
-                            ))
-                        }),
-                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
-                        "Failed to retrieve evolution timeline",
-                        &e.to_string(),
-                    ))),
-                }
-            }
-        })
-        .build();
+
 
     // Create the Impact tool
     let intelligence_facade_impact = intelligence_facade.clone();
@@ -2473,6 +2440,19 @@ async fn main() -> Result<(), BoxError> {
 
             async move {
                 track_session_call(&session, "ares_chat", &input);
+
+                // No LLM provider configured — fail clearly instead of silently returning mock data
+                if std::env::var("OPENAI_API_KEY").is_err() 
+                    && std::env::var("ANTHROPIC_API_KEY").is_err() {
+                    return Ok(CallToolResult::text(
+                        serde_json::to_string(&serde_json::json!({
+                            "result": null,
+                            "error": "No LLM provider configured. ares_chat requires an LLM API key (OPENAI_API_KEY or ANTHROPIC_API_KEY).",
+                            "evidence": [],
+                            "query_time_ms": 0
+                        })).unwrap()
+                    ));
+                }
                 let mut registry = ares_repository_intelligence::planner::registry::EngineRegistry::new();
                 registry.register(
                     ares_repository_intelligence::core::engine::EngineId::Overview,
@@ -2669,7 +2649,7 @@ async fn main() -> Result<(), BoxError> {
         .tool(workspace_record_nav_tool)
         .tool(why_tool)
 
-        .tool(evolution_tool)
+
         .tool(impact_tool)
         .tool(compliance_tool)
         .tool(scorecard_tool)
