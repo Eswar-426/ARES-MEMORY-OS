@@ -437,30 +437,6 @@ async fn main() -> Result<(), BoxError> {
         })
         .build();
 
-    // Create the Who tool
-    let facade_who = facade.clone();
-    let store_who = app_state.store.clone();
-    let who_tool = ToolBuilder::new("ares_who_owns")
-        .description("Identifies ownership and authorship information for an entity")
-        .handler(move |input: MemoryQueryInput| {
-            let facade = facade_who.clone();
-            let store = store_who.clone();
-            async move {
-                let id_str = match input.resolve_id(&store) {
-                    Ok(i) => i,
-                    Err(e) => return Err(tower_mcp::Error::invalid_params(e)),
-                };
-                let id = ares_core::canonicalize_node_id(&id_str);
-                match facade.who(&id) {
-                    Ok(result) => Ok(CallToolResult::text(result.to_string())),
-                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
-                        "Failed to identify ownership",
-                        &e.to_string(),
-                    ))),
-                }
-            }
-        })
-        .build();
 
     // Create the Evolution tool
     let facade_evolution = facade.clone();
@@ -2692,7 +2668,7 @@ async fn main() -> Result<(), BoxError> {
         .tool(workspace_navigate_tool)
         .tool(workspace_record_nav_tool)
         .tool(why_tool)
-        .tool(who_tool)
+
         .tool(evolution_tool)
         .tool(impact_tool)
         .tool(compliance_tool)
