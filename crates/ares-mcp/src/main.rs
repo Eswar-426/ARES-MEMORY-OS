@@ -950,16 +950,51 @@ async fn main() -> Result<(), BoxError> {
                     owner_confidence = 1.0;
                 }
 
-                Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
+                // Calculate bus factor (contributors to cover 80%)
+                let mut bus_factor = 0;
+                let mut accumulated = 0;
+                for c in &contributors {
+                    if let Some(pct) = c.get("percentage").and_then(|p| p.as_i64()) {
+                        accumulated += pct;
+                        bus_factor += 1;
+                        if accumulated >= 80 {
+                            break;
+                        }
+                    }
+                }
+
+                // Get last modifier
+                let last_modifier = repo.get_id_by_path(&input.file_path).ok().and_then(|file_id_str| {
+                    let file_id = ares_core::NodeId::from(file_id_str.as_str());
+                    repo.get_edges_to_by_type(&file_id, "touches")
+                        .ok()
+                        .and_then(|edges| {
+                            edges.into_iter()
+                                .max_by_key(|e| e.valid_from)
+                                .and_then(|e| repo.get_node(&e.from_node_id).ok().flatten())
+                                .and_then(|n| {
+                                    n.properties.get("author")
+                                        .and_then(|v| v.as_str())
+                                        .map(|s| s.to_string())
+                                })
+                        })
+                });
+
+                let mut result_json = serde_json::json!({
                     "result": {
                         "owner": owner_name,
                         "confidence": owner_confidence,
                         "commit_percentage": if total_weight > 0.0 { (total_weight * 100.0).round() as i32 } else { 0 },
+                        "bus_factor": bus_factor,
                         "contributors": contributors
                     },
                     "evidence": [{"source": "graph", "confidence": 1.0}],
                     "query_time_ms": start.elapsed().as_millis() as i64
-                })).unwrap()))
+                });
+                if let Some(modifier) = last_modifier {
+                    result_json["result"]["last_modifier"] = serde_json::json!(modifier);
+                }
+                Ok(CallToolResult::text(serde_json::to_string(&result_json).unwrap()))
             }
         })
         .build();
@@ -1213,9 +1248,36 @@ async fn main() -> Result<(), BoxError> {
                     }
                 }
 
+                // Generate narrative summary
+                let narrative = if events.is_empty() {
+                    "No commit history found for this file.".to_string()
+                } else {
+                    let author_set: std::collections::HashSet<String> = events
+                        .iter()
+                        .filter_map(|e| e.get("author").and_then(|a| a.as_str()).map(|s| s.to_string()))
+                        .collect();
+                    format!(
+                        "{} commits by {} contributor{}. {}",
+                        events.len(),
+                        author_set.len(),
+                        if author_set.len() == 1 { "" } else { "s" },
+                        if events.len() > 20 {
+                            "High activity — consider reviewing for refactoring opportunities."
+                        } else if events.len() > 5 {
+                            "Moderate activity."
+                        } else {
+                            "Low activity."
+                        }
+                    )
+                };
+
                 Ok(CallToolResult::text(
                     serde_json::to_string(&serde_json::json!({
-                        "result": { "events": events },
+                        "result": { 
+                            "events": events,
+                            "narrative": narrative,
+                            "total_commits": events.len()
+                        },
                         "evidence": [{"source": "graph", "confidence": 1.0}],
                         "query_time_ms": start.elapsed().as_millis() as i64
                     }))
@@ -2020,9 +2082,12 @@ async fn main() -> Result<(), BoxError> {
                     related.as_deref(),
                     &store,
                 ).await {
-                    Ok(report) => serde_json::to_string(&report)
-                        .map(CallToolResult::text)
-                        .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize simulation report", &e.to_string()))),
+                    Ok(mut report) => {
+                        report.target = input.target_id.clone();
+                        serde_json::to_string(&report)
+                            .map(CallToolResult::text)
+                            .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize simulation report", &e.to_string())))
+                    },
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to simulate change", &e.to_string()))),
                 }
             }

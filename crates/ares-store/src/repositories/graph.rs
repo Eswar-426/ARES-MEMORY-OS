@@ -450,6 +450,25 @@ impl SqliteGraphRepository {
         rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)
     }
 
+    pub fn get_nodes_by_path_fragment(
+        &self,
+        fragment: &str,
+    ) -> Result<Vec<GraphNode>, AresError> {
+        let conn = self.store.get_conn()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, project_id, node_type, label, properties, file_path,
+                        created_at, updated_at, deleted_at
+                 FROM graph_nodes
+                 WHERE file_path LIKE ?1 AND deleted_at IS NULL",
+            )
+            .map_err(AresError::db)?;
+        let rows = stmt
+            .query_map(params![format!("%{}%", fragment)], row_to_node)
+            .map_err(AresError::db)?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)
+    }
+
     pub fn list_nodes_paginated(
         &self,
         project_id: &ProjectId,

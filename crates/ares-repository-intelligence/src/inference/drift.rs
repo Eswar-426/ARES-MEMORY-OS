@@ -22,12 +22,15 @@ impl DeterministicInference for DriftGenerator {
             );
         } else {
             let mut lines = vec![format!("{} total commits.", commit_count)];
-            if commit_count > 10 {
+            if commit_count > 30 {
                 drift_score += 40;
                 lines.push(
                     "⚡ High modification frequency — may be unstable or actively evolving."
                         .to_string(),
                 );
+            } else if commit_count > 10 {
+                drift_score += 15;
+                lines.push("Significant modification history.".to_string());
             } else if commit_count > 3 {
                 drift_score += 20;
                 lines.push("🔄 Moderate modification frequency — normal evolution.".to_string());
@@ -50,10 +53,10 @@ impl DeterministicInference for DriftGenerator {
                     "s"
                 }
             )];
-            if evidence.contributors.len() == 1 && commit_count > 5 {
+            if evidence.contributors.len() == 1 && commit_count > 5 && evidence.dependents.len() > 3 {
                 drift_score += 15;
                 lines.push(
-                    "⚠️ Single author with significant history — bus factor risk.".to_string(),
+                    "⚠️ Single author with high-impact file — bus factor risk.".to_string(),
                 );
             } else if evidence.contributors.len() > 5 {
                 drift_score += 10;

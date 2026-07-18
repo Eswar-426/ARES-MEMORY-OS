@@ -1,8 +1,5 @@
-use ares_knowledge_graph::store::KnowledgeGraphStore;
-use ares_knowledge_graph::traversal::{MemoryTraversal, TraversalEngine};
 use ares_store::Store;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SimulationAction {
@@ -100,30 +97,28 @@ pub async fn simulate(
     _related: Option<&str>,
     store: &Store,
 ) -> anyhow::Result<SimulationResult> {
-    let kg_store = Arc::new(KnowledgeGraphStore::new(Arc::new(store.clone())));
-    let traversal = TraversalEngine::new(kg_store);
+    // Use graph_repo.traverse_impact() — same filtered traversal as ares_impact
+    // (only imports/depends_on/calls/implements, not contains/defines/touches)
+    let graph_repo = ares_store::repositories::graph::SqliteGraphRepository::new(store.clone());
+    let target_id = ares_core::NodeId::from(target);
 
     let mut impact = ImpactGraph::default();
     let mut risk_score = 0.0;
-
     let factors = RiskFactors::default();
 
     let reversible = match action {
         SimulationAction::Remove => {
-            if let Ok(up) = traversal.upstream(target, 10) {
-                for node in up.nodes {
-                    if node.id != target {
-                        let file_label = node.name.clone();
-                        impact.affected_files.push(file_label);
-                        let node_type_str = format!("{:?}", node.node_type);
-                        if node_type_str == "Decision" || node_type_str == "Architecture" {
-                            let formatted = format!("[{}] {}", node_type_str, node.name);
-                            impact.affected_decisions.push(formatted);
-                        }
+            if let Ok(result) = graph_repo.traverse_impact(&target_id, 10) {
+                for entry in &result.impacts {
+                    let node_type_str = format!("{:?}", entry.node.node_type);
+                    let label = entry.node.file_path.as_deref().unwrap_or(&entry.node.label).to_string();
+                    if node_type_str == "Decision" || node_type_str == "Architecture" {
+                        impact.affected_decisions.push(format!("[{}] {}", node_type_str, entry.node.label));
+                    } else {
+                        impact.affected_files.push(label);
                     }
                 }
             }
-
             risk_score +=
                 (impact.affected_files.len() as f32 * 0.05).clamp(0.0, factors.dependency_weight);
             risk_score +=
@@ -131,20 +126,17 @@ pub async fn simulate(
             false
         }
         SimulationAction::Add => {
-            if let Ok(up) = traversal.upstream(target, 5) {
-                for node in up.nodes {
-                    if node.id != target {
-                        let file_label = node.name.clone();
-                        impact.affected_files.push(file_label);
-                        let node_type_str = format!("{:?}", node.node_type);
-                        if node_type_str == "Decision" || node_type_str == "Architecture" {
-                            let formatted = format!("[{}] {}", node_type_str, node.name);
-                            impact.affected_decisions.push(formatted);
-                        }
+            if let Ok(result) = graph_repo.traverse_impact(&target_id, 5) {
+                for entry in &result.impacts {
+                    let node_type_str = format!("{:?}", entry.node.node_type);
+                    let label = entry.node.file_path.as_deref().unwrap_or(&entry.node.label).to_string();
+                    if node_type_str == "Decision" || node_type_str == "Architecture" {
+                        impact.affected_decisions.push(format!("[{}] {}", node_type_str, entry.node.label));
+                    } else {
+                        impact.affected_files.push(label);
                     }
                 }
             }
-
             risk_score +=
                 (impact.affected_files.len() as f32 * 0.05).clamp(0.0, factors.dependency_weight);
             risk_score += (impact.affected_decisions.len() as f32 * 0.15)
@@ -152,24 +144,18 @@ pub async fn simulate(
             impact.affected_decisions.is_empty()
         }
         SimulationAction::Modify => {
-            if let Ok(up) = traversal.upstream(target, 5) {
-                for node in up.nodes {
-                    if node.id != target {
-                        let node_type_str = format!("{:?}", node.node_type);
-                        if node_type_str == "Decision" || node_type_str == "Architecture" {
-                            let formatted = format!("[{}] {}", node_type_str, node.name);
-                            impact.affected_decisions.push(formatted);
-                        } else if node_type_str == "Test" {
-                            let formatted = format!("[{}] {}", node_type_str, node.name);
-                            impact.affected_tests.push(formatted);
-                        } else {
-                            let formatted = format!("[{}] {}", node_type_str, node.name);
-                            impact.affected_functions.push(formatted);
-                        }
+            if let Ok(result) = graph_repo.traverse_impact(&target_id, 5) {
+                for entry in &result.impacts {
+                    let node_type_str = format!("{:?}", entry.node.node_type);
+                    if node_type_str == "Decision" || node_type_str == "Architecture" {
+                        impact.affected_decisions.push(format!("[{}] {}", node_type_str, entry.node.label));
+                    } else if node_type_str == "Test" {
+                        impact.affected_tests.push(format!("[{}] {}", node_type_str, entry.node.label));
+                    } else {
+                        impact.affected_functions.push(format!("[{}] {}", node_type_str, entry.node.label));
                     }
                 }
             }
-
             risk_score +=
                 (impact.affected_functions.len() as f32 * 0.05).clamp(0.0, factors.caller_weight);
             risk_score +=
@@ -177,16 +163,14 @@ pub async fn simulate(
             false
         }
         SimulationAction::Replace => {
-            if let Ok(up) = traversal.upstream(target, 10) {
-                for node in up.nodes {
-                    if node.id != target {
-                        let file_label = node.name.clone();
-                        impact.affected_files.push(file_label);
-                        let node_type_str = format!("{:?}", node.node_type);
-                        if node_type_str == "Decision" || node_type_str == "Architecture" {
-                            let formatted = format!("[{}] {}", node_type_str, node.name);
-                            impact.affected_decisions.push(formatted);
-                        }
+            if let Ok(result) = graph_repo.traverse_impact(&target_id, 10) {
+                for entry in &result.impacts {
+                    let node_type_str = format!("{:?}", entry.node.node_type);
+                    let label = entry.node.file_path.as_deref().unwrap_or(&entry.node.label).to_string();
+                    if node_type_str == "Decision" || node_type_str == "Architecture" {
+                        impact.affected_decisions.push(format!("[{}] {}", node_type_str, entry.node.label));
+                    } else {
+                        impact.affected_files.push(label);
                     }
                 }
             }

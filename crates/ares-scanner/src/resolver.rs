@@ -134,45 +134,86 @@ impl SymbolResolver {
                         }
                         // ── End directory proximity sorting ──────────
 
-                        let best_match = if candidates.is_empty() {
+                        let mut best_match = if candidates.is_empty() {
                             None
                         } else if candidates.len() == 1 {
                             Some(candidates[0].clone())
                         } else {
-                            // Apply resolution priority
+                            None // Handled below
+                        };
 
-                            // 1. Exact module path
-                            let by_mod = candidates.clone();
-                            if let Some(_mod_path) = signature.module_path {
-                                // TODO: if graph nodes store module_path, check it. (Assuming they don't yet, skip or check file_path as proxy)
-                            }
-
-                            // 2. Exact file path
-                            let mut by_file = by_mod.clone();
-                            if let Some(ref file_path) = signature.file_path {
-                                by_file.retain(|n| n.file_path.as_ref() == Some(file_path));
-                            }
-                            if by_file.len() == 1 {
-                                Some(by_file[0].clone())
-                            } else if !by_file.is_empty() {
-                                by_file.first().cloned()
-                            } else {
-                                // 3. Exact type match
-                                let mut by_type = by_mod.clone();
-                                by_type.retain(|n| {
-                                    n.node_type == signature.symbol_type
-                                        || (signature.symbol_type == NodeType::Module
-                                            && n.node_type == NodeType::File)
-                                });
-                                if by_type.len() == 1 {
-                                    Some(by_type[0].clone())
-                                } else if !by_type.is_empty() {
-                                    by_type.first().cloned()
-                                } else {
-                                    candidates.first().cloned()
+                        // ── Cross-crate resolution ────────────────────
+                        // use ares_store::db::Something → find crates/ares-store/src/lib.rs
+                        if best_match.is_none() && candidates.is_empty() {
+                            let separators = ["::", "/"];
+                            for sep in &separators {
+                                if signature.name.contains(sep) {
+                                    let crate_segment = signature.name.split(*sep).next().unwrap_or("");
+                                    if !crate_segment.is_empty() {
+                                        for variant in &[crate_segment.to_string(), crate_segment.replace("_", "-")] {
+                                            if let Ok(matches) = self.graph_repo.get_nodes_by_path_fragment(variant) {
+                                                let lib_matches: Vec<_> = matches
+                                                    .into_iter()
+                                                    .filter(|n| {
+                                                        n.properties.get("unresolved").is_none()
+                                                            && n.node_type == NodeType::File
+                                                            && n.file_path.as_ref()
+                                                                .map(|fp| fp.ends_with("lib.rs"))
+                                                                .unwrap_or(false)
+                                                    })
+                                                    .collect();
+                                                if lib_matches.len() == 1 {
+                                                    candidates = lib_matches;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        if !candidates.is_empty() { break; }
+                                    }
                                 }
                             }
-                        };
+                        }
+                        // ── End cross-crate resolution ────────────────
+                        
+                        if best_match.is_none() && !candidates.is_empty() {
+                            best_match = if candidates.len() == 1 {
+                                Some(candidates[0].clone())
+                            } else {
+                                // Apply resolution priority
+                                
+                                // 1. Exact module path
+                                let by_mod = candidates.clone();
+                                if let Some(_mod_path) = signature.module_path {
+                                    // TODO: if graph nodes store module_path, check it. (Assuming they don't yet, skip or check file_path as proxy)
+                                }
+
+                                // 2. Exact file path
+                                let mut by_file = by_mod.clone();
+                                if let Some(ref file_path) = signature.file_path {
+                                    by_file.retain(|n| n.file_path.as_ref() == Some(file_path));
+                                }
+                                if by_file.len() == 1 {
+                                    Some(by_file[0].clone())
+                                } else if !by_file.is_empty() {
+                                    by_file.first().cloned()
+                                } else {
+                                    // 3. Exact type match
+                                    let mut by_type = by_mod.clone();
+                                    by_type.retain(|n| {
+                                        n.node_type == signature.symbol_type
+                                            || (signature.symbol_type == NodeType::Module
+                                                && n.node_type == NodeType::File)
+                                    });
+                                    if by_type.len() == 1 {
+                                        Some(by_type[0].clone())
+                                    } else if !by_type.is_empty() {
+                                        by_type.first().cloned()
+                                    } else {
+                                        candidates.first().cloned()
+                                    }
+                                }
+                            };
+                        }
 
                         if let Some(best) = best_match {
                             if self
