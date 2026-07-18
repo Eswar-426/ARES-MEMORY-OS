@@ -149,19 +149,7 @@ impl EvidenceService {
                     }
                 }
                 "contained_in" | "defines" | "constructs" | "invokes" => {}
-                "drives" | "related_to" => {
-                    if neighbor.file_path == node.file_path && node.file_path.is_some() {
-                        continue;
-                    }
-                    dependencies.push(DependencyRef {
-                        id: edge.from_node_id.as_str().to_string(),
-                        label: Self::display_label(&neighbor),
-                        node_type: ntype.to_string(),
-                        file_path: neighbor.file_path.clone(),
-                        relationship: etype.to_string(),
-                        is_test: Self::is_test_entity(&neighbor.label, &neighbor.file_path, ntype),
-                    });
-                }
+                "drives" | "related_to" => {}
                 _ => {
                     // Skip unresolved references
                     if neighbor.properties.get("unresolved").is_some() {

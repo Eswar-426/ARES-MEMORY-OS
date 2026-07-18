@@ -1976,8 +1976,38 @@ async fn main() -> Result<(), BoxError> {
               let store = store_sim.clone();
               async move {
                   track_session_call(&session, "ares_simulate", &input);
-                  let target_id = ares_core::canonicalize_node_id(&input.target_id);
-                let related = input.related_id.as_deref().map(ares_core::canonicalize_node_id);
+                  
+                  let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store.clone());
+                  
+                  // Resolve path to node ID (same as ares_impact)
+                  let target_id = if input.target_id.starts_with("file:") 
+                      || input.target_id.starts_with("0") {
+                      ares_core::canonicalize_node_id(&input.target_id)
+                  } else {
+                      match repo.get_id_by_path_loose(&input.target_id) {
+                          Ok(id) => id,
+                          Err(_) => return Ok(CallToolResult::text(
+                              serde_json::to_string(&serde_json::json!({
+                                  "action": input.action,
+                                  "target": input.target_id,
+                                  "impact_radius": [],
+                                  "decision_conflicts": [],
+                                  "risk_score": 0,
+                                  "summary": format!("Entity '{}' not found in graph", input.target_id),
+                                  "reversible": false
+                              })).unwrap()
+                          )),
+                      }
+                  };
+                  
+                  let related = input.related_id.as_deref().map(|r| {
+                      if r.starts_with("file:") || r.starts_with("0") {
+                          ares_core::canonicalize_node_id(r)
+                      } else {
+                          repo.get_id_by_path_loose(r)
+                              .unwrap_or_else(|_| ares_core::canonicalize_node_id(r))
+                      }
+                  });
 
                 let action_enum = match input.action.parse::<ares_intelligence::simulation::SimulationAction>() {
                     Ok(a) => a,
