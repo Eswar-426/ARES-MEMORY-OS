@@ -84,15 +84,15 @@ impl LanguageExtractor for GoExtractor {
                     if node_type == NodeType::Tag && capture_names_contains_import(&m, &self.query)
                     {
                         let import_path = name.replace("\"", "").trim().to_string();
-                        let unresolved_node_id =
-                            ares_core::NodeId::from(format!("unresolved_{}", import_path));
+                        let file_key = file_path.replace('/', "_").replace('\\', "_");
+                        let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, import_path));
                         let unresolved_node = GraphNode {
                             id: unresolved_node_id.clone(),
                             project_id: project_id.clone(),
                             node_type: NodeType::Module,
                             label: import_path.clone(),
                             properties: serde_json::json!({"unresolved": true}),
-                            file_path: None,
+                            file_path: Some(file_path.to_string()),
                             created_at: now,
                             updated_at: now,
                             deleted_at: None,
@@ -111,7 +111,7 @@ impl LanguageExtractor for GoExtractor {
                             edge_type: ares_core::EdgeType::Imports,
                             weight: 1.0,
                             confidence: 0.5,
-                            source: format!("import:{}", import_path),
+                            source: "scanner".to_string(),
                             valid_from: now,
                             valid_until: None,
                             created_at: now,

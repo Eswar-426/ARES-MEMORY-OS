@@ -203,14 +203,15 @@ impl LanguageExtractor for RubyExtractor {
                 RefType::Call => ares_core::EdgeType::Calls,
             };
 
-            let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}", r.name));
+            let file_key = file_path.replace('/', "_").replace('\\', "_");
+            let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, r.name));
             let expected_type = match r.ref_type {
                 RefType::Call => NodeType::Method,
             };
 
             let signature = ares_core::types::node::SymbolSignature {
                 name: r.name.clone(),
-                file_path: None,
+                file_path: Some(file_path.to_string()),
                 module_path: None,
                 symbol_type: expected_type.clone(),
             };
@@ -224,7 +225,7 @@ impl LanguageExtractor for RubyExtractor {
                     "unresolved": true,
                     "signature": signature
                 }),
-                file_path: None,
+                file_path: Some(file_path.to_string()),
                 created_at: now,
                 updated_at: now,
                 deleted_at: None,

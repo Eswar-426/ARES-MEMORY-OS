@@ -126,15 +126,82 @@ impl LanguageExtractor for RustExtractor {
 
             if !name.is_empty() {
                 if let Some(node_type) = node_type_opt {
+                    // === External module declaration (mod foo; without body) ===
+                    if node_type == NodeType::Module {
+                        let module_capture = m
+                            .captures
+                            .iter()
+                            .find(|c| self.query.capture_names()[c.index as usize] == "module");
+                        let is_external = module_capture
+                            .map(|c| {
+                                let mod_text = c
+                                    .node
+                                    .utf8_text(source_code.as_bytes())
+                                    .unwrap_or("");
+                                // External: "mod foo;" or "pub mod foo;" — no curly brace
+                                // Inline:  "mod foo { ... }" — has curly brace
+                                !mod_text.contains('{')
+                            })
+                            .unwrap_or(false);
+
+                        if is_external {
+                            let file_key = file_path.replace('/', "_").replace('\\', "_");
+                            let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, name));
+                            let signature = ares_core::types::node::SymbolSignature {
+                                name: name.clone(),
+                                file_path: Some(file_path.to_string()),
+                                module_path: None,
+                                symbol_type: NodeType::Module,
+                            };
+                            let unresolved_node = GraphNode {
+                                id: unresolved_node_id.clone(),
+                                project_id: project_id.clone(),
+                                node_type: NodeType::Module,
+                                label: name.clone(),
+                                properties: serde_json::json!({
+                                    "unresolved": true,
+                                    "signature": signature,
+                                    "declaring_file": file_path.to_string()
+                                }),
+                                file_path: Some(file_path.to_string()),
+                                created_at: now,
+                                updated_at: now,
+                                deleted_at: None,
+                            };
+                            nodes.push(unresolved_node);
+
+                            let edge = ares_core::GraphEdge {
+                                id: format!(
+                                    "edge_import_mod_{}_{}",
+                                    file_node_id.as_str(),
+                                    unresolved_node_id.as_str()
+                                ),
+                                project_id: project_id.clone(),
+                                from_node_id: file_node_id.clone(),
+                                to_node_id: unresolved_node_id.clone(),
+                                edge_type: ares_core::EdgeType::Imports,
+                                weight: 1.0,
+                                confidence: 0.8,
+                                source: "scanner".to_string(),
+                                valid_from: now,
+                                valid_until: None,
+                                created_at: now,
+                            };
+                            edges.push(edge);
+                            continue;
+                        }
+                    }
+                    // === END NEW ===
+
                     if node_type == NodeType::Tag && capture_names_contains_import(&m, &self.query)
                     {
                         let import_path =
                             name.replace("use ", "").replace(";", "").trim().to_string();
-                        let unresolved_node_id =
-                            ares_core::NodeId::from(format!("unresolved_{}", import_path));
+                        let file_key = file_path.replace('/', "_").replace('\\', "_");
+                        let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, import_path));
                         let signature = ares_core::types::node::SymbolSignature {
                             name: import_path.clone(),
-                            file_path: None,
+                            file_path: Some(file_path.to_string()),
                             module_path: None,
                             symbol_type: NodeType::Module,
                         };
@@ -147,7 +214,7 @@ impl LanguageExtractor for RustExtractor {
                                 "unresolved": true,
                                 "signature": signature
                             }),
-                            file_path: None,
+                            file_path: Some(file_path.to_string()),
                             created_at: now,
                             updated_at: now,
                             deleted_at: None,
@@ -166,7 +233,7 @@ impl LanguageExtractor for RustExtractor {
                             edge_type: ares_core::EdgeType::Imports,
                             weight: 1.0,
                             confidence: 0.5,
-                            source: format!("import:{}", import_path),
+                            source: "scanner".to_string(),
                             valid_from: now,
                             valid_until: None,
                             created_at: now,
@@ -268,7 +335,8 @@ impl LanguageExtractor for RustExtractor {
                 RefType::ImplTrait => ares_core::EdgeType::Implements,
             };
 
-            let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}", r.name));
+            let file_key = file_path.replace('/', "_").replace('\\', "_");
+            let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, r.name));
             let expected_type = match r.ref_type {
                 RefType::Call => NodeType::Function,
                 RefType::MethodCall => NodeType::Method,
@@ -278,7 +346,7 @@ impl LanguageExtractor for RustExtractor {
 
             let signature = ares_core::types::node::SymbolSignature {
                 name: r.name.clone(),
-                file_path: None,
+                file_path: Some(file_path.to_string()),
                 module_path: None,
                 symbol_type: expected_type.clone(),
             };
@@ -290,9 +358,10 @@ impl LanguageExtractor for RustExtractor {
                 label: r.name.clone(),
                 properties: serde_json::json!({
                     "unresolved": true,
-                    "signature": signature
+                    "signature": signature,
+                    "declaring_file": file_path.to_string()
                 }),
-                file_path: None,
+                file_path: Some(file_path.to_string()),
                 created_at: now,
                 updated_at: now,
                 deleted_at: None,
@@ -372,5 +441,62 @@ mod tests {
         assert_eq!(import_paths.len(), 2);
         assert!(import_paths.contains(&"std::collections::HashMap".to_string()));
         assert!(import_paths.contains(&"crate::memory::builder".to_string()));
+    }
+
+    #[test]
+    fn test_rust_external_mod_vs_inline_mod() {
+        let extractor = RustExtractor::new();
+        let project_id = ProjectId::new();
+        let file_node_id = ares_core::NodeId::new();
+
+        let source_code = r#"
+            mod graph;
+            mod engine;
+
+            mod inline_module {
+                fn internal() {}
+            }
+
+            fn main() {}
+        "#;
+
+        let result = extractor
+            .extract(&project_id, &file_node_id, "src/main.rs", source_code)
+            .unwrap();
+
+        // Nodes: main (function), inline_module (module), internal (function), unresolved_graph, unresolved_engine = 5
+        assert_eq!(result.nodes.len(), 5);
+
+        // Edges: Defines+ContainedIn for main (2), inline_module (2), internal (2),
+        //         Imports for graph + Imports for engine (2) = 8
+        assert_eq!(result.edges.len(), 8);
+
+        // External mods must produce Imports edges, NOT Defines edges
+        let import_sources: Vec<&str> = result
+            .edges
+            .iter()
+            .filter(|e| e.edge_type == ares_core::EdgeType::Imports)
+            .map(|e| e.source.as_str())
+            .collect();
+        assert_eq!(import_sources.len(), 2);
+        assert!(import_sources.contains(&"mod_decl:graph"));
+        assert!(import_sources.contains(&"mod_decl:engine"));
+
+        // Inline module must produce Defines edge, NOT Imports
+        let defines_targets: Vec<String> = result
+            .edges
+            .iter()
+            .filter(|e| e.edge_type == ares_core::EdgeType::Defines)
+            .map(|e| {
+                result
+                    .nodes
+                    .iter()
+                    .find(|n| n.id == e.to_node_id)
+                    .map(|n| n.label.clone())
+                    .unwrap_or_default()
+            })
+            .collect();
+        assert!(defines_targets.contains(&"inline_module".to_string()));
+        assert!(!defines_targets.contains(&"graph".to_string()));
     }
 }

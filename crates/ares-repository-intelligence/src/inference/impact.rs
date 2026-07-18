@@ -18,7 +18,10 @@ impl DeterministicInference for ImpactGenerator {
         let real_deps: Vec<_> = deps.iter().filter(|d| !d.is_test).collect();
         if real_deps.is_empty() {
             sections.push(
-                "**Blast Radius**\n✅ No immediate impact. This entity has no dependents and can be safely removed.".to_string(),
+                "\u{26A0}\u{FE0F} No graph dependents detected. The graph may be incomplete \
+                 (dynamic dispatch, reflection, or unscanned languages). \
+                 Verify independently before removing."
+                    .to_string(),
             );
         } else {
             let mut lines = vec![format!(
@@ -101,7 +104,7 @@ impl DeterministicInference for ImpactGenerator {
         // ── Risk ─────────────────────────────────────────────────
         let dep_count = deps.len();
         let risk = if dep_count == 0 {
-            "LOW"
+            "LOW (unverified)"
         } else if dep_count <= 3 {
             "MEDIUM"
         } else {
@@ -115,14 +118,25 @@ impl DeterministicInference for ImpactGenerator {
 
         EngineeringInsight {
             answer,
-            summary: format!(
-                "Removing `{}` would affect {} modules. Risk: {}",
-                evidence.entity_label, dep_count, risk
-            ),
+            summary: if dep_count == 0 {
+                format!(
+                    "No graph dependents detected for `{}`. Risk cannot be determined from graph alone.",
+                    evidence.entity_label
+                )
+            } else {
+                format!(
+                    "Removing `{}` would affect {} modules. Risk: {}",
+                    evidence.entity_label, dep_count, risk
+                )
+            },
             confidence,
             evidence: narrative::flatten_evidence(evidence),
             warnings: if dep_count == 0 {
-                vec![]
+                vec![
+                    "No graph dependents detected \u{2014} graph may be incomplete for \
+                     dynamic dispatch, reflection, or unscanned languages"
+                        .to_string(),
+                ]
             } else {
                 vec![format!("{} modules depend on this entity", dep_count)]
             },

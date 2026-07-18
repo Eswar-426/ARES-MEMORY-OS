@@ -17,6 +17,18 @@ pub struct EvidenceService {
 }
 
 impl EvidenceService {
+    /// Use path-disambiguated label for file nodes, plain label otherwise.
+    /// Turns "mod.rs" into "languages/mod.rs" so duplicate filenames are distinguishable.
+    fn display_label(node: &ares_core::GraphNode) -> String {
+        if let Some(ref fp) = node.file_path {
+            // Use last 2 path segments for readability
+            let parts: Vec<&str> = fp.rsplitn(3, '/').collect();
+            parts.into_iter().rev().collect::<Vec<_>>().join("/")
+        } else {
+            node.label.clone()
+        }
+    }
+
     fn is_test_entity(label: &str, file_path: &Option<String>, node_type: &str) -> bool {
         if node_type == "test" {
             return true;
@@ -118,7 +130,7 @@ impl EvidenceService {
                 "contains" => {
                     let ent = EntityRef {
                         id: edge.from_node_id.as_str().to_string(),
-                        label: neighbor.label.clone(),
+                        label: Self::display_label(&neighbor),
                         node_type: ntype.to_string(),
                         file_path: neighbor.file_path.clone(),
                     };
@@ -136,10 +148,31 @@ impl EvidenceService {
                         owner_ids.push(edge.from_node_id.as_str().to_string());
                     }
                 }
+                "contained_in" | "defines" | "constructs" | "invokes" => {}
+                "drives" | "related_to" => {
+                    if neighbor.file_path == node.file_path && node.file_path.is_some() {
+                        continue;
+                    }
+                    dependencies.push(DependencyRef {
+                        id: edge.from_node_id.as_str().to_string(),
+                        label: Self::display_label(&neighbor),
+                        node_type: ntype.to_string(),
+                        file_path: neighbor.file_path.clone(),
+                        relationship: etype.to_string(),
+                        is_test: Self::is_test_entity(&neighbor.label, &neighbor.file_path, ntype),
+                    });
+                }
                 _ => {
+                    // Skip unresolved references
+                    if neighbor.properties.get("unresolved").is_some() {
+                        continue;
+                    }
+                    if neighbor.file_path == node.file_path && node.file_path.is_some() {
+                        continue;
+                    }
                     dependents.push(DependencyRef {
                         id: edge.from_node_id.as_str().to_string(),
-                        label: neighbor.label.clone(),
+                        label: Self::display_label(&neighbor),
                         node_type: ntype.to_string(),
                         file_path: neighbor.file_path.clone(),
                         relationship: etype.to_string(),
@@ -178,7 +211,7 @@ impl EvidenceService {
                         log_output.push_str(&format!("Neighbor: {} ({})\n", neighbor.label, ntype));
                         dependents.push(DependencyRef {
                             id: edge.from_node_id.as_str().to_string(),
-                            label: neighbor.label.clone(),
+                            label: Self::display_label(&neighbor),
                             node_type: ntype.to_string(),
                             file_path: neighbor.file_path.clone(),
                             relationship: format!("{} (module)", etype),
@@ -205,11 +238,17 @@ impl EvidenceService {
                         if let Some(neighbor) =
                             repo.get_node(&child_edge.from_node_id).ok().flatten()
                         {
+                            if neighbor.file_path == node.file_path && node.file_path.is_some() {
+                                continue;
+                            }
                             let etype2 = child_edge.edge_type.as_str();
+                            if etype2 == "defines" || etype2 == "contains" || etype2 == "contained_in" || etype2 == "constructs" || etype2 == "invokes" || etype2 == "implements" || etype2 == "calls" {
+                                continue;
+                            }
                             let ntype2 = neighbor.node_type.as_str();
                             dependents.push(DependencyRef {
                                 id: child_edge.from_node_id.as_str().to_string(),
-                                label: neighbor.label.clone(),
+                                label: Self::display_label(&neighbor),
                                 node_type: ntype2.to_string(),
                                 file_path: neighbor.file_path.clone(),
                                 relationship: format!("{} (child)", etype2),
@@ -241,7 +280,7 @@ impl EvidenceService {
                     if !folders.iter().any(|f| f.id == nid) {
                         folders.push(EntityRef {
                             id: nid,
-                            label: neighbor.label.clone(),
+                            label: Self::display_label(&neighbor),
                             node_type: ntype.to_string(),
                             file_path: neighbor.file_path.clone(),
                         });
@@ -255,10 +294,18 @@ impl EvidenceService {
                     }
                     // authored_by is handled in commit traversal
                 }
+                "defines" | "contains" | "drives" | "related_to" => {}
                 _ => {
+                    // Skip unresolved references (raw import paths not resolved to real nodes)
+                    if neighbor.properties.get("unresolved").is_some() {
+                        continue;
+                    }
+                    if neighbor.file_path == node.file_path && node.file_path.is_some() {
+                        continue;
+                    }
                     dependencies.push(DependencyRef {
                         id: edge.to_node_id.as_str().to_string(),
-                        label: neighbor.label.clone(),
+                        label: Self::display_label(&neighbor),
                         node_type: ntype.to_string(),
                         file_path: neighbor.file_path.clone(),
                         relationship: etype.to_string(),

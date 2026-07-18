@@ -81,15 +81,15 @@ impl LanguageExtractor for PythonExtractor {
                     if node_type == NodeType::Tag && capture_names_contains_import(&m, &self.query)
                     {
                         let import_path = extract_py_import_path(&name);
-                        let unresolved_node_id =
-                            ares_core::NodeId::from(format!("unresolved_{}", import_path));
+                        let file_key = file_path.replace('/', "_").replace('\\', "_");
+                        let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, import_path));
                         let unresolved_node = GraphNode {
                             id: unresolved_node_id.clone(),
                             project_id: project_id.clone(),
                             node_type: NodeType::Module,
                             label: import_path.clone(),
                             properties: serde_json::json!({"unresolved": true}),
-                            file_path: None,
+                            file_path: Some(file_path.to_string()),
                             created_at: now,
                             updated_at: now,
                             deleted_at: None,

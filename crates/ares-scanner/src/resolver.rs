@@ -1,5 +1,5 @@
 use ares_core::types::node::SymbolSignature;
-use ares_core::ProjectId;
+use ares_core::{NodeType, ProjectId};
 use ares_store::repositories::graph::SqliteGraphRepository;
 use ares_store::Store;
 use rayon::prelude::*;
@@ -37,10 +37,102 @@ impl SymbolResolver {
                         .get_nodes_by_name(project_id, &signature.name)
                     {
                         // Filter out unresolved candidates
-                        let candidates: Vec<_> = candidates
+                        let mut candidates: Vec<_> = candidates
                             .into_iter()
                             .filter(|n| n.properties.get("unresolved").is_none())
                             .collect();
+
+                        // ── Module-to-file resolution ──────────────
+                        // mod foo; creates an unresolved node named "foo".
+                        // The actual file node is named "foo.rs" (label)
+                        // or has file_path ending in "foo.rs" / "foo/mod.rs".
+                        if signature.symbol_type == NodeType::Module {
+                            let mut file_matches = Vec::new();
+                            for name_variant in
+                                &[format!("{}.rs", signature.name), signature.name.clone()]
+                            {
+                                if let Ok(file_candidates) = self
+                                    .graph_repo
+                                    .get_nodes_by_name(project_id, name_variant)
+                                {
+                                    file_matches.extend(file_candidates.into_iter().filter(|n| {
+                                        n.properties.get("unresolved").is_none()
+                                            && n.node_type == NodeType::File
+                                    }));
+                                }
+                            }
+                            if !file_matches.is_empty() {
+                                // Prepend file matches so they take priority over inline modules of the same name
+                                file_matches.extend(candidates);
+                                candidates = file_matches;
+                            }
+                        }
+                        // ── End module-to-file resolution ──────────
+
+                        // Sort candidates by proximity to the unresolved node's file path, if available
+                        if candidates.len() > 1 {
+                            if let Some(source_path) = &unresolved_node.file_path {
+                                candidates.sort_by_key(|c| {
+                                    if let Some(c_path) = &c.file_path {
+                                        // Calculate shared prefix length (higher is better, so return negative for sorting)
+                                        let source_parts: Vec<_> = source_path.split('/').collect();
+                                        let c_parts: Vec<_> = c_path.split('/').collect();
+                                        let mut match_len = 0;
+                                        for (s, p) in source_parts.iter().zip(c_parts.iter()) {
+                                            if s == p {
+                                                match_len += 1;
+                                            } else {
+                                                break;
+                                            }
+                                        }
+                                        -(match_len as i32)
+                                    } else {
+                                        0
+                                    }
+                                });
+                            }
+                        }
+                        // ── Directory proximity sorting ──────────────
+                        // When multiple candidates exist (e.g. multiple rust.rs files),
+                        // prefer the one in the same directory as the declaring file.
+                        if candidates.len() > 1 {
+                            if let Some(declaring_file) = unresolved_node
+                                .properties
+                                .get("declaring_file")
+                                .and_then(|v| v.as_str())
+                            {
+                                if !declaring_file.is_empty() {
+                                    let declaring_dir = std::path::Path::new(declaring_file)
+                                        .parent()
+                                        .map(|p| p.to_string_lossy().to_string())
+                                        .unwrap_or_default();
+                                    candidates.sort_by(|a, b| {
+                                        let a_same = a
+                                            .file_path
+                                            .as_ref()
+                                            .and_then(|p| {
+                                                std::path::Path::new(p)
+                                                    .parent()
+                                                    .map(|pp| pp.to_string_lossy().to_string()
+                                                        == declaring_dir)
+                                            })
+                                            .unwrap_or(false);
+                                        let b_same = b
+                                            .file_path
+                                            .as_ref()
+                                            .and_then(|p| {
+                                                std::path::Path::new(p)
+                                                    .parent()
+                                                    .map(|pp| pp.to_string_lossy().to_string()
+                                                        == declaring_dir)
+                                            })
+                                            .unwrap_or(false);
+                                        b_same.cmp(&a_same)
+                                    });
+                                }
+                            }
+                        }
+                        // ── End directory proximity sorting ──────────
 
                         let best_match = if candidates.is_empty() {
                             None
@@ -63,23 +155,21 @@ impl SymbolResolver {
                             if by_file.len() == 1 {
                                 Some(by_file[0].clone())
                             } else if !by_file.is_empty() {
-                                // 3. Exact symbol type
-                                let mut by_type = by_file.clone();
-                                by_type.retain(|n| n.node_type == signature.symbol_type);
-                                if !by_type.is_empty() {
-                                    Some(by_type[0].clone())
-                                } else {
-                                    Some(by_file[0].clone())
-                                }
+                                by_file.first().cloned()
                             } else {
-                                // Fallback to type
-                                let mut by_type = candidates.clone();
-                                by_type.retain(|n| n.node_type == signature.symbol_type);
-                                if !by_type.is_empty() {
+                                // 3. Exact type match
+                                let mut by_type = by_mod.clone();
+                                by_type.retain(|n| {
+                                    n.node_type == signature.symbol_type
+                                        || (signature.symbol_type == NodeType::Module
+                                            && n.node_type == NodeType::File)
+                                });
+                                if by_type.len() == 1 {
                                     Some(by_type[0].clone())
+                                } else if !by_type.is_empty() {
+                                    by_type.first().cloned()
                                 } else {
-                                    // 4. Exact name
-                                    Some(candidates[0].clone())
+                                    candidates.first().cloned()
                                 }
                             }
                         };

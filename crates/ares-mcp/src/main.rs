@@ -413,8 +413,8 @@ async fn main() -> Result<(), BoxError> {
                             "warnings": insight.warnings,
                             "recommendations": insight.recommendations,
                             "summary": insight.summary,
-                            "file_path": &input.id,
-                            "entity": &input.id,
+                            "file_path": input.file_path.as_ref().or(input.id.as_ref()),
+                            "entity": input.file_path.as_ref().or(input.id.as_ref()),
                             "mode": insight.mode,
                             "metadata": insight.metadata,
                         });
@@ -526,8 +526,8 @@ async fn main() -> Result<(), BoxError> {
                             "warnings": insight.warnings,
                             "recommendations": insight.recommendations,
                             "summary": insight.summary,
-                            "file_path": &input.id,
-                            "entity": &input.id,
+                            "file_path": input.file_path.as_ref().or(input.id.as_ref()),
+                            "entity": input.file_path.as_ref().or(input.id.as_ref()),
                             "mode": insight.mode,
                             "metadata": insight.metadata,
                         });
@@ -873,8 +873,8 @@ async fn main() -> Result<(), BoxError> {
                             "warnings": insight.warnings,
                             "recommendations": insight.recommendations,
                             "summary": insight.summary,
-                            "file_path": &input.id,
-                            "entity": &input.id,
+                            "file_path": input.file_path.as_ref().or(input.id.as_ref()),
+                            "entity": input.file_path.as_ref().or(input.id.as_ref()),
                             "mode": insight.mode,
                             "metadata": insight.metadata,
                         });
@@ -929,10 +929,13 @@ async fn main() -> Result<(), BoxError> {
                         for e in &edges {
                             total_weight += e.weight;
                             if let Ok(Some(p)) = repo.get_node(&e.from_node_id) {
-                                contributors.push(serde_json::json!({
-                                    "name": p.label,
-                                    "percentage": (e.weight * 100.0).round() as i32
-                                }));
+                                let percentage = (e.weight * 100.0).round() as i32;
+                                if percentage > 0 {
+                                    contributors.push(serde_json::json!({
+                                        "name": p.label,
+                                        "percentage": percentage
+                                    }));
+                                }
                             }
                         }
                     }
@@ -1051,14 +1054,26 @@ async fn main() -> Result<(), BoxError> {
                     }
                 }
 
-                Ok(CallToolResult::text(
-                    serde_json::to_string(&serde_json::json!({
-                        "result": { "decisions": decisions },
-                        "evidence": [{"source": "graph", "confidence": 1.0}],
-                        "query_time_ms": start.elapsed().as_millis() as i64
-                    }))
-                    .unwrap(),
-                ))
+                if decisions.is_empty() {
+                    Ok(CallToolResult::text(
+                        serde_json::to_string(&serde_json::json!({
+                            "result": { "decisions": [] },
+                            "evidence": [{"source": "graph", "confidence": 1.0}],
+                            "gap_flags": ["no_recorded_decisions"],
+                            "query_time_ms": start.elapsed().as_millis() as i64
+                        }))
+                        .unwrap(),
+                    ))
+                } else {
+                    Ok(CallToolResult::text(
+                        serde_json::to_string(&serde_json::json!({
+                            "result": { "decisions": decisions },
+                            "evidence": [{"source": "graph", "confidence": 1.0}],
+                            "query_time_ms": start.elapsed().as_millis() as i64
+                        }))
+                        .unwrap(),
+                    ))
+                }
             }
         })
         .build();
@@ -1112,10 +1127,16 @@ async fn main() -> Result<(), BoxError> {
                         .collect();
                     matched.truncate(input.limit);
                     for n in matched {
+                        let summary = if n.node_type.as_str() == "commit" {
+                            n.label
+                        } else if let Some(ref fp) = n.file_path {
+                            format!("{} (in {})", n.label, fp)
+                        } else {
+                            n.label
+                        };
                         results.push(serde_json::json!({
-                            "node_id": n.id.as_str(),
                             "type": n.node_type,
-                            "summary": n.label,
+                            "summary": summary,
                             "file_path": n.file_path
                         }));
                     }

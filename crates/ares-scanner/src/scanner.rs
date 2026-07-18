@@ -471,6 +471,45 @@ impl Scanner {
             .collect();
 
         // ═══════════════════════════════════════════════════════════
+        //  PRE-PHASE: Build dedup maps — reuse existing node IDs
+        //  to prevent duplication on re-scan
+        // ═══════════════════════════════════════════════════════════
+        let mut dedup_maps: std::collections::HashMap<
+            String,
+            std::collections::HashMap<(String, String, usize), ares_core::NodeId>,
+        > = std::collections::HashMap::new();
+
+        for result in &parse_results {
+            if let Some(ref fp) = result.file_node.file_path {
+                if let Ok(existing_nodes) = self.graph_repo.get_nodes_by_file_path(fp) {
+                    let mut map: std::collections::HashMap<(String, String, usize), ares_core::NodeId> =
+                        std::collections::HashMap::new();
+                    // Sort by updated_at desc so we keep the most recent node
+                    // when duplicates exist from previous scans
+                    let mut sorted = existing_nodes;
+                    sorted.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+                    for n in &sorted {
+                        if n.node_type == ares_core::NodeType::File {
+                            continue;
+                        }
+                        let start_line = n
+                            .properties
+                            .get("start_line")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0) as usize;
+                        let key = (
+                            n.node_type.as_str().to_string(),
+                            n.label.clone(),
+                            start_line,
+                        );
+                        map.entry(key).or_insert(n.id.clone());
+                    }
+                    dedup_maps.insert(fp.clone(), map);
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════
         //  PHASE 2: Sequential batch insert — single transaction
         // ═══════════════════════════════════════════════════════════
         {
@@ -489,19 +528,77 @@ impl Scanner {
                     .graph_repo
                     .upsert_node_tx(&tx, result.file_node.clone());
 
-                // Container edges (contains / contained_in)
+                // Build ID remap for this file's extracted nodes
+                let mut id_remap: std::collections::HashMap<String, ares_core::NodeId> =
+                    std::collections::HashMap::new();
+                if let Some(ref fp) = result.file_node.file_path {
+                    if let Some(map) = dedup_maps.get(fp) {
+                        for node in &result.extracted_nodes {
+                            // Only remap real nodes (not unresolved references)
+                            if node.file_path.is_some()
+                                && node.properties.get("unresolved").is_none()
+                            {
+                                let start_line = node
+                                    .properties
+                                    .get("start_line")
+                                    .and_then(|v| v.as_u64())
+                                    .unwrap_or(0) as usize;
+                                let key = (
+                                    node.node_type.as_str().to_string(),
+                                    node.label.clone(),
+                                    start_line,
+                                );
+                                if let Some(existing_id) = map.get(&key) {
+                                    id_remap.insert(
+                                        node.id.as_str().to_string(),
+                                        existing_id.clone(),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Helper closure to remap a node ID
+                let remap = |id: &ares_core::NodeId| -> ares_core::NodeId {
+                    id_remap
+                        .get(id.as_str())
+                        .cloned()
+                        .unwrap_or_else(|| id.clone())
+                };
+
+                // Container edges (contains / contained_in) — remap node IDs
                 for edge in &result.container_edges {
-                    let _ = self.graph_repo.upsert_edge_tx(&tx, edge.clone());
+                    let mut edge = edge.clone();
+                    edge.from_node_id = remap(&edge.from_node_id);
+                    edge.to_node_id = remap(&edge.to_node_id);
+                    edge.id = format!(
+                        "edge_{}_{}",
+                        edge.from_node_id.as_str(),
+                        edge.to_node_id.as_str()
+                    );
+                    let _ = self.graph_repo.upsert_edge_tx(&tx, edge);
                 }
 
-                // Extracted symbols (structs, functions, traits, etc.)
+                // Extracted symbols — remap IDs to reuse existing nodes
                 for node in &result.extracted_nodes {
-                    let _ = self.graph_repo.upsert_node_tx(&tx, node.clone());
+                    let mut node = node.clone();
+                    node.id = remap(&node.id);
+                    let _ = self.graph_repo.upsert_node_tx(&tx, node);
                 }
 
-                // Extracted relationships (imports, depends_on, etc.)
+                // Extracted edges (imports, calls, etc.) — remap node IDs
                 for edge in &result.extracted_edges {
-                    let _ = self.graph_repo.upsert_edge_tx(&tx, edge.clone());
+                    let mut edge = edge.clone();
+                    edge.from_node_id = remap(&edge.from_node_id);
+                    edge.to_node_id = remap(&edge.to_node_id);
+                    edge.id = format!(
+                        "edge_{}_{}_{}",
+                        edge.edge_type.as_str(),
+                        edge.from_node_id.as_str(),
+                        edge.to_node_id.as_str()
+                    );
+                    let _ = self.graph_repo.upsert_edge_tx(&tx, edge);
                 }
             }
 

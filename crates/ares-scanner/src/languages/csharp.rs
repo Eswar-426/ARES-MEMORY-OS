@@ -129,11 +129,11 @@ impl LanguageExtractor for CSharpExtractor {
                             .replace(";", "")
                             .trim()
                             .to_string();
-                        let unresolved_node_id =
-                            ares_core::NodeId::from(format!("unresolved_{}", import_path));
+                        let file_key = file_path.replace('/', "_").replace('\\', "_");
+                        let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, import_path));
                         let signature = ares_core::types::node::SymbolSignature {
                             name: import_path.clone(),
-                            file_path: None,
+                            file_path: Some(file_path.to_string()),
                             module_path: None,
                             symbol_type: NodeType::Module,
                         };
@@ -146,7 +146,7 @@ impl LanguageExtractor for CSharpExtractor {
                                 "unresolved": true,
                                 "signature": signature
                             }),
-                            file_path: None,
+                            file_path: Some(file_path.to_string()),
                             created_at: now,
                             updated_at: now,
                             deleted_at: None,
@@ -165,7 +165,7 @@ impl LanguageExtractor for CSharpExtractor {
                             edge_type: ares_core::EdgeType::Imports,
                             weight: 1.0,
                             confidence: 0.5,
-                            source: format!("import:{}", import_path),
+                            source: "scanner".to_string(),
                             valid_from: now,
                             valid_until: None,
                             created_at: now,
@@ -265,7 +265,8 @@ impl LanguageExtractor for CSharpExtractor {
                 RefType::Construct => ares_core::EdgeType::Constructs,
             };
 
-            let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}", r.name));
+            let file_key = file_path.replace('/', "_").replace('\\', "_");
+            let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, r.name));
             let expected_type = match r.ref_type {
                 RefType::Call => NodeType::Method,
                 RefType::Construct => NodeType::Struct,
@@ -273,7 +274,7 @@ impl LanguageExtractor for CSharpExtractor {
 
             let signature = ares_core::types::node::SymbolSignature {
                 name: r.name.clone(),
-                file_path: None,
+                file_path: Some(file_path.to_string()),
                 module_path: None,
                 symbol_type: expected_type.clone(),
             };
@@ -287,7 +288,7 @@ impl LanguageExtractor for CSharpExtractor {
                     "unresolved": true,
                     "signature": signature
                 }),
-                file_path: None,
+                file_path: Some(file_path.to_string()),
                 created_at: now,
                 updated_at: now,
                 deleted_at: None,

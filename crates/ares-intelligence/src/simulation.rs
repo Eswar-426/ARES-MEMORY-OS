@@ -110,8 +110,8 @@ pub async fn simulate(
 
     let reversible = match action {
         SimulationAction::Remove => {
-            if let Ok(down) = traversal.downstream(target, 10) {
-                for node in down.nodes {
+            if let Ok(up) = traversal.upstream(target, 10) {
+                for node in up.nodes {
                     if node.id != target {
                         let file_label = node.name.clone();
                         impact.affected_files.push(file_label);
@@ -152,8 +152,8 @@ pub async fn simulate(
             impact.affected_decisions.is_empty()
         }
         SimulationAction::Modify => {
-            if let Ok(down) = traversal.downstream(target, 5) {
-                for node in down.nodes {
+            if let Ok(up) = traversal.upstream(target, 5) {
+                for node in up.nodes {
                     if node.id != target {
                         let node_type_str = format!("{:?}", node.node_type);
                         if node_type_str == "Decision" || node_type_str == "Architecture" {
@@ -177,8 +177,8 @@ pub async fn simulate(
             false
         }
         SimulationAction::Replace => {
-            if let Ok(down) = traversal.downstream(target, 10) {
-                for node in down.nodes {
+            if let Ok(up) = traversal.upstream(target, 10) {
+                for node in up.nodes {
                     if node.id != target {
                         let file_label = node.name.clone();
                         impact.affected_files.push(file_label);

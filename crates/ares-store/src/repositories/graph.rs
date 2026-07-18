@@ -374,6 +374,14 @@ impl SqliteGraphRepository {
 
     pub fn delete_node_permanently(&self, id: &NodeId) -> Result<(), AresError> {
         let conn = self.store.get_conn()?;
+        let now = ares_core::types::event::now_micros();
+        // Expire any remaining edges where this node is the source
+        // (redirect_edges only handles to_node_id)
+        let _ = conn.execute(
+            "UPDATE graph_edges SET valid_until = ?1
+             WHERE from_node_id = ?2 AND valid_until IS NULL",
+            params![now, id.as_str()],
+        );
         conn.execute(
             "DELETE FROM graph_nodes WHERE id = ?1",
             params![id.as_str()],
@@ -398,6 +406,25 @@ impl SqliteGraphRepository {
 
         let rows = stmt
             .query_map(params![project_id.as_str()], row_to_node)
+            .map_err(AresError::db)?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)
+    }
+
+    pub fn get_nodes_by_file_path(
+        &self,
+        file_path: &str,
+    ) -> Result<Vec<GraphNode>, AresError> {
+        let conn = self.store.get_conn()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, project_id, node_type, label, properties, file_path,
+                        created_at, updated_at, deleted_at
+                 FROM graph_nodes
+                 WHERE file_path = ?1 AND deleted_at IS NULL",
+            )
+            .map_err(AresError::db)?;
+        let rows = stmt
+            .query_map(params![file_path], row_to_node)
             .map_err(AresError::db)?;
         rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)
     }
@@ -606,11 +633,11 @@ impl SqliteGraphRepository {
                 "WITH RECURSIVE impact(node_id, depth, via_edge_type) AS (
                SELECT ?1, 0, ''
                UNION ALL
-               SELECT e.to_node_id, i.depth + 1, e.edge_type
+               SELECT e.from_node_id, i.depth + 1, e.edge_type
                FROM graph_edges e
-               JOIN impact i ON e.from_node_id = i.node_id
+               JOIN impact i ON e.to_node_id = i.node_id
                WHERE e.valid_until IS NULL
-                 AND e.edge_type IN ('imports','depends_on','calls','implements','defines')
+                 AND e.edge_type IN ('imports','depends_on','calls','implements')
                  AND i.depth < ?2
              )
              SELECT DISTINCT n.id, n.project_id, n.node_type, n.label, n.properties,
@@ -1327,8 +1354,11 @@ mod tests {
             created_at: 0,
         };
 
-        repo.upsert_edge(make_edge(&a.id, &b.id)).unwrap();
-        repo.upsert_edge(make_edge(&b.id, &c.id)).unwrap();
+        // A <- imports <- B <- imports <- C
+        // A is imported by B, B is imported by C.
+        // Therefore, if A changes, B and C are impacted.
+        repo.upsert_edge(make_edge(&b.id, &a.id)).unwrap();
+        repo.upsert_edge(make_edge(&c.id, &b.id)).unwrap();
 
         let impact = repo.traverse_impact(&a.id, 3).unwrap();
         assert_eq!(impact.impacts.len(), 2); // b and c
