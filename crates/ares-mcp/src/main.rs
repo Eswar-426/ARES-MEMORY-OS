@@ -732,14 +732,21 @@ async fn main() -> Result<(), BoxError> {
                     )
                     .await
                 {
-                    Ok(result) => serde_json::to_string(&wrap_with_envelope("ares_compliance", serde_json::to_value(&result).unwrap_or_default(), 0))
-                        .map(CallToolResult::text)
-                        .map_err(|e| {
-                            tower_mcp::Error::internal(format_mcp_error(
-                                "Failed to serialize compliance evaluation",
-                                &e.to_string(),
-                            ))
-                        }),
+                    Ok(result) => {
+                        let payload = if result.is_empty() {
+                            serde_json::json!({"compliant": true, "violations": []})
+                        } else {
+                            serde_json::to_value(&result).unwrap_or_default()
+                        };
+                        serde_json::to_string(&wrap_with_envelope("ares_compliance", payload, 0))
+                            .map(CallToolResult::text)
+                            .map_err(|e| {
+                                tower_mcp::Error::internal(format_mcp_error(
+                                    "Failed to serialize compliance evaluation",
+                                    &e.to_string(),
+                                ))
+                            })
+                    }
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
                         "Failed to evaluate compliance",
                         &e.to_string(),
@@ -2302,9 +2309,10 @@ async fn main() -> Result<(), BoxError> {
             let store = store_graph.clone();
             async move {
                 track_session_call(&session, "ares_graph_statistics", &_input);
+                let start = std::time::Instant::now();
                 let result = ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_statistics(&store).await;
                 match result {
-                    Ok(stats) => serde_json::to_string(&wrap_with_envelope("ares_graph_statistics", serde_json::to_value(&stats).unwrap_or_default(), 0))
+                    Ok(stats) => serde_json::to_string(&wrap_with_envelope("ares_graph_statistics", serde_json::to_value(&stats).unwrap_or_default(), start.elapsed().as_millis() as u64))
                         .map(CallToolResult::text)
                         .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize graph stats", &e.to_string()))),
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to retrieve graph stats", &e.to_string()))),
@@ -2322,6 +2330,7 @@ async fn main() -> Result<(), BoxError> {
             let store = store_graph_root.clone();
             async move {
                 track_session_call(&session, "ares_graph_root", &_input);
+                let start = std::time::Instant::now();
                 // Determine project_id (e.g. from cwd like CLI)
                 // Since this runs in the workspace, we can use the same logic
                 let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
@@ -2338,7 +2347,7 @@ async fn main() -> Result<(), BoxError> {
                     name,
                     60,
                 ) {
-                    Ok(payload) => serde_json::to_string(&wrap_with_envelope("ares_graph_root", serde_json::to_value(&payload).unwrap_or_default(), 0))
+                    Ok(payload) => serde_json::to_string(&wrap_with_envelope("ares_graph_root", serde_json::to_value(&payload).unwrap_or_default(), start.elapsed().as_millis() as u64))
                         .map(CallToolResult::text)
                         .map_err(|e| {
                             tower_mcp::Error::internal(format_mcp_error(
@@ -2364,10 +2373,11 @@ async fn main() -> Result<(), BoxError> {
             let store = store_graph_neighbors.clone();
             async move {
                 track_session_call(&session, "ares_graph_neighbors", &input);
+                let start = std::time::Instant::now();
                 let node_id_str = ares_core::canonicalize_node_id(&input.node_id);
                 let node_id = ares_core::NodeId::from(node_id_str);
                 match ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_neighbors(&store, &node_id).await {
-                    Ok(payload) => serde_json::to_string(&wrap_with_envelope("ares_graph_neighbors", serde_json::to_value(&payload).unwrap_or_default(), 0))
+                    Ok(payload) => serde_json::to_string(&wrap_with_envelope("ares_graph_neighbors", serde_json::to_value(&payload).unwrap_or_default(), start.elapsed().as_millis() as u64))
                         .map(CallToolResult::text)
                         .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize graph neighbors", &e.to_string()))),
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to retrieve graph neighbors", &e.to_string()))),
@@ -2385,8 +2395,9 @@ async fn main() -> Result<(), BoxError> {
             let store = store_graph_search.clone();
             async move {
                 track_session_call(&session, "ares_graph_search", &input);
+                let start = std::time::Instant::now();
                 match ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_search(&store, &input.query).await {
-                    Ok(payload) => serde_json::to_string(&wrap_with_envelope("ares_graph_search", serde_json::to_value(&payload).unwrap_or_default(), 0))
+                    Ok(payload) => serde_json::to_string(&wrap_with_envelope("ares_graph_search", serde_json::to_value(&payload).unwrap_or_default(), start.elapsed().as_millis() as u64))
                         .map(CallToolResult::text)
                         .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize graph search results", &e.to_string()))),
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to search graph", &e.to_string()))),
@@ -2404,12 +2415,13 @@ async fn main() -> Result<(), BoxError> {
             let store = store_graph_shortest_path.clone();
             async move {
                 track_session_call(&session, "ares_graph_shortest_path", &input);
+                let start = std::time::Instant::now();
                 let from_id_str = ares_core::canonicalize_node_id(&input.from_id);
                 let to_id_str = ares_core::canonicalize_node_id(&input.to_id);
                 let from_id = ares_core::NodeId::from(from_id_str);
                 let to_id = ares_core::NodeId::from(to_id_str);
                 match ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_shortest_path(&store, &from_id, &to_id).await {
-                    Ok(payload) => serde_json::to_string(&wrap_with_envelope("ares_graph_shortest_path", serde_json::to_value(&payload).unwrap_or_default(), 0))
+                    Ok(payload) => serde_json::to_string(&wrap_with_envelope("ares_graph_shortest_path", serde_json::to_value(&payload).unwrap_or_default(), start.elapsed().as_millis() as u64))
                         .map(CallToolResult::text)
                         .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize shortest path", &e.to_string()))),
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to find shortest path", &e.to_string()))),
@@ -2427,6 +2439,7 @@ async fn main() -> Result<(), BoxError> {
             let store = store_graph_metadata.clone();
             async move {
                 track_session_call(&session, "ares_graph_metadata", &input);
+                let start = std::time::Instant::now();
                 let node_id_str_str = match input.resolve_id(&store) {
                     Ok(i) => i,
                     Err(e) => return Err(tower_mcp::Error::invalid_params(e)),
@@ -2434,7 +2447,7 @@ async fn main() -> Result<(), BoxError> {
                 let node_id_str = ares_core::canonicalize_node_id(&node_id_str_str);
                 let node_id = ares_core::NodeId::from(node_id_str);
                 match ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_metadata(&store, &node_id).await {
-                    Ok(node) => serde_json::to_string(&wrap_with_envelope("ares_graph_metadata", serde_json::to_value(&node).unwrap_or_default(), 0))
+                    Ok(node) => serde_json::to_string(&wrap_with_envelope("ares_graph_metadata", serde_json::to_value(&node).unwrap_or_default(), start.elapsed().as_millis() as u64))
                         .map(CallToolResult::text)
                         .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize node metadata", &e.to_string()))),
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to retrieve node metadata", &e.to_string()))),
