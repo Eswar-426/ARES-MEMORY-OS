@@ -95,7 +95,7 @@ fn wrap_with_envelope(
         .unwrap_or_else(|| serde_json::json!([]));
 
     // --- Normalize confidence to 0.0-1.0 (check top-level AND inside result) ---
-    let confidence = {
+    let mut confidence = {
         let raw = current
             .get("confidence")
             .or_else(|| current.get("result").and_then(|r| r.get("confidence")));
@@ -135,6 +135,21 @@ fn wrap_with_envelope(
     } else {
         "ok"
     };
+
+    // Research rule #3: cap confidence to 0.3 when gap_flags indicate incomplete graph
+    let incomplete_indicators = [
+        "incomplete_graph",
+        "no_graph_dependents",
+        "no_git_history",
+        "incomplete_ast",
+        "shallow_git_history",
+    ];
+    let flags_arr = gap_flags.as_array().map(|a| {
+        a.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>()
+    }).unwrap_or_default();
+    if flags_arr.iter().any(|f| incomplete_indicators.contains(f)) && confidence > 0.3 {
+        confidence = 0.3;
+    }
 
     // --- Build envelope ---
     let mut envelope = serde_json::json!({
