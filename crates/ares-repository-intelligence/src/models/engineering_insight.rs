@@ -23,8 +23,10 @@ pub enum InferenceMode {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EvidenceItem {
     /// Category tag (e.g. "dependent", "git_commit", "owner", "requirement")
+    #[serde(rename = "type")]
     pub category: String,
     /// Human-readable value
+    #[serde(rename = "ref")]
     pub value: String,
 }
 

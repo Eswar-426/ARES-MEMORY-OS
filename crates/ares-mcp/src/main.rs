@@ -162,6 +162,8 @@ fn wrap_with_envelope(
         obj.remove("confidence");
         obj.remove("evidence");
         obj.remove("gap_flags");
+        obj.remove("result");
+        obj.remove("query_time_ms");
     }
 
     let mut envelope = serde_json::json!({
@@ -179,14 +181,6 @@ fn wrap_with_envelope(
             "truncated": false
         }
     });
-
-    // --- Backward compat: preserve legacy top-level fields for webview ---
-    if let Some(r) = current.get("result") {
-        envelope["result"] = r.clone();
-    }
-    if let Some(qt) = current.get("query_time_ms") {
-        envelope["query_time_ms"] = qt.clone();
-    }
 
     envelope
 }
@@ -1188,7 +1182,7 @@ async fn main() -> Result<(), BoxError> {
                         "bus_factor": bus_factor,
                         "contributors": contributors
                     },
-                    "evidence": [{"source": "graph", "confidence": 1.0}],
+                    "evidence": [{"type": "git_blame", "ref": input.file_path.clone()}],
                     "gap_flags": ["no_codeowners_file"],
                     "query_time_ms": start.elapsed().as_millis() as i64
                 });
@@ -1295,7 +1289,7 @@ async fn main() -> Result<(), BoxError> {
                     let elapsed = start.elapsed().as_millis() as u64;
                     let inner = serde_json::json!({
                         "result": { "decisions": [] },
-                        "evidence": [{"source": "graph", "confidence": 1.0}],
+                        "evidence": [{"type": "agent_analysis", "ref": input.file_path.clone().unwrap_or_else(|| "workspace".to_string())}],
                         "gap_flags": ["no_recorded_decisions"],
                         "query_time_ms": start.elapsed().as_millis() as i64
                     });
@@ -1304,7 +1298,7 @@ async fn main() -> Result<(), BoxError> {
                     let elapsed = start.elapsed().as_millis() as u64;
                     let inner = serde_json::json!({
                         "result": { "decisions": decisions },
-                        "evidence": [{"source": "graph", "confidence": 1.0}],
+                        "evidence": [{"type": "agent_analysis", "ref": input.file_path.clone().unwrap_or_else(|| "workspace".to_string())}],
                         "query_time_ms": start.elapsed().as_millis() as i64
                     });
                     Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_decisions", inner, elapsed)).unwrap()))
@@ -1331,7 +1325,7 @@ async fn main() -> Result<(), BoxError> {
                     let elapsed = start.elapsed().as_millis() as u64;
                     let inner = serde_json::json!({
                         "result": { "results": [] },
-                        "evidence": [{"source": "graph", "confidence": 1.0}],
+                        "evidence": [{"type": "search_query", "ref": input.query.clone()}],
                         "query_time_ms": start.elapsed().as_millis() as i64
                     });
                     return Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_search", inner, elapsed)).unwrap()));
@@ -1361,9 +1355,28 @@ async fn main() -> Result<(), BoxError> {
                         .collect();
                     matched.truncate(input.limit);
                     for n in matched {
+                        let fp = if n.node_type.as_str() == "commit" {
+                            let mut first_file = None;
+                            if let Ok(edges) = repo.get_edges_from(&n.id) {
+                                for e in edges {
+                                    if e.edge_type == ares_core::EdgeType::Touches {
+                                        if let Ok(Some(tgt)) = repo.get_node(&e.to_node_id) {
+                                            if let Some(path) = tgt.file_path {
+                                                first_file = Some(path);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            first_file.unwrap_or_default()
+                        } else {
+                            n.file_path.clone().unwrap_or_default()
+                        };
+
                         let summary = if n.node_type.as_str() == "commit" {
                             n.label
-                        } else if let Some(ref fp) = n.file_path {
+                        } else if !fp.is_empty() {
                             format!("{} (in {})", n.label, fp)
                         } else {
                             n.label
@@ -1371,18 +1384,31 @@ async fn main() -> Result<(), BoxError> {
                         results.push(serde_json::json!({
                             "type": n.node_type,
                             "summary": summary,
-                            "file_path": n.file_path.unwrap_or_default()
+                            "file_path": fp
                         }));
                     }
                 }
 
                 let elapsed = start.elapsed().as_millis() as u64;
-                let inner = serde_json::json!({
-                    "result": { "results": results },
-                        "evidence": [{"source": "graph", "confidence": 1.0}],
+                if results.is_empty() {
+                    let inner = serde_json::json!({
+                        "result": { "results": [] },
+                        "evidence": [{"type": "search_query", "ref": input.query.clone()}],
                         "query_time_ms": start.elapsed().as_millis() as i64
-                });
-                Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_search", inner, elapsed)).unwrap()))
+                    });
+                    let mut env = wrap_with_envelope("ares_search", inner, elapsed);
+                    env["status"] = serde_json::json!("empty");
+                    env["confidence"] = serde_json::json!(0.0);
+                    Ok(CallToolResult::text(serde_json::to_string(&env).unwrap()))
+                } else {
+                    let inner = serde_json::json!({
+                        "result": { "results": results },
+                        "evidence": [{"type": "search_query", "ref": input.query.clone()}],
+                        "confidence": 0.6,
+                        "query_time_ms": start.elapsed().as_millis() as i64
+                    });
+                    Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_search", inner, elapsed)).unwrap()))
+                }
             }
         })
         .build();
@@ -1476,7 +1502,7 @@ async fn main() -> Result<(), BoxError> {
                             "narrative": narrative,
                             "total_commits": events.len()
                         },
-                        "evidence": [{"source": "graph", "confidence": 1.0}],
+                        "evidence": [{"type": "coverage", "ref": input.file_path.clone()}],
                         "query_time_ms": start.elapsed().as_millis() as i64
                 });
                 Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_timeline", inner, elapsed)).unwrap()))
@@ -1595,7 +1621,7 @@ async fn main() -> Result<(), BoxError> {
                             "relationship": relationship,
                             "coupling_score": (coupling * 100.0).round() as i32
                         },
-                        "evidence": [{"source": "graph", "confidence": 1.0}],
+                        "evidence": [{"type": "impact_graph", "ref": input.file_a.clone()}],
                         "query_time_ms": start.elapsed().as_millis() as i64
                 });
                 Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_compare", inner, elapsed)).unwrap()))
@@ -1703,7 +1729,7 @@ async fn main() -> Result<(), BoxError> {
                         "health_score": 0
                     },
                     "hidden_coupling": cochanges,
-                    "evidence": [{"source": "graph", "confidence": 1.0}],
+                    "evidence": [{"type": "drift_analysis", "ref": "workspace"}],
                     "query_time_ms": start.elapsed().as_millis() as i64
                 });
                 Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_architecture", inner, elapsed)).unwrap()))
@@ -1779,14 +1805,14 @@ async fn main() -> Result<(), BoxError> {
                     let inner = serde_json::json!({
                         "result": { "requirements": [] },
                         "gap_flags": ["no_recorded_requirements"],
-                        "evidence": [{"source": "graph", "confidence": 1.0}],
+                        "evidence": [{"type": "gap_analysis", "ref": input.file_path.clone().unwrap_or_else(|| "workspace".to_string())}],
                         "query_time_ms": start.elapsed().as_millis() as i64
                     });
                     Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_requirements", inner, elapsed)).unwrap()))
                 } else {
                     let inner = serde_json::json!({
                         "result": { "requirements": requirements },
-                        "evidence": [{"source": "graph", "confidence": 1.0}],
+                        "evidence": [{"type": "gap_analysis", "ref": input.file_path.clone().unwrap_or_else(|| "workspace".to_string())}],
                         "query_time_ms": start.elapsed().as_millis() as i64
                     });
                     Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_requirements", inner, elapsed)).unwrap()))
@@ -1891,7 +1917,7 @@ async fn main() -> Result<(), BoxError> {
                             "linking_errors": linking_errors
                         },
                         "node_id": node_id.as_str(),
-                        "evidence": [{"source": "agent", "confidence": 1.0}],
+                        "evidence": [{"type": "agent_analysis", "ref": node_id.to_string()}],
                         "query_time_ms": start.elapsed().as_millis() as i64
                     })).unwrap_or_default(),
                 ))
@@ -1993,7 +2019,7 @@ async fn main() -> Result<(), BoxError> {
                             "linking_errors": linking_errors
                         },
                         "node_id": node_id.as_str(),
-                        "evidence": [{"source": "agent", "confidence": 1.0}],
+                        "evidence": [{"type": "agent_analysis", "ref": node_id.to_string()}],
                         "query_time_ms": start.elapsed().as_millis() as i64
                     })).unwrap_or_default(),
                 ))
@@ -2060,7 +2086,7 @@ async fn main() -> Result<(), BoxError> {
                 let response = match result {
                     Some(r) => serde_json::json!({
                         "result": r,
-                        "evidence": [{"source": "agent", "confidence": 1.0}],
+                        "evidence": [{"type": "agent_analysis", "ref": input.target_path.clone()}],
                         "query_time_ms": start.elapsed().as_millis() as i64
                     }),
                     None => serde_json::json!({
@@ -2160,7 +2186,7 @@ async fn main() -> Result<(), BoxError> {
                 let elapsed = start.elapsed().as_millis() as u64;
                 let inner = serde_json::json!({
                     "result": { "sessions": sessions },
-                    "evidence": [{"source": "agent_sessions", "confidence": 1.0}],
+                    "evidence": [{"type": "session_logs", "ref": "workspace"}],
                     "query_time_ms": start.elapsed().as_millis() as i64
                 });
                 Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_session_context", inner, elapsed)).unwrap_or_default()))
@@ -2251,7 +2277,7 @@ async fn main() -> Result<(), BoxError> {
                             "left_incomplete": input.left_incomplete,
                             "recommended_next": input.recommended_next
                         },
-                        "evidence": [{"source": "agent_sessions", "state": "persisted", "confidence": 1.0}],
+                        "evidence": [{"type": "session_logs", "ref": "current_session"}],
                         "query_time_ms": start.elapsed().as_millis() as i64
                     })
                 } else {
@@ -2262,7 +2288,7 @@ async fn main() -> Result<(), BoxError> {
                             "summary": summary,
                             "error": db_error
                         },
-                        "evidence": [{"source": "agent_sessions", "state": "failed", "confidence": 0.0}],
+                        "evidence": [{"type": "session_logs", "ref": "current_session"}],
                         "query_time_ms": start.elapsed().as_millis() as i64,
                         "warnings": ["Session data preserved in memory but not persisted to database. Try again or check database health."]
                     })
