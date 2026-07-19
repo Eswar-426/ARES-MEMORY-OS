@@ -25,45 +25,47 @@ export function parseAresResponse(result: any, filePath?: string): AresResponse 
         raw = result;
     }
 
-    // Map ares_generate_context_file — result is a file path string
-    if (typeof raw.result === 'string' && (raw.result as string).endsWith('.md')) {
+    const payload = raw.result || raw.answer || raw;
+
+    // Map ares_generate_context_file — payload is a file path string
+    if (typeof payload === 'string' && payload.endsWith('.md')) {
         raw.query_type = 'context_file';
-        raw.answer = 'Context file written to: ' + raw.result;
-        raw.file_path = raw.result;
+        raw.answer = 'Context file written to: ' + payload;
+        raw.file_path = payload;
     }
 
     // Map ares_dead_code — fields are at top level, no result wrapper
-    if (raw.dead_files !== undefined) {
+    if (payload.dead_files !== undefined) {
         raw.query_type = 'dead_code';
-        raw.answer = `${raw.total_dead_files || 0} dead files, ${raw.total_dead_functions || 0} dead functions detected.`;
+        raw.answer = `${payload.total_dead_files || 0} dead files, ${payload.total_dead_functions || 0} dead functions detected.`;
     }
 
-    // Map ares_who_owns — contributors in result wrapper
+    // Map ares_who_owns — contributors in payload
     if (raw.query_type === 'who_owns' ||
-        (raw.result && Array.isArray(raw.result.contributors)) ||
-        (raw.result && Array.isArray(raw.result) && raw.result.length > 0 && raw.result[0].owner)) {
+        (payload && Array.isArray(payload.contributors)) ||
+        (payload && Array.isArray(payload) && payload.length > 0 && payload[0].owner)) {
         raw.query_type = 'who_owns';
-        raw.owners = raw.result.contributors ? raw.result : raw.result;
+        raw.owners = payload.contributors ? payload : payload;
     }
 
     // Map ares_decisions nested result to flat structure
     if (raw.query_type === 'decisions' ||
-        (raw.result && Array.isArray(raw.result.decisions)) ||
-        (raw.result && Array.isArray(raw.result) && raw.result.length > 0 && raw.result[0].summary)) {
+        (payload && Array.isArray(payload.decisions)) ||
+        (payload && Array.isArray(payload) && payload.length > 0 && payload[0].summary)) {
         raw.query_type = 'decisions';
-        raw.related_decisions = raw.result.decisions || raw.result || [];
+        raw.related_decisions = payload.decisions || payload || [];
     }
 
     // Map ares_briefing nested result to flat structure for webview
-    if (raw.result?.project !== undefined) {
+    if (payload?.project !== undefined) {
         raw.query_type = 'briefing';
-        raw.answer = raw.result.recommended_first_action || 'Briefing generated';
-        raw.project = raw.result.project;
-        raw.recent_activity = raw.result.recent_activity;
-        raw.agent_handoff = raw.result.agent_handoff;
-        raw.critical_gaps = raw.result.critical_gaps;
-        raw.context_freshness_hours = raw.result.context_freshness_hours;
-        raw.recommended_first_action = raw.result.recommended_first_action;
+        raw.answer = payload.recommended_first_action || 'Briefing generated';
+        raw.project = payload.project;
+        raw.recent_activity = payload.recent_activity;
+        raw.agent_handoff = payload.agent_handoff;
+        raw.critical_gaps = payload.critical_gaps;
+        raw.context_freshness_hours = payload.context_freshness_hours;
+        raw.recommended_first_action = payload.recommended_first_action;
     }
 
     // Infer query_type from response content when not explicitly set
@@ -82,6 +84,7 @@ export function parseAresResponse(result: any, filePath?: string): AresResponse 
 
     return {
         ...raw,
+        result: payload,
         answer: raw.answer ?? raw.explanation ?? '',
         confidence: (typeof raw.confidence === 'object' && raw.confidence !== null)
             ? raw.confidence

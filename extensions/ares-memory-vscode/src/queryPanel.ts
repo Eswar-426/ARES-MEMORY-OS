@@ -452,7 +452,7 @@ body{background:var(--vscode-editor-background);color:var(--vscode-editor-foregr
         return 'Low';
     }
     function isEmpty(d) {
-        return (!d.answer || d.answer.trim() === '') &&
+        return (!d.answer || (typeof d.answer === 'string' && d.answer.trim() === '')) &&
                (!d.evidence || d.evidence.length === 0) &&
                (!d.dashboard);
     }
@@ -1136,6 +1136,10 @@ body{background:var(--vscode-editor-background);color:var(--vscode-editor-foregr
         if (typeof raw === 'number') { score = raw; }
         else if (typeof raw === 'string') { score = parseFloat(raw) || 0; }
         else if (raw && typeof raw === 'object') { score = parseFloat(raw.score) || 0; }
+        
+        // Handle the new 0.0-1.0 scale backend universal envelope while preserving 0-100 compat
+        if (score > 0 && score <= 1.0) { score = score * 100; }
+        
         var pct = Math.min(100, Math.max(0, Math.round(score)));
         var reasons = (raw && typeof raw === 'object' && Array.isArray(raw.reasons)) ? raw.reasons : [];
 

@@ -121,7 +121,8 @@ export function registerCliCommands(
 
                 try {
                     const result = await mcpClient.callTool('ares_dashboard', { project_id: cwd });
-                    const dash = JSON.parse(result.content[0].text);
+                    const dashRaw = JSON.parse(result.content[0].text);
+                    const dash = dashRaw.answer || dashRaw.result || dashRaw;
                     check('Repository indexed', dash.repository.files > 0);
                     progress.report({ increment: 10, message: 'Checking Graph...' });
                     check('Graph exists', dash.knowledge_graph.nodes > 0);

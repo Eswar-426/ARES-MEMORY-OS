@@ -33,8 +33,10 @@ export function registerHealthCommands(
                 console.log("[Health] parsed response\n", JSON.stringify(rawResult, null, 2));
                 output.appendLine("[Health] parsed response\n" + JSON.stringify(rawResult, null, 2));
 
-                const healthScore = Math.round(rawResult.health_score || 0);
-                const scoreBreakdown = rawResult.score_breakdown || {};
+                const payload = rawResult.answer || rawResult.result || rawResult;
+
+                const healthScore = Math.round(payload.health_score || 0);
+                const scoreBreakdown = payload.score_breakdown || {};
                 
                 // Update status bar
                 const icon = healthScore > 70 ? '$(check)' : (healthScore > 40 ? '$(warning)' : '$(error)');
@@ -56,10 +58,10 @@ export function registerHealthCommands(
                     evidence: [],
                     related_decisions: [],
                     query_type: 'healthCheck',
-                    gaps: rawResult.gaps || [],
-                    health_score: rawResult.health_score || 0,
+                    gaps: payload.gaps || [],
+                    health_score: payload.health_score || 0,
                     score_breakdown: scoreBreakdown,
-                    hotspots: rawResult.hotspots || [],
+                    hotspots: payload.hotspots || [],
                     recent_queries: context.workspaceState.get('ares.recentQueries', []),
                     execution_time_ms: 0,
                 };

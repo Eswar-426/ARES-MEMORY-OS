@@ -35,17 +35,15 @@ fn extract_paths_from_json(files: &mut HashSet<String>, json_str: &str) {
         let pattern = format!("\"{}\":\"", field);
         if let Some(idx) = json_str.find(&pattern) {
             let rest = &json_str[idx + pattern.len()..];
-            if let Some(val_start) = rest.find('"') {
-                if let Some(val_end) = rest[val_start + 1..].find('"') {
-                    let path = &rest[val_start + 1..val_start + 1 + val_end];
-                    if !path.is_empty()
-                        && !path.starts_with("person:")
-                        && !path.starts_with("commit:")
-                        && !path.starts_with("decision:")
-                        && !path.starts_with("requirement:")
-                    {
-                        files.insert(path.to_string());
-                    }
+            if let Some(val_end) = rest.find('"') {
+                let path = &rest[..val_end];
+                if !path.is_empty()
+                    && !path.starts_with("person:")
+                    && !path.starts_with("commit:")
+                    && !path.starts_with("decision:")
+                    && !path.starts_with("requirement:")
+                {
+                    files.insert(path.to_string());
                 }
             }
         }
@@ -77,6 +75,89 @@ use tower_mcp::{
     BoxError,
 };
 use tracing::info;
+
+/// Wraps any tool's existing JSON response in the universal ARES envelope.
+/// Preserves `result` and `query_time_ms` at top level for webview backward compat.
+fn wrap_with_envelope(
+    tool_name: &str,
+    current: serde_json::Value,
+    elapsed_ms: u64,
+) -> serde_json::Value {
+    // --- Extract evidence (keep what the tool already produced) ---
+    let evidence = current
+        .get("evidence")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
+
+    // --- Normalize confidence to 0.0-1.0 (check top-level AND inside result) ---
+    let confidence = {
+        let raw = current
+            .get("confidence")
+            .or_else(|| current.get("result").and_then(|r| r.get("confidence")));
+        match raw {
+            Some(serde_json::Value::Number(n)) => {
+                let v = n.as_f64().unwrap_or(0.0);
+                if v > 1.0 { v / 100.0 } else { v }
+            }
+            Some(serde_json::Value::Object(obj)) => {
+                let v = obj.get("score").and_then(|s| s.as_f64()).unwrap_or(0.0);
+                if v > 1.0 { v / 100.0 } else { v }
+            }
+            _ => 0.0,
+        }
+    };
+
+    // --- Determine answer: prefer existing answer, else result, else whole thing ---
+    let answer = current
+        .get("answer")
+        .cloned()
+        .or_else(|| current.get("result").cloned())
+        .unwrap_or_else(|| current.clone());
+
+    // --- Determine status ---
+    let has_error = current.get("error").map_or(false, |e| !e.is_null());
+    let is_empty = match &answer {
+        serde_json::Value::Array(a) => a.is_empty(),
+        serde_json::Value::Object(o) => o.is_empty(),
+        serde_json::Value::Null => true,
+        serde_json::Value::String(s) => s.is_empty(),
+        _ => false,
+    };
+    let status = if has_error {
+        "error"
+    } else if is_empty {
+        "empty"
+    } else {
+        "ok"
+    };
+
+    // --- Build envelope ---
+    let mut envelope = serde_json::json!({
+        "tool": tool_name,
+        "schema_version": "1.0",
+        "status": status,
+        "confidence": confidence,
+        "evidence": evidence,
+        "gap_flags": [],
+        "caveats": [],
+        "answer": answer,
+        "meta": {
+            "elapsed_ms": elapsed_ms as i64,
+            "graph_nodes_traversed": 0,
+            "truncated": false
+        }
+    });
+
+    // --- Backward compat: preserve legacy top-level fields for webview ---
+    if let Some(r) = current.get("result") {
+        envelope["result"] = r.clone();
+    }
+    if let Some(qt) = current.get("query_time_ms") {
+        envelope["query_time_ms"] = qt.clone();
+    }
+
+    envelope
+}
 
 fn format_mcp_error(message: &str, details: &str) -> String {
     serde_json::json!({
@@ -424,9 +505,7 @@ async fn main() -> Result<(), BoxError> {
                             "mode": insight.mode,
                             "metadata": insight.metadata,
                         });
-                        Ok(CallToolResult::text(
-                            serde_json::to_string(&response).unwrap(),
-                        ))
+                        Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_why_exists", response, 0)).unwrap()))
                     }
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
                         "Failed to explain why entity exists",
@@ -480,7 +559,7 @@ async fn main() -> Result<(), BoxError> {
                             "mode": insight.mode,
                             "metadata": insight.metadata,
                         });
-                        Ok(CallToolResult::text(serde_json::to_string(&response).unwrap()))
+                        Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_impact", response, 0)).unwrap()))
                     }
                     Err(e) => Ok(CallToolResult::text(format!(
                         "{{\"answer\":\"Error: {}\",\"confidence\":0,\"evidence\":[],\"mode\":\"Offline\"}}",
@@ -605,7 +684,7 @@ async fn main() -> Result<(), BoxError> {
                     )
                     .await
                 {
-                    Ok(result) => serde_json::to_string(&result)
+                    Ok(result) => serde_json::to_string(&wrap_with_envelope("ares_compliance", serde_json::to_value(&result).unwrap_or_default(), 0))
                         .map(CallToolResult::text)
                         .map_err(|e| {
                             tower_mcp::Error::internal(format_mcp_error(
@@ -642,7 +721,7 @@ async fn main() -> Result<(), BoxError> {
                     ))
                     .await
                 {
-                    Ok(result) => serde_json::to_string(&result)
+                    Ok(result) => serde_json::to_string(&wrap_with_envelope("ares_scorecard", serde_json::to_value(&result).unwrap_or_default(), 0))
                         .map(CallToolResult::text)
                         .map_err(|e| {
                             tower_mcp::Error::internal(format_mcp_error(
@@ -710,7 +789,7 @@ async fn main() -> Result<(), BoxError> {
                     };
 
                     let response = planner.execute(&context).await;
-                    serde_json::to_string(&response)
+                    serde_json::to_string(&wrap_with_envelope("ares_dashboard", serde_json::to_value(&response).unwrap_or_default(), 0))
                         .map(CallToolResult::text)
                         .map_err(|e| {
                             tower_mcp::Error::internal(format_mcp_error(
@@ -721,7 +800,7 @@ async fn main() -> Result<(), BoxError> {
                 } else {
                     tracing::info!("Executing ares_dashboard via Legacy Engine");
                     let result = ares_repository_intelligence::engines::overview::RepositoryOverviewEngine::collect(&store, &path).await;
-                    serde_json::to_string(&result)
+                    serde_json::to_string(&wrap_with_envelope("ares_dashboard", serde_json::to_value(&result).unwrap_or_default(), 0))
                         .map(CallToolResult::text)
                         .map_err(|e| {
                             tower_mcp::Error::internal(format_mcp_error(
@@ -775,7 +854,7 @@ async fn main() -> Result<(), BoxError> {
                     ));
                 }
                 let (summary, _) = engine.generate_summary(&coverages);
-                serde_json::to_string(&summary)
+                serde_json::to_string(&wrap_with_envelope("ares_coverage_legacy", serde_json::to_value(&summary).unwrap_or_default(), 0))
                     .map(CallToolResult::text)
                     .map_err(|e| {
                         tower_mcp::Error::internal(format_mcp_error(
@@ -827,7 +906,7 @@ async fn main() -> Result<(), BoxError> {
                             "mode": insight.mode,
                             "metadata": insight.metadata,
                         });
-                        Ok(CallToolResult::text(serde_json::to_string(&response).unwrap()))
+                        Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_drift", response, 0)).unwrap()))
                     }
                     Err(e) => Ok(CallToolResult::text(format!(
                         "{{\"answer\":\"Error: {}\",\"confidence\":0,\"evidence\":[],\"mode\":\"Offline\"}}",
@@ -943,7 +1022,8 @@ async fn main() -> Result<(), BoxError> {
                 if let Some(modifier) = last_modifier {
                     result_json["result"]["last_modifier"] = serde_json::json!(modifier);
                 }
-                Ok(CallToolResult::text(serde_json::to_string(&result_json).unwrap()))
+                let elapsed = start.elapsed().as_millis() as u64;
+                Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_who_owns", result_json, elapsed)).unwrap()))
             }
         })
         .build();
@@ -1039,15 +1119,14 @@ async fn main() -> Result<(), BoxError> {
                 }
 
                 if decisions.is_empty() {
-                    Ok(CallToolResult::text(
-                        serde_json::to_string(&serde_json::json!({
-                            "result": { "decisions": [] },
+                    let elapsed = start.elapsed().as_millis() as u64;
+                    let inner = serde_json::json!({
+                        "result": { "decisions": [] },
                             "evidence": [{"source": "graph", "confidence": 1.0}],
                             "gap_flags": ["no_recorded_decisions"],
                             "query_time_ms": start.elapsed().as_millis() as i64
-                        }))
-                        .unwrap(),
-                    ))
+                    });
+                    Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_coverage", inner, elapsed)).unwrap()))
                 } else {
                     Ok(CallToolResult::text(
                         serde_json::to_string(&serde_json::json!({
@@ -1077,14 +1156,13 @@ async fn main() -> Result<(), BoxError> {
                 let start = std::time::Instant::now();
 
                 if input.query.trim().is_empty() {
-                    return Ok(CallToolResult::text(
-                        serde_json::to_string(&serde_json::json!({
-                            "result": { "results": [] },
-                            "evidence": [{"source": "graph", "confidence": 1.0}],
-                            "query_time_ms": start.elapsed().as_millis() as i64
-                        }))
-                        .unwrap(),
-                    ));
+                    let elapsed = start.elapsed().as_millis() as u64;
+                    let inner = serde_json::json!({
+                        "result": { "results": [] },
+                        "evidence": [{"source": "graph", "confidence": 1.0}],
+                        "query_time_ms": start.elapsed().as_millis() as i64
+                    });
+                    return Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_search", inner, elapsed)).unwrap()));
                 }
                 let repo =
                     ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
@@ -1126,14 +1204,13 @@ async fn main() -> Result<(), BoxError> {
                     }
                 }
 
-                Ok(CallToolResult::text(
-                    serde_json::to_string(&serde_json::json!({
-                        "result": { "results": results },
+                let elapsed = start.elapsed().as_millis() as u64;
+                let inner = serde_json::json!({
+                    "result": { "results": results },
                         "evidence": [{"source": "graph", "confidence": 1.0}],
                         "query_time_ms": start.elapsed().as_millis() as i64
-                    }))
-                    .unwrap(),
-                ))
+                });
+                Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_search", inner, elapsed)).unwrap()))
             }
         })
         .build();
@@ -1220,18 +1297,17 @@ async fn main() -> Result<(), BoxError> {
                     )
                 };
 
-                Ok(CallToolResult::text(
-                    serde_json::to_string(&serde_json::json!({
-                        "result": { 
+                let elapsed = start.elapsed().as_millis() as u64;
+                let inner = serde_json::json!({
+                    "result": { 
                             "events": events,
                             "narrative": narrative,
                             "total_commits": events.len()
                         },
                         "evidence": [{"source": "graph", "confidence": 1.0}],
                         "query_time_ms": start.elapsed().as_millis() as i64
-                    }))
-                    .unwrap(),
-                ))
+                });
+                Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_timeline", inner, elapsed)).unwrap()))
             }
         })
         .build();
@@ -1339,9 +1415,9 @@ async fn main() -> Result<(), BoxError> {
                     "independent"
                 };
 
-                Ok(CallToolResult::text(
-                    serde_json::to_string(&serde_json::json!({
-                        "result": {
+                let elapsed = start.elapsed().as_millis() as u64;
+                let inner = serde_json::json!({
+                    "result": {
                             "shared_dependencies": shared_paths,
                             "shared_decisions": [],
                             "relationship": relationship,
@@ -1349,9 +1425,8 @@ async fn main() -> Result<(), BoxError> {
                         },
                         "evidence": [{"source": "graph", "confidence": 1.0}],
                         "query_time_ms": start.elapsed().as_millis() as i64
-                    }))
-                    .unwrap(),
-                ))
+                });
+                Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_compare", inner, elapsed)).unwrap()))
             }
         })
         .build();
@@ -1445,7 +1520,8 @@ async fn main() -> Result<(), BoxError> {
                     Vec::new()
                 };
 
-                Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
+                let elapsed = start.elapsed().as_millis() as u64;
+                let inner = serde_json::json!({
                     "result": {
                         "summary": format!("{} files, {} functions, {} commits across {} node types", file_count, func_count, commit_count, type_counts.len()),
                         "top_files": top,
@@ -1457,7 +1533,8 @@ async fn main() -> Result<(), BoxError> {
                     "hidden_coupling": cochanges,
                     "evidence": [{"source": "graph", "confidence": 1.0}],
                     "query_time_ms": start.elapsed().as_millis() as i64
-                })).unwrap()))
+                });
+                Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_architecture", inner, elapsed)).unwrap()))
             }
         })
         .build();
@@ -1525,14 +1602,13 @@ async fn main() -> Result<(), BoxError> {
                     }
                 }
 
-                Ok(CallToolResult::text(
-                    serde_json::to_string(&serde_json::json!({
-                        "result": { "requirements": requirements },
+                let elapsed = start.elapsed().as_millis() as u64;
+                let inner = serde_json::json!({
+                    "result": { "requirements": requirements },
                         "evidence": [{"source": "graph", "confidence": 1.0}],
                         "query_time_ms": start.elapsed().as_millis() as i64
-                    }))
-                    .unwrap(),
-                ))
+                });
+                Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_requirements", inner, elapsed)).unwrap()))
             }
         })
         .build();
@@ -1899,11 +1975,13 @@ async fn main() -> Result<(), BoxError> {
                     }
                 }
 
-                Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
+                let elapsed = start.elapsed().as_millis() as u64;
+                let inner = serde_json::json!({
                     "result": { "sessions": sessions },
                     "evidence": [{"source": "agent_sessions", "confidence": 1.0}],
                     "query_time_ms": start.elapsed().as_millis() as i64
-                })).unwrap_or_default()))
+                });
+                Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_session_context", inner, elapsed)).unwrap_or_default()))
             }
         })
         .build();
@@ -2028,7 +2106,7 @@ async fn main() -> Result<(), BoxError> {
                   )));
                   let engine = ares_requirements::gaps::KnowledgeGapEngine::new(&graph);
                   let gaps = engine.evaluate_gaps();
-                  serde_json::to_string(&gaps)
+                  serde_json::to_string(&wrap_with_envelope("ares_gaps", serde_json::to_value(&gaps).unwrap_or_default(), 0))
                       .map(CallToolResult::text)
                       .map_err(|e| {
                           tower_mcp::Error::internal(format_mcp_error(
@@ -2096,7 +2174,7 @@ async fn main() -> Result<(), BoxError> {
                 ).await {
                     Ok(mut report) => {
                         report.target = input.target_id.clone();
-                        serde_json::to_string(&report)
+                        serde_json::to_string(&wrap_with_envelope("ares_simulate", serde_json::to_value(&report).unwrap_or_default(), 0))
                             .map(CallToolResult::text)
                             .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize simulation report", &e.to_string())))
                     },
@@ -2145,7 +2223,7 @@ async fn main() -> Result<(), BoxError> {
                             "mode": insight.mode,
                             "metadata": insight.metadata,
                         });
-                        Ok(CallToolResult::text(serde_json::to_string(&response).unwrap()))
+                        Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_traceability", response, 0)).unwrap()))
                     }
                     Err(e) => Ok(CallToolResult::text(format!(
                         "{{\"answer\":\"Error: {}\",\"confidence\":0,\"evidence\":[],\"mode\":\"Offline\"}}",
@@ -2167,7 +2245,7 @@ async fn main() -> Result<(), BoxError> {
                 track_session_call(&session, "ares_graph_statistics", &_input);
                 let result = ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_statistics(&store).await;
                 match result {
-                    Ok(stats) => serde_json::to_string(&stats)
+                    Ok(stats) => serde_json::to_string(&wrap_with_envelope("ares_graph_statistics", serde_json::to_value(&stats).unwrap_or_default(), 0))
                         .map(CallToolResult::text)
                         .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize graph stats", &e.to_string()))),
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to retrieve graph stats", &e.to_string()))),
@@ -2201,7 +2279,7 @@ async fn main() -> Result<(), BoxError> {
                     name,
                     60,
                 ) {
-                    Ok(payload) => serde_json::to_string(&payload)
+                    Ok(payload) => serde_json::to_string(&wrap_with_envelope("ares_graph_root", serde_json::to_value(&payload).unwrap_or_default(), 0))
                         .map(CallToolResult::text)
                         .map_err(|e| {
                             tower_mcp::Error::internal(format_mcp_error(
@@ -2230,7 +2308,7 @@ async fn main() -> Result<(), BoxError> {
                 let node_id_str = ares_core::canonicalize_node_id(&input.node_id);
                 let node_id = ares_core::NodeId::from(node_id_str);
                 match ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_neighbors(&store, &node_id).await {
-                    Ok(payload) => serde_json::to_string(&payload)
+                    Ok(payload) => serde_json::to_string(&wrap_with_envelope("ares_graph_neighbors", serde_json::to_value(&payload).unwrap_or_default(), 0))
                         .map(CallToolResult::text)
                         .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize graph neighbors", &e.to_string()))),
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to retrieve graph neighbors", &e.to_string()))),
@@ -2249,7 +2327,7 @@ async fn main() -> Result<(), BoxError> {
             async move {
                 track_session_call(&session, "ares_graph_search", &input);
                 match ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_search(&store, &input.query).await {
-                    Ok(payload) => serde_json::to_string(&payload)
+                    Ok(payload) => serde_json::to_string(&wrap_with_envelope("ares_graph_search", serde_json::to_value(&payload).unwrap_or_default(), 0))
                         .map(CallToolResult::text)
                         .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize graph search results", &e.to_string()))),
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to search graph", &e.to_string()))),
@@ -2272,7 +2350,7 @@ async fn main() -> Result<(), BoxError> {
                 let from_id = ares_core::NodeId::from(from_id_str);
                 let to_id = ares_core::NodeId::from(to_id_str);
                 match ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_shortest_path(&store, &from_id, &to_id).await {
-                    Ok(payload) => serde_json::to_string(&payload)
+                    Ok(payload) => serde_json::to_string(&wrap_with_envelope("ares_graph_shortest_path", serde_json::to_value(&payload).unwrap_or_default(), 0))
                         .map(CallToolResult::text)
                         .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize shortest path", &e.to_string()))),
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to find shortest path", &e.to_string()))),
@@ -2297,7 +2375,7 @@ async fn main() -> Result<(), BoxError> {
                 let node_id_str = ares_core::canonicalize_node_id(&node_id_str_str);
                 let node_id = ares_core::NodeId::from(node_id_str);
                 match ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_metadata(&store, &node_id).await {
-                    Ok(node) => serde_json::to_string(&node)
+                    Ok(node) => serde_json::to_string(&wrap_with_envelope("ares_graph_metadata", serde_json::to_value(&node).unwrap_or_default(), 0))
                         .map(CallToolResult::text)
                         .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize node metadata", &e.to_string()))),
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to retrieve node metadata", &e.to_string()))),
@@ -2373,9 +2451,7 @@ async fn main() -> Result<(), BoxError> {
                     "bookmarks": bookmarks,
                     "pins": pins
                 });
-                Ok(CallToolResult::text(
-                    serde_json::to_string(&response).unwrap(),
-                ))
+                Ok(CallToolResult::text(serde_json::to_string(&response).unwrap()))
             }
         })
         .build();
@@ -2505,7 +2581,7 @@ async fn main() -> Result<(), BoxError> {
                             "actions": resp.actions,
                             "citations": resp.response.citations,
                         });
-                        Ok(CallToolResult::text(serde_json::to_string(&output).unwrap()))
+                        Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_chat", output, 0)).unwrap()))
                     },
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed chat", &e.to_string()))),
                 }
@@ -2528,7 +2604,9 @@ async fn main() -> Result<(), BoxError> {
             let store = store_dead.clone();
             async move {
                 match ares_intelligence::dead_code::find_dead_code(&store, 30).await {
-                    Ok(report) => Ok(CallToolResult::text(serde_json::to_string(&report).unwrap_or_default())),
+                    Ok(report) => {
+                    Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_dead_code", serde_json::to_value(&report).unwrap_or_default(), 0)).unwrap_or_default()))
+                    },
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed dead code", &e.to_string()))),
                 }
             }
@@ -2546,12 +2624,16 @@ async fn main() -> Result<(), BoxError> {
             async move {
                 let start = std::time::Instant::now();
                 match ares_intelligence::context_file::generate_context_file(&store, &pp, &pid, None).await {
-                    Ok(report) => Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
-                        "ares_version": "0.1.0",
+                    Ok(report) => {
+                        let elapsed = start.elapsed().as_millis() as u64;
+                        let inner = serde_json::json!( {
+                            "ares_version": "0.1.0",
                         "evidence": [],
                         "query_time_ms": start.elapsed().as_millis() as u64,
                         "result": report
-                    })).unwrap_or_default())),
+                        });
+                        Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_generate_context_file", inner, elapsed)).unwrap_or_default()))
+                    },
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed context file", &e.to_string()))),
                 }
             }
@@ -2567,12 +2649,16 @@ async fn main() -> Result<(), BoxError> {
             async move {
                 let start = std::time::Instant::now();
                 match ares_intelligence::briefing::generate_briefing(&store, &pp).await {
-                    Ok(report) => Ok(CallToolResult::text(serde_json::to_string(&serde_json::json!({
-                        "ares_version": "0.1.0",
+                    Ok(report) => {
+                        let elapsed = start.elapsed().as_millis() as u64;
+                        let inner = serde_json::json!( {
+                            "ares_version": "0.1.0",
                         "evidence": [],
                         "query_time_ms": start.elapsed().as_millis() as u64,
                         "result": report
-                    })).unwrap_or_default())),
+                        });
+                        Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_briefing", inner, elapsed)).unwrap_or_default()))
+                    },
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed briefing", &e.to_string()))),
                 }
             }
@@ -2633,7 +2719,7 @@ async fn main() -> Result<(), BoxError> {
                     "hotspots": hotspots
                 });
 
-                Ok(CallToolResult::text(result.to_string()))
+                Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_health_check", result, 0)).unwrap_or_default()))
             }
         })
         .build();

@@ -34,13 +34,15 @@ export function registerDashboardCommand(
                 console.log("[Dashboard] parsed response\n", JSON.stringify(rawResult, null, 2));
                 output.appendLine("[Dashboard] parsed response\n" + JSON.stringify(rawResult, null, 2));
 
+                const payload = rawResult.answer || rawResult.result || rawResult;
+
                 const response: AresResponse = {
                     answer: 'ARES Home',
                     confidence: 1.0,
                     evidence: [],
                     related_decisions: [],
                     query_type: 'ARES Home',
-                    dashboard: rawResult,
+                    dashboard: payload,
                     recent_queries: context.workspaceState.get('ares.recentQueries', []),
                     execution_time_ms: 0,
                 };
