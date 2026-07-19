@@ -2251,8 +2251,8 @@ async fn main() -> Result<(), BoxError> {
                             "warnings": insight.warnings,
                             "recommendations": insight.recommendations,
                             "summary": insight.summary,
-                            "file_path": input.file_path.as_ref().or(input.entity_id.as_ref()),
-                            "entity": input.file_path.as_ref().or(input.entity_id.as_ref()),
+                            "file_path": input.file_path.clone().or_else(|| input.entity_id.clone()).unwrap_or_default(),
+                            "entity": input.file_path.clone().or_else(|| input.entity_id.clone()).unwrap_or_default(),
                             "mode": insight.mode,
                             "metadata": insight.metadata,
                         });
