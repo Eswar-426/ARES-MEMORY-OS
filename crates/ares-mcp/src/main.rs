@@ -293,8 +293,20 @@ struct RequirementsQueryInput {
 
 #[derive(Debug, Deserialize, serde::Serialize, JsonSchema)]
 struct GovernanceQueryInput {
+    #[serde(default)]
     project_id: String,
     node_id: String,
+}
+
+impl GovernanceQueryInput {
+    fn resolve_id(&self, store: &ares_store::db::Store) -> Result<String, String> {
+        if self.node_id.starts_with("0") || self.node_id.starts_with("file:") || self.node_id.len() == 36 {
+            return Ok(ares_core::canonicalize_node_id(&self.node_id));
+        }
+        let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store.clone());
+        repo.get_id_by_path_loose(&self.node_id)
+            .map_err(|_| format!("Node not found for path: {}", self.node_id))
+    }
 }
 
 #[derive(Debug, Deserialize, serde::Serialize, JsonSchema)]
@@ -686,6 +698,7 @@ async fn main() -> Result<(), BoxError> {
         });
 
     // Create the Compliance tool
+    let store_compliance = app_state.store.clone();
     let facade_compliance = facade.clone();
     let session_clone_compliance_tool = session_state.clone();
     let compliance_tool = ToolBuilder::new("ares_compliance")
@@ -694,15 +707,28 @@ async fn main() -> Result<(), BoxError> {
         )
         .handler(move |input: GovernanceQueryInput| {
             let session = session_clone_compliance_tool.clone();
+            let store = store_compliance.clone();
             let facade = facade_compliance.clone();
             async move {
                 track_session_call(&session, "ares_compliance", &input);
+                
+                let resolved_project_id = if input.project_id.is_empty() {
+                    session.lock().unwrap().project_id.clone()
+                } else {
+                    input.project_id.clone()
+                };
+
+                let node_id_str = match input.resolve_id(&store) {
+                    Ok(id) => id,
+                    Err(e) => return Err(tower_mcp::Error::invalid_params(e)),
+                };
+                let node_id = ares_core::NodeId::from(node_id_str);
+                
                 let governance = facade.get_governance();
-                let node_id = ares_core::canonicalize_node_id(&input.node_id);
                 match governance
                     .is_compliant(
-                        &ares_core::ProjectId::from(input.project_id),
-                        &ares_core::NodeId::from(node_id),
+                        &ares_core::ProjectId::from(resolved_project_id),
+                        &node_id,
                     )
                     .await
                 {
