@@ -63,6 +63,7 @@ pub struct EngineeringInsight {
     pub recommendations: Vec<String>,
     /// Warnings about missing data or risks
     pub warnings: Vec<String>,
+    pub gap_flags: Vec<String>,
     /// How this insight was produced
     pub mode: InferenceMode,
     /// Execution metadata

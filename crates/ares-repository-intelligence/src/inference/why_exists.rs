@@ -56,6 +56,7 @@ impl DeterministicInference for WhyExistsGenerator {
                 },
                 generator: "WhyExistsGenerator".to_string(),
             },
+            gap_flags: vec![],
         }
     }
 }

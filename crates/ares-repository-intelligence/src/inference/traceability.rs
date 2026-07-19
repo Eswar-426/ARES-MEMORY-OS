@@ -146,6 +146,7 @@ impl DeterministicInference for TraceabilityGenerator {
                 },
                 generator: "TraceabilityGenerator".to_string(),
             },
+            gap_flags: vec![],
         }
     }
 }

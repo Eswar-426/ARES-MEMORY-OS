@@ -170,6 +170,7 @@ impl DeterministicInference for ImpactGenerator {
                 },
                 generator: "ImpactGenerator".to_string(),
             },
+            gap_flags: vec![],
         }
     }
 }

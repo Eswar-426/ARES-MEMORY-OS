@@ -165,6 +165,7 @@ impl DeterministicInference for DriftGenerator {
                 },
                 generator: "DriftGenerator".to_string(),
             },
+            gap_flags: vec![],
         }
     }
 }

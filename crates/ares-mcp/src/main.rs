@@ -89,6 +89,11 @@ fn wrap_with_envelope(
         .cloned()
         .unwrap_or_else(|| serde_json::json!([]));
 
+    let gap_flags = current
+        .get("gap_flags")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
+
     // --- Normalize confidence to 0.0-1.0 (check top-level AND inside result) ---
     let confidence = {
         let raw = current
@@ -138,7 +143,7 @@ fn wrap_with_envelope(
         "status": status,
         "confidence": confidence,
         "evidence": evidence,
-        "gap_flags": [],
+        "gap_flags": gap_flags,
         "caveats": [],
         "answer": answer,
         "meta": {
@@ -497,6 +502,7 @@ async fn main() -> Result<(), BoxError> {
                             "answer": insight.answer,
                             "confidence": insight.confidence,
                             "evidence": insight.evidence,
+                            "gap_flags": serde_json::json!(insight.gap_flags),
                             "warnings": insight.warnings,
                             "recommendations": insight.recommendations,
                             "summary": insight.summary,
@@ -551,6 +557,7 @@ async fn main() -> Result<(), BoxError> {
                             "answer": insight.answer,
                             "confidence": insight.confidence,
                             "evidence": insight.evidence,
+                            "gap_flags": serde_json::json!(insight.gap_flags),
                             "warnings": insight.warnings,
                             "recommendations": insight.recommendations,
                             "summary": insight.summary,
@@ -898,6 +905,7 @@ async fn main() -> Result<(), BoxError> {
                             "answer": insight.answer,
                             "confidence": insight.confidence,
                             "evidence": insight.evidence,
+                            "gap_flags": serde_json::json!(insight.gap_flags),
                             "warnings": insight.warnings,
                             "recommendations": insight.recommendations,
                             "summary": insight.summary,
@@ -1602,12 +1610,22 @@ async fn main() -> Result<(), BoxError> {
                 }
 
                 let elapsed = start.elapsed().as_millis() as u64;
-                let inner = serde_json::json!({
-                    "result": { "requirements": requirements },
+                if requirements.is_empty() {
+                    let inner = serde_json::json!({
+                        "result": { "requirements": [] },
+                        "gap_flags": ["no_recorded_requirements"],
                         "evidence": [{"source": "graph", "confidence": 1.0}],
                         "query_time_ms": start.elapsed().as_millis() as i64
-                });
-                Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_requirements", inner, elapsed)).unwrap()))
+                    });
+                    Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_requirements", inner, elapsed)).unwrap()))
+                } else {
+                    let inner = serde_json::json!({
+                        "result": { "requirements": requirements },
+                        "evidence": [{"source": "graph", "confidence": 1.0}],
+                        "query_time_ms": start.elapsed().as_millis() as i64
+                    });
+                    Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_requirements", inner, elapsed)).unwrap()))
+                }
             }
         })
         .build();
@@ -2214,6 +2232,7 @@ async fn main() -> Result<(), BoxError> {
                             "answer": insight.answer,
                             "confidence": insight.confidence,
                             "evidence": insight.evidence,
+                            "gap_flags": serde_json::json!(insight.gap_flags),
                             "warnings": insight.warnings,
                             "recommendations": insight.recommendations,
                             "summary": insight.summary,
