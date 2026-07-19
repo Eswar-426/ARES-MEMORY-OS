@@ -103,7 +103,11 @@ impl DeterministicInference for ImpactGenerator {
 
         // ── Risk ─────────────────────────────────────────────────
         let dep_count = deps.len();
-        let risk = if dep_count == 0 {
+        let is_entry_point = evidence.entity_label.ends_with("main.rs") || evidence.entity_label.ends_with("lib.rs");
+
+        let risk = if is_entry_point {
+            "HIGH (entry point)"
+        } else if dep_count == 0 {
             "LOW (unverified)"
         } else if dep_count <= 3 {
             "MEDIUM"
@@ -118,7 +122,12 @@ impl DeterministicInference for ImpactGenerator {
 
         EngineeringInsight {
             answer,
-            summary: if dep_count == 0 {
+            summary: if is_entry_point {
+                format!(
+                    "Removing `{}` is highly risky as it is an application entry point. Risk: {}",
+                    evidence.entity_label, risk
+                )
+            } else if dep_count == 0 {
                 format!(
                     "No graph dependents detected for `{}`. Risk cannot be determined from graph alone.",
                     evidence.entity_label
@@ -131,7 +140,9 @@ impl DeterministicInference for ImpactGenerator {
             },
             confidence,
             evidence: narrative::flatten_evidence(evidence),
-            warnings: if dep_count == 0 {
+            warnings: if is_entry_point {
+                vec!["Entity is a recognized entry point (main.rs / lib.rs)".to_string()]
+            } else if dep_count == 0 {
                 vec![
                     "No graph dependents detected \u{2014} graph may be incomplete for \
                      dynamic dispatch, reflection, or unscanned languages"
@@ -140,7 +151,9 @@ impl DeterministicInference for ImpactGenerator {
             } else {
                 vec![format!("{} modules depend on this entity", dep_count)]
             },
-            recommendations: if dep_count > 5 {
+            recommendations: if is_entry_point {
+                vec!["Do not remove entry points unless decommissioning the entire package.".to_string()]
+            } else if dep_count > 5 {
                 vec!["Consider refactoring to reduce tight coupling.".to_string()]
             } else {
                 vec![]

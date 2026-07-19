@@ -1105,7 +1105,7 @@ async fn main() -> Result<(), BoxError> {
                             };
 
                             decisions.push(serde_json::json!({
-                                "id": dn.id.as_str(),
+                                "id": format!("node_id:{}", dn.id.as_str()),
                                 "date": dn.created_at,
                                 "summary": summary,
                                 "author": author,
@@ -1122,20 +1122,19 @@ async fn main() -> Result<(), BoxError> {
                     let elapsed = start.elapsed().as_millis() as u64;
                     let inner = serde_json::json!({
                         "result": { "decisions": [] },
-                            "evidence": [{"source": "graph", "confidence": 1.0}],
-                            "gap_flags": ["no_recorded_decisions"],
-                            "query_time_ms": start.elapsed().as_millis() as i64
+                        "evidence": [{"source": "graph", "confidence": 1.0}],
+                        "gap_flags": ["no_recorded_decisions"],
+                        "query_time_ms": start.elapsed().as_millis() as i64
                     });
-                    Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_coverage", inner, elapsed)).unwrap()))
+                    Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_decisions", inner, elapsed)).unwrap()))
                 } else {
-                    Ok(CallToolResult::text(
-                        serde_json::to_string(&serde_json::json!({
-                            "result": { "decisions": decisions },
-                            "evidence": [{"source": "graph", "confidence": 1.0}],
-                            "query_time_ms": start.elapsed().as_millis() as i64
-                        }))
-                        .unwrap(),
-                    ))
+                    let elapsed = start.elapsed().as_millis() as u64;
+                    let inner = serde_json::json!({
+                        "result": { "decisions": decisions },
+                        "evidence": [{"source": "graph", "confidence": 1.0}],
+                        "query_time_ms": start.elapsed().as_millis() as i64
+                    });
+                    Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_decisions", inner, elapsed)).unwrap()))
                 }
             }
         })
@@ -1199,7 +1198,7 @@ async fn main() -> Result<(), BoxError> {
                         results.push(serde_json::json!({
                             "type": n.node_type,
                             "summary": summary,
-                            "file_path": n.file_path
+                            "file_path": n.file_path.unwrap_or_default()
                         }));
                     }
                 }
