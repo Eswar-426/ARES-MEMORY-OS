@@ -37,6 +37,23 @@ impl DeterministicInference for WhyExistsGenerator {
         let answer = sections.join("\n\n");
         let summary = build_summary_line(evidence, &intent);
 
+        let mut gap_flags = Vec::new();
+        if evidence.commits.is_empty() {
+            gap_flags.push("no_git_history".to_string());
+        }
+        if evidence.owners.is_empty() {
+            gap_flags.push("no_codeowners_file".to_string());
+        }
+        if evidence.requirements.is_empty() {
+            gap_flags.push("no_recorded_requirements".to_string());
+        }
+        if evidence.dependents.is_empty() && evidence.dependencies.is_empty() && evidence.folders.is_empty() {
+            gap_flags.push("incomplete_graph".to_string());
+        }
+        if evidence.entity_type == "unknown" {
+            gap_flags.push("incomplete_ast".to_string());
+        }
+
         EngineeringInsight {
             answer,
             summary,
@@ -56,7 +73,7 @@ impl DeterministicInference for WhyExistsGenerator {
                 },
                 generator: "WhyExistsGenerator".to_string(),
             },
-            gap_flags: vec![],
+            gap_flags,
         }
     }
 }

@@ -105,6 +105,17 @@ impl DeterministicInference for TraceabilityGenerator {
 
         let answer = sections.join("\n\n");
 
+        let mut gap_flags = Vec::new();
+        if evidence.commits.is_empty() {
+            gap_flags.push("no_git_history".to_string());
+        }
+        if evidence.requirements.is_empty() {
+            gap_flags.push("no_recorded_requirements".to_string());
+        }
+        if evidence.owners.is_empty() {
+            gap_flags.push("no_codeowners_file".to_string());
+        }
+
         EngineeringInsight {
             answer,
             summary: format!(
@@ -146,7 +157,7 @@ impl DeterministicInference for TraceabilityGenerator {
                 },
                 generator: "TraceabilityGenerator".to_string(),
             },
-            gap_flags: vec![],
+            gap_flags,
         }
     }
 }

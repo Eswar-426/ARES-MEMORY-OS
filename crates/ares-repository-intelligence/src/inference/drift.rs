@@ -127,6 +127,17 @@ impl DeterministicInference for DriftGenerator {
 
         let answer = sections.join("\n\n");
 
+        let mut gap_flags = Vec::new();
+        if commit_count == 0 {
+            gap_flags.push("no_git_history".to_string());
+        }
+        if evidence.documentation.is_empty() {
+            gap_flags.push("no_documentation".to_string());
+        }
+        if dependent_count == 0 && dep_count == 0 && evidence.folders.is_empty() {
+            gap_flags.push("incomplete_graph".to_string());
+        }
+
         EngineeringInsight {
             answer,
             summary: format!(
@@ -165,7 +176,7 @@ impl DeterministicInference for DriftGenerator {
                 },
                 generator: "DriftGenerator".to_string(),
             },
-            gap_flags: vec![],
+            gap_flags,
         }
     }
 }

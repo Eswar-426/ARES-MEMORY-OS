@@ -113,7 +113,7 @@ fn wrap_with_envelope(
     };
 
     // --- Determine answer: prefer existing answer, else result, else whole thing ---
-    let answer = current
+    let mut answer = current
         .get("answer")
         .cloned()
         .or_else(|| current.get("result").cloned())
@@ -151,7 +151,19 @@ fn wrap_with_envelope(
         confidence = 0.3;
     }
 
+    // Research rule: confidence ≤ 0.5 when fewer than 3 evidence sources
+    let evidence_count = evidence.as_array().map_or(0, |a| a.len());
+    if confidence > 0.5 && evidence_count < 3 {
+        confidence = 0.5;
+    }
+
     // --- Build envelope ---
+    if let Some(obj) = answer.as_object_mut() {
+        obj.remove("confidence");
+        obj.remove("evidence");
+        obj.remove("gap_flags");
+    }
+
     let mut envelope = serde_json::json!({
         "tool": tool_name,
         "schema_version": "1.0",
@@ -177,6 +189,96 @@ fn wrap_with_envelope(
     }
 
     envelope
+}
+
+/// Recursively walks JSON and prefixes any string under a "node_id" key with "node_id:" prefix
+fn prefix_node_ids(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(map) => {
+            for (key, v) in map.iter_mut() {
+                if key == "node_id" {
+                    if let serde_json::Value::String(s) = v {
+                        *v = serde_json::Value::String(format!("node_id:{}", s));
+                    }
+                }
+                prefix_node_ids(v);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for v in arr.iter_mut() {
+                prefix_node_ids(v);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn default_nulls(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(map) => {
+            for (key, v) in map.iter_mut() {
+                if v.is_null() {
+                    match key.as_str() {
+                        "language" | "module" | "namespace" | "repository" |
+                        "primary_owner" | "team" | "knowledge_debt" | "risk_level" |
+                        "created_at" | "last_modified" | "location" => {
+                            *v = serde_json::Value::String(String::new());
+                        }
+                        "loc" | "last_modified_days_ago" => {
+                            *v = serde_json::Value::Number(serde_json::Number::from(0));
+                        }
+                        "test_coverage" => {
+                            *v = serde_json::Value::Number(serde_json::Number::from_f64(0.0).unwrap());
+                        }
+                        _ => {}
+                    }
+                }
+                default_nulls(v);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for v in arr.iter_mut() {
+                default_nulls(v);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn transform_relationships(node_val: &mut serde_json::Value) {
+    if let Some(rels) = node_val.get_mut("relationships").and_then(|r| r.as_object_mut()) {
+        for (_rel_type, arr) in rels.iter_mut() {
+            if let Some(citations) = arr.as_array_mut() {
+                for citation in citations.iter_mut() {
+                    if let Some(cit_obj) = citation.as_object_mut() {
+                        if let Some(id_val) = cit_obj.get("id").and_then(|v| v.as_str()).map(|s| s.to_string()) {
+                            let (new_id, new_title) = if id_val.starts_with("unresolved_") {
+                                let mut clean_path = id_val.as_str();
+                                let exts = [".rs_", ".ts_", ".js_", ".jsx_", ".tsx_", ".go_", ".py_", ".c_", ".cpp_", ".h_", ".hpp_", ".cs_", ".java_", ".sql_", ".md_"];
+                                for ext in exts.iter() {
+                                    if let Some(idx) = id_val.find(ext) {
+                                        clean_path = &id_val[idx + ext.len()..];
+                                        break;
+                                    }
+                                }
+                                let normalized = clean_path.replace("\r\n", " ").replace("\n", " ").split_whitespace().collect::<Vec<_>>().join(" ");
+                                (normalized.clone(), normalized)
+                            } else {
+                                let prefixed = if id_val.starts_with("node_id:") { id_val.clone() } else { format!("node_id:{}", id_val) };
+                                let mut existing_title = cit_obj.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                if existing_title == id_val || existing_title.is_empty() {
+                                    existing_title = prefixed.clone();
+                                }
+                                (prefixed.clone(), existing_title)
+                            };
+                            cit_obj.insert("id".to_string(), serde_json::Value::String(new_id));
+                            cit_obj.insert("title".to_string(), serde_json::Value::String(new_title));
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn format_mcp_error(message: &str, details: &str) -> String {
@@ -2462,9 +2564,59 @@ async fn main() -> Result<(), BoxError> {
                 let node_id_str = ares_core::canonicalize_node_id(&node_id_str_str);
                 let node_id = ares_core::NodeId::from(node_id_str);
                 match ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_metadata(&store, &node_id).await {
-                    Ok(node) => serde_json::to_string(&wrap_with_envelope("ares_graph_metadata", serde_json::to_value(&node).unwrap_or_default(), start.elapsed().as_millis() as u64))
-                        .map(CallToolResult::text)
-                        .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize node metadata", &e.to_string()))),
+                    Ok(node) => {
+                        let mut node_val = serde_json::to_value(&node).unwrap_or_default();
+                        prefix_node_ids(&mut node_val);
+                        default_nulls(&mut node_val);
+                        transform_relationships(&mut node_val);
+                        
+                        if let Some(rels) = node_val.get("relationships").and_then(|r| r.as_object()) {
+                            let mut evidence_arr = Vec::new();
+                            for (rel_type, citations) in rels {
+                                if let Some(arr) = citations.as_array() {
+                                    for cit in arr {
+                                        if let Some(cit_obj) = cit.as_object() {
+                                            let title = cit_obj.get("title").and_then(|v| v.as_str()).unwrap_or("unknown");
+                                            let kind = cit_obj.get("kind").and_then(|v| v.as_str()).unwrap_or(rel_type.as_str());
+                                            let ref_source = input.file_path.clone().unwrap_or_else(|| node_id_str_str.clone());
+                                            evidence_arr.push(serde_json::json!({
+                                                "type": "ast_edge",
+                                                "ref": format!("{}:{}→{}", ref_source, kind, title)
+                                            }));
+                                        }
+                                    }
+                                }
+                            }
+                            if let Some(obj) = node_val.as_object_mut() {
+                                obj.insert("evidence".to_string(), serde_json::Value::Array(evidence_arr));
+                            }
+                        }
+                        
+                        let conf_opt = node_val.get("health")
+                            .and_then(|h| h.as_object())
+                            .and_then(|h| h.get("confidence"))
+                            .cloned();
+                        if let Some(conf) = conf_opt {
+                            if let Some(obj) = node_val.as_object_mut() {
+                                obj.insert("confidence".to_string(), conf);
+                            }
+                        }
+                        
+                        if node.health.is_orphan {
+                            let mut gap_flags = node_val.get("gap_flags")
+                                .and_then(|v| v.as_array())
+                                .map(|a| a.clone())
+                                .unwrap_or_default();
+                            gap_flags.push(serde_json::Value::String("orphan_node".to_string()));
+                            if let Some(obj) = node_val.as_object_mut() {
+                                obj.insert("gap_flags".to_string(), serde_json::Value::Array(gap_flags));
+                            }
+                        }
+
+                        serde_json::to_string(&wrap_with_envelope("ares_graph_metadata", node_val, start.elapsed().as_millis() as u64))
+                            .map(CallToolResult::text)
+                            .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize node metadata", &e.to_string())))
+                    }
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to retrieve node metadata", &e.to_string()))),
                 }
             }
@@ -2538,7 +2690,7 @@ async fn main() -> Result<(), BoxError> {
                     "bookmarks": bookmarks,
                     "pins": pins
                 });
-                Ok(CallToolResult::text(serde_json::to_string(&response).unwrap()))
+                Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_workspace_list", response, 0)).unwrap_or_default()))
             }
         })
         .build();

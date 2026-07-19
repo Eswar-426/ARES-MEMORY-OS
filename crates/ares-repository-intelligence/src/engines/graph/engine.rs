@@ -113,17 +113,29 @@ impl RepositoryGraphEngine {
 
         for edge in edges {
             let edge_type_str = format!("{:?}", edge.edge_type);
+            let target_id_str = if edge.from_node_id == *node_id {
+                edge.to_node_id.as_str()
+            } else {
+                edge.from_node_id.as_str()
+            };
+            
+            let mut title_str = target_id_str.to_string();
+            if !target_id_str.starts_with("unresolved_") {
+                if let Ok(Some(target_node)) = repo.get_node(&ares_core::NodeId::from(target_id_str)) {
+                    if let Some(file_path) = target_node.file_path {
+                        title_str = file_path;
+                    } else if !target_node.label.is_empty() {
+                        title_str = target_node.label;
+                    }
+                }
+            }
+
             let mut cit = crate::core::response::Citation {
                 kind: edge_type_str.clone(),
-                id: if edge.from_node_id == *node_id {
-                    edge.to_node_id.as_str().to_string()
-                } else {
-                    edge.from_node_id.as_str().to_string()
-                },
-                title: "".to_string(), // we can fetch titles in a real implementation
+                id: target_id_str.to_string(),
+                title: title_str,
                 location: None,
             };
-            cit.title = cit.id.clone(); // fallback
 
             if edge.from_node_id == *node_id {
                 match edge_type_str.as_str() {

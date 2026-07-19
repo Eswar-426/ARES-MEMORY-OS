@@ -120,6 +120,14 @@ impl DeterministicInference for ImpactGenerator {
 
         let answer = sections.join("\n\n");
 
+        let mut gap_flags = Vec::new();
+        if dep_count == 0 {
+            gap_flags.push("no_graph_dependents".to_string());
+        }
+        if evidence.commits.is_empty() {
+            gap_flags.push("no_git_history".to_string());
+        }
+
         EngineeringInsight {
             answer,
             summary: if is_entry_point {
@@ -170,7 +178,7 @@ impl DeterministicInference for ImpactGenerator {
                 },
                 generator: "ImpactGenerator".to_string(),
             },
-            gap_flags: vec![],
+            gap_flags,
         }
     }
 }
