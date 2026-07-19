@@ -1027,6 +1027,20 @@ async fn main() -> Result<(), BoxError> {
 
                 contributors.sort_by(|a, b| b["percentage"].as_i64().cmp(&a["percentage"].as_i64()));
 
+                // Normalize contributor percentages to sum to 100
+                let contrib_sum: f64 = contributors.iter()
+                    .filter_map(|c| c.get("percentage").and_then(|p| p.as_f64()))
+                    .sum();
+                if contrib_sum > 100.0 {
+                    for c in contributors.iter_mut() {
+                        if let Some(pct) = c.get_mut("percentage") {
+                            if let Some(v) = pct.as_f64() {
+                                *pct = serde_json::json!((v / contrib_sum * 100.0).round() as i32);
+                            }
+                        }
+                    }
+                }
+
                 if owner_name.is_empty() && !contributors.is_empty() {
                     owner_name = contributors[0]["name"].as_str().unwrap_or("").to_string();
                 }
@@ -1068,11 +1082,12 @@ async fn main() -> Result<(), BoxError> {
                     "result": {
                         "owner": owner_name,
                         "confidence": owner_confidence,
-                        "commit_percentage": if total_weight > 0.0 { (total_weight * 100.0).round() as i32 } else { 0 },
+                        "commit_percentage": if total_weight > 0.0 { std::cmp::min(100, (total_weight * 100.0).round() as i32) } else { 0 },
                         "bus_factor": bus_factor,
                         "contributors": contributors
                     },
                     "evidence": [{"source": "graph", "confidence": 1.0}],
+                    "gap_flags": ["no_codeowners_file"],
                     "query_time_ms": start.elapsed().as_millis() as i64
                 });
                 if let Some(modifier) = last_modifier {
