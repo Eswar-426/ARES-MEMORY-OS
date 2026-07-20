@@ -266,7 +266,7 @@ fn round_precision(value: &mut serde_json::Value) {
     match value {
         serde_json::Value::Object(map) => {
             for (key, v) in map.iter_mut() {
-                if key == "graph_density" {
+                if key == "graph_density" || key == "average_degree" {
                     if let Some(f) = v.as_f64() {
                         *v = serde_json::json!((f * 10000.0).round() / 10000.0);
                     }
@@ -300,6 +300,36 @@ fn truncate_large_arrays(value: &mut serde_json::Value) {
         serde_json::Value::Array(arr) => {
             for v in arr.iter_mut() {
                 truncate_large_arrays(v);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn strip_details_uuids(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(map) => {
+            if let Some(serde_json::Value::String(s)) = map.get_mut("details") {
+                // Strip "REQ-<uuid>" prefix: find "REQ-" then skip 36 chars of UUID
+                if let Some(pos) = s.find("REQ-") {
+                    let before = &s[..pos];
+                    let after = &s[pos + 4..]; // skip "REQ-"
+                    let cleaned = if after.len() >= 36 {
+                        let rest = &after[36..]; // skip UUID
+                        format!("{}{}", before, rest).trim().to_string()
+                    } else {
+                        s.clone()
+                    };
+                    *s = if cleaned.is_empty() { s.clone() } else { cleaned };
+                }
+            }
+            for v in map.values_mut() {
+                strip_details_uuids(v);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for v in arr.iter_mut() {
+                strip_details_uuids(v);
             }
         }
         _ => {}
@@ -1119,7 +1149,14 @@ async fn main() -> Result<(), BoxError> {
                     ));
                 }
                 let (summary, _) = engine.generate_summary(&coverages);
-                serde_json::to_string(&wrap_with_envelope("ares_coverage", serde_json::to_value(&summary).unwrap_or_default(), 0))
+                let evidence = serde_json::json!([{"type": "coverage", "ref": "workspace"}]);
+                let conf = 0.6;
+                let mut payload = serde_json::to_value(&summary).unwrap_or_default();
+                if let Some(obj) = payload.as_object_mut() {
+                    obj.insert("evidence".to_string(), evidence);
+                    obj.insert("confidence".to_string(), serde_json::json!(conf));
+                }
+                serde_json::to_string(&wrap_with_envelope("ares_coverage", payload, 0))
                     .map(CallToolResult::text)
                     .map_err(|e| {
                         tower_mcp::Error::internal(format_mcp_error(
@@ -1624,6 +1661,8 @@ async fn main() -> Result<(), BoxError> {
                             "events": displayed_events,
                             "narrative": narrative,
                             "total_commits": total_commits,
+                        },
+                        "meta": {
                             "truncated": is_truncated
                         },
                         "confidence": 0.6,
@@ -2301,8 +2340,8 @@ async fn main() -> Result<(), BoxError> {
                             for s in rows.flatten() {
                                 sessions.push(serde_json::json!({
                                     "session_id": s.0,
-                                    "started_at": if s.1 == 0 { serde_json::json!("") } else { serde_json::json!(s.1) },
-                                    "ended_at": if s.2 == 0 { serde_json::json!("") } else { serde_json::json!(s.2) },
+                                    "started_at": format_micros_as_iso(s.1),
+                                    "ended_at": format_micros_as_iso(s.2),
                                     "tool_calls": serde_json::from_str::<Vec<Vec<serde_json::Value>>>(&s.3).unwrap_or_default(),
                                     "summary": s.4,
                                     "files_touched": serde_json::from_str::<Vec<String>>(&s.5).unwrap_or_default()
@@ -2452,6 +2491,7 @@ async fn main() -> Result<(), BoxError> {
                   if let Ok(mut g) = repo.get_unknown_ownership(&project_id) { all_gaps.append(&mut g); }
                   let mut gaps_val = serde_json::to_value(&all_gaps).unwrap_or_default();
                   prefix_node_ids(&mut gaps_val);
+                  strip_details_uuids(&mut gaps_val);
                   let evidence = serde_json::json!([{"type": "gap_analysis", "ref": "workspace"}]);
                   let conf = 0.6;
                   let payload = serde_json::json!({
@@ -3162,6 +3202,7 @@ async fn main() -> Result<(), BoxError> {
                         let conf = 0.6;
                         let mut payload = serde_json::to_value(&report).unwrap_or_default();
                         truncate_large_arrays(&mut payload);
+                        strip_details_uuids(&mut payload);
                         if let Some(obj) = payload.as_object_mut() {
                             obj.insert("evidence".to_string(), evidence);
                             obj.insert("confidence".to_string(), serde_json::json!(conf));
@@ -3233,6 +3274,7 @@ async fn main() -> Result<(), BoxError> {
                     "confidence": conf
                 });
                 prefix_node_ids(&mut result);
+                strip_details_uuids(&mut result);
 
                 Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_health_check", result, 0)).unwrap_or_default()))
             }
