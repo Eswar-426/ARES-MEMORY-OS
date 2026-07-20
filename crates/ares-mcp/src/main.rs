@@ -189,10 +189,13 @@ fn wrap_with_envelope(
 fn prefix_node_ids(value: &mut serde_json::Value) {
     match value {
         serde_json::Value::Object(map) => {
+            let is_node = map.contains_key("node_type");
             for (key, v) in map.iter_mut() {
-                if key == "node_id" {
+                if key == "node_id" || key == "from_node_id" || key == "to_node_id" || (is_node && key == "id") {
                     if let serde_json::Value::String(s) = v {
-                        *v = serde_json::Value::String(format!("node_id:{}", s));
+                        if !s.starts_with("node_id:") {
+                            *v = serde_json::Value::String(format!("node_id:{}", s));
+                        }
                     }
                 }
                 prefix_node_ids(v);
@@ -2517,12 +2520,64 @@ async fn main() -> Result<(), BoxError> {
             async move {
                 track_session_call(&session, "ares_graph_neighbors", &input);
                 let start = std::time::Instant::now();
-                let node_id_str = ares_core::canonicalize_node_id(&input.node_id);
+                let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store.clone());
+                let resolved_id = repo.get_id_by_path(&input.node_id).unwrap_or_else(|_| input.node_id.clone());
+                let node_id_str = ares_core::canonicalize_node_id(&resolved_id);
                 let node_id = ares_core::NodeId::from(node_id_str);
                 match ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_neighbors(&store, &node_id).await {
-                    Ok(payload) => serde_json::to_string(&wrap_with_envelope("ares_graph_neighbors", serde_json::to_value(&payload).unwrap_or_default(), start.elapsed().as_millis() as u64))
-                        .map(CallToolResult::text)
-                        .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize graph neighbors", &e.to_string()))),
+                    Ok(payload) => {
+                        let mut payload_val = serde_json::to_value(&payload).unwrap_or_default();
+                        prefix_node_ids(&mut payload_val);
+
+                        let mut evidence = Vec::new();
+                        let mut node_info = std::collections::HashMap::new();
+                        if let Some(nodes) = payload_val.get("nodes").and_then(|n| n.as_array()) {
+                            for n in nodes {
+                                if let Some(id) = n.get("id").and_then(|i| i.as_str()) {
+                                    let fp = n.get("file_path").and_then(|f| f.as_str()).unwrap_or("unknown_file");
+                                    let lbl = n.get("label").and_then(|l| l.as_str()).unwrap_or("unknown_node");
+                                    node_info.insert(id, (fp, lbl));
+                                }
+                            }
+                        }
+
+                        if let Some(edges) = payload_val.get("edges").and_then(|e| e.as_array()) {
+                            for e in edges {
+                                if let (Some(from_id), Some(to_id), Some(e_type)) = (
+                                    e.get("from_node_id").and_then(|i| i.as_str()),
+                                    e.get("to_node_id").and_then(|i| i.as_str()),
+                                    e.get("edge_type").and_then(|i| i.as_str())
+                                ) {
+                                    let build_desc = |id: &str| -> String {
+                                        if let Some(&(fp, lbl)) = node_info.get(id) {
+                                            if fp.ends_with(lbl) {
+                                                fp.to_string()
+                                            } else {
+                                                format!("{}:{}", fp, lbl)
+                                            }
+                                        } else {
+                                            id.to_string()
+                                        }
+                                    };
+                                    
+                                    evidence.push(serde_json::json!({
+                                        "type": "graph_edge",
+                                        "ref": format!("{}:{}→{}", build_desc(from_id), e_type, build_desc(to_id))
+                                    }));
+                                }
+                            }
+                        }
+
+                        let conf = if evidence.is_empty() { 0.0 } else { 1.0 };
+                        if let Some(obj) = payload_val.as_object_mut() {
+                            obj.insert("confidence".to_string(), serde_json::json!(conf));
+                            obj.insert("evidence".to_string(), serde_json::Value::Array(evidence));
+                        }
+
+                        serde_json::to_string(&wrap_with_envelope("ares_graph_neighbors", payload_val, start.elapsed().as_millis() as u64))
+                            .map(CallToolResult::text)
+                            .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize graph neighbors", &e.to_string())))
+                    }
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to retrieve graph neighbors", &e.to_string()))),
                 }
             }
@@ -2559,14 +2614,68 @@ async fn main() -> Result<(), BoxError> {
             async move {
                 track_session_call(&session, "ares_graph_shortest_path", &input);
                 let start = std::time::Instant::now();
-                let from_id_str = ares_core::canonicalize_node_id(&input.from_id);
-                let to_id_str = ares_core::canonicalize_node_id(&input.to_id);
+                let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store.clone());
+                let resolved_from = repo.get_id_by_path(&input.from_id).unwrap_or_else(|_| input.from_id.clone());
+                let resolved_to = repo.get_id_by_path(&input.to_id).unwrap_or_else(|_| input.to_id.clone());
+                
+                let from_id_str = ares_core::canonicalize_node_id(&resolved_from);
+                let to_id_str = ares_core::canonicalize_node_id(&resolved_to);
                 let from_id = ares_core::NodeId::from(from_id_str);
                 let to_id = ares_core::NodeId::from(to_id_str);
                 match ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_shortest_path(&store, &from_id, &to_id).await {
-                    Ok(payload) => serde_json::to_string(&wrap_with_envelope("ares_graph_shortest_path", serde_json::to_value(&payload).unwrap_or_default(), start.elapsed().as_millis() as u64))
-                        .map(CallToolResult::text)
-                        .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize shortest path", &e.to_string()))),
+                    Ok(payload) => {
+                        let mut payload_val = serde_json::to_value(&payload).unwrap_or_default();
+                        prefix_node_ids(&mut payload_val);
+
+                        let mut evidence = Vec::new();
+                        let mut node_info = std::collections::HashMap::new();
+                        if let Some(nodes) = payload_val.get("nodes").and_then(|n| n.as_array()) {
+                            for n in nodes {
+                                if let Some(id) = n.get("id").and_then(|i| i.as_str()) {
+                                    let fp = n.get("file_path").and_then(|f| f.as_str()).unwrap_or("unknown_file");
+                                    let lbl = n.get("label").and_then(|l| l.as_str()).unwrap_or("unknown_node");
+                                    node_info.insert(id, (fp, lbl));
+                                }
+                            }
+                        }
+
+                        if let Some(edges) = payload_val.get("edges").and_then(|e| e.as_array()) {
+                            for e in edges {
+                                if let (Some(from_id), Some(to_id), Some(e_type)) = (
+                                    e.get("from_node_id").and_then(|i| i.as_str()),
+                                    e.get("to_node_id").and_then(|i| i.as_str()),
+                                    e.get("edge_type").and_then(|i| i.as_str())
+                                ) {
+                                    let build_desc = |id: &str| -> String {
+                                        if let Some(&(fp, lbl)) = node_info.get(id) {
+                                            if fp.ends_with(lbl) {
+                                                fp.to_string()
+                                            } else {
+                                                format!("{}:{}", fp, lbl)
+                                            }
+                                        } else {
+                                            id.to_string()
+                                        }
+                                    };
+                                    
+                                    evidence.push(serde_json::json!({
+                                        "type": "graph_edge",
+                                        "ref": format!("{}:{}→{}", build_desc(from_id), e_type, build_desc(to_id))
+                                    }));
+                                }
+                            }
+                        }
+
+                        let conf = if evidence.is_empty() { 0.0 } else { 1.0 };
+                        if let Some(obj) = payload_val.as_object_mut() {
+                            obj.insert("confidence".to_string(), serde_json::json!(conf));
+                            obj.insert("evidence".to_string(), serde_json::Value::Array(evidence));
+                        }
+
+                        serde_json::to_string(&wrap_with_envelope("ares_graph_shortest_path", payload_val, start.elapsed().as_millis() as u64))
+                            .map(CallToolResult::text)
+                            .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize shortest path", &e.to_string())))
+                    }
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to find shortest path", &e.to_string()))),
                 }
             }

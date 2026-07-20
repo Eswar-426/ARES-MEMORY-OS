@@ -1150,31 +1150,64 @@ impl SqliteGraphRepository {
     ) -> Result<(Vec<GraphNode>, Vec<GraphEdge>), AresError> {
         let conn = self.store.get_conn()?;
 
-        // Recursive CTE to find shortest path
-        let sql = r#"
-            WITH RECURSIVE
-              path_search(node_id, path_len, path_str) AS (
-                SELECT ?1, 0, ?1
-                UNION ALL
-                SELECT e.to_node_id, p.path_len + 1, p.path_str || ',' || e.to_node_id
-                FROM path_search p
-                JOIN graph_edges e ON p.node_id = e.from_node_id
-                WHERE e.valid_until IS NULL AND p.path_len < 10 AND p.node_id != ?2
-              )
-            SELECT path_str FROM path_search WHERE node_id = ?2 ORDER BY path_len ASC LIMIT 1;
-        "#;
+        use std::collections::{HashSet, VecDeque};
+        let mut queue: VecDeque<(String, Vec<String>)> = VecDeque::new();
+        let mut visited: HashSet<String> = HashSet::new();
 
-        let mut stmt = conn.prepare(sql).map_err(AresError::db)?;
-        let mut result_path_str: String = String::new();
-        if let Ok(path) = stmt.query_row(params![from.as_str(), to.as_str()], |row| row.get(0)) {
-            result_path_str = path;
+        let from_str = from.as_str().to_string();
+        let to_str = to.as_str();
+
+        queue.push_back((from_str.clone(), vec![from_str.clone()]));
+        visited.insert(from_str);
+
+        let mut result_path: Vec<String> = Vec::new();
+
+        if from.as_str() == to_str {
+            result_path = vec![from.as_str().to_string()];
+        } else {
+            let mut stmt = conn
+                .prepare("SELECT to_node_id FROM graph_edges WHERE from_node_id = ?1 AND valid_until IS NULL")
+                .map_err(AresError::db)?;
+
+            while let Some((curr_node, path)) = queue.pop_front() {
+                if path.len() > 10 {
+                    continue;
+                }
+
+                let neighbors: Vec<String> = stmt
+                    .query_map(rusqlite::params![curr_node], |row| row.get(0))
+                    .map_err(AresError::db)?
+                    .filter_map(Result::ok)
+                    .collect();
+
+                let mut found = false;
+                for neighbor in neighbors {
+                    if neighbor == to_str {
+                        let mut new_path = path.clone();
+                        new_path.push(neighbor);
+                        result_path = new_path;
+                        found = true;
+                        break;
+                    }
+
+                    if visited.insert(neighbor.clone()) {
+                        let mut new_path = path.clone();
+                        new_path.push(neighbor.clone());
+                        queue.push_back((neighbor, new_path));
+                    }
+                }
+
+                if found {
+                    break;
+                }
+            }
         }
 
-        if result_path_str.is_empty() {
+        if result_path.is_empty() {
             return Ok((Vec::new(), Vec::new()));
         }
 
-        let path_nodes: Vec<&str> = result_path_str.split(',').collect();
+        let path_nodes: Vec<&str> = result_path.iter().map(|s| s.as_str()).collect();
         let mut nodes = Vec::new();
         let mut edges = Vec::new();
 
@@ -1194,19 +1227,37 @@ impl SqliteGraphRepository {
                 nodes.push(row_to_node(row).map_err(AresError::db)?);
             }
 
-            // Fetch edges between these nodes
-            let esql = format!("SELECT id, project_id, from_node_id, to_node_id, edge_type, weight, confidence, source, valid_from, valid_until, created_at FROM graph_edges WHERE from_node_id IN ({0}) AND to_node_id IN ({0}) AND valid_until IS NULL", placeholders);
-            let mut edge_stmt = conn.prepare(&esql).map_err(AresError::db)?;
-            let mut edge_params: Vec<&dyn rusqlite::ToSql> = path_nodes
-                .iter()
-                .map(|s| s as &dyn rusqlite::ToSql)
-                .collect();
-            edge_params.extend(path_nodes.iter().map(|s| s as &dyn rusqlite::ToSql));
-            let mut edge_rows = edge_stmt
-                .query(rusqlite::params_from_iter(edge_params))
-                .map_err(AresError::db)?;
-            while let Some(row) = edge_rows.next().map_err(AresError::db)? {
-                edges.push(row_to_edge(row).map_err(AresError::db)?);
+            // Fetch edges between consecutive nodes in the path
+            if path_nodes.len() >= 2 {
+                let mut edge_params: Vec<&dyn rusqlite::ToSql> = Vec::new();
+                let mut or_clauses = Vec::new();
+                
+                for window in path_nodes.windows(2) {
+                    or_clauses.push("(from_node_id = ? AND to_node_id = ?)");
+                    // To avoid lifetime issues with dynamic borrowing, we need to bind the references
+                }
+                
+                // Let's bind the params properly
+                // We map them directly to `&dyn ToSql`
+                for window in path_nodes.windows(2) {
+                    edge_params.push(&window[0] as &dyn rusqlite::ToSql);
+                    edge_params.push(&window[1] as &dyn rusqlite::ToSql);
+                }
+
+                let esql = format!(
+                    "SELECT id, project_id, from_node_id, to_node_id, edge_type, weight, confidence, source, valid_from, valid_until, created_at \
+                     FROM graph_edges \
+                     WHERE ({}) AND valid_until IS NULL",
+                    or_clauses.join(" OR ")
+                );
+                
+                let mut edge_stmt = conn.prepare(&esql).map_err(AresError::db)?;
+                let mut edge_rows = edge_stmt
+                    .query(rusqlite::params_from_iter(edge_params))
+                    .map_err(AresError::db)?;
+                while let Some(row) = edge_rows.next().map_err(AresError::db)? {
+                    edges.push(row_to_edge(row).map_err(AresError::db)?);
+                }
             }
         }
 
