@@ -226,7 +226,8 @@ fn default_nulls(value: &mut serde_json::Value) {
                     match key.as_str() {
                         "language" | "module" | "namespace" | "repository" |
                         "primary_owner" | "team" | "knowledge_debt" | "risk_level" |
-                        "created_at" | "last_modified" | "location" => {
+                        "created_at" | "last_modified" | "location" |
+                        "last_query" | "last_query_time" => {
                             *v = serde_json::Value::String(String::new());
                         }
                         "loc" | "last_modified_days_ago" => {
@@ -248,6 +249,17 @@ fn default_nulls(value: &mut serde_json::Value) {
         }
         _ => {}
     }
+}
+
+fn format_micros_as_iso(micros: i64) -> String {
+    if micros == 0 {
+        return String::new();
+    }
+    let secs = micros / 1_000_000;
+    let nanos = ((micros % 1_000_000) * 1_000) as u32;
+    chrono::DateTime::from_timestamp(secs, nanos)
+        .map(|dt| dt.format("%Y-%m-%dT%H:%M:%S").to_string())
+        .unwrap_or_default()
 }
 
 fn transform_relationships(node_val: &mut serde_json::Value) {
@@ -971,6 +983,7 @@ async fn main() -> Result<(), BoxError> {
                     let evidence = serde_json::json!([{"type": "system_query", "ref": "workspace"}]);
                     let conf = 0.6;
                     let mut payload = serde_json::to_value(&response).unwrap_or_default();
+                    default_nulls(&mut payload);
                     if let Some(obj) = payload.as_object_mut() {
                         obj.insert("evidence".to_string(), evidence);
                         obj.insert("confidence".to_string(), serde_json::json!(conf));
@@ -989,6 +1002,7 @@ async fn main() -> Result<(), BoxError> {
                     let evidence = serde_json::json!([{"type": "system_query", "ref": "workspace"}]);
                     let conf = 0.6;
                     let mut payload = serde_json::to_value(&result).unwrap_or_default();
+                    default_nulls(&mut payload);
                     if let Some(obj) = payload.as_object_mut() {
                         obj.insert("evidence".to_string(), evidence);
                         obj.insert("confidence".to_string(), serde_json::json!(conf));
@@ -1315,7 +1329,7 @@ async fn main() -> Result<(), BoxError> {
 
                             decisions.push(serde_json::json!({
                                 "id": format!("node_id:{}", dn.id.as_str()),
-                                "date": dn.created_at,
+                                "date": format_micros_as_iso(dn.created_at),
                                 "summary": summary,
                                 "author": author,
                                 "source": source.to_string(),
@@ -2221,8 +2235,8 @@ async fn main() -> Result<(), BoxError> {
                             for s in rows.flatten() {
                                 sessions.push(serde_json::json!({
                                     "session_id": s.0,
-                                    "started_at": s.1,
-                                    "ended_at": s.2,
+                                    "started_at": if s.1 == 0 { serde_json::json!("") } else { serde_json::json!(s.1) },
+                                    "ended_at": if s.2 == 0 { serde_json::json!("") } else { serde_json::json!(s.2) },
                                     "tool_calls": serde_json::from_str::<Vec<Vec<serde_json::Value>>>(&s.3).unwrap_or_default(),
                                     "summary": s.4,
                                     "files_touched": serde_json::from_str::<Vec<String>>(&s.5).unwrap_or_default()

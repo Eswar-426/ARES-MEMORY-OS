@@ -12,7 +12,7 @@ pub fn flatten_evidence(evidence: &EngineeringEvidence) -> Vec<EvidenceItem> {
             continue;
         } // test deps shown separately
         items.push(EvidenceItem {
-            category: format!("dependent ({})", dep.relationship),
+            category: "ast_edge".to_string(),
             value: dep.label.clone(),
         });
     }
@@ -21,7 +21,7 @@ pub fn flatten_evidence(evidence: &EngineeringEvidence) -> Vec<EvidenceItem> {
             continue;
         }
         items.push(EvidenceItem {
-            category: format!("dependency ({})", dep.relationship),
+            category: "ast_edge".to_string(),
             value: dep.label.clone(),
         });
     }
@@ -36,7 +36,7 @@ pub fn flatten_evidence(evidence: &EngineeringEvidence) -> Vec<EvidenceItem> {
     if !test_deps.is_empty() {
         for td in test_deps {
             items.push(EvidenceItem {
-                category: "test_dependency".to_string(),
+                category: "ast_edge".to_string(),
                 value: td.label.clone(),
             });
         }
