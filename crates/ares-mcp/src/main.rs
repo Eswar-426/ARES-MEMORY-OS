@@ -840,11 +840,18 @@ async fn main() -> Result<(), BoxError> {
                     .await
                 {
                     Ok(result) => {
-                        let payload = if result.is_empty() {
+                        let mut payload = if result.is_empty() {
                             serde_json::json!({"compliant": true, "violations": []})
                         } else {
                             serde_json::to_value(&result).unwrap_or_default()
                         };
+                        let ref_val = input.node_id.clone();
+                        let evidence = serde_json::json!([{"type": "compliance_check", "ref": ref_val}]);
+                        let conf = 0.6;
+                        if let Some(obj) = payload.as_object_mut() {
+                            obj.insert("evidence".to_string(), evidence);
+                            obj.insert("confidence".to_string(), serde_json::json!(conf));
+                        }
                         serde_json::to_string(&wrap_with_envelope("ares_compliance", payload, 0))
                             .map(CallToolResult::text)
                             .map_err(|e| {
@@ -883,14 +890,24 @@ async fn main() -> Result<(), BoxError> {
                     ))
                     .await
                 {
-                    Ok(result) => serde_json::to_string(&wrap_with_envelope("ares_scorecard", serde_json::to_value(&result).unwrap_or_default(), 0))
-                        .map(CallToolResult::text)
-                        .map_err(|e| {
+                    Ok(result) => {
+                        let proj_id = input.project_id.clone().unwrap_or_else(|| session.lock().unwrap().project_id.clone());
+                        let evidence = serde_json::json!([{"type": "scorecard_computation", "ref": proj_id}]);
+                        let conf = 0.6;
+                        let mut payload = serde_json::to_value(&result).unwrap_or_default();
+                        if let Some(obj) = payload.as_object_mut() {
+                            obj.insert("evidence".to_string(), evidence);
+                            obj.insert("confidence".to_string(), serde_json::json!(conf));
+                        }
+                        serde_json::to_string(&wrap_with_envelope("ares_scorecard", payload, 0))
+                            .map(CallToolResult::text)
+                            .map_err(|e| {
                             tower_mcp::Error::internal(format_mcp_error(
                                 "Failed to serialize scorecard",
                                 &e.to_string(),
                             ))
-                        }),
+                        })
+                    },
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
                         "Failed to retrieve scorecard",
                         &e.to_string(),
@@ -951,7 +968,14 @@ async fn main() -> Result<(), BoxError> {
                     };
 
                     let response = planner.execute(&context).await;
-                    serde_json::to_string(&wrap_with_envelope("ares_dashboard", serde_json::to_value(&response).unwrap_or_default(), 0))
+                    let evidence = serde_json::json!([{"type": "system_query", "ref": "workspace"}]);
+                    let conf = 0.6;
+                    let mut payload = serde_json::to_value(&response).unwrap_or_default();
+                    if let Some(obj) = payload.as_object_mut() {
+                        obj.insert("evidence".to_string(), evidence);
+                        obj.insert("confidence".to_string(), serde_json::json!(conf));
+                    }
+                    serde_json::to_string(&wrap_with_envelope("ares_dashboard", payload, 0))
                         .map(CallToolResult::text)
                         .map_err(|e| {
                             tower_mcp::Error::internal(format_mcp_error(
@@ -962,7 +986,14 @@ async fn main() -> Result<(), BoxError> {
                 } else {
                     tracing::info!("Executing ares_dashboard via Legacy Engine");
                     let result = ares_repository_intelligence::engines::overview::RepositoryOverviewEngine::collect(&store, &path).await;
-                    serde_json::to_string(&wrap_with_envelope("ares_dashboard", serde_json::to_value(&result).unwrap_or_default(), 0))
+                    let evidence = serde_json::json!([{"type": "system_query", "ref": "workspace"}]);
+                    let conf = 0.6;
+                    let mut payload = serde_json::to_value(&result).unwrap_or_default();
+                    if let Some(obj) = payload.as_object_mut() {
+                        obj.insert("evidence".to_string(), evidence);
+                        obj.insert("confidence".to_string(), serde_json::json!(conf));
+                    }
+                    serde_json::to_string(&wrap_with_envelope("ares_dashboard", payload, 0))
                         .map(CallToolResult::text)
                         .map_err(|e| {
                             tower_mcp::Error::internal(format_mcp_error(
@@ -1300,6 +1331,7 @@ async fn main() -> Result<(), BoxError> {
                     let elapsed = start.elapsed().as_millis() as u64;
                     let inner = serde_json::json!({
                         "result": { "decisions": [] },
+                        "confidence": 0.6,
                         "evidence": [{"type": "agent_analysis", "ref": input.file_path.clone().unwrap_or_else(|| "workspace".to_string())}],
                         "gap_flags": ["no_recorded_decisions"],
                         "query_time_ms": start.elapsed().as_millis() as i64
@@ -1309,6 +1341,7 @@ async fn main() -> Result<(), BoxError> {
                     let elapsed = start.elapsed().as_millis() as u64;
                     let inner = serde_json::json!({
                         "result": { "decisions": decisions },
+                        "confidence": 0.6,
                         "evidence": [{"type": "agent_analysis", "ref": input.file_path.clone().unwrap_or_else(|| "workspace".to_string())}],
                         "query_time_ms": start.elapsed().as_millis() as i64
                     });
@@ -1513,6 +1546,7 @@ async fn main() -> Result<(), BoxError> {
                             "narrative": narrative,
                             "total_commits": events.len()
                         },
+                        "confidence": 0.6,
                         "evidence": [{"type": "coverage", "ref": input.file_path.clone()}],
                         "query_time_ms": start.elapsed().as_millis() as i64
                 });
@@ -1632,6 +1666,7 @@ async fn main() -> Result<(), BoxError> {
                             "relationship": relationship,
                             "coupling_score": (coupling * 100.0).round() as i32
                         },
+                        "confidence": 0.6,
                         "evidence": [{"type": "impact_graph", "ref": input.file_a.clone()}],
                         "query_time_ms": start.elapsed().as_millis() as i64
                 });
@@ -1740,6 +1775,7 @@ async fn main() -> Result<(), BoxError> {
                         "health_score": 0
                     },
                     "hidden_coupling": cochanges,
+                    "confidence": 0.6,
                     "evidence": [{"type": "drift_analysis", "ref": "workspace"}],
                     "query_time_ms": start.elapsed().as_millis() as i64
                 });
@@ -1815,6 +1851,7 @@ async fn main() -> Result<(), BoxError> {
                 if requirements.is_empty() {
                     let inner = serde_json::json!({
                         "result": { "requirements": [] },
+                        "confidence": 0.6,
                         "gap_flags": ["no_recorded_requirements"],
                         "evidence": [{"type": "gap_analysis", "ref": input.file_path.clone().unwrap_or_else(|| "workspace".to_string())}],
                         "query_time_ms": start.elapsed().as_millis() as i64
@@ -1823,6 +1860,7 @@ async fn main() -> Result<(), BoxError> {
                 } else {
                     let inner = serde_json::json!({
                         "result": { "requirements": requirements },
+                        "confidence": 0.6,
                         "evidence": [{"type": "gap_analysis", "ref": input.file_path.clone().unwrap_or_else(|| "workspace".to_string())}],
                         "query_time_ms": start.elapsed().as_millis() as i64
                     });
@@ -2197,6 +2235,7 @@ async fn main() -> Result<(), BoxError> {
                 let elapsed = start.elapsed().as_millis() as u64;
                 let inner = serde_json::json!({
                     "result": { "sessions": sessions },
+                    "confidence": 0.6,
                     "evidence": [{"type": "session_logs", "ref": "workspace"}],
                     "query_time_ms": start.elapsed().as_millis() as i64
                 });
@@ -2393,7 +2432,15 @@ async fn main() -> Result<(), BoxError> {
                 ).await {
                     Ok(mut report) => {
                         report.target = input.target_id.clone();
-                        serde_json::to_string(&wrap_with_envelope("ares_simulate", serde_json::to_value(&report).unwrap_or_default(), 0))
+                        let ref_val = input.target_id.clone();
+                        let evidence = serde_json::json!([{"type": "simulation_query", "ref": ref_val}]);
+                        let conf = 0.6;
+                        let mut payload = serde_json::to_value(&report).unwrap_or_default();
+                        if let Some(obj) = payload.as_object_mut() {
+                            obj.insert("evidence".to_string(), evidence);
+                            obj.insert("confidence".to_string(), serde_json::json!(conf));
+                        }
+                        serde_json::to_string(&wrap_with_envelope("ares_simulate", payload, 0))
                             .map(CallToolResult::text)
                             .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize simulation report", &e.to_string())))
                     },
@@ -2466,9 +2513,18 @@ async fn main() -> Result<(), BoxError> {
                 let start = std::time::Instant::now();
                 let result = ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_statistics(&store).await;
                 match result {
-                    Ok(stats) => serde_json::to_string(&wrap_with_envelope("ares_graph_statistics", serde_json::to_value(&stats).unwrap_or_default(), start.elapsed().as_millis() as u64))
-                        .map(CallToolResult::text)
-                        .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize graph stats", &e.to_string()))),
+                    Ok(stats) => {
+                        let evidence = serde_json::json!([{"type": "graph_query", "ref": "workspace"}]);
+                        let conf = 0.6;
+                        let mut payload = serde_json::to_value(&stats).unwrap_or_default();
+                        if let Some(obj) = payload.as_object_mut() {
+                            obj.insert("evidence".to_string(), evidence);
+                            obj.insert("confidence".to_string(), serde_json::json!(conf));
+                        }
+                        serde_json::to_string(&wrap_with_envelope("ares_graph_statistics", payload, start.elapsed().as_millis() as u64))
+                            .map(CallToolResult::text)
+                            .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize graph stats", &e.to_string())))
+                    },
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to retrieve graph stats", &e.to_string()))),
                 }
             }
@@ -2501,14 +2557,23 @@ async fn main() -> Result<(), BoxError> {
                     name,
                     60,
                 ) {
-                    Ok(payload) => serde_json::to_string(&wrap_with_envelope("ares_graph_root", serde_json::to_value(&payload).unwrap_or_default(), start.elapsed().as_millis() as u64))
-                        .map(CallToolResult::text)
-                        .map_err(|e| {
-                            tower_mcp::Error::internal(format_mcp_error(
-                                "Failed to serialize graph root",
-                                &e.to_string(),
-                            ))
-                        }),
+                    Ok(original_payload) => {
+                        let evidence = serde_json::json!([{"type": "graph_query", "ref": "workspace"}]);
+                        let conf = 0.6;
+                        let mut payload = serde_json::to_value(&original_payload).unwrap_or_default();
+                        if let Some(obj) = payload.as_object_mut() {
+                            obj.insert("evidence".to_string(), evidence);
+                            obj.insert("confidence".to_string(), serde_json::json!(conf));
+                        }
+                        serde_json::to_string(&wrap_with_envelope("ares_graph_root", payload, start.elapsed().as_millis() as u64))
+                            .map(CallToolResult::text)
+                            .map_err(|e| {
+                                tower_mcp::Error::internal(format_mcp_error(
+                                    "Failed to serialize graph root",
+                                    &e.to_string(),
+                                ))
+                            })
+                    },
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
                         "Failed to retrieve graph root",
                         &e.to_string(),
@@ -2565,9 +2630,18 @@ async fn main() -> Result<(), BoxError> {
                 track_session_call(&session, "ares_graph_search", &input);
                 let start = std::time::Instant::now();
                 match ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_search(&store, &input.query).await {
-                    Ok(payload) => serde_json::to_string(&wrap_with_envelope("ares_graph_search", serde_json::to_value(&payload).unwrap_or_default(), start.elapsed().as_millis() as u64))
-                        .map(CallToolResult::text)
-                        .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize graph search results", &e.to_string()))),
+                    Ok(original_payload) => {
+                        let evidence = serde_json::json!([{"type": "graph_search", "ref": &input.query}]);
+                        let conf = 0.6;
+                        let mut payload = serde_json::to_value(&original_payload).unwrap_or_default();
+                        if let Some(obj) = payload.as_object_mut() {
+                            obj.insert("evidence".to_string(), evidence);
+                            obj.insert("confidence".to_string(), serde_json::json!(conf));
+                        }
+                        serde_json::to_string(&wrap_with_envelope("ares_graph_search", payload, start.elapsed().as_millis() as u64))
+                            .map(CallToolResult::text)
+                            .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize graph search results", &e.to_string())))
+                    },
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed to search graph", &e.to_string()))),
                 }
             }
@@ -2911,7 +2985,14 @@ async fn main() -> Result<(), BoxError> {
             async move {
                 match ares_intelligence::dead_code::find_dead_code(&store, 30).await {
                     Ok(report) => {
-                    Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_dead_code", serde_json::to_value(&report).unwrap_or_default(), 0)).unwrap_or_default()))
+                        let evidence = serde_json::json!([{"type": "graph_scan", "ref": "workspace"}]);
+                        let conf = 0.6;
+                        let mut payload = serde_json::to_value(&report).unwrap_or_default();
+                        if let Some(obj) = payload.as_object_mut() {
+                            obj.insert("evidence".to_string(), evidence);
+                            obj.insert("confidence".to_string(), serde_json::json!(conf));
+                        }
+                        Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_dead_code", payload, 0)).unwrap_or_default()))
                     },
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed dead code", &e.to_string()))),
                 }
@@ -2932,11 +3013,12 @@ async fn main() -> Result<(), BoxError> {
                 match ares_intelligence::context_file::generate_context_file(&store, &pp, &pid, None).await {
                     Ok(report) => {
                         let elapsed = start.elapsed().as_millis() as u64;
+                        let evidence = serde_json::json!([{"type": "context_generation", "ref": &pp}]);
+                        let conf = 0.6;
                         let inner = serde_json::json!( {
-                            "ares_version": "0.1.0",
-                        "evidence": [],
-                        "query_time_ms": start.elapsed().as_millis() as u64,
-                        "result": report
+                            "evidence": evidence,
+                            "confidence": conf,
+                            "result": report
                         });
                         Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_generate_context_file", inner, elapsed)).unwrap_or_default()))
                     },
@@ -2957,13 +3039,14 @@ async fn main() -> Result<(), BoxError> {
                 match ares_intelligence::briefing::generate_briefing(&store, &pp).await {
                     Ok(report) => {
                         let elapsed = start.elapsed().as_millis() as u64;
-                        let inner = serde_json::json!( {
-                            "ares_version": "0.1.0",
-                        "evidence": [],
-                        "query_time_ms": start.elapsed().as_millis() as u64,
-                        "result": report
-                        });
-                        Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_briefing", inner, elapsed)).unwrap_or_default()))
+                        let evidence = serde_json::json!([{"type": "session_aggregation", "ref": "workspace"}]);
+                        let conf = 0.6;
+                        let mut payload = serde_json::to_value(&report).unwrap_or_default();
+                        if let Some(obj) = payload.as_object_mut() {
+                            obj.insert("evidence".to_string(), evidence);
+                            obj.insert("confidence".to_string(), serde_json::json!(conf));
+                        }
+                        Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_briefing", payload, elapsed)).unwrap_or_default()))
                     },
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed briefing", &e.to_string()))),
                 }
@@ -3018,11 +3101,16 @@ async fn main() -> Result<(), BoxError> {
                     Vec::new()
                 };
 
+                let evidence = serde_json::json!([{"type": "health_computation", "ref": "workspace"}]);
+                let conf = 0.6;
+
                 let result = serde_json::json!({
                     "gaps": all_gaps,
                     "health_score": health_score,
                     "score_breakdown": score_breakdown,
-                    "hotspots": hotspots
+                    "hotspots": hotspots,
+                    "evidence": evidence,
+                    "confidence": conf
                 });
 
                 Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_health_check", result, 0)).unwrap_or_default()))
