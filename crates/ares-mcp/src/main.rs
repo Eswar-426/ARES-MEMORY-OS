@@ -166,6 +166,18 @@ fn wrap_with_envelope(
         obj.remove("query_time_ms");
     }
 
+    let caveats = current.get("caveats").cloned().unwrap_or_else(|| serde_json::json!([]));
+    let mut meta = current.get("meta").cloned().unwrap_or_else(|| serde_json::json!({}));
+    if let Some(m) = meta.as_object_mut() {
+        m.insert("elapsed_ms".to_string(), serde_json::json!(elapsed_ms as i64));
+        if !m.contains_key("graph_nodes_traversed") {
+            m.insert("graph_nodes_traversed".to_string(), serde_json::json!(0));
+        }
+        if !m.contains_key("truncated") {
+            m.insert("truncated".to_string(), serde_json::json!(false));
+        }
+    }
+
     let mut envelope = serde_json::json!({
         "tool": tool_name,
         "schema_version": "1.0",
@@ -173,13 +185,9 @@ fn wrap_with_envelope(
         "confidence": confidence,
         "evidence": evidence,
         "gap_flags": gap_flags,
-        "caveats": [],
+        "caveats": caveats,
         "answer": answer,
-        "meta": {
-            "elapsed_ms": elapsed_ms as i64,
-            "graph_nodes_traversed": 0,
-            "truncated": false
-        }
+        "meta": meta
     });
 
     envelope
@@ -2523,58 +2531,20 @@ async fn main() -> Result<(), BoxError> {
                 let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store.clone());
                 let resolved_id = repo.get_id_by_path(&input.node_id).unwrap_or_else(|_| input.node_id.clone());
                 let node_id_str = ares_core::canonicalize_node_id(&resolved_id);
-                let node_id = ares_core::NodeId::from(node_id_str);
+                let node_id = ares_core::NodeId::from(node_id_str.clone());
                 match ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_neighbors(&store, &node_id).await {
                     Ok(payload) => {
-                        let mut payload_val = serde_json::to_value(&payload).unwrap_or_default();
-                        prefix_node_ids(&mut payload_val);
-
-                        let mut evidence = Vec::new();
-                        let mut node_info = std::collections::HashMap::new();
-                        if let Some(nodes) = payload_val.get("nodes").and_then(|n| n.as_array()) {
-                            for n in nodes {
-                                if let Some(id) = n.get("id").and_then(|i| i.as_str()) {
-                                    let fp = n.get("file_path").and_then(|f| f.as_str()).unwrap_or("unknown_file");
-                                    let lbl = n.get("label").and_then(|l| l.as_str()).unwrap_or("unknown_node");
-                                    node_info.insert(id, (fp, lbl));
-                                }
-                            }
-                        }
-
-                        if let Some(edges) = payload_val.get("edges").and_then(|e| e.as_array()) {
-                            for e in edges {
-                                if let (Some(from_id), Some(to_id), Some(e_type)) = (
-                                    e.get("from_node_id").and_then(|i| i.as_str()),
-                                    e.get("to_node_id").and_then(|i| i.as_str()),
-                                    e.get("edge_type").and_then(|i| i.as_str())
-                                ) {
-                                    let build_desc = |id: &str| -> String {
-                                        if let Some(&(fp, lbl)) = node_info.get(id) {
-                                            if fp.ends_with(lbl) {
-                                                fp.to_string()
-                                            } else {
-                                                format!("{}:{}", fp, lbl)
-                                            }
-                                        } else {
-                                            id.to_string()
-                                        }
-                                    };
-                                    
-                                    evidence.push(serde_json::json!({
-                                        "type": "graph_edge",
-                                        "ref": format!("{}:{}→{}", build_desc(from_id), e_type, build_desc(to_id))
-                                    }));
-                                }
-                            }
-                        }
-
+                        let payload_val = serde_json::to_value(&payload).unwrap_or_default();
+                        let (final_answer, evidence) = build_neighbors_answer(payload_val, &node_id_str);
                         let conf = if evidence.is_empty() { 0.0 } else { 1.0 };
-                        if let Some(obj) = payload_val.as_object_mut() {
+                        
+                        let mut envelope_payload = final_answer;
+                        if let Some(obj) = envelope_payload.as_object_mut() {
                             obj.insert("confidence".to_string(), serde_json::json!(conf));
                             obj.insert("evidence".to_string(), serde_json::Value::Array(evidence));
                         }
-
-                        serde_json::to_string(&wrap_with_envelope("ares_graph_neighbors", payload_val, start.elapsed().as_millis() as u64))
+                        
+                        serde_json::to_string(&wrap_with_envelope("ares_graph_neighbors", envelope_payload, start.elapsed().as_millis() as u64))
                             .map(CallToolResult::text)
                             .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize graph neighbors", &e.to_string())))
                     }
@@ -2624,55 +2594,17 @@ async fn main() -> Result<(), BoxError> {
                 let to_id = ares_core::NodeId::from(to_id_str);
                 match ares_repository_intelligence::engines::graph::RepositoryGraphEngine::graph_shortest_path(&store, &from_id, &to_id).await {
                     Ok(payload) => {
-                        let mut payload_val = serde_json::to_value(&payload).unwrap_or_default();
-                        prefix_node_ids(&mut payload_val);
-
-                        let mut evidence = Vec::new();
-                        let mut node_info = std::collections::HashMap::new();
-                        if let Some(nodes) = payload_val.get("nodes").and_then(|n| n.as_array()) {
-                            for n in nodes {
-                                if let Some(id) = n.get("id").and_then(|i| i.as_str()) {
-                                    let fp = n.get("file_path").and_then(|f| f.as_str()).unwrap_or("unknown_file");
-                                    let lbl = n.get("label").and_then(|l| l.as_str()).unwrap_or("unknown_node");
-                                    node_info.insert(id, (fp, lbl));
-                                }
-                            }
-                        }
-
-                        if let Some(edges) = payload_val.get("edges").and_then(|e| e.as_array()) {
-                            for e in edges {
-                                if let (Some(from_id), Some(to_id), Some(e_type)) = (
-                                    e.get("from_node_id").and_then(|i| i.as_str()),
-                                    e.get("to_node_id").and_then(|i| i.as_str()),
-                                    e.get("edge_type").and_then(|i| i.as_str())
-                                ) {
-                                    let build_desc = |id: &str| -> String {
-                                        if let Some(&(fp, lbl)) = node_info.get(id) {
-                                            if fp.ends_with(lbl) {
-                                                fp.to_string()
-                                            } else {
-                                                format!("{}:{}", fp, lbl)
-                                            }
-                                        } else {
-                                            id.to_string()
-                                        }
-                                    };
-                                    
-                                    evidence.push(serde_json::json!({
-                                        "type": "graph_edge",
-                                        "ref": format!("{}:{}→{}", build_desc(from_id), e_type, build_desc(to_id))
-                                    }));
-                                }
-                            }
-                        }
-
+                        let payload_val = serde_json::to_value(&payload).unwrap_or_default();
+                        let (final_answer, evidence) = build_shortest_path_answer(payload_val);
                         let conf = if evidence.is_empty() { 0.0 } else { 1.0 };
-                        if let Some(obj) = payload_val.as_object_mut() {
+                        
+                        let mut envelope_payload = final_answer;
+                        if let Some(obj) = envelope_payload.as_object_mut() {
                             obj.insert("confidence".to_string(), serde_json::json!(conf));
                             obj.insert("evidence".to_string(), serde_json::Value::Array(evidence));
                         }
-
-                        serde_json::to_string(&wrap_with_envelope("ares_graph_shortest_path", payload_val, start.elapsed().as_millis() as u64))
+                        
+                        serde_json::to_string(&wrap_with_envelope("ares_graph_shortest_path", envelope_payload, start.elapsed().as_millis() as u64))
                             .map(CallToolResult::text)
                             .map_err(|e| tower_mcp::Error::internal(format_mcp_error("Failed to serialize shortest path", &e.to_string())))
                     }
@@ -3164,4 +3096,227 @@ async fn main() -> Result<(), BoxError> {
             Err(Box::<dyn std::error::Error + Send + Sync>::from(e))
         }
     }
+}
+fn transform_graph_for_agent(value: &mut serde_json::Value) {
+    if let serde_json::Value::Object(map) = value {
+        if let Some(serde_json::Value::Array(nodes)) = map.get_mut("nodes") {
+            for node in nodes {
+                if let serde_json::Value::Object(n) = node {
+                    n.remove("created_at");
+                    n.remove("updated_at");
+                    n.remove("valid_from");
+                    n.remove("valid_until");
+
+                    if let Some(serde_json::Value::Object(mut props)) = n.remove("properties") {
+                        if let Some(lang) = props.remove("language") {
+                            n.insert("language".to_string(), lang);
+                        }
+                        if let (Some(sl), Some(el)) = (props.remove("start_line"), props.remove("end_line")) {
+                            n.insert("lines".to_string(), serde_json::Value::String(format!("{}-{}", sl, el)));
+                        }
+                        if let Some(ib) = props.remove("introduced_by") {
+                            n.insert("introduced_by".to_string(), ib);
+                        }
+                        if let Some(ir) = props.remove("introduction_reason") {
+                            n.insert("introduction_reason".to_string(), ir);
+                        }
+                    }
+
+                    n.remove("id");
+                    n.remove("project_id");
+                    n.remove("deleted_at");
+                }
+            }
+        }
+
+        if let Some(serde_json::Value::Array(edges)) = map.get_mut("edges") {
+            for edge in edges {
+                if let serde_json::Value::Object(e) = edge {
+                    e.remove("created_at");
+                    e.remove("updated_at");
+                    e.remove("valid_from");
+                    e.remove("valid_until");
+
+                    if let Some(src) = e.remove("source") {
+                        e.insert("provenance".to_string(), src);
+                    }
+
+                    e.remove("id");
+                    e.remove("project_id");
+                    e.remove("weight");
+                    e.remove("confidence");
+                }
+            }
+        }
+    }
+}
+
+fn build_shortest_path_answer(mut payload: serde_json::Value) -> (serde_json::Value, Vec<serde_json::Value>) {
+    let mut node_map = std::collections::HashMap::new();
+    if let Some(nodes) = payload.get("nodes").and_then(|n| n.as_array()) {
+        for n in nodes {
+            if let Some(id) = n.get("id").and_then(|i| i.as_str()) {
+                let lbl = n.get("label").and_then(|l| l.as_str()).unwrap_or("").to_string();
+                node_map.insert(id.to_string(), lbl);
+            }
+        }
+    }
+    
+    transform_graph_for_agent(&mut payload);
+    
+    let mut path = Vec::new();
+    if let Some(nodes) = payload.get_mut("nodes").and_then(|n| n.as_array_mut()) {
+        for n in nodes {
+            path.push(n.take());
+        }
+    }
+    
+    let mut hops = Vec::new();
+    if let Some(edges) = payload.get_mut("edges").and_then(|e| e.as_array_mut()) {
+        for e in edges {
+            if let Some(obj) = e.as_object_mut() {
+                let from_id = obj.remove("from_node_id").and_then(|v| v.as_str().map(|s| s.to_string())).unwrap_or_default();
+                let to_id = obj.remove("to_node_id").and_then(|v| v.as_str().map(|s| s.to_string())).unwrap_or_default();
+                let via = obj.remove("edge_type").unwrap_or(serde_json::json!(""));
+                
+                let from_lbl = node_map.get(&from_id).cloned().unwrap_or(from_id);
+                let to_lbl = node_map.get(&to_id).cloned().unwrap_or(to_id);
+                
+                obj.insert("from".to_string(), serde_json::json!(from_lbl));
+                obj.insert("to".to_string(), serde_json::json!(to_lbl));
+                obj.insert("via".to_string(), via);
+                hops.push(serde_json::Value::Object(obj.clone()));
+            }
+        }
+    }
+    
+    let final_answer = serde_json::json!({
+        "path": path,
+        "hops": hops,
+        "total_hops": hops.len()
+    });
+
+    let mut evidence = Vec::new();
+    for hop in &hops {
+        let from = hop.get("from").and_then(|v| v.as_str()).unwrap_or("");
+        let to = hop.get("to").and_then(|v| v.as_str()).unwrap_or("");
+        let via = hop.get("via").and_then(|v| v.as_str()).unwrap_or("");
+        
+        let path_from = if let Some(pn) = path.iter().find(|n| n.get("label").and_then(|l| l.as_str()) == Some(from)) {
+            let fp = pn.get("file_path").and_then(|f| f.as_str()).unwrap_or(from);
+            if fp.ends_with(from) { fp.to_string() } else { format!("{}:{}", fp, from) }
+        } else { from.to_string() };
+        
+        let path_to = if let Some(pn) = path.iter().find(|n| n.get("label").and_then(|l| l.as_str()) == Some(to)) {
+            let fp = pn.get("file_path").and_then(|f| f.as_str()).unwrap_or(to);
+            if fp.ends_with(to) { fp.to_string() } else { format!("{}:{}", fp, to) }
+        } else { to.to_string() };
+
+        evidence.push(serde_json::json!({
+            "type": "graph_edge",
+            "ref": format!("{}:{}\u{2192}{}", path_from, via, path_to)
+        }));
+    }
+
+    (final_answer, evidence)
+}
+
+fn build_neighbors_answer(mut payload: serde_json::Value, target_id_str: &str) -> (serde_json::Value, Vec<serde_json::Value>) {
+    let mut id_to_idx = std::collections::HashMap::new();
+    if let Some(nodes) = payload.get("nodes").and_then(|n| n.as_array()) {
+        for (idx, n) in nodes.iter().enumerate() {
+            if let Some(id) = n.get("id").and_then(|i| i.as_str()) {
+                id_to_idx.insert(id.to_string(), idx);
+            }
+        }
+    }
+    
+    transform_graph_for_agent(&mut payload);
+    
+    let nodes = payload.get("nodes").and_then(|n| n.as_array()).cloned().unwrap_or_default();
+    
+    let mut target_path = target_id_str.to_string();
+    if let Some(&idx) = id_to_idx.get(target_id_str) {
+        if let (Some(fp), Some(lbl)) = (nodes[idx].get("file_path").and_then(|f| f.as_str()), nodes[idx].get("label").and_then(|l| l.as_str())) {
+            target_path = if fp.ends_with(lbl) { fp.to_string() } else { format!("{}:{}", fp, lbl) };
+        }
+    }
+
+    let mut neighbors = Vec::new();
+    if let Some(edges) = payload.get_mut("edges").and_then(|e| e.as_array_mut()) {
+        for e in edges {
+            if let Some(obj) = e.as_object_mut() {
+                let from_id = obj.remove("from_node_id").and_then(|v| v.as_str().map(|s| s.to_string())).unwrap_or_default();
+                let to_id = obj.remove("to_node_id").and_then(|v| v.as_str().map(|s| s.to_string())).unwrap_or_default();
+                let rel = obj.remove("edge_type").unwrap_or(serde_json::json!(""));
+                
+                let mut neighbor_obj = None;
+                if from_id == target_id_str {
+                    if let Some(&idx) = id_to_idx.get(&to_id) {
+                        let mut n_obj = nodes[idx].as_object().unwrap().clone();
+                        n_obj.insert("relationship".to_string(), rel.clone());
+                        n_obj.insert("direction".to_string(), serde_json::json!("outgoing"));
+                        if let Some(prov) = obj.get("provenance") {
+                            n_obj.insert("provenance".to_string(), prov.clone());
+                        }
+                        neighbor_obj = Some(n_obj);
+                    }
+                } else if to_id == target_id_str {
+                    if let Some(&idx) = id_to_idx.get(&from_id) {
+                        let mut n_obj = nodes[idx].as_object().unwrap().clone();
+                        n_obj.insert("relationship".to_string(), rel.clone());
+                        n_obj.insert("direction".to_string(), serde_json::json!("incoming"));
+                        if let Some(prov) = obj.get("provenance") {
+                            n_obj.insert("provenance".to_string(), prov.clone());
+                        }
+                        neighbor_obj = Some(n_obj);
+                    }
+                }
+                
+                if let Some(n) = neighbor_obj {
+                    neighbors.push(serde_json::Value::Object(n));
+                }
+            }
+        }
+    }
+    
+    let mut truncated = false;
+    let mut caveats = Vec::new();
+    let total_found = neighbors.len();
+    if neighbors.len() > 20 {
+        neighbors.truncate(20);
+        truncated = true;
+        caveats.push(serde_json::json!(format!("results truncated; {} total neighbors found", total_found)));
+    }
+    
+    let final_answer = serde_json::json!({
+        "target": target_path,
+        "neighbors": neighbors,
+        "total": total_found,
+        "caveats": caveats,
+        "meta": {
+            "truncated": truncated
+        }
+    });
+
+    let mut evidence = Vec::new();
+    for n in &neighbors {
+        let n_path = n.get("file_path").and_then(|v| v.as_str()).unwrap_or("");
+        let lbl = n.get("label").and_then(|v| v.as_str()).unwrap_or("");
+        let node_desc = if n_path.ends_with(lbl) { n_path.to_string() } else { format!("{}:{}", n_path, lbl) };
+        let rel = n.get("relationship").and_then(|v| v.as_str()).unwrap_or("");
+        let dir = n.get("direction").and_then(|v| v.as_str()).unwrap_or("");
+        
+        let r = if dir == "outgoing" {
+            format!("{}:{}\u{2192}{}", target_path, rel, node_desc)
+        } else {
+            format!("{}:{}\u{2192}{}", node_desc, rel, target_path)
+        };
+        evidence.push(serde_json::json!({
+            "type": "graph_edge",
+            "ref": r
+        }));
+    }
+
+    (final_answer, evidence)
 }

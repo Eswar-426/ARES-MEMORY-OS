@@ -1261,7 +1261,31 @@ impl SqliteGraphRepository {
             }
         }
 
-        Ok((nodes, edges))
+        let mut ordered_nodes = Vec::new();
+        let mut node_map = std::collections::HashMap::new();
+        for n in nodes {
+            node_map.insert(n.id.clone(), n);
+        }
+        for id in &path_nodes {
+            if let Some(n) = node_map.remove(&ares_core::NodeId::from(id.to_string())) {
+                ordered_nodes.push(n);
+            }
+        }
+
+        let mut ordered_edges = Vec::new();
+        let mut edge_map = std::collections::HashMap::new();
+        for e in edges {
+            edge_map.insert((e.from_node_id.clone(), e.to_node_id.clone()), e);
+        }
+        for window in path_nodes.windows(2) {
+            let from_id = ares_core::NodeId::from(window[0].to_string());
+            let to_id = ares_core::NodeId::from(window[1].to_string());
+            if let Some(e) = edge_map.remove(&(from_id, to_id)) {
+                ordered_edges.push(e);
+            }
+        }
+
+        Ok((ordered_nodes, ordered_edges))
     }
 }
 
