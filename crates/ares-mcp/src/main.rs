@@ -1838,7 +1838,7 @@ async fn main() -> Result<(), BoxError> {
 
                         if matches {
                             requirements.push(serde_json::json!({
-                                "id": rn.id.as_str(),
+                                "id": format!("node_id:{}", rn.id.as_str()),
                                 "text": text,
                                 "status": status,
                                 "linked_files": linked_files
@@ -2395,7 +2395,7 @@ async fn main() -> Result<(), BoxError> {
                       ares_core::canonicalize_node_id(&input.target_id)
                   } else {
                       match repo.get_id_by_path_loose(&input.target_id) {
-                          Ok(id) => id,
+                          Ok(id) => ares_core::canonicalize_node_id(&id),
                           Err(_) => return Ok(CallToolResult::text(
                               serde_json::to_string(&serde_json::json!({
                                   "action": input.action,
@@ -2561,6 +2561,8 @@ async fn main() -> Result<(), BoxError> {
                         let evidence = serde_json::json!([{"type": "graph_query", "ref": "workspace"}]);
                         let conf = 0.6;
                         let mut payload = serde_json::to_value(&original_payload).unwrap_or_default();
+                        transform_graph_for_agent(&mut payload);
+                        prefix_node_ids(&mut payload);
                         if let Some(obj) = payload.as_object_mut() {
                             obj.insert("evidence".to_string(), evidence);
                             obj.insert("confidence".to_string(), serde_json::json!(conf));
@@ -2634,6 +2636,21 @@ async fn main() -> Result<(), BoxError> {
                         let evidence = serde_json::json!([{"type": "graph_search", "ref": &input.query}]);
                         let conf = 0.6;
                         let mut payload = serde_json::to_value(&original_payload).unwrap_or_default();
+                        // Strip unresolved internal artifacts before transforming
+                        if let Some(nodes) = payload.get_mut("nodes").and_then(|n| n.as_array_mut()) {
+                            nodes.retain(|n| {
+                                n.get("id").and_then(|id| id.as_str()).map_or(true, |s| !s.starts_with("unresolved_"))
+                            });
+                        }
+                        if let Some(edges) = payload.get_mut("edges").and_then(|e| e.as_array_mut()) {
+                            edges.retain(|e| {
+                                let from_bad = e.get("from_node_id").and_then(|v| v.as_str()).map_or(false, |s| s.starts_with("unresolved_"));
+                                let to_bad = e.get("to_node_id").and_then(|v| v.as_str()).map_or(false, |s| s.starts_with("unresolved_"));
+                                !from_bad && !to_bad
+                            });
+                        }
+                        transform_graph_for_agent(&mut payload);
+                        prefix_node_ids(&mut payload);
                         if let Some(obj) = payload.as_object_mut() {
                             obj.insert("evidence".to_string(), evidence);
                             obj.insert("confidence".to_string(), serde_json::json!(conf));
@@ -2901,12 +2918,9 @@ async fn main() -> Result<(), BoxError> {
                 if std::env::var("OPENAI_API_KEY").is_err() 
                     && std::env::var("ANTHROPIC_API_KEY").is_err() {
                     return Ok(CallToolResult::text(
-                        serde_json::to_string(&serde_json::json!({
-                            "result": null,
-                            "error": "No LLM provider configured. ares_chat requires an LLM API key (OPENAI_API_KEY or ANTHROPIC_API_KEY).",
-                            "evidence": [],
-                            "query_time_ms": 0
-                        })).unwrap()
+                        serde_json::to_string(&wrap_with_envelope("ares_chat", serde_json::json!({
+                            "error": "No LLM provider configured. ares_chat requires an LLM API key (OPENAI_API_KEY or ANTHROPIC_API_KEY)."
+                        }), 0)).unwrap()
                     ));
                 }
                 let mut registry = ares_repository_intelligence::planner::registry::EngineRegistry::new();
@@ -3104,7 +3118,7 @@ async fn main() -> Result<(), BoxError> {
                 let evidence = serde_json::json!([{"type": "health_computation", "ref": "workspace"}]);
                 let conf = 0.6;
 
-                let result = serde_json::json!({
+                let mut result = serde_json::json!({
                     "gaps": all_gaps,
                     "health_score": health_score,
                     "score_breakdown": score_breakdown,
@@ -3112,6 +3126,7 @@ async fn main() -> Result<(), BoxError> {
                     "evidence": evidence,
                     "confidence": conf
                 });
+                prefix_node_ids(&mut result);
 
                 Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_health_check", result, 0)).unwrap_or_default()))
             }
