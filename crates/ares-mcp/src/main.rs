@@ -262,6 +262,50 @@ fn format_micros_as_iso(micros: i64) -> String {
         .unwrap_or_default()
 }
 
+fn round_precision(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(map) => {
+            for (key, v) in map.iter_mut() {
+                if key == "graph_density" {
+                    if let Some(f) = v.as_f64() {
+                        *v = serde_json::json!((f * 10000.0).round() / 10000.0);
+                    }
+                }
+                round_precision(v);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for v in arr.iter_mut() {
+                round_precision(v);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn truncate_large_arrays(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(map) => {
+            for (key, v) in map.iter_mut() {
+                if (key == "files_changed" || key == "events") && v.is_array() {
+                    if let Some(arr) = v.as_array_mut() {
+                        if arr.len() > 50 {
+                            arr.truncate(50);
+                        }
+                    }
+                }
+                truncate_large_arrays(v);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for v in arr.iter_mut() {
+                truncate_large_arrays(v);
+            }
+        }
+        _ => {}
+    }
+}
+
 fn transform_relationships(node_val: &mut serde_json::Value) {
     if let Some(rels) = node_val.get_mut("relationships").and_then(|r| r.as_object_mut()) {
         for (_rel_type, arr) in rels.iter_mut() {
@@ -984,6 +1028,13 @@ async fn main() -> Result<(), BoxError> {
                     let conf = 0.6;
                     let mut payload = serde_json::to_value(&response).unwrap_or_default();
                     default_nulls(&mut payload);
+                    round_precision(&mut payload);
+                    if let Some(serde_json::Value::String(s)) = payload.pointer_mut("/repository/root_path") {
+                        *s = std::path::Path::new(s.as_str()).file_name().and_then(|n| n.to_str()).unwrap_or(s.as_str()).to_string();
+                    }
+                    if let Some(serde_json::Value::String(s)) = payload.get_mut("repository_id") {
+                        *s = std::path::Path::new(s.as_str()).file_name().and_then(|n| n.to_str()).unwrap_or(s.as_str()).to_string();
+                    }
                     if let Some(obj) = payload.as_object_mut() {
                         obj.insert("evidence".to_string(), evidence);
                         obj.insert("confidence".to_string(), serde_json::json!(conf));
@@ -1003,6 +1054,13 @@ async fn main() -> Result<(), BoxError> {
                     let conf = 0.6;
                     let mut payload = serde_json::to_value(&result).unwrap_or_default();
                     default_nulls(&mut payload);
+                    round_precision(&mut payload);
+                    if let Some(serde_json::Value::String(s)) = payload.pointer_mut("/repository/root_path") {
+                        *s = std::path::Path::new(s.as_str()).file_name().and_then(|n| n.to_str()).unwrap_or(s.as_str()).to_string();
+                    }
+                    if let Some(serde_json::Value::String(s)) = payload.get_mut("repository_id") {
+                        *s = std::path::Path::new(s.as_str()).file_name().and_then(|n| n.to_str()).unwrap_or(s.as_str()).to_string();
+                    }
                     if let Some(obj) = payload.as_object_mut() {
                         obj.insert("evidence".to_string(), evidence);
                         obj.insert("confidence".to_string(), serde_json::json!(conf));
@@ -1061,7 +1119,7 @@ async fn main() -> Result<(), BoxError> {
                     ));
                 }
                 let (summary, _) = engine.generate_summary(&coverages);
-                serde_json::to_string(&wrap_with_envelope("ares_coverage_legacy", serde_json::to_value(&summary).unwrap_or_default(), 0))
+                serde_json::to_string(&wrap_with_envelope("ares_coverage", serde_json::to_value(&summary).unwrap_or_default(), 0))
                     .map(CallToolResult::text)
                     .map_err(|e| {
                         tower_mcp::Error::internal(format_mcp_error(
@@ -1553,15 +1611,23 @@ async fn main() -> Result<(), BoxError> {
                     )
                 };
 
+                let total_commits = events.len();
+                let is_truncated = total_commits > 50;
+                let displayed_events: Vec<_> = if is_truncated {
+                    events.into_iter().take(50).collect()
+                } else {
+                    events
+                };
                 let elapsed = start.elapsed().as_millis() as u64;
                 let inner = serde_json::json!({
-                    "result": { 
-                            "events": events,
+                    "result": {
+                            "events": displayed_events,
                             "narrative": narrative,
-                            "total_commits": events.len()
+                            "total_commits": total_commits,
+                            "truncated": is_truncated
                         },
                         "confidence": 0.6,
-                        "evidence": [{"type": "coverage", "ref": input.file_path.clone()}],
+                        "evidence": [{"type": "git_history", "ref": input.file_path.clone()}],
                         "query_time_ms": start.elapsed().as_millis() as i64
                 });
                 Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_timeline", inner, elapsed)).unwrap()))
@@ -2372,13 +2438,29 @@ async fn main() -> Result<(), BoxError> {
               let session = session_clone_gaps_tool.clone();
               async move {
                   track_session_call(&session, "ares_gaps", &input);
-                  let mut graph = ares_traceability::TraceabilityGraph::new();
-                  graph.add_provider(Box::new(ares_requirements::RequirementEdgeProvider::new(
-                      store.clone(),
-                  )));
-                  let engine = ares_requirements::gaps::KnowledgeGapEngine::new(&graph);
-                  let gaps = engine.evaluate_gaps();
-                  serde_json::to_string(&wrap_with_envelope("ares_gaps", serde_json::to_value(&gaps).unwrap_or_default(), 0))
+                  let project_name = input
+                      .project_id
+                      .clone()
+                      .unwrap_or_else(|| session.lock().unwrap().project_id.clone());
+                  let project_id = ares_core::ProjectId::from(project_name);
+                  let repo = ares_store::repositories::gaps::SqliteGapRepository::new(store.clone());
+                  let mut all_gaps = Vec::new();
+                  if let Ok(mut g) = repo.get_code_without_decision(&project_id, 30) { all_gaps.append(&mut g); }
+                  if let Ok(mut g) = repo.get_decisions_without_code(&project_id, 7) { all_gaps.append(&mut g); }
+                  if let Ok(mut g) = repo.get_orphaned_requirements(&project_id) { all_gaps.append(&mut g); }
+                  if let Ok(mut g) = repo.get_stale_decisions(&project_id, 30) { all_gaps.append(&mut g); }
+                  if let Ok(mut g) = repo.get_unknown_ownership(&project_id) { all_gaps.append(&mut g); }
+                  let mut gaps_val = serde_json::to_value(&all_gaps).unwrap_or_default();
+                  prefix_node_ids(&mut gaps_val);
+                  let evidence = serde_json::json!([{"type": "gap_analysis", "ref": "workspace"}]);
+                  let conf = 0.6;
+                  let payload = serde_json::json!({
+                      "gaps": gaps_val,
+                      "gap_count": all_gaps.len(),
+                      "evidence": evidence,
+                      "confidence": conf
+                  });
+                  serde_json::to_string(&wrap_with_envelope("ares_gaps", payload, 0))
                       .map(CallToolResult::text)
                       .map_err(|e| {
                           tower_mcp::Error::internal(format_mcp_error(
@@ -3016,9 +3098,18 @@ async fn main() -> Result<(), BoxError> {
                         let evidence = serde_json::json!([{"type": "graph_scan", "ref": "workspace"}]);
                         let conf = 0.6;
                         let mut payload = serde_json::to_value(&report).unwrap_or_default();
+                        // Move warning string into caveats array (correct envelope field)
+                        let warning_caveat = if let Some(serde_json::Value::Object(obj)) = Some(&mut payload) {
+                            obj.remove("warning").and_then(|v| v.as_str().map(|s| s.to_string()))
+                        } else {
+                            None
+                        };
                         if let Some(obj) = payload.as_object_mut() {
                             obj.insert("evidence".to_string(), evidence);
                             obj.insert("confidence".to_string(), serde_json::json!(conf));
+                            if let Some(warn) = warning_caveat {
+                                obj.insert("caveats".to_string(), serde_json::json!([warn]));
+                            }
                         }
                         Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_dead_code", payload, 0)).unwrap_or_default()))
                     },
@@ -3041,7 +3132,7 @@ async fn main() -> Result<(), BoxError> {
                 match ares_intelligence::context_file::generate_context_file(&store, &pp, &pid, None).await {
                     Ok(report) => {
                         let elapsed = start.elapsed().as_millis() as u64;
-                        let evidence = serde_json::json!([{"type": "context_generation", "ref": &pp}]);
+                        let evidence = serde_json::json!([{"type": "context_generation", "ref": "workspace"}]);
                         let conf = 0.6;
                         let inner = serde_json::json!( {
                             "evidence": evidence,
@@ -3070,6 +3161,7 @@ async fn main() -> Result<(), BoxError> {
                         let evidence = serde_json::json!([{"type": "session_aggregation", "ref": "workspace"}]);
                         let conf = 0.6;
                         let mut payload = serde_json::to_value(&report).unwrap_or_default();
+                        truncate_large_arrays(&mut payload);
                         if let Some(obj) = payload.as_object_mut() {
                             obj.insert("evidence".to_string(), evidence);
                             obj.insert("confidence".to_string(), serde_json::json!(conf));
