@@ -104,3 +104,4 @@ datasets/repositories/tokio/
 
 binaries/
 PHASE1_TEST_REPORT.md.mcp.json
+.mcp.json
