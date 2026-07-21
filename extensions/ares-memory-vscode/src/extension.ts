@@ -23,6 +23,33 @@ let aresMcpCache: ResolvedBinary | undefined;
 
 export let aresStatusBar: vscode.StatusBarItem;
 
+function writeMcpConfig(binaryPath: string, workspace: string): void {
+    const fs = require('fs') as typeof import('fs');
+    const path = require('path') as typeof import('path');
+    const mcpPath = path.join(workspace, '.mcp.json');
+    
+    // Don't overwrite user-customized configs
+    if (fs.existsSync(mcpPath)) {
+        try {
+            const existing = JSON.parse(fs.readFileSync(mcpPath, 'utf-8'));
+            if (existing.mcpServers?.ares?.command !== binaryPath) {
+                return; // User has custom config, respect it
+            }
+        } catch {
+            // Corrupted file, safe to overwrite
+        }
+    }
+    
+    const config = {
+        mcpServers: {
+            ares: {
+                command: binaryPath,
+                args: []
+            }
+        }
+    };
+    fs.writeFileSync(mcpPath, JSON.stringify(config, null, 2) + '\n');
+}
 export async function activate(context: vscode.ExtensionContext) {
     aresOutput = vscode.window.createOutputChannel('ARES');
     aresOutput.appendLine('ARES Memory OS extension activating...\n');
@@ -190,6 +217,11 @@ And copy the resulting executables from \`target/release/\` into the \`extension
         aresOutput.appendLine('\nActivation Status: ABORTED (MCP Connection Failed)');
         vscode.window.showErrorMessage(`ARES MCP failed to connect: ${mcpClient.lastError}`);
         return;
+    }
+
+    // ── Write .mcp.json for zero-config IDE agent connection ──
+    if (workspace && aresMcpCache?.path) {
+        writeMcpConfig(aresMcpCache.path, workspace);
     }
 
     aresOutput.appendLine('\nActivation Status: READY\n');

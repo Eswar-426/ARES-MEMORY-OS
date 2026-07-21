@@ -1116,6 +1116,66 @@ body{background:var(--vscode-editor-background);color:var(--vscode-editor-foregr
         dom.error.classList.remove('hidden');
     }
 
+    function renderArchitecture(data) {
+        hideAll();
+        dom.content.classList.remove('hidden');
+
+        var answer = data.answer || {};
+        var modules = answer.modules || [];
+        var topFiles = answer.top_files || [];
+        var decisions = answer.key_decisions || [];
+        var summary = answer.summary || '';
+        var html = '';
+
+        html += '<div style="margin-bottom:20px">';
+        html += '<h2 style="font-size:22px;font-weight:700;margin:0 0 8px 0">Architecture Overview</h2>';
+        if (summary) {
+            html += '<p style="color:var(--vscode-descriptionForeground);margin:0">' + escHtml(summary) + '</p>';
+        }
+        html += '</div>';
+
+        if (modules.length) {
+            html += '<div style="margin-bottom:24px">';
+            html += '<h3 style="font-size:16px;font-weight:600;margin:0 0 12px 0">Modules</h3>';
+            html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">';
+            modules.forEach(function(m) {
+                html += '<div style="background:var(--vscode-editor-background);border:1px solid var(--vscode-panel-border);border-radius:6px;padding:12px 16px">';
+                html += '<div style="font-size:14px;font-weight:600">' + escHtml(m.name) + '</div>';
+                html += '<div style="font-size:12px;color:var(--vscode-descriptionForeground)">' + (m.file_count || 0) + ' files</div>';
+                html += '</div>';
+            });
+            html += '</div></div>';
+        }
+
+        if (topFiles.length) {
+            html += '<div style="margin-bottom:24px">';
+            html += '<h3 style="font-size:16px;font-weight:600;margin:0 0 12px 0">Top Files by Dependents</h3>';
+            html += '<div style="display:flex;flex-direction:column;gap:4px">';
+            topFiles.slice(0, 10).forEach(function(f, i) {
+                html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--vscode-editor-background);border-radius:4px;font-size:13px">';
+                html += '<span style="color:var(--vscode-descriptionForeground);min-width:24px">' + (i + 1) + '</span>';
+                html += '<code style="flex:1">' + escHtml(f.path) + '</code>';
+                html += '<span style="color:var(--vscode-problemsWarningIcon-foreground);font-weight:600">' + (f.dependents || 0) + '</span>';
+                html += '</div>';
+            });
+            html += '</div></div>';
+        }
+
+        if (decisions.length) {
+            html += '<div style="margin-bottom:24px">';
+            html += '<h3 style="font-size:16px;font-weight:600;margin:0 0 12px 0">Key Decisions</h3>';
+            decisions.forEach(function(d) {
+                html += '<div style="padding:8px 12px;background:var(--vscode-editor-background);border-radius:4px;margin-bottom:4px;font-size:13px">';
+                html += escHtml(d.summary || d.title || JSON.stringify(d));
+                html += '</div>';
+            });
+            html += '</div>';
+        }
+
+        dom.resultContent.innerHTML = html;
+        dom.resultContent.classList.remove('hidden');
+    }
+
     function renderGenericQuery(data) {
         var html = '';
 
@@ -1127,7 +1187,8 @@ body{background:var(--vscode-editor-background);color:var(--vscode-editor-foregr
 
         // Answer
         if (data.answer) {
-            html += '<div class="a-card"><div class="a-card-head">Answer</div><div class="a-card-body">' + renderMarkdown(data.answer) + '</div></div>';
+            var answerText = typeof data.answer === 'string' ? data.answer : JSON.stringify(data.answer, null, 2);
+            html += '<div class="a-card"><div class="a-card-head">Answer</div><div class="a-card-body">' + renderMarkdown(answerText) + '</div></div>';
         }
 
         // Confidence Section — only show for evidence-based queries
@@ -1321,6 +1382,7 @@ body{background:var(--vscode-editor-background);color:var(--vscode-editor-foregr
             if (data.query_type === 'decisions') { renderDecisions(data); return; }
             if (data.query_type === 'ARES Home') { renderDashboard(data); return; }
             if (data.query_type === 'context_file') { renderContextFile(data); return; }
+            if (data.query_type === 'architecture') { renderArchitecture(data); return; }
 
             // Everything else is rendered generically
             renderGenericQuery(data);

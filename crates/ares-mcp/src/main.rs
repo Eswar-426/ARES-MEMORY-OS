@@ -2694,11 +2694,81 @@ async fn main() -> Result<(), BoxError> {
                     60,
                 ) {
                     Ok(original_payload) => {
+                        let mut payload = serde_json::to_value(&original_payload).unwrap_or_default();
+
+                        // Step 1: Build UUID → file_path map BEFORE transforms strip node IDs
+                        let mut uuid_to_path: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+                        if let Some(nodes) = payload.get("nodes").and_then(|n| n.as_array()) {
+                            for node in nodes {
+                                if let (Some(id), Some(fp)) = (
+                                    node.get("id").and_then(|v| v.as_str()),
+                                    node.get("file_path").and_then(|v| v.as_str()).filter(|s| !s.is_empty())
+                                ) {
+                                    uuid_to_path.insert(id.to_string(), fp.to_string());
+                                }
+                            }
+                        }
+
+                        // Step 2: Resolve edge UUIDs → file_paths, rename to from/to
+                        // Must happen BEFORE prefix_node_ids would touch them
+                        if let Some(edges) = payload.get_mut("edges").and_then(|e| e.as_array_mut()) {
+                            for edge in edges.iter_mut() {
+                                if let Some(obj) = edge.as_object_mut() {
+                                    for (old_key, new_key) in [("from_node_id", "from"), ("to_node_id", "to")] {
+                                        if let Some(val) = obj.remove(old_key) {
+                                            if let Some(s) = val.as_str() {
+                                                let resolved = uuid_to_path.get(s)
+                                                    .or_else(|| s.strip_prefix("node_id:").and_then(|k| uuid_to_path.get(k)))
+                                                    .map(|v| v.as_str())
+                                                    .unwrap_or_else(|| s.strip_prefix("node_id:").unwrap_or(s));
+                                                obj.insert(new_key.to_string(), serde_json::Value::String(resolved.to_string()));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Step 3: Standard transform (strips timestamps, extracts language/lines)
+                        transform_graph_for_agent(&mut payload);
+                        // Do NOT call prefix_node_ids — edges now use from/to with file_paths
+
+                        // Step 4: Restore node id as file_path (transform stripped the UUID id)
+                        if let Some(nodes) = payload.get_mut("nodes").and_then(|n| n.as_array_mut()) {
+                            for node in nodes.iter_mut() {
+                                if let Some(obj) = node.as_object_mut() {
+                                    let display = obj.get("file_path").and_then(|v| v.as_str())
+                                        .filter(|s| !s.is_empty())
+                                        .or_else(|| obj.get("label").and_then(|v| v.as_str()))
+                                        .unwrap_or("");
+                                    obj.insert("id".to_string(), serde_json::Value::String(display.to_string()));
+                                }
+                            }
+                        }
+
+                        // Step 5: Deduplicate nodes and edges
+                        if let Some(nodes) = payload.get_mut("nodes").and_then(|n| n.as_array_mut()) {
+                            let mut seen = std::collections::HashSet::new();
+                            nodes.retain(|n| {
+                                n.get("id").and_then(|v| v.as_str())
+                                    .map(|id| seen.insert(id.to_string()))
+                                    .unwrap_or(false)
+                            });
+                        }
+                        if let Some(edges) = payload.get_mut("edges").and_then(|e| e.as_array_mut()) {
+                            let mut seen = std::collections::HashSet::new();
+                            edges.retain(|e| {
+                                e.get("from").and_then(|v| v.as_str()).zip(
+                                    e.get("to").and_then(|v| v.as_str())
+                                ).zip(
+                                    e.get("edge_type").and_then(|v| v.as_str())
+                                ).map(|((s, t), tp)| seen.insert(format!("{}:{}:{}", s, t, tp)))
+                                .unwrap_or(false)
+                            });
+                        }
+
                         let evidence = serde_json::json!([{"type": "graph_query", "ref": "workspace"}]);
                         let conf = 0.6;
-                        let mut payload = serde_json::to_value(&original_payload).unwrap_or_default();
-                        transform_graph_for_agent(&mut payload);
-                        prefix_node_ids(&mut payload);
                         if let Some(obj) = payload.as_object_mut() {
                             obj.insert("evidence".to_string(), evidence);
                             obj.insert("confidence".to_string(), serde_json::json!(conf));
@@ -2707,11 +2777,11 @@ async fn main() -> Result<(), BoxError> {
                             .map(CallToolResult::text)
                             .map_err(|e| {
                                 tower_mcp::Error::internal(format_mcp_error(
-                                    "Failed to serialize graph root",
+                                    "Failed to serialize graph root response",
                                     &e.to_string(),
                                 ))
                             })
-                    },
+                    }
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
                         "Failed to retrieve graph root",
                         &e.to_string(),

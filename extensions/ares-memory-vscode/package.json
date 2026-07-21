@@ -36,14 +36,7 @@
     ],
     "contributes": {
         "commands": [
-            {
-                "command": "ares.demo",
-                "title": "ARES: Demo"
-            },
-            {
-                "command": "ares.selfTest",
-                "title": "ARES: Self Test"
-            },
+
             {
                 "command": "ares.doctor",
                 "title": "ARES: Doctor"
