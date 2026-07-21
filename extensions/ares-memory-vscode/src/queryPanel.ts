@@ -675,8 +675,9 @@ body{background:var(--vscode-editor-background);color:var(--vscode-editor-foregr
             'decisions': 'Decisions',
             'ARES Home': 'ARES Home',
         };
-        const label = labels[queryType] || queryType.replace(/_/g, ' ').replace(/\\b\\w/g, function(c) { return c.toUpperCase(); });
-        const cls = labels[queryType] ? queryType : 'default';
+        const normalizedType = queryType.replace(/^ares_/, '');
+        const label = labels[normalizedType] || labels[queryType] || queryType.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+        const cls = labels[normalizedType] ? normalizedType : (labels[queryType] ? queryType : 'default');
         return '<div class="query-type-badge ' + cls + '">' + label + '</div>';
     }
 
@@ -857,7 +858,7 @@ body{background:var(--vscode-editor-background);color:var(--vscode-editor-foregr
 
         var html = '';
         html += '<div class="dash-header" style="margin-bottom:24px">';
-        html += '<div class="dash-header-icon">🏥</div>';
+        html += '<div class="dash-header-icon">📊</div>';
         html += '<div class="dash-header-info">';
         html += '<div style="display:flex;align-items:baseline;gap:12px">';
         html += '<div class="dash-repo-name">Repository Health</div>';
@@ -1073,7 +1074,7 @@ body{background:var(--vscode-editor-background);color:var(--vscode-editor-foregr
             { icon: '🧠', label: 'Why Exists', cmd: 'ares.whyExists' },
             { icon: '🧬', label: 'Impact Analysis', cmd: 'ares.impactAnalysis' },
             { icon: '📊', label: 'Drift Analysis', cmd: 'ares.driftAnalysis' },
-            { icon: '🏥', label: 'Health Check', cmd: 'ares.healthCheck' },
+            { icon: '📊', label: 'Health Check', cmd: 'ares.healthCheck' },
             { icon: '📋', label: 'Briefing', cmd: 'ares.briefing' },
             { icon: '🔍', label: 'Find Dead Code', cmd: 'ares.findDeadCode' },
             { icon: '🌐', label: 'Graph Explorer', cmd: 'ares.graphExplorer' },
@@ -1177,6 +1178,10 @@ body{background:var(--vscode-editor-background);color:var(--vscode-editor-foregr
     }
 
     function renderGenericQuery(data) {
+        // Normalize query_type: strip ares_ prefix for badge/CSS matching
+        if (data.query_type) {
+            data.query_type = data.query_type.replace(/^ares_/, '');
+        }
         var html = '';
 
         // Badge & Header
@@ -1229,8 +1234,8 @@ body{background:var(--vscode-editor-background);color:var(--vscode-editor-foregr
         if (data.evidence && data.evidence.length > 0) {
             html += '<div class="a-card"><div class="a-card-head">Evidence (' + data.evidence.length + ')</div><div class="a-card-body">';
             data.evidence.forEach(function (ev) {
-                var category = ev.category || ev.source || 'unknown';
-                var value = ev.value || ev.detail || '';
+                var category = ev.type || ev.category || ev.source || 'unknown';
+                var value = ev.ref || ev.value || ev.detail || '';
                 var isClickable = category.indexOf('/') !== -1 || category.indexOf('.') !== -1;
                 
                 html += '<div style="margin-bottom:12px">';

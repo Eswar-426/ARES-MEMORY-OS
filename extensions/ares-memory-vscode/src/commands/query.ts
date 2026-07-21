@@ -24,6 +24,9 @@ export function parseAresResponse(result: any, filePath?: string): AresResponse 
     } else if (result && typeof result === 'object') {
         raw = result;
     }
+    if (!raw.query_type && raw.tool) {
+        raw.query_type = raw.tool;
+    }
 
     const payload = raw.result || raw.answer || raw;
 
@@ -80,6 +83,9 @@ export function parseAresResponse(result: any, filePath?: string): AresResponse 
         } else if (Array.isArray(raw.decisions) || Array.isArray(raw.related_decisions)) {
             raw.query_type = 'decisions';
         }
+    }
+    if (raw.query_type && typeof raw.query_type === 'string') {
+        raw.query_type = raw.query_type.replace(/^ares_/, '');
     }
 
     return {
