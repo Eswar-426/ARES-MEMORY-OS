@@ -81,6 +81,7 @@ pub async fn execute_pr_check(base_report_path: Option<String>) -> Result<(), Ar
             security_score: 0.0,
             architecture_score: 0.0,
             overall_score: 0.0,
+            compliance_checks_run: 0,
         },
     );
 

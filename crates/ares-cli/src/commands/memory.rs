@@ -168,6 +168,7 @@ pub async fn execute_export(out_path: &String) -> Result<(), AresError> {
             security_score: 0.0,
             architecture_score: 0.0,
             overall_score: 0.0,
+            compliance_checks_run: 0,
         },
     );
 
