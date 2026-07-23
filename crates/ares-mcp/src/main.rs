@@ -15,6 +15,7 @@ struct SessionState {
     tool_calls: Vec<(String, String)>,
     files_touched: HashSet<String>,
     project_id: String,
+    workspace_root: String,
 }
 
 fn track_session_call(
@@ -75,6 +76,48 @@ use tower_mcp::{
     BoxError,
 };
 use tracing::info;
+
+fn strip_nulls(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(map) => {
+            // Remove keys with null values
+            map.retain(|_, v| !v.is_null());
+            // Recurse into children
+            for v in map.values_mut() {
+                strip_nulls(v);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for v in arr.iter_mut() {
+                strip_nulls(v);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn resolve_project(
+    session: &Arc<Mutex<SessionState>>,
+    workspace_root: Option<&str>,
+    project_id: Option<&str>,
+) -> String {
+    if let Some(root) = workspace_root {
+        let derived = std::path::Path::new(root)
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+        if let Ok(mut s) = session.lock() {
+            s.project_id = derived.clone();
+            s.workspace_root = root.to_string();
+        }
+        derived
+    } else if let Some(pid) = project_id {
+        pid.to_string()
+    } else {
+        session.lock().unwrap().project_id.clone()
+    }
+}
 
 /// Wraps any tool's existing JSON response in the universal ARES envelope.
 /// Preserves `result` and `query_time_ms` at top level for webview backward compat.
@@ -168,6 +211,9 @@ fn wrap_with_envelope(
 
     // Round all float scores to appropriate precision
     round_precision(&mut answer);
+    
+    // Remove any null values that slipped through
+    strip_nulls(&mut answer);
 
     let caveats = current.get("caveats").cloned().unwrap_or_else(|| serde_json::json!([]));
     let mut meta = current.get("meta").cloned().unwrap_or_else(|| serde_json::json!({}));
@@ -457,7 +503,9 @@ struct CompareQueryInput {
 }
 
 #[derive(Debug, Deserialize, serde::Serialize, JsonSchema)]
-struct ArchitectureQueryInput {}
+struct ArchitectureQueryInput {
+    workspace_root: Option<String>,
+}
 
 // === Phase 3: Task 3.2 — Agent Memory Write API ===
 
@@ -508,6 +556,7 @@ struct GovernanceQueryInput {
     #[serde(default)]
     project_id: String,
     node_id: String,
+    workspace_root: Option<String>,
 }
 
 impl GovernanceQueryInput {
@@ -524,6 +573,7 @@ impl GovernanceQueryInput {
 #[derive(Debug, Deserialize, serde::Serialize, JsonSchema)]
 struct ProjectQueryInput {
     project_id: Option<String>,
+    workspace_root: Option<String>,
 }
 
 #[derive(Debug, Deserialize, serde::Serialize, JsonSchema)]
@@ -585,7 +635,9 @@ impl TraceabilityInput {
 }
 
 #[derive(Debug, Deserialize, serde::Serialize, JsonSchema)]
-struct EmptyInput {}
+struct EmptyInput {
+    workspace_root: Option<String>,
+}
 
 #[derive(Debug, Deserialize, serde::Serialize, JsonSchema)]
 struct GraphSearchInput {
@@ -630,15 +682,17 @@ async fn main() -> Result<(), BoxError> {
             return Err(Box::<dyn std::error::Error + Send + Sync>::from(e));
         }
     };
+    let project_id = std::path::Path::new(&project_path)
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
     let session_state: Arc<Mutex<SessionState>> = Arc::new(Mutex::new(SessionState {
         started_at: std::time::Instant::now(),
         tool_calls: Vec::new(),
         files_touched: HashSet::new(),
-        project_id: std::path::Path::new(&project_path)
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string(),
+        project_id: project_id.clone(),
+        workspace_root: project_path.clone(),
     }));
 
     writeln!(file, "Project path = {}", project_path).unwrap();
@@ -924,11 +978,7 @@ async fn main() -> Result<(), BoxError> {
             async move {
                 track_session_call(&session, "ares_compliance", &input);
                 
-                let resolved_project_id = if input.project_id.is_empty() {
-                    session.lock().unwrap().project_id.clone()
-                } else {
-                    input.project_id.clone()
-                };
+                let resolved_project_id = resolve_project(&session, input.workspace_root.as_deref(), Some(input.project_id.as_str()).filter(|s| !s.is_empty()));
 
                 let node_id_str = match input.resolve_id(&store) {
                     Ok(id) => id,
@@ -986,17 +1036,12 @@ async fn main() -> Result<(), BoxError> {
             async move {
                 track_session_call(&session, "ares_scorecard", &input);
                 let governance = facade.get_governance();
+                let proj_id = resolve_project(&session, input.workspace_root.as_deref(), input.project_id.as_deref());
                 match governance
-                    .get_scorecard(&ares_core::ProjectId::from(
-                        input
-                            .project_id
-                            .clone()
-                            .unwrap_or_else(|| session.lock().unwrap().project_id.clone()),
-                    ))
+                    .get_scorecard(&ares_core::ProjectId::from(proj_id.clone()))
                     .await
                 {
                     Ok(result) => {
-                        let proj_id = input.project_id.clone().unwrap_or_else(|| session.lock().unwrap().project_id.clone());
                         let evidence = serde_json::json!([{"type": "scorecard_computation", "ref": proj_id}]);
                         let conf = 0.6;
                         let mut payload = serde_json::to_value(&result).unwrap_or_default();
@@ -1137,10 +1182,7 @@ async fn main() -> Result<(), BoxError> {
             let store = store_cov.clone();
             async move {
                 track_session_call(&session, "ares_coverage", &input);
-                let project_name = input
-                    .project_id
-                    .clone()
-                    .unwrap_or_else(|| session.lock().unwrap().project_id.clone());
+                let project_name = resolve_project(&session, input.workspace_root.as_deref(), input.project_id.as_deref());
                 let project_id = ares_core::ProjectId::from(project_name);
                 let req_store = ares_requirements::storage::RequirementStore::new(store.clone());
                 let reqs = match req_store.list(
@@ -2496,10 +2538,7 @@ async fn main() -> Result<(), BoxError> {
               let session = session_clone_gaps_tool.clone();
               async move {
                   track_session_call(&session, "ares_gaps", &input);
-                  let project_name = input
-                      .project_id
-                      .clone()
-                      .unwrap_or_else(|| session.lock().unwrap().project_id.clone());
+                  let project_name = resolve_project(&session, input.workspace_root.as_deref(), input.project_id.as_deref());
                   let project_id = ares_core::ProjectId::from(project_name);
                   let repo = ares_store::repositories::gaps::SqliteGapRepository::new(store.clone());
                   let mut all_gaps = Vec::new();
@@ -2698,18 +2737,17 @@ async fn main() -> Result<(), BoxError> {
                 let start = std::time::Instant::now();
                 // Determine project_id (e.g. from cwd like CLI)
                 // Since this runs in the workspace, we can use the same logic
-                let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
-                let name = cwd
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("project");
-                let _pid = ares_core::ProjectId::from(name);
+                let session_lock = session.lock().unwrap();
+                let cwd = std::path::PathBuf::from(&session_lock.workspace_root);
+                let name = session_lock.project_id.clone();
+                let _pid = ares_core::ProjectId::from(name.clone());
+                drop(session_lock);
 
                 let architecture_service =
                     ares_repository_intelligence::services::ArchitectureService::new(store.clone());
                 match architecture_service.generate_architectural_seed(
                     &cwd.to_string_lossy(),
-                    name,
+                    &name,
                     60,
                 ) {
                     Ok(original_payload) => {
@@ -2759,8 +2797,13 @@ async fn main() -> Result<(), BoxError> {
                                     let display = obj.get("file_path").and_then(|v| v.as_str())
                                         .filter(|s| !s.is_empty())
                                         .or_else(|| obj.get("label").and_then(|v| v.as_str()))
-                                        .unwrap_or("");
-                                    obj.insert("id".to_string(), serde_json::Value::String(display.to_string()));
+                                        .unwrap_or("")
+                                        .to_string();
+                                    obj.insert("id".to_string(), serde_json::Value::String(display.clone()));
+                                    // Fix null file_path on project/folder nodes
+                                    if obj.get("file_path").map_or(false, |v| v.is_null()) {
+                                        obj.insert("file_path".to_string(), serde_json::Value::String(display.clone()));
+                                    }
                                 }
                             }
                         }
@@ -2799,6 +2842,25 @@ async fn main() -> Result<(), BoxError> {
                                 let from_ok = e.get("from").and_then(|v| v.as_str()).map_or(false, |s| node_id_set.contains(s));
                                 let to_ok = e.get("to").and_then(|v| v.as_str()).map_or(false, |s| node_id_set.contains(s));
                                 from_ok && to_ok
+                            });
+                        }
+
+                        // Step 7: Filter visual noise — remove contained_in (redundant with contains)
+                        // and self-loops (from == to) that confuse the layout algorithm
+                        if let Some(edges) = payload.get_mut("edges").and_then(|e| e.as_array_mut()) {
+                            edges.retain(|e| {
+                                let edge_type = e.get("edge_type").and_then(|v| v.as_str()).unwrap_or("");
+                                let from = e.get("from").and_then(|v| v.as_str()).unwrap_or("");
+                                let to = e.get("to").and_then(|v| v.as_str()).unwrap_or("");
+                                // Keep contains/defines/imports/calls/depends_on — skip contained_in
+                                let is_redundant_reverse = edge_type == "contained_in"
+                                    || edge_type == "imported_by"
+                                    || edge_type == "called_by"
+                                    || edge_type == "required_by"
+                                    || edge_type == "inherited_by";
+                                // Skip self-loops
+                                let is_self_loop = from == to;
+                                !is_redundant_reverse && !is_self_loop
                             });
                         }
 
@@ -3331,12 +3393,12 @@ async fn main() -> Result<(), BoxError> {
 
     let health_tool = ToolBuilder::new("ares_health_check")
         .description("Scans the repository memory graph for gaps (code without decisions, stale decisions, missing ownership) and returns a health score")
-        .handler(move |_input: ArchitectureQueryInput| {
+        .handler(move |input: ArchitectureQueryInput| {
             let session = session_clone_health_tool.clone();
             let store = store_health.clone();
             async move {
-                track_session_call(&session, "ares_health_check", &_input);
-                let project_name = session.lock().unwrap().project_id.clone();
+                track_session_call(&session, "ares_health_check", &input);
+                let project_name = resolve_project(&session, input.workspace_root.as_deref(), None);
                 let project_id = ares_core::ProjectId::from(project_name);
 
                 let repo = ares_store::repositories::gaps::SqliteGapRepository::new(store.clone());

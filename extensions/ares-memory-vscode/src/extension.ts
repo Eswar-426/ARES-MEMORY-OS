@@ -100,23 +100,25 @@ function configureMcpAccess(binaryPath: string, workspace: string): void {
         writeMcpJson(claudeConfigPath, binaryPath, 'Claude Desktop config', true);
     }
 
-    // ── 6. Antigravity IDE config ──
+    // ── 6. Antigravity IDE config (with cwd for workspace detection) ──
     const antigravityConfigDir = path.join(os.homedir(), '.gemini', 'config');
     const antigravityConfigPath = path.join(antigravityConfigDir, 'mcp_config.json');
-    if (fs.existsSync(antigravityConfigDir)) {
-        writeMcpJson(antigravityConfigPath, binaryPath, 'Antigravity IDE config', true);
-    }
+    writeMcpJson(antigravityConfigPath, binaryPath, 'Antigravity IDE config', true, workspace);
 }
 
 function writeMcpJson(
     filePath: string,
     binaryPath: string,
     label: string,
-    merge: boolean = false
+    merge: boolean = false,
+    workspace?: string
 ): void {
     const fs = require('fs') as typeof import('fs');
     const path = require('path') as typeof import('path');
-    const entry = { command: binaryPath, args: [] };
+    const entry: any = { command: binaryPath, args: [] };
+    if (workspace) {
+        entry.cwd = workspace;
+    }
 
     try {
         const dir = path.dirname(filePath);
@@ -126,7 +128,8 @@ function writeMcpJson(
 
         if (fs.existsSync(filePath)) {
             const existing = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-            if (existing.mcpServers?.ares?.command === binaryPath) {
+            const currentAres = existing.mcpServers?.ares;
+            if (currentAres?.command === binaryPath && currentAres?.cwd === (workspace || undefined)) {
                 console.log(`[ARES] ${label} already configured: ${filePath}`);
                 return; // Already correct, don't touch
             }
