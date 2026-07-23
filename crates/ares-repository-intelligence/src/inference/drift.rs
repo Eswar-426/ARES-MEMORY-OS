@@ -15,7 +15,11 @@ impl DeterministicInference for DriftGenerator {
         let mut drift_score: u8 = 0;
 
         // ── Stability Assessment ─────────────────────────────────
-        let commit_count = evidence.commits.len();
+        let commit_count = if evidence.total_commit_count > 0 {
+            evidence.total_commit_count
+        } else {
+            evidence.commits.len()
+        };
         if commit_count == 0 {
             sections.push(
                 "**Stability**\n⚠️ No commit history — drift cannot be calculated.".to_string(),

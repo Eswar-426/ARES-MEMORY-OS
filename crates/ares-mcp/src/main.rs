@@ -166,6 +166,9 @@ fn wrap_with_envelope(
         obj.remove("query_time_ms");
     }
 
+    // Round all float scores to appropriate precision
+    round_precision(&mut answer);
+
     let caveats = current.get("caveats").cloned().unwrap_or_else(|| serde_json::json!([]));
     let mut meta = current.get("meta").cloned().unwrap_or_else(|| serde_json::json!({}));
     if let Some(m) = meta.as_object_mut() {
@@ -266,9 +269,25 @@ fn round_precision(value: &mut serde_json::Value) {
     match value {
         serde_json::Value::Object(map) => {
             for (key, v) in map.iter_mut() {
-                if key == "graph_density" || key == "average_degree" {
+                let k = key.as_str();
+                // 4 decimal places: ratios and densities (0.0–1.0 range)
+                if k == "graph_density" || k == "average_degree" || k == "hotspot_score" || k == "coupling_score" {
                     if let Some(f) = v.as_f64() {
                         *v = serde_json::json!((f * 10000.0).round() / 10000.0);
+                    }
+                }
+                // 2 decimal places: percentage-style scores (0.0–100.0 range)
+                else if k == "health_score" || k == "overall_score"
+                    || k == "architecture_score" || k == "ownership_score"
+                    || k == "traceability_score" || k == "retention_score"
+                    || k == "evidence_score" || k == "security_score"
+                    || k == "approval_score" || k == "drift_score"
+                    || k.ends_with("_score")
+                    || k.ends_with("_term")
+                    || k.ends_with("_bonus")
+                {
+                    if let Some(f) = v.as_f64() {
+                        *v = serde_json::json!((f * 100.0).round() / 100.0);
                     }
                 }
                 round_precision(v);
@@ -2767,6 +2786,27 @@ async fn main() -> Result<(), BoxError> {
                             });
                         }
 
+                        // Step 6: Filter edges to only reference nodes present in the final node set
+                        let node_id_set: std::collections::HashSet<String> = payload
+                            .get("nodes")
+                            .and_then(|n| n.as_array())
+                            .map(|arr| arr.iter()
+                                .filter_map(|n| n.get("id").and_then(|v| v.as_str()).map(|s| s.to_string()))
+                                .collect())
+                            .unwrap_or_default();
+                        if let Some(edges) = payload.get_mut("edges").and_then(|e| e.as_array_mut()) {
+                            edges.retain(|e| {
+                                let from_ok = e.get("from").and_then(|v| v.as_str()).map_or(false, |s| node_id_set.contains(s));
+                                let to_ok = e.get("to").and_then(|v| v.as_str()).map_or(false, |s| node_id_set.contains(s));
+                                from_ok && to_ok
+                            });
+                        }
+
+                        // Fix total_nodes_listed: actual count instead of "partial" string
+                        if let Some(obj) = payload.as_object_mut() {
+                            obj.insert("total_nodes_listed".to_string(), serde_json::json!(node_id_set.len()));
+                        }
+
                         let evidence = serde_json::json!([{"type": "graph_query", "ref": "workspace"}]);
                         let conf = 0.6;
                         if let Some(obj) = payload.as_object_mut() {
@@ -2966,7 +3006,12 @@ async fn main() -> Result<(), BoxError> {
                             }
                         }
                         
-                        if node.health.is_orphan {
+                        // Only flag as orphan if engine says so AND no relationships exist
+                        let has_relationships = node_val.get("relationships")
+                            .and_then(|r| r.as_object())
+                            .map(|o| o.values().any(|v| v.as_array().map_or(false, |a| !a.is_empty())))
+                            .unwrap_or(false);
+                        if node.health.is_orphan && !has_relationships {
                             let mut gap_flags = node_val.get("gap_flags")
                                 .and_then(|v| v.as_array())
                                 .map(|a| a.clone())
@@ -3604,8 +3649,8 @@ fn build_neighbors_answer(mut payload: serde_json::Value, target_id_str: &str) -
     let mut truncated = false;
     let mut caveats = Vec::new();
     let total_found = neighbors.len();
-    if neighbors.len() > 20 {
-        neighbors.truncate(20);
+    if neighbors.len() > 50 {
+        neighbors.truncate(50);
         truncated = true;
         caveats.push(serde_json::json!(format!("results truncated; {} total neighbors found", total_found)));
     }

@@ -367,7 +367,8 @@ impl EvidenceService {
             });
         }
 
-        // Sort most-recent-first, cap at 20
+        // Sort most-recent-first, cap at 20 for evidence payload
+        let total_commit_count = git_commits.len();
         git_commits.sort_by(|a, b| b.date.cmp(&a.date));
         git_commits.truncate(20);
 
@@ -448,6 +449,7 @@ impl EvidenceService {
             dependents,
             contributors,
             owners,
+            total_commit_count,
             commits: git_commits,
             requirements: Vec::new(),
             decisions: Vec::new(),

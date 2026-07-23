@@ -41,6 +41,7 @@ pub struct EngineeringEvidence {
     pub owners: Vec<String>,
 
     // ── History ──────────────────────────────────────────────────
+    pub total_commit_count: usize,
     pub commits: Vec<GitEvidence>,
 
     // ── Architecture ─────────────────────────────────────────────
@@ -73,6 +74,7 @@ impl EngineeringEvidence {
             dependents: Vec::new(),
             contributors: Vec::new(),
             owners: Vec::new(),
+            total_commit_count: 0,
             commits: Vec::new(),
             requirements: Vec::new(),
             decisions: Vec::new(),

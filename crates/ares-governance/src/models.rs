@@ -111,6 +111,7 @@ pub struct GovernanceScorecard {
     pub security_score: f32,
     pub architecture_score: f32,
     pub overall_score: f32,
+    pub compliance_checks_run: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

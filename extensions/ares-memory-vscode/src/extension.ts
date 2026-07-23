@@ -23,36 +23,191 @@ let aresMcpCache: ResolvedBinary | undefined;
 
 export let aresStatusBar: vscode.StatusBarItem;
 
-function writeMcpConfig(binaryPath: string, workspace: string): void {
+// ── Platform Binary Cleanup ──
+// Runs once on activation. Deletes binaries for non-matching OS to save disk space.
+// The VSIX ships windows/, linux/, darwin/ — user only needs one.
+function cleanupNonPlatformBinaries(extensionPath: string): void {
     const fs = require('fs') as typeof import('fs');
     const path = require('path') as typeof import('path');
-    const mcpPath = path.join(workspace, '.mcp.json');
-    
-    // Don't overwrite user-customized configs
-    if (fs.existsSync(mcpPath)) {
+
+    const platform = process.platform; // 'win32' | 'linux' | 'darwin'
+    const platformDir = platform === 'win32' ? 'windows' : platform; // our dir naming
+
+    const binariesDir = path.join(extensionPath, 'binaries');
+    if (!fs.existsSync(binariesDir)) return;
+
+    const entries = fs.readdirSync(binariesDir);
+    for (const entry of entries) {
+        // Skip the current platform's directory and any non-directory files
+        if (entry === platformDir) continue;
+        const fullPath = path.join(binariesDir, entry);
+        if (!fs.statSync(fullPath).isDirectory()) continue;
+
+        // Delete the entire directory for the other platform
         try {
-            const existing = JSON.parse(fs.readFileSync(mcpPath, 'utf-8'));
-            if (existing.mcpServers?.ares?.command !== binaryPath) {
-                return; // User has custom config, respect it
-            }
-        } catch {
-            // Corrupted file, safe to overwrite
+            fs.rmSync(fullPath, { recursive: true, force: true });
+            console.log(`[ARES] Cleaned up non-platform binaries: ${entry}/`);
+        } catch (e) {
+            console.error(`[ARES] Failed to clean up ${entry}/:`, e);
         }
     }
-    
-    const config = {
-        mcpServers: {
-            ares: {
-                command: binaryPath,
-                args: []
-            }
+}
+
+function configureMcpAccess(binaryPath: string, workspace: string): void {
+    const fs = require('fs') as typeof import('fs');
+    const path = require('path') as typeof import('path');
+    const vscode = require('vscode') as typeof import('vscode');
+    const os = require('os') as typeof import('os');
+
+    console.log(`[ARES] Configuring MCP access for: ${binaryPath}`);
+
+    // ── 1. VS Code Global Settings (for VS Code Copilot) ──
+    try {
+        const config = vscode.workspace.getConfiguration('ares');
+        config.update('mcpPath', binaryPath, vscode.ConfigurationTarget.Global).then(() => {
+            console.log('[ARES] Wrote ares.mcpPath to VS Code Global settings');
+        }, () => {});
+    } catch { /* no workspace during activation */ }
+
+    // ── 2. Workspace .mcp.json (for Claude Code, Cursor, Windsurf) ──
+    if (workspace) {
+        const workspaceMcpPath = path.join(workspace, '.mcp.json');
+        writeMcpJson(workspaceMcpPath, binaryPath, 'workspace .mcp.json');
+    }
+
+    // ── 3. .cursor/mcp.json (Cursor-specific, if .cursor/ exists) ──
+    if (workspace) {
+        const cursorDir = path.join(workspace, '.cursor');
+        if (fs.existsSync(cursorDir)) {
+            writeMcpJson(path.join(cursorDir, 'mcp.json'), binaryPath, '.cursor/mcp.json');
         }
-    };
-    fs.writeFileSync(mcpPath, JSON.stringify(config, null, 2) + '\n');
+    }
+
+    // ── 4. Codex config.toml (OpenAI Codex) ──
+    const codexDir = path.join(os.homedir(), '.codex');
+    const codexTomlPath = path.join(codexDir, 'config.toml');
+    if (fs.existsSync(codexDir)) {
+        writeMcpToml(codexTomlPath, binaryPath);
+    }
+
+    // ── 5. Claude Desktop config.json (if exists) ──
+    const claudeConfigDir = path.join(
+        os.homedir(),
+        process.platform === 'win32' ? 'AppData\\Roaming\\Claude' : '.config/Claude'
+    );
+    const claudeConfigPath = path.join(claudeConfigDir, 'claude_desktop_config.json');
+    if (fs.existsSync(claudeConfigDir)) {
+        writeMcpJson(claudeConfigPath, binaryPath, 'Claude Desktop config', true);
+    }
+
+    // ── 6. Antigravity IDE config ──
+    const antigravityConfigDir = path.join(os.homedir(), '.gemini', 'config');
+    const antigravityConfigPath = path.join(antigravityConfigDir, 'mcp_config.json');
+    if (fs.existsSync(antigravityConfigDir)) {
+        writeMcpJson(antigravityConfigPath, binaryPath, 'Antigravity IDE config', true);
+    }
+}
+
+function writeMcpJson(
+    filePath: string,
+    binaryPath: string,
+    label: string,
+    merge: boolean = false
+): void {
+    const fs = require('fs') as typeof import('fs');
+    const path = require('path') as typeof import('path');
+    const entry = { command: binaryPath, args: [] };
+
+    try {
+        const dir = path.dirname(filePath);
+        if (!fs.existsSync(dir)) {
+            try { fs.mkdirSync(dir, { recursive: true }); } catch { return; }
+        }
+
+        if (fs.existsSync(filePath)) {
+            const existing = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+            if (existing.mcpServers?.ares?.command === binaryPath) {
+                console.log(`[ARES] ${label} already configured: ${filePath}`);
+                return; // Already correct, don't touch
+            }
+            if (merge || existing.mcpServers) {
+                // Merge: keep other servers, update/add ares
+                existing.mcpServers = existing.mcpServers || {};
+                existing.mcpServers.ares = entry;
+                fs.writeFileSync(filePath, JSON.stringify(existing, null, 2));
+                console.log(`[ARES] Merged into ${label}: ${filePath}`);
+            } else {
+                // Different config entirely, don't overwrite
+                console.log(`[ARES] ${label} exists with non-MCP content, skipping: ${filePath}`);
+            }
+        } else {
+            // Fresh file
+            const config = { mcpServers: { ares: entry } };
+            fs.writeFileSync(filePath, JSON.stringify(config, null, 2));
+            console.log(`[ARES] Wrote ${label}: ${filePath}`);
+        }
+    } catch (e) {
+        console.error(`[ARES] Failed to write ${label}:`, e);
+    }
+}
+
+function writeMcpToml(tomlPath: string, binaryPath: string): void {
+    const fs = require('fs') as typeof import('fs');
+
+    // Escape backslashes for TOML: C:\Users\ → C:\\Users\\
+    const escapedPath = binaryPath.replace(/\\/g, '\\\\');
+
+    // The TOML block to inject
+    const aresBlock = `\n[mcp_servers.ares]\ncommand = "${escapedPath}"\nargs = []\n`;
+
+    try {
+        if (fs.existsSync(tomlPath)) {
+            const content = fs.readFileSync(tomlPath, 'utf-8');
+
+            // Already has ares entry?
+            if (content.includes('[mcp_servers.ares]')) {
+                // Check if command matches — if not, replace the block
+                const aresRegex = /\[mcp_servers\.ares\]\ncommand\s*=\s*"[^"]*"\nargs\s*=\s*\[[^\]]*\]\n?/;
+                if (aresRegex.test(content)) {
+                    const updated = content.replace(aresRegex, aresBlock.trimStart());
+                    fs.writeFileSync(tomlPath, updated);
+                    console.log(`[ARES] Updated Codex config.toml: ${tomlPath}`);
+                } else {
+                    // Malformed existing entry — append after any [mcp_servers] section
+                    console.log(`[ARES] Codex config.toml has malformed ares entry, appending corrected version`);
+                    fs.appendFileSync(tomlPath, aresBlock);
+                }
+                return;
+            }
+
+            // Has [mcp_servers] section but no ares? Append inside it.
+            if (content.includes('[mcp_servers]')) {
+                // Insert after the [mcp_servers] header line
+                const lines = content.split('\n');
+                const idx = lines.findIndex(l => l.trim() === '[mcp_servers]');
+                if (idx !== -1) {
+                    lines.splice(idx + 1, 0, ...aresBlock.trimStart().split('\n'));
+                    fs.writeFileSync(tomlPath, lines.join('\n'));
+                    console.log(`[ARES] Inserted ares into existing [mcp_servers] in Codex config.toml`);
+                    return;
+                }
+            }
+
+            // No mcp_servers section at all — append at end
+            fs.appendFileSync(tomlPath, aresBlock);
+            console.log(`[ARES] Appended ares to Codex config.toml: ${tomlPath}`);
+        }
+        // If file doesn't exist, don't create it — Codex manages its own config
+    } catch (e) {
+        console.error(`[ARES] Failed to write Codex config.toml:`, e);
+    }
 }
 export async function activate(context: vscode.ExtensionContext) {
     aresOutput = vscode.window.createOutputChannel('ARES');
     aresOutput.appendLine('ARES Memory OS extension activating...\n');
+
+    // Clean up binaries for other platforms (saves ~20-30MB)
+    cleanupNonPlatformBinaries(context.extensionPath);
     
     aresStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     aresStatusBar.command = 'ares.healthCheck';
@@ -221,7 +376,7 @@ And copy the resulting executables from \`target/release/\` into the \`extension
 
     // ── Write .mcp.json for zero-config IDE agent connection ──
     if (workspace && aresMcpCache?.path) {
-        writeMcpConfig(aresMcpCache.path, workspace);
+        configureMcpAccess(aresMcpCache.path, workspace);
     }
 
     aresOutput.appendLine('\nActivation Status: READY\n');

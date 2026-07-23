@@ -1,16 +1,19 @@
 use crate::models::{ComplianceResult, GovernanceScorecard, PolicyCategory};
 
 pub fn calculate_scorecard(results: &[ComplianceResult]) -> GovernanceScorecard {
+    let checks_run = results.len();
+
     if results.is_empty() {
         return GovernanceScorecard {
-            ownership_score: 100.0,
-            traceability_score: 100.0,
-            evidence_score: 100.0,
-            approval_score: 100.0,
-            retention_score: 100.0,
-            security_score: 100.0,
-            architecture_score: 100.0,
-            overall_score: 100.0,
+            ownership_score: 0.0,
+            traceability_score: 0.0,
+            evidence_score: 0.0,
+            approval_score: 0.0,
+            retention_score: 0.0,
+            security_score: 0.0,
+            architecture_score: 0.0,
+            overall_score: 0.0,
+            compliance_checks_run: 0,
         };
     }
 
@@ -62,5 +65,6 @@ pub fn calculate_scorecard(results: &[ComplianceResult]) -> GovernanceScorecard 
         security_score,
         architecture_score,
         overall_score,
+        compliance_checks_run: checks_run,
     }
 }
