@@ -203,6 +203,21 @@
                     "type": "string",
                     "default": "",
                     "description": "Path to the ares-mcp executable."
+                },
+                "ares.autoIngestOnOpen": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Automatically ingest the repository when opening a workspace for the first time."
+                },
+                "ares.generateContextFile": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Automatically generate .ares/CLAUDE.md after each ingest for AI agent context."
+                },
+                "ares.telemetry.enabled": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "ARES sends no telemetry. This setting exists for transparency only."
                 }
             }
         },
