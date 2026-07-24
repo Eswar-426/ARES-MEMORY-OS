@@ -12,7 +12,7 @@ pub struct DecayResult {
 /// 20+ commits since decision → 0.0 (expired)
 pub fn calculate_decision_decay(
     conn: &Connection,
-    decision_created_at: &str,
+    decision_created_at: i64,
     file_paths: &[String],
 ) -> DecayResult {
     if file_paths.is_empty() {
@@ -71,7 +71,7 @@ pub fn count_decayed_decisions(conn: &Connection) -> Result<(i64, i64), String> 
         let rows = stmt.query_map([], |row| {
             Ok((
                 row.get::<usize, String>(0)?,
-                row.get::<usize, String>(1)?,
+                row.get::<usize, i64>(1)?,
             ))
         }).map_err(|e| e.to_string())?;
 
@@ -95,7 +95,7 @@ pub fn count_decayed_decisions(conn: &Connection) -> Result<(i64, i64), String> 
                 }
             }
 
-            let decay = calculate_decision_decay(conn, &created_at, &files);
+            let decay = calculate_decision_decay(conn, created_at, &files);
             if decay.staleness == "expired" {
                 expired_count += 1;
             } else if decay.staleness == "stale" {
@@ -113,11 +113,19 @@ pub fn enrich_evidence_with_decay(
     evidence: &mut Vec<serde_json::Value>,
 ) {
     for item in evidence.iter_mut() {
-        // Look for decision-shaped evidence: has "date" and "files" fields
-        let date = item.get("date").and_then(|v| v.as_str());
+        // Look for decision-shaped evidence: has "date" or "created_at" and "files" fields
+        let date_val = item.get("created_at").or_else(|| item.get("date"));
         let files_val = item.get("files").or_else(|| item.get("file_paths"));
 
-        if let (Some(date_str), Some(files_json)) = (date, files_val) {
+        if let (Some(d_val), Some(files_json)) = (date_val, files_val) {
+            let ts: i64 = if let Some(n) = d_val.as_i64() {
+                n
+            } else if let Some(s) = d_val.as_str() {
+                s.parse::<i64>().unwrap_or(0)
+            } else {
+                0
+            };
+
             let files: Vec<String> = if files_json.is_array() {
                 files_json
                     .as_array()
@@ -131,7 +139,7 @@ pub fn enrich_evidence_with_decay(
                 continue;
             };
 
-            let decay = calculate_decision_decay(conn, date_str, &files);
+            let decay = calculate_decision_decay(conn, ts, &files);
             if let Some(obj) = item.as_object_mut() {
                 obj.insert("decay_score".to_string(), serde_json::json!(decay.decay_score));
                 obj.insert("staleness".to_string(), serde_json::json!(decay.staleness));

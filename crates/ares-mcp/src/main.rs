@@ -1478,7 +1478,7 @@ async fn main() -> Result<(), BoxError> {
                                 }
                             }
                             let decay = if let Ok(conn) = store_arc.get_conn() {
-                                ares_intelligence::decay::calculate_decision_decay(&conn, &dn.created_at.to_string(), &files)
+                                ares_intelligence::decay::calculate_decision_decay(&conn, dn.created_at, &files)
                             } else {
                                 ares_intelligence::decay::DecayResult { decay_score: 1.0, staleness: "fresh".to_string() }
                             };
