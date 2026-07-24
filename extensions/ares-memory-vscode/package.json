@@ -6,14 +6,14 @@
     "description": "Deterministic repository intelligence for AI coding agents. Zero LLM required.",
     "repository": {
         "type": "git",
-        "url": "https://github.com/Eswar-426/ARES_Memory_os"
+        "url": "https://github.com/Eswar-426/ARES-MEMORY-OS"
     },
     "version": "0.1.0",
     "license": "MIT",
     "author": "Eswar-426",
-    "homepage": "https://github.com/Eswar-426/ARES_Memory_os",
+    "homepage": "https://github.com/Eswar-426/ARES-MEMORY-OS",
     "bugs": {
-        "url": "https://github.com/Eswar-426/ARES_Memory_os/issues"
+        "url": "https://github.com/Eswar-426/ARES-MEMORY-OS/issues"
     },
     "engines": {
         "vscode": "^1.80.0"
@@ -28,7 +28,9 @@
         "ai-agents"
     ],
     "categories": [
+        "AI",
         "Programming Languages",
+        "Visualization",
         "Other"
     ],
     "main": "./out/extension.js",

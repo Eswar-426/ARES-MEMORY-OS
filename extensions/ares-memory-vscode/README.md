@@ -18,7 +18,7 @@ ARES parses your repository into a queryable knowledge graph — AST relationshi
 3. Click Install
 
 ### From GitHub Releases (current method)
-1. Go to [GitHub Releases](https://github.com/Eswar-426/ARES_Memory_os/releases)
+1. Go to [GitHub Releases](https://github.com/Eswar-426/ARES-MEMORY-OS/releases)
 2. Download `ares-memory-vscode-0.1.0.vsix`
 3. In VS Code: `Extensions` → `...` → `Install from VSIX`
 
@@ -182,7 +182,7 @@ The extension automatically configures MCP for Claude Code, Cursor, Windsurf, Co
 | go | 6,120 | 41,500 | 172,235 | 210,592 | 184.0 MB | < 22ms |
 | vscode | 12,400 | 85,200 | 453,576 | 605,409 | 556.3 MB | < 35ms |
 
-See [BENCHMARKS.md](https://github.com/Eswar-426/ARES_Memory_os/blob/main/BENCHMARKS.md) for full details.
+See [BENCHMARKS.md](https://github.com/Eswar-426/ARES-MEMORY-OS/blob/main/BENCHMARKS.md) for full details.
 
 ---
 
