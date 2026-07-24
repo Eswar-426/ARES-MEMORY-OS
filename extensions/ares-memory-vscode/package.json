@@ -2,6 +2,7 @@
     "name": "ares-memory-vscode",
     "publisher": "eswar426",
     "displayName": "ARES Memory OS",
+    "icon": "media/icon.png",
     "description": "Deterministic repository intelligence for AI coding agents. Zero LLM required.",
     "repository": {
         "type": "git",
