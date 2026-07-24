@@ -205,10 +205,60 @@ function writeMcpToml(tomlPath: string, binaryPath: string): void {
         console.error(`[ARES] Failed to write Codex config.toml:`, e);
     }
 }
+function startBackgroundIngest(
+    workspace: string,
+    cliPath: string,
+    aresDir: string,
+    markerPath: string,
+    output: vscode.OutputChannel
+): void {
+    try {
+        const { spawn } = require('child_process') as typeof import('child_process');
+        const child = spawn(cliPath, ['ingest', '.'], { cwd: workspace });
+
+        if (!child.pid) {
+            output.appendLine('Failed to start ingest process.');
+            return;
+        }
+
+        let stderrBuf = '';
+        child.stderr?.on('data', (data: Buffer) => {
+            stderrBuf += data.toString();
+            const lines = data.toString().split('\n');
+            for (const line of lines) {
+                if (line.includes('Progress:') || line.includes('Completed in')) {
+                    output.appendLine(line.trim());
+                }
+            }
+        });
+
+        child.on('close', (code) => {
+            if (code === 0) {
+                output.appendLine('Ingest completed successfully.');
+                try {
+                    if (!fs.existsSync(aresDir)) {
+                        fs.mkdirSync(aresDir, { recursive: true });
+                    }
+                    fs.writeFileSync(markerPath, new Date().toISOString());
+                } catch (e: any) {
+                    output.appendLine(`Warning: Could not write ingest marker: ${e}`);
+                }
+            } else {
+                output.appendLine(`Ingest exited with code ${code}.`);
+                if (stderrBuf) {
+                    output.appendLine(stderrBuf.trimEnd());
+                }
+            }
+        });
+    } catch (e: any) {
+        output.appendLine(`Ingest error: ${e.message}`);
+    }
+}
+
 export async function activate(context: vscode.ExtensionContext) {
     aresOutput = vscode.window.createOutputChannel('ARES');
     aresOutput.appendLine('ARES Memory OS extension activating...\n');
-
+    try {
     // Clean up binaries for other platforms (saves ~20-30MB)
     cleanupNonPlatformBinaries(context.extensionPath);
     
@@ -311,41 +361,9 @@ And copy the resulting executables from \`target/release/\` into the \`extension
             return;
         }
 
-        aresOutput.appendLine(`Workspace not initialized. Running: ${aresCliCache.path} ingest .`);
+        aresOutput.appendLine(`Workspace not initialized. Starting background ingest...`);
         aresOutput.show();
-
-        const { spawnSync } = require('child_process') as typeof import('child_process');
-        const result = spawnSync(aresCliCache.path, ['ingest', '.'], {
-            cwd: workspace,
-            encoding: 'utf-8',
-            timeout: 300_000,
-        });
-
-        if (result.error) {
-            aresOutput.appendLine(`Ingest failed: ${result.error.message}`);
-            vscode.window.showErrorMessage(`ARES ingest failed: ${result.error.message}`);
-            return;
-        }
-
-        if (result.status !== 0) {
-            aresOutput.appendLine(`Ingest exited with code ${result.status}`);
-            aresOutput.appendLine(result.stderr || result.stdout);
-            vscode.window.showErrorMessage(`ARES ingest failed (exit code ${result.status}). Check ARES output channel.`);
-            return;
-        }
-
-        aresOutput.appendLine('Ingest completed successfully.');
-
-        // Write completion marker so future activations know this repo is ingested
-        // (don't rely on .ares.db existence — MCP server may create empty DB on startup)
-        try {
-            if (!fs.existsSync(aresDir)) {
-                fs.mkdirSync(aresDir, { recursive: true });
-            }
-            fs.writeFileSync(ingestMarker, new Date().toISOString());
-        } catch (e: any) {
-            aresOutput.appendLine(`Warning: Could not write ingest marker: ${e}`);
-        }
+        startBackgroundIngest(workspace, aresCliCache.path, aresDir, ingestMarker, aresOutput);
     } else {
         aresOutput.appendLine(`Database found: ${aresDb}`);
         aresOutput.appendLine(`Checking database integrity...`);
@@ -432,6 +450,10 @@ And copy the resulting executables from \`target/release/\` into the \`extension
             }
         })
     );
+    } catch (e: any) {
+        aresOutput.appendLine(`Activation error: ${e.message}`);
+        return;
+    }
 }
 
 export function deactivate() {
