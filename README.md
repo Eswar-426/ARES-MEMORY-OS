@@ -14,7 +14,7 @@ ARES parses your repository into a queryable knowledge graph — AST relationshi
 
 ### VS Code / Antigravity IDE Extension
 
-1. Download the latest `.vsix` from [GitHub Releases](https://github.com/eswar426/ARES_Memory_os/releases)
+1. Download the latest `.vsix` from [GitHub Releases](https://github.com/Eswar-426/ARES_Memory_os/releases)
 2. Open VS Code / Antigravity IDE → `Extensions` → `...` → `Install from VSIX`
 3. Select `ares-memory-vscode-0.1.0.vsix`
 

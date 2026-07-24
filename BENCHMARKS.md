@@ -6,7 +6,7 @@ Empirical performance, scale, token efficiency, and tool-call reduction benchmar
 
 ## 1. Scale & Performance (Ingestion, Graph Size & Query Latency)
 
-All benchmarks measured on Windows 11 / AMD Ryzen 9 / NVMe SSD / `ares` v0.1.0 release build.
+All benchmarks measured on Windows 11 / intel i5 / NVMe SSD / `ares` v0.1.0 release build.
 
 | Repository | Files | Functions | Graph Nodes | Graph Edges | DB Size (MB) | Ingest Time | Query Latency (p95) |
 |------------|-------|-----------|-------------|-------------|--------------|-------------|----------------------|
