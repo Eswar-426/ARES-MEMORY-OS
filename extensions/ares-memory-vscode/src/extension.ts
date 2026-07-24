@@ -301,7 +301,10 @@ And copy the resulting executables from \`target/release/\` into the \`extension
     // ── Auto-Initialize Repository ─────────────────────────
     const aresDir = path.join(workspace, '.ares');
     const aresDb = path.join(aresDir, 'ares.db');
-    if (!fs.existsSync(aresDb)) {
+    const ingestMarker = path.join(aresDir, '.ingest_complete');
+    const needsIngest = !fs.existsSync(ingestMarker);
+
+    if (needsIngest) {
         if (!aresCliCache) {
             aresOutput.appendLine('Workspace not initialized and ares CLI not found. Cannot auto-ingest.');
             vscode.window.showErrorMessage('ARES: Workspace not ingested. Please run `ares ingest .` manually.');
@@ -332,6 +335,17 @@ And copy the resulting executables from \`target/release/\` into the \`extension
         }
 
         aresOutput.appendLine('Ingest completed successfully.');
+
+        // Write completion marker so future activations know this repo is ingested
+        // (don't rely on .ares.db existence — MCP server may create empty DB on startup)
+        try {
+            if (!fs.existsSync(aresDir)) {
+                fs.mkdirSync(aresDir, { recursive: true });
+            }
+            fs.writeFileSync(ingestMarker, new Date().toISOString());
+        } catch (e: any) {
+            aresOutput.appendLine(`Warning: Could not write ingest marker: ${e}`);
+        }
     } else {
         aresOutput.appendLine(`Database found: ${aresDb}`);
         aresOutput.appendLine(`Checking database integrity...`);
