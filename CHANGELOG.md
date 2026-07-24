@@ -18,13 +18,13 @@ All notable changes to ARES Memory OS will be documented in this file.
 - **Decision Confidence Decay**: staleness scoring based on commit activity
 - **Graph Explorer**: interactive code navigation with lazy loading
 - **CLAUDE.md auto-generation** for AI agent context
-- **8 language support**: Rust, Python, TypeScript, JavaScript, Go, Java, C/C++, Ruby
+- **11 language support**: Rust, Python, TypeScript, JavaScript, Go, Java, C/C++, C#, PHP, Ruby, Kotlin
 - **Multi-agent MCP config**: VS Code, Claude Code, Cursor, Codex, Antigravity IDE, Claude Desktop
 - **Zero-configuration**: auto-detects workspace, auto-ingests on first open
 - **Fully offline**: zero API keys, zero cloud, zero data egress
 
 ### Technical Details
 - Rust backend with SQLite knowledge graph
-- Tree-sitter AST parsing for 8 languages
+- Tree-sitter AST parsing for 11 languages
 - Query latency: <500ms p95 for all tools
 - Auto-ingest runs as background process (non-blocking extension activation)
