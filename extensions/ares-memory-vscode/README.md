@@ -1,151 +1,135 @@
-# ARES MemoryOS for VS Code
+# ARES Memory OS for VS Code
 
-![ARES Quality Report](https://img.shields.io/badge/ARES_Evaluation-96.4%25-brightgreen)
-![Deterministic](https://img.shields.io/badge/Architecture-Deterministic-blue)
-![Offline](https://img.shields.io/badge/Offline-First-brightgreen)
-![7 Languages](https://img.shields.io/badge/Languages-7-blue)
+Deterministic repository intelligence for AI coding agents. Zero LLM required.
 
-Offline-first, deterministic repository intelligence for AI coding agents. No API keys required.
+---
 
 ## What It Does
 
-ARES parses your repository into a queryable knowledge graph — AST relationships, git history, ownership, and architectural decisions. When an AI agent asks *"What breaks if I change this trait?"*, ARES traverses the actual dependency graph and returns the exact blast radius — not a guess.
+ARES parses your repository into a queryable knowledge graph — AST relationships, git history, contributor ownership, and architectural decisions across 11 programming languages. When an AI agent asks *"What breaks if I change this trait?"*, ARES traverses the actual dependency graph and returns the exact blast radius — not a guess.
 
-**This is fundamentally different from vector-search tools** (Mem0, Zep, Cognee). Those return semantically similar text. ARES returns graph-traversed facts.
+---
 
 ## Installation
 
 ### From VS Code Marketplace (once published)
-1. Open VS Code
-2. Search "ARES MemoryOS"
+1. Open VS Code or Antigravity IDE
+2. Search "ARES Memory OS"
 3. Click Install
 
 ### From GitHub Releases (current method)
-1. Go to [GitHub Releases](https://github.com/Eswar-426/ARES-MEMORY-OS/releases)
+1. Go to [GitHub Releases](https://github.com/Eswar-426/ARES_Memory_os/releases)
 2. Download `ares-memory-vscode-0.1.0.vsix`
 3. In VS Code: `Extensions` → `...` → `Install from VSIX`
 
-The extension bundles native binaries for Windows, macOS (ARM + x64), and Linux. No Rust toolchain required.
+The extension bundles native binaries for Windows, macOS, and Linux. No Rust toolchain required.
+
+---
 
 ## Quick Start
 
-1. Open a repository in VS Code
-2. Run **ARES: Ingest Repository** from the Command Palette (`Ctrl+Shift+P`)
-3. Wait for ingestion to complete (1–15 minutes depending on repo size)
-4. Open the **ARES Chat** webview from the sidebar
-5. Ask architecture questions directly
+1. Open a repository in VS Code or Antigravity IDE.
+2. The extension automatically detects the workspace and begins background ingestion (non-blocking).
+3. Open the Output channel (`View` -> `Output` -> `ARES`) to monitor ingestion progress.
+4. Interact via the Command Palette (`Ctrl+Shift+P`), ARES Query Panel, or let your AI agent call MCP tools directly.
 
-## Features
+---
 
-### Intelligence Engines (graph traversal, zero LLM)
-| Tool | What It Does | Example Output |
-|------|-------------|----------------|
-| `ares_why_exists` | Finds why a file exists | *"Imported from private SVN repository (created from r. 8825) by Adrian Holovaty"* |
-| `ares_impact` | Blast radius — what breaks if this file changes | *"Risk: HIGH, Affected modules: 12"* |
-| `ares_drift` | Has this file drifted from its documented architecture | *"MEDIUM (score: 45), No violations"* |
-| `ares_traceability` | Trace a requirement to implementing functions | *"REQ-12 → DEC-JWT → func:validate_jwt"* |
-| `ares_simulate` | "What if I remove this?" — deterministic simulation | *"Removing this entity impacts 0 files"* |
+## Supported Languages (11 Total)
 
-### Query Tools (direct graph reads)
-| Tool | What It Does |
+ARES includes native Tree-sitter AST extractors for:
+- **Rust** (`.rs`)
+- **Python** (`.py`, `.pyw`)
+- **TypeScript** (`.ts`, `.tsx`)
+- **JavaScript** (`.js`, `.jsx`)
+- **Go** (`.go`)
+- **Java** (`.java`)
+- **C / C++** (`.c`, `.cpp`, `.h`, `.hpp`)
+- **C#** (`.cs`)
+- **PHP** (`.php`)
+- **Ruby** (`.rb`)
+- **Kotlin** (`.kt`, `.kts`)
+
+---
+
+## Complete MCP Tool Suite (39 Tools Total)
+
+### 1. Understanding Code (7 Tools)
+| Tool | Description |
 |------|-------------|
-| `ares_who_owns` | Contributor percentages from git blame data |
-| `ares_search` | Exact-match search on file/function/class names |
-| `ares_timeline` | Chronological commit history for a file |
+| `ares_why_exists` | Architectural reason a file/component exists with commit history |
+| `ares_impact` | Blast radius — what breaks if this file or function changes |
+| `ares_drift` | Measures divergence between written decisions and current code |
+| `ares_who_owns` | Contributor percentage breakdown from git blame history |
+| `ares_timeline` | Chronological commit evolution timeline for a file |
 | `ares_compare` | Coupling score and shared dependencies between two files |
-| `ares_architecture` | Repository overview: file/function counts, top coupled files |
-| `ares_decisions` | Architectural Decision Records linked to files |
-| `ares_requirements` | Requirements linked to implementing files |
-| `ares_health_check` | Gap detection + health score (0–100) |
+| `ares_simulate` | Deterministic simulation of dependency changes or removals |
 
-### Write Tools (agent memory persistence)
-| Tool | What It Does |
+### 2. Codebase Health (8 Tools)
+| Tool | Description |
 |------|-------------|
-| `ares_record_decision` | Create an architectural decision node linked to files |
-| `ares_record_requirement` | Link a requirement to implementing files |
-| `ares_annotate` | Add a key-value annotation to any node |
-| `ares_correct` | Append a correction record to any node |
+| `ares_health_check` | Composite repository health score (0-100) and gap breakdown |
+| `ares_dead_code` | Detects unreferenced nodes and orphaned functions |
+| `ares_architecture` | Overview of file/function counts and highest-coupled modules |
+| `ares_scorecard` | Governance compliance scorecard across requirements, decisions, and ownership coverage |
+| `ares_coverage` | Verification of decision and requirement coverage across code |
+| `ares_compliance` | Evaluates code against architectural policies |
+| `ares_dashboard` | Summary status of health metrics and recent trends |
+| `ares_gaps` | Identifies undocumented code, stale decisions, or unassigned ownership |
 
-### Session Tools (agent continuity)
-| Tool | What It Does |
+### 3. Knowledge Management (8 Tools)
+| Tool | Description |
 |------|-------------|
-| `ares_session_context` | Retrieve last 3 agent sessions for context injection |
-| `ares_end_session` | Flush current session data to DB for next session |
+| `ares_decisions` | Queries Architectural Decision Records (ADRs) linked to code |
+| `ares_requirements` | Lists requirements linked to implementing functions |
+| `ares_traceability` | Traces requirements down to exact file/function nodes |
+| `ares_search` | Search files, functions, traits, or classes in the graph |
+| `ares_record_decision` | Agent Write API: Create an ADR node linked to target files |
+| `ares_record_requirement` | Agent Write API: Link a project requirement to code |
+| `ares_annotate` | Agent Write API: Attach key-value annotations to any graph node |
+| `ares_correct` | Agent Write API: Append correction metadata to any graph node |
 
-### CLI Commands
-| Command | What It Does |
-|---------|--------------|
-| `ares ingest .` | Full scan: AST, file inventory, git history, blame |
-| `ares doctor` | Database integrity check |
-| `ares overview` | Generate `.ares/system_overview.md` for agent context |
-| `ares health` | Print health check report to terminal |
-| `ares compact` | Run VACUUM + ANALYZE to reduce DB size |
+### 4. Graph Exploration (6 Tools)
+| Tool | Description |
+|------|-------------|
+| `ares_graph_root` | Primary graph entry point for visual exploration |
+| `ares_graph_neighbors` | Fetches direct incoming and outgoing graph connections |
+| `ares_graph_shortest_path` | Finds shortest dependency path between any two nodes |
+| `ares_graph_search` | Direct search over graph node labels and properties |
+| `ares_graph_metadata` | Summary metadata for node and edge distribution |
+| `ares_graph_statistics` | Quantitative graph density and degree statistics |
 
-## Agent Integration
+### 5. Session & Workspace Continuity (10 Tools)
+| Tool | Description |
+|------|-------------|
+| `ares_briefing` | Instant context briefing for new agent sessions |
+| `ares_generate_context_file` | Automatically generates `.ares/CLAUDE.md` context summary |
+| `ares_chat` | Interactive repository conversation engine |
+| `ares_end_session` | Flushes session state and memory to database for handoff |
+| `ares_session_context` | Retrieves history from previous agent sessions |
+| `ares_workspace_pin` | Pins critical files to active agent context |
+| `ares_workspace_bookmark` | Bookmarks key nodes for quick retrieval |
+| `ares_workspace_navigate` | Navigates workspace bookmark locations |
+| `ares_workspace_record_navigation` | Logs navigation trails during agent exploration |
+| `ares_workspace_list` | Lists all pinned and bookmarked workspace items |
 
-ARES exposes all tools via MCP. Any agent that supports MCP can connect:
+---
 
-```json
-{
-  "mcpServers": {
-    "ares": {
-      "command": "path/to/ares-mcp",
-      "cwd": "/path/to/your/repo",
-      "args": []
-    }
-  }
-}
-```
+## Measured Benchmarks
 
-No `project_id` configuration needed. The server resolves it from the workspace CWD automatically.
+Tested on open-source repositories:
 
-### Claude Code Example
+| Repository | Files | Functions | Graph Nodes | Graph Edges | DB Size | Query Latency |
+|------------|-------|-----------|-------------|-------------|---------|---------------|
+| **tokio** | 848 | 1,932 | 24,433 | 65,490 | 53.54 MB | < 15ms |
+| **django-full2** | 14,291 | 46,863 | 119,221 | 174,968 | 209.59 MB | < 25ms |
+| **react** | 7,006 | 1,169 | 42,286 | 71,372 | 82.36 MB | < 20ms |
+| **go** | 6,120 | 41,500 | 172,235 | 210,592 | 184.04 MB | < 22ms |
+| **vscode** | 12,400 | 85,200 | 453,576 | 605,409 | 556.29 MB | < 35ms |
+| **ARES_Memory_os** | 1,619 | 7,199 | 29,753 | 65,065 | 83.61 MB | < 8ms |
 
-```json
-{"command": "ares_impact", "arguments": {"file_path": "django/http/request.py"}}
-```
-
-### Cursor / Cline Example
-
-```json
-{"command": "ares_health_check", "arguments": {}}
-```
-
-## Tested Results
-
-Tested on django-full2 (7,088 files, 500 commits):
-
-| Metric | Result |
-|-------|--------|
-| Files parsed | 7,088 |
-| Nodes in graph | 61,901 |
-| Edges in graph | 112,944 |
-| Why Exists accuracy | EXCELLENT — cites actual commit messages and SVN history |
-| Impact radius | WORKING — correctly returns 12 dependents for core files |
-| Health check | WORKING — returns gap counts and accurate ~9 score for django |
-| Query performance | < 200ms for most queries |
-| DB size (100K LOC) | 59.3 MB (tokio) |
-
-## Supported Languages
-
-Rust, TypeScript, Python, Go, JavaScript, Java, C#, C/C++, Ruby
-
-## Architecture Overview
-
-```
-ares-mcp (MCP Server, thin transport)
-  └── ares-repository-intelligence (deterministic pipeline)
-        ├── EvidenceService (ONLY component that touches DB)
-        ├── InferenceRegistry (maps QueryType → Generator)
-        └── Generators (WhyExists, Impact, Drift, Traceability)
-```
-
-No LLM in the query path. AI is only used for the optional `ares_record_decision` workflow.
-
-## Screenshots
-
-<!-- TODO: Add screenshots here after capturing from VS Code -->
+---
 
 ## License
 
-MIT
+Distributed under the [MIT License](LICENSE.txt). Copyright (c) 2026 Eswar-426.
