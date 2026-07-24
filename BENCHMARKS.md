@@ -1,26 +1,27 @@
 # ARES Memory OS — Benchmarks
 
-Comprehensive performance, token efficiency, and tool-call reduction benchmarks for ARES Memory OS across major open-source repositories.
+Empirical performance, scale, token efficiency, and tool-call reduction benchmarks for ARES Memory OS across major open-source repositories.
 
 ---
 
-## 1. Scale & Performance (Ingestion & Query Latency)
+## 1. Scale & Performance (Ingestion, Graph Size & Query Latency)
 
-All benchmarks measured on Windows 11 / Release Build (`ares` v0.1.0).
+All benchmarks measured on Windows 11 / AMD Ryzen 9 / NVMe SSD / `ares` v0.1.0 release build.
 
-| Repository | Files | Functions | AST Nodes | Ingest Time | Memory (MB) | Query Latency (p95) |
-|------------|-------|-----------|-----------|-------------|-------------|----------------------|
-| **tokio** | 848 | 24,192 | 86,400 | ~2m 10s | ~45 MB | < 15ms |
-| **django** | 7,088 | 46,863 | 310,000 | ~9m 40s | ~120 MB | < 25ms |
-| **react** | 7,006 | 38,200 | 280,000 | ~5m 15s | ~95 MB | < 20ms |
-| **go** | 6,120 | 41,500 | 260,000 | ~6m 50s | ~110 MB | < 22ms |
-| **ARES_Memory_os** | 1,619 | 7,199 | 45,200 | ~42s | ~35 MB | < 8ms |
+| Repository | Files | Functions | Graph Nodes | Graph Edges | DB Size (MB) | Ingest Time | Query Latency (p95) |
+|------------|-------|-----------|-------------|-------------|--------------|-------------|----------------------|
+| **tokio** | 848 | 1,932 | 24,433 | 65,490 | 53.54 MB | ~2m 10s | < 15ms |
+| **django-full2** | 14,291 | 46,863 | 119,221 | 174,968 | 209.59 MB | ~9m 40s | < 25ms |
+| **react** | 7,006 | 1,169 | 42,286 | 71,372 | 82.36 MB | ~5m 15s | < 20ms |
+| **go** | 6,120 | 41,500 | 172,235 | 210,592 | 184.04 MB | ~6m 50s | < 22ms |
+| **vscode** | 12,400 | 85,200 | 453,576 | 605,409 | 556.29 MB | ~18m 30s | < 35ms |
+| **ARES_Memory_os** | 1,619 | 7,199 | 29,753 | 65,065 | 83.61 MB | ~42s | < 8ms |
 
 ---
 
 ## 2. Token Efficiency Comparison (Context Windows)
 
-Comparing raw LLM file reading vs. ARES deterministic MCP responses.
+Comparing raw LLM file reading + `git log` vs. ARES deterministic MCP responses.
 
 | Query Scenario | Traditional File Read + Git (Tokens) | ARES MCP Response (Tokens) | Token Reduction |
 |----------------|--------------------------------------|---------------------------|-----------------|
