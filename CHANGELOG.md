@@ -6,7 +6,7 @@ All notable changes to ARES Memory OS will be documented in this file.
 
 ### Added
 - **Initial release of ARES Memory OS** — repository intelligence for AI agents
-- **21 MCP tools** for deterministic, evidence-based code analysis
+- **39 MCP tools** for deterministic, evidence-based code analysis
 - **Why Exists**: creation commit, architectural role, evolution history
 - **Impact Analysis**: blast radius, risk level, execution flows
 - **Briefing**: instant project context for new agent sessions with session handoff
