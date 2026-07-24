@@ -67,7 +67,7 @@ ARES includes native Tree-sitter AST extractors for:
 | `ares_health_check` | Composite repository health score (0-100) and gap breakdown |
 | `ares_dead_code` | Detects unreferenced nodes and orphaned functions |
 | `ares_architecture` | Overview of file/function counts and highest-coupled modules |
-| `ares_scorecard` | Quantitative quality and maintainability score breakdown |
+| `ares_scorecard` | Governance compliance scorecard across requirements, decisions, and ownership coverage |
 | `ares_coverage` | Verification of decision and requirement coverage across code |
 | `ares_compliance` | Evaluates code against architectural policies |
 | `ares_dashboard` | Summary status of health metrics and recent trends |
@@ -113,4 +113,4 @@ ARES includes native Tree-sitter AST extractors for:
 
 ## License
 
-Distributed under the [MIT License](file:///E:/My%20Projects/ARES_Memory_os/LICENSE). Copyright (c) 2026 Eswar-426.
+Distributed under the [MIT License](LICENSE). Copyright (c) 2026 Eswar-426.

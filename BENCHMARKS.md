@@ -6,7 +6,7 @@ Empirical performance, scale, token efficiency, and tool-call reduction benchmar
 
 ## 1. Scale & Performance (Ingestion, Graph Size & Query Latency)
 
-All benchmarks measured on Windows 11 / intel i5 / NVMe SSD / `ares` v0.1.0 release build.
+All benchmarks measured on Windows 11 / Intel i5 / NVMe SSD / `ares` v0.1.0 release build.
 
 | Repository | Files | Functions | Graph Nodes | Graph Edges | DB Size (MB) | Ingest Time | Query Latency (p95) |
 |------------|-------|-----------|-------------|-------------|--------------|-------------|----------------------|
@@ -17,11 +17,13 @@ All benchmarks measured on Windows 11 / intel i5 / NVMe SSD / `ares` v0.1.0 rele
 | **vscode** | 12,400 | 85,200 | 453,576 | 605,409 | 556.29 MB | ~18m 30s | < 35ms |
 | **ARES_Memory_os** | 1,619 | 7,199 | 29,753 | 65,065 | 83.61 MB | ~42s | < 8ms |
 
+\* tokio, django-full2, and react are full clones (4,554 / 34,751 / 21,561 total commits respectively). ARES analyzes the 500 most recent first-parent commits during ingestion. go and vscode are shallow clones (`--depth 1`) with only 1 commit available.
+
 ---
 
-## 2. Token Efficiency Comparison (Context Windows)
+## 2. Token Efficiency Comparison (Modeled)
 
-Comparing raw LLM file reading + `git log` vs. ARES deterministic MCP responses.
+Comparing raw LLM file reading + `git log` vs. ARES deterministic MCP responses. Estimates based on typical file sizes and git log output for each query type.
 
 | Query Scenario | Traditional File Read + Git (Tokens) | ARES MCP Response (Tokens) | Token Reduction |
 |----------------|--------------------------------------|---------------------------|-----------------|
@@ -34,7 +36,9 @@ Comparing raw LLM file reading + `git log` vs. ARES deterministic MCP responses.
 
 ---
 
-## 3. Agent Tool-Call Reduction
+## 3. Agent Tool-Call Reduction (Modeled)
+
+Estimated reduction in agent tool calls compared to traditional grep/file-read workflows.
 
 | Workflow Task | Traditional Agent Steps | ARES Agent Steps | Reduction |
 |---------------|-------------------------|------------------|-----------|
