@@ -2,6 +2,8 @@
 
 Deterministic repository intelligence for AI coding agents. Zero LLM required.
 
+![ARES Knowledge Graph Explorer](https://raw.githubusercontent.com/Eswar-426/ARES-MEMORY-OS/main/docs/screenshots/graph-explorer.png)
+
 ---
 
 ## What It Does
@@ -54,6 +56,8 @@ The extension activates on any workspace open (`activationEvents: ["*"]`). If `a
 | `ARES: Compact Database` | Run VACUUM + ANALYZE to reduce DB size |
 
 ### Intelligence Queries
+
+![ARES Why Exists Architecture View](https://raw.githubusercontent.com/Eswar-426/ARES-MEMORY-OS/main/docs/screenshots/why-exists.png)
 | Command | Description |
 |---------|-------------|
 | `ARES: Why Exists` | Why does this file exist? Creation context and evolution |
@@ -75,6 +79,8 @@ The extension activates on any workspace open (`activationEvents: ["*"]`). If `a
 | `ARES: Run Diagnostics` | Extension diagnostics and connection status |
 
 ### Visualization
+
+![ARES Graph Explorer Visualization](https://raw.githubusercontent.com/Eswar-426/ARES-MEMORY-OS/main/docs/screenshots/graph-explorer-3.png)
 | Command | Description |
 |---------|-------------|
 | `ARES: Open Graph Explorer` | Interactive graph visualization |

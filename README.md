@@ -2,6 +2,8 @@
 
 Deterministic repository intelligence for AI coding agents. Zero LLM required.
 
+![ARES Knowledge Graph Explorer](docs/screenshots/graph-explorer.png)
+
 ---
 
 ## What It Does
@@ -51,6 +53,8 @@ ARES includes native Tree-sitter AST extractors for:
 ## Complete MCP Tool Suite (39 Tools Total)
 
 ### 1. Understanding Code (7 Tools)
+
+![ARES Impact Analysis](docs/screenshots/impact-analysis.png)
 | Tool | Description |
 |------|-------------|
 | `ares_why_exists` | Architectural reason a file/component exists with commit history |
@@ -86,6 +90,8 @@ ARES includes native Tree-sitter AST extractors for:
 | `ares_correct` | Agent Write API: Append correction metadata to any graph node |
 
 ### 4. Graph Exploration (6 Tools)
+
+![ARES Graph Exploration](docs/screenshots/graph-explorer-2.png)
 | Tool | Description |
 |------|-------------|
 | `ares_graph_root` | Primary graph entry point for visual exploration |
@@ -96,6 +102,8 @@ ARES includes native Tree-sitter AST extractors for:
 | `ares_graph_statistics` | Quantitative graph density and degree statistics |
 
 ### 5. Session & Workspace Continuity (10 Tools)
+
+![ARES Session Briefing](docs/screenshots/briefing.png)
 | Tool | Description |
 |------|-------------|
 | `ares_briefing` | Instant context briefing for new agent sessions |
