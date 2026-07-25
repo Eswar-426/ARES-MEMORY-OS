@@ -27,21 +27,21 @@ fn setup_test_data(store: &Store) {
     .unwrap();
 
     // Insert Nodes
-    // Full chain: R1 -> D1 -> A1 -> C1 -> T1 -> RS1 -> O1
+    // Full chain: r1 -> d1 -> a1 -> c1 -> t1 -> rs1 -> o1
     let nodes = vec![
-        ("R1", "requirement"),
-        ("D1", "decision"),
-        ("A1", "architecture"),
-        ("C1", "file"),
-        ("T1", "test"),
-        ("RS1", "runtime_signal"),
-        ("O1", "outcome"),
-        // Partial chain: R2 -> D2 -> A2
-        ("R2", "requirement"),
-        ("D2", "decision"),
-        ("A2", "architecture"),
-        // Orphaned: R3
-        ("R3", "requirement"),
+        ("r1", "requirement"),
+        ("d1", "decision"),
+        ("a1", "architecture"),
+        ("c1", "file"),
+        ("t1", "test"),
+        ("rs1", "runtime_signal"),
+        ("o1", "outcome"),
+        // Partial chain: r2 -> d2 -> a2
+        ("r2", "requirement"),
+        ("d2", "decision"),
+        ("a2", "architecture"),
+        // Orphaned: r3
+        ("r3", "requirement"),
     ];
 
     for (id, nt) in nodes {
@@ -54,14 +54,14 @@ fn setup_test_data(store: &Store) {
 
     // Insert Edges
     let edges = vec![
-        ("R1", "D1"),
-        ("D1", "A1"),
-        ("A1", "C1"),
-        ("C1", "T1"),
-        ("T1", "RS1"),
-        ("RS1", "O1"),
-        ("R2", "D2"),
-        ("D2", "A2"),
+        ("r1", "d1"),
+        ("d1", "a1"),
+        ("a1", "c1"),
+        ("c1", "t1"),
+        ("t1", "rs1"),
+        ("rs1", "o1"),
+        ("r2", "d2"),
+        ("d2", "a2"),
     ];
 
     for (edge_id, (from, to)) in (1..).zip(edges) {
@@ -82,18 +82,18 @@ async fn cert_01_topology_engine_classification() {
     let segments = topology_engine.evaluate_topology(&"proj_1".into()).unwrap();
     assert_eq!(segments.len(), 11);
 
-    let r1 = segments.iter().find(|s| s.node_id == "R1").unwrap();
+    let r1 = segments.iter().find(|s| s.node_id == "r1").unwrap();
     assert_eq!(r1.state, ares_completeness::models::TopologyState::Complete);
     assert!(r1.missing_downstream.is_empty());
 
-    let r2 = segments.iter().find(|s| s.node_id == "R2").unwrap();
+    let r2 = segments.iter().find(|s| s.node_id == "r2").unwrap();
     assert_eq!(r2.state, ares_completeness::models::TopologyState::Partial);
     assert_eq!(
         r2.missing_downstream,
         vec!["Code", "Test", "RuntimeSignal", "Outcome"]
     );
 
-    let r3 = segments.iter().find(|s| s.node_id == "R3").unwrap();
+    let r3 = segments.iter().find(|s| s.node_id == "r3").unwrap();
     assert_eq!(r3.state, ares_completeness::models::TopologyState::Orphaned);
 }
 
@@ -209,31 +209,31 @@ async fn cert_07_topology_determinism() {
     ).unwrap();
 
     let nodes = vec![
-        ("R1", "requirement"),
-        ("D1", "decision"),
-        ("A1", "architecture"),
-        ("C1", "file"),
-        ("T1", "test"),
-        ("RS1", "runtime_signal"),
-        ("O1", "outcome"),
-        ("R2", "requirement"),
-        ("D2", "decision"),
-        ("A2", "architecture"),
-        ("R3", "requirement"),
+        ("r1", "requirement"),
+        ("d1", "decision"),
+        ("a1", "architecture"),
+        ("c1", "file"),
+        ("t1", "test"),
+        ("rs1", "runtime_signal"),
+        ("o1", "outcome"),
+        ("r2", "requirement"),
+        ("d2", "decision"),
+        ("a2", "architecture"),
+        ("r3", "requirement"),
     ];
     for (id, nt) in nodes {
         conn.execute("INSERT INTO graph_nodes (id, project_id, node_type, label, properties, created_at, updated_at) VALUES (?1, 'proj_1', ?2, ?1, '{}', 0, 0)", rusqlite::params![id, nt]).unwrap();
     }
 
     let mut edges = vec![
-        ("R1", "D1"),
-        ("D1", "A1"),
-        ("A1", "C1"),
-        ("C1", "T1"),
-        ("T1", "RS1"),
-        ("RS1", "O1"),
-        ("R2", "D2"),
-        ("D2", "A2"),
+        ("r1", "d1"),
+        ("d1", "a1"),
+        ("a1", "c1"),
+        ("c1", "t1"),
+        ("t1", "rs1"),
+        ("rs1", "o1"),
+        ("r2", "d2"),
+        ("d2", "a2"),
     ];
     edges.reverse(); // Insert edges backwards
 
