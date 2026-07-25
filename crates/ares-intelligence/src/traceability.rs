@@ -217,26 +217,26 @@ mod tests {
         conn.execute("INSERT INTO projects (id, name, root_path, primary_language, domain, maturity, created_at, updated_at) VALUES ('p1', 'test', '/test', 'rust', 'domain', 'greenfield', 0, 0)", []).unwrap();
 
         // Nodes
-        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('req1', 'requirement', 'req1', '{}', 0, 0)", []).unwrap();
-        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('dec1', 'decision', 'dec1', '{}', 0, 0)", []).unwrap();
-        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('file1.rs', 'file', 'file1.rs', '{}', 0, 0)", []).unwrap();
-        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('func1', 'function', 'func1', '{}', 0, 0)", []).unwrap();
-        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('test1', 'test', 'test1', '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_nodes (id, project_id, node_type, label, properties, created_at, updated_at) VALUES ('req1', 'p1', 'requirement', 'req1', '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_nodes (id, project_id, node_type, label, properties, created_at, updated_at) VALUES ('dec1', 'p1', 'decision', 'dec1', '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_nodes (id, project_id, node_type, label, properties, created_at, updated_at) VALUES ('file1.rs', 'p1', 'file', 'file1.rs', '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_nodes (id, project_id, node_type, label, properties, created_at, updated_at) VALUES ('func1', 'p1', 'function', 'func1', '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_nodes (id, project_id, node_type, label, properties, created_at, updated_at) VALUES ('test1', 'p1', 'test', 'test1', '{}', 0, 0)", []).unwrap();
 
         // Cycle nodes
-        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('c1', 'file', 'c1.rs', '{}', 0, 0)", []).unwrap();
-        conn.execute("INSERT INTO graph_entities (id, entity_type, name, properties, created_at, updated_at) VALUES ('c2', 'file', 'c2.rs', '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_nodes (id, project_id, node_type, label, properties, created_at, updated_at) VALUES ('c1', 'p1', 'file', 'c1.rs', '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_nodes (id, project_id, node_type, label, properties, created_at, updated_at) VALUES ('c2', 'p1', 'file', 'c2.rs', '{}', 0, 0)", []).unwrap();
 
         // Edges
         // req1 -> dec1 -> file1.rs -> func1 -> test1
-        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, properties, created_at, updated_at) VALUES ('e1', 'req1', 'dec1', 'motivated_by', 1.0, '{}', 0, 0)", []).unwrap();
-        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, properties, created_at, updated_at) VALUES ('e2', 'dec1', 'file1.rs', 'motivated_by', 1.0, '{}', 0, 0)", []).unwrap();
-        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, properties, created_at, updated_at) VALUES ('e3', 'file1.rs', 'func1', 'contains', 1.0, '{}', 0, 0)", []).unwrap();
-        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, properties, created_at, updated_at) VALUES ('e4', 'func1', 'test1', 'validated_by', 1.0, '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_edges (id, project_id, from_node_id, to_node_id, edge_type, valid_from, created_at) VALUES ('e1', 'p1', 'req1', 'dec1', 'motivated_by', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_edges (id, project_id, from_node_id, to_node_id, edge_type, valid_from, created_at) VALUES ('e2', 'p1', 'dec1', 'file1.rs', 'motivated_by', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_edges (id, project_id, from_node_id, to_node_id, edge_type, valid_from, created_at) VALUES ('e3', 'p1', 'file1.rs', 'func1', 'contains', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_edges (id, project_id, from_node_id, to_node_id, edge_type, valid_from, created_at) VALUES ('e4', 'p1', 'func1', 'test1', 'validated_by', 0, 0)", []).unwrap();
 
         // Cycle edges c1 -> c2 -> c1
-        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, properties, created_at, updated_at) VALUES ('e5', 'c1', 'c2', 'depends_on', 1.0, '{}', 0, 0)", []).unwrap();
-        conn.execute("INSERT INTO graph_relationships (id, source_entity, target_entity, relationship_type, confidence_score, properties, created_at, updated_at) VALUES ('e6', 'c2', 'c1', 'depends_on', 1.0, '{}', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_edges (id, project_id, from_node_id, to_node_id, edge_type, valid_from, created_at) VALUES ('e5', 'p1', 'c1', 'c2', 'depends_on', 0, 0)", []).unwrap();
+        conn.execute("INSERT INTO graph_edges (id, project_id, from_node_id, to_node_id, edge_type, valid_from, created_at) VALUES ('e6', 'p1', 'c2', 'c1', 'depends_on', 0, 0)", []).unwrap();
 
         (store, dir)
     }
