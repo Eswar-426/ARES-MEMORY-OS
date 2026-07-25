@@ -23,6 +23,7 @@ fn test_dashboard_aggregation() {
             security_score: 1.0,
             architecture_score: 1.0,
             overall_score: 1.0,
+            compliance_checks_run: 0,
         },
         evaluated_at: 0,
     };
