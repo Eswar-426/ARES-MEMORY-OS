@@ -116,7 +116,7 @@ fn test_q18_evolution_snapshot() {
 Requirement Evolution Report
 
 Requirement:
-REQ-102
+req-102
 
 Created:
 2026-01-12
