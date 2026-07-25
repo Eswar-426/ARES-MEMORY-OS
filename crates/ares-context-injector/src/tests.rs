@@ -277,7 +277,7 @@ async fn test_duplicate_sources() {
     let adr_count = res
         .sources
         .iter()
-        .filter(|s| s.as_str() == "decision:ADR-001")
+        .filter(|s| s.as_str() == "decision:adr-001")
         .count();
     assert_eq!(adr_count, 1);
 }
