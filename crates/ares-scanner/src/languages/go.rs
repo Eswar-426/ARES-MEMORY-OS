@@ -85,7 +85,10 @@ impl LanguageExtractor for GoExtractor {
                     {
                         let import_path = name.replace("\"", "").trim().to_string();
                         let file_key = file_path.replace('/', "_").replace('\\', "_");
-                        let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, import_path));
+                        let unresolved_node_id = ares_core::NodeId::from(format!(
+                            "unresolved_{}_{}",
+                            file_key, import_path
+                        ));
                         let unresolved_node = GraphNode {
                             id: unresolved_node_id.clone(),
                             project_id: project_id.clone(),

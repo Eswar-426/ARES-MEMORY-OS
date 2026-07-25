@@ -36,8 +36,9 @@ pub async fn find_dead_code(
 
     // --- Dead Files ---
     let mut dead_files = Vec::new();
-    let mut stmt = conn.prepare(
-        "SELECT n.file_path, n.created_at, NULL as node_type_detail
+    let mut stmt = conn
+        .prepare(
+            "SELECT n.file_path, n.created_at, NULL as node_type_detail
          FROM graph_nodes n
          WHERE n.node_type = 'file'
          AND n.created_at < datetime('now', '-' || ?1 || ' days')
@@ -52,22 +53,24 @@ pub async fn find_dead_code(
          AND n.file_path NOT LIKE '%main%'
          AND n.file_path NOT LIKE '%config%'
          AND n.file_path NOT LIKE '%setup%'
-         ORDER BY n.created_at ASC"
-    ).map_err(|e| AresError::validation(e.to_string()))?;
+         ORDER BY n.created_at ASC",
+        )
+        .map_err(|e| AresError::validation(e.to_string()))?;
 
-    let rows = stmt.query_map(rusqlite::params![threshold_days], |row| {
-        Ok((
-            row.get::<usize, String>(0)?,
-            row.get::<usize, String>(1)?,
-            row.get::<usize, Option<String>>(2)?,
-        ))
-    }).map_err(|e| AresError::validation(e.to_string()))?;
+    let rows = stmt
+        .query_map(rusqlite::params![threshold_days], |row| {
+            Ok((
+                row.get::<usize, String>(0)?,
+                row.get::<usize, String>(1)?,
+                row.get::<usize, Option<String>>(2)?,
+            ))
+        })
+        .map_err(|e| AresError::validation(e.to_string()))?;
 
     for (path, created_at, lang) in rows.flatten() {
         let age_days = calculate_age_days(&created_at);
-        let language = lang.unwrap_or_else(|| {
-            path.rsplit('.').next().unwrap_or("unknown").to_string()
-        });
+        let language =
+            lang.unwrap_or_else(|| path.rsplit('.').next().unwrap_or("unknown").to_string());
         dead_files.push(DeadFile {
             path,
             age_days,
@@ -79,12 +82,12 @@ pub async fn find_dead_code(
     // --- Dead Functions ---
     let mut dead_functions = Vec::new();
     let excluded_names = [
-        "main", "new", "default", "init", "setup",
-        "test", "describe", "it", "expect",
+        "main", "new", "default", "init", "setup", "test", "describe", "it", "expect",
     ];
 
-    let mut stmt = conn.prepare(
-        "SELECT n.file_path, n.label, n.created_at
+    let mut stmt = conn
+        .prepare(
+            "SELECT n.file_path, n.label, n.created_at
          FROM graph_nodes n
          WHERE n.node_type IN ('function', 'method')
          AND n.created_at < datetime('now', '-' || ?1 || ' days')
@@ -97,16 +100,19 @@ pub async fn find_dead_code(
                               'test', 'describe', 'it', 'expect')
          AND n.label NOT LIKE 'test_%'
          AND n.label NOT LIKE '%_test'
-         ORDER BY n.file_path"
-    ).map_err(|e| AresError::validation(e.to_string()))?;
+         ORDER BY n.file_path",
+        )
+        .map_err(|e| AresError::validation(e.to_string()))?;
 
-    let rows = stmt.query_map(rusqlite::params![threshold_days], |row| {
-        Ok((
-            row.get::<usize, String>(0)?,
-            row.get::<usize, String>(1)?,
-            row.get::<usize, String>(2)?,
-        ))
-    }).map_err(|e| AresError::validation(e.to_string()))?;
+    let rows = stmt
+        .query_map(rusqlite::params![threshold_days], |row| {
+            Ok((
+                row.get::<usize, String>(0)?,
+                row.get::<usize, String>(1)?,
+                row.get::<usize, String>(2)?,
+            ))
+        })
+        .map_err(|e| AresError::validation(e.to_string()))?;
 
     for (path, name, created_at) in rows.flatten() {
         if excluded_names.contains(&name.as_str()) {

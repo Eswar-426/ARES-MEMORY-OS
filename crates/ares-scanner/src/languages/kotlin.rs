@@ -16,12 +16,16 @@ impl KotlinExtractor {
             (package_header) @module
             (import) @import
         "#;
-        Self { query: super::try_build_query(language, query_str, "Kotlin") }
+        Self {
+            query: super::try_build_query(language, query_str, "Kotlin"),
+        }
     }
 }
 
 impl Default for KotlinExtractor {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 fn extract_name_from_text(text: &str, keyword: &str) -> String {
@@ -42,11 +46,18 @@ impl LanguageExtractor for KotlinExtractor {
     ) -> Result<ExtractionResult, Box<dyn std::error::Error + Send + Sync>> {
         let query = match &self.query {
             Some(q) => q,
-            None => return Ok(ExtractionResult { nodes: Vec::new(), edges: Vec::new() }),
+            None => {
+                return Ok(ExtractionResult {
+                    nodes: Vec::new(),
+                    edges: Vec::new(),
+                })
+            }
         };
         let mut parser = Parser::new();
         parser.set_language(&tree_sitter_kotlin_ng::LANGUAGE.into())?;
-        let tree = parser.parse(source_code, None).ok_or("Failed to parse Kotlin source")?;
+        let tree = parser
+            .parse(source_code, None)
+            .ok_or("Failed to parse Kotlin source")?;
 
         let mut nodes = Vec::new();
         let mut edges = Vec::new();
@@ -58,12 +69,12 @@ impl LanguageExtractor for KotlinExtractor {
             for capture in m.captures {
                 let node = capture.node;
                 let text = node.utf8_text(source_code.as_bytes())?;
-                
+
                 let capture_name = capture_names[capture.index as usize];
-                
+
                 let mut node_type_opt = None;
                 let mut name = String::new();
-                
+
                 match capture_name {
                     "function" => {
                         name = extract_name_from_text(text, "fun");
@@ -87,9 +98,14 @@ impl LanguageExtractor for KotlinExtractor {
                     }
                     _ => {}
                 }
-                
+
                 if let Some(n_type) = node_type_opt {
-                    let id = NodeId::from(format!("{}_k_{}_{}", file_node_id.as_str(), name, node.start_position().row));
+                    let id = NodeId::from(format!(
+                        "{}_k_{}_{}",
+                        file_node_id.as_str(),
+                        name,
+                        node.start_position().row
+                    ));
                     nodes.push(GraphNode {
                         id: id.clone(),
                         project_id: project_id.clone(),
@@ -104,7 +120,7 @@ impl LanguageExtractor for KotlinExtractor {
                         updated_at: now_micros(),
                         deleted_at: None,
                     });
-                    
+
                     edges.push(GraphEdge {
                         id: format!("{}_e_{}", id.as_str(), file_node_id.as_str()),
                         project_id: project_id.clone(),

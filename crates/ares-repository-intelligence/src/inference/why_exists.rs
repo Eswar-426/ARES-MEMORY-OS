@@ -47,7 +47,10 @@ impl DeterministicInference for WhyExistsGenerator {
         if evidence.requirements.is_empty() {
             gap_flags.push("no_recorded_requirements".to_string());
         }
-        if evidence.dependents.is_empty() && evidence.dependencies.is_empty() && evidence.folders.is_empty() {
+        if evidence.dependents.is_empty()
+            && evidence.dependencies.is_empty()
+            && evidence.folders.is_empty()
+        {
             gap_flags.push("incomplete_graph".to_string());
         }
         if evidence.entity_type == "unknown" {

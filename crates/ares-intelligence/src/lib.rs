@@ -38,9 +38,9 @@ pub mod tools;
 pub mod traceability;
 
 pub mod briefing;
+pub mod co_change;
+pub mod cochange;
 pub mod context_file;
 pub mod dead_code;
-pub mod hotspots;
-pub mod cochange;
-pub mod co_change;
 pub mod decay;
+pub mod hotspots;

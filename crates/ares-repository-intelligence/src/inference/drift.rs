@@ -57,11 +57,10 @@ impl DeterministicInference for DriftGenerator {
                     "s"
                 }
             )];
-            if evidence.contributors.len() == 1 && commit_count > 5 && evidence.dependents.len() > 3 {
+            if evidence.contributors.len() == 1 && commit_count > 5 && evidence.dependents.len() > 3
+            {
                 drift_score += 15;
-                lines.push(
-                    "⚠️ Single author with high-impact file — bus factor risk.".to_string(),
-                );
+                lines.push("⚠️ Single author with high-impact file — bus factor risk.".to_string());
             } else if evidence.contributors.len() > 5 {
                 drift_score += 10;
                 lines.push("🔄 High contributor churn — possible instability.".to_string());

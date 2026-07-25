@@ -187,11 +187,15 @@ impl Scanner {
                     let path = e.path().to_string_lossy().replace("\\", "/");
                     !IGNORED_DIRS.iter().any(|&ignored| {
                         if ignored.contains('/') {
-                            path.ends_with(ignored) || path.contains(&format!("/{}/", ignored)) || path.contains(&format!("/{}", ignored))
+                            path.ends_with(ignored)
+                                || path.contains(&format!("/{}/", ignored))
+                                || path.contains(&format!("/{}", ignored))
                         } else {
                             name == ignored
                         }
-                    }) && !IGNORED_FILES.iter().any(|&ignored_file| name == ignored_file)
+                    }) && !IGNORED_FILES
+                        .iter()
+                        .any(|&ignored_file| name == ignored_file)
                 })
                 .build();
 
@@ -482,8 +486,10 @@ impl Scanner {
         for result in &parse_results {
             if let Some(ref fp) = result.file_node.file_path {
                 if let Ok(existing_nodes) = self.graph_repo.get_nodes_by_file_path(fp) {
-                    let mut map: std::collections::HashMap<(String, String, usize), ares_core::NodeId> =
-                        std::collections::HashMap::new();
+                    let mut map: std::collections::HashMap<
+                        (String, String, usize),
+                        ares_core::NodeId,
+                    > = std::collections::HashMap::new();
                     // Sort by updated_at desc so we keep the most recent node
                     // when duplicates exist from previous scans
                     let mut sorted = existing_nodes;
@@ -538,21 +544,19 @@ impl Scanner {
                             if node.file_path.is_some()
                                 && node.properties.get("unresolved").is_none()
                             {
-                                let start_line = node
-                                    .properties
-                                    .get("start_line")
-                                    .and_then(|v| v.as_u64())
-                                    .unwrap_or(0) as usize;
+                                let start_line =
+                                    node.properties
+                                        .get("start_line")
+                                        .and_then(|v| v.as_u64())
+                                        .unwrap_or(0) as usize;
                                 let key = (
                                     node.node_type.as_str().to_string(),
                                     node.label.clone(),
                                     start_line,
                                 );
                                 if let Some(existing_id) = map.get(&key) {
-                                    id_remap.insert(
-                                        node.id.as_str().to_string(),
-                                        existing_id.clone(),
-                                    );
+                                    id_remap
+                                        .insert(node.id.as_str().to_string(), existing_id.clone());
                                 }
                             }
                         }

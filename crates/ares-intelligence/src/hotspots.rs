@@ -58,7 +58,7 @@ pub fn calculate_hotspots(conn: &Connection, limit: usize) -> Result<Vec<Hotspot
              ORDER BY COUNT(*) DESC
          ) owner ON owner.file_path = f.file_path
          WHERE f.node_type = 'file'
-         AND f.file_path IS NOT NULL"
+         AND f.file_path IS NOT NULL",
     ) {
         if let Ok(rows) = stmt.query_map(params![thirty_days_ago_micros], |row| {
             Ok((
@@ -109,7 +109,11 @@ pub fn calculate_hotspots(conn: &Connection, limit: usize) -> Result<Vec<Hotspot
         })
         .collect();
 
-    hotspots.sort_by(|a, b| b.hotspot_score.partial_cmp(&a.hotspot_score).unwrap_or(std::cmp::Ordering::Equal));
+    hotspots.sort_by(|a, b| {
+        b.hotspot_score
+            .partial_cmp(&a.hotspot_score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     hotspots.truncate(limit);
 
     Ok(hotspots)

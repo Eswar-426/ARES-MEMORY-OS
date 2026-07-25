@@ -24,7 +24,11 @@ pub async fn execute_doctor() -> Result<(), AresError> {
                         // Retry logic: transient locks are NOT corruption
                         let mut last_error = None;
                         for attempt in 0..3 {
-                            match conn.query_row("SELECT 1 FROM graph_nodes LIMIT 1", [], |_| Ok(())) {
+                            match conn.query_row(
+                                "SELECT 1 FROM graph_nodes LIMIT 1",
+                                [],
+                                |_| Ok(()),
+                            ) {
                                 Ok(_) => {
                                     println!("✓ Knowledge Graph (Integrity OK)");
                                     last_error = None;
@@ -34,12 +38,18 @@ pub async fn execute_doctor() -> Result<(), AresError> {
                                     let msg = e.to_string();
                                     if msg.contains("database is locked") || msg.contains("busy") {
                                         if attempt < 2 {
-                                            std::thread::sleep(std::time::Duration::from_millis(200));
+                                            std::thread::sleep(std::time::Duration::from_millis(
+                                                200,
+                                            ));
                                             continue;
                                         }
-                                        println!("✗ Knowledge Graph (Locked - another process using it)");
+                                        println!(
+                                            "✗ Knowledge Graph (Locked - another process using it)"
+                                        );
                                         last_error = Some(e);
-                                    } else if msg.contains("corrupt") || msg.contains("disk I/O error") {
+                                    } else if msg.contains("corrupt")
+                                        || msg.contains("disk I/O error")
+                                    {
                                         println!("✗ Knowledge Graph (Corrupted)");
                                         last_error = Some(e);
                                         break;

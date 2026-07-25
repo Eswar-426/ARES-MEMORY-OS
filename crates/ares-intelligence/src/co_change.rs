@@ -58,17 +58,19 @@ pub fn detect_hidden_coupling(
     "#;
 
     if let Ok(mut stmt) = conn.prepare(sql) {
-        let rows = stmt.query_map(
-            rusqlite::params![period_days, min_co_changes, limit as i64],
-            |row| {
-                Ok((
-                    row.get::<usize, String>(0)?,
-                    row.get::<usize, String>(1)?,
-                    row.get::<usize, i64>(2)?,
-                    row.get::<usize, i64>(3)?,
-                ))
-            },
-        ).map_err(|e| AresError::validation(e.to_string()))?;
+        let rows = stmt
+            .query_map(
+                rusqlite::params![period_days, min_co_changes, limit as i64],
+                |row| {
+                    Ok((
+                        row.get::<usize, String>(0)?,
+                        row.get::<usize, String>(1)?,
+                        row.get::<usize, i64>(2)?,
+                        row.get::<usize, i64>(3)?,
+                    ))
+                },
+            )
+            .map_err(|e| AresError::validation(e.to_string()))?;
 
         for row in rows.flatten() {
             let (file_a, file_b, count, has_dep) = row;

@@ -145,11 +145,19 @@ fn wrap_with_envelope(
         match raw {
             Some(serde_json::Value::Number(n)) => {
                 let v = n.as_f64().unwrap_or(0.0);
-                if v > 1.0 { v / 100.0 } else { v }
+                if v > 1.0 {
+                    v / 100.0
+                } else {
+                    v
+                }
             }
             Some(serde_json::Value::Object(obj)) => {
                 let v = obj.get("score").and_then(|s| s.as_f64()).unwrap_or(0.0);
-                if v > 1.0 { v / 100.0 } else { v }
+                if v > 1.0 {
+                    v / 100.0
+                } else {
+                    v
+                }
             }
             _ => 0.0,
         }
@@ -187,9 +195,10 @@ fn wrap_with_envelope(
         "incomplete_ast",
         "shallow_git_history",
     ];
-    let flags_arr = gap_flags.as_array().map(|a| {
-        a.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>()
-    }).unwrap_or_default();
+    let flags_arr = gap_flags
+        .as_array()
+        .map(|a| a.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>())
+        .unwrap_or_default();
     if flags_arr.iter().any(|f| incomplete_indicators.contains(f)) && confidence > 0.3 {
         confidence = 0.3;
     }
@@ -211,14 +220,23 @@ fn wrap_with_envelope(
 
     // Round all float scores to appropriate precision
     round_precision(&mut answer);
-    
+
     // Remove any null values that slipped through
     strip_nulls(&mut answer);
 
-    let caveats = current.get("caveats").cloned().unwrap_or_else(|| serde_json::json!([]));
-    let mut meta = current.get("meta").cloned().unwrap_or_else(|| serde_json::json!({}));
+    let caveats = current
+        .get("caveats")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
+    let mut meta = current
+        .get("meta")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!({}));
     if let Some(m) = meta.as_object_mut() {
-        m.insert("elapsed_ms".to_string(), serde_json::json!(elapsed_ms as i64));
+        m.insert(
+            "elapsed_ms".to_string(),
+            serde_json::json!(elapsed_ms as i64),
+        );
         if !m.contains_key("graph_nodes_traversed") {
             m.insert("graph_nodes_traversed".to_string(), serde_json::json!(0));
         }
@@ -248,7 +266,11 @@ fn prefix_node_ids(value: &mut serde_json::Value) {
         serde_json::Value::Object(map) => {
             let is_node = map.contains_key("node_type");
             for (key, v) in map.iter_mut() {
-                if key == "node_id" || key == "from_node_id" || key == "to_node_id" || (is_node && key == "id") {
+                if key == "node_id"
+                    || key == "from_node_id"
+                    || key == "to_node_id"
+                    || (is_node && key == "id")
+                {
                     if let serde_json::Value::String(s) = v {
                         if !s.starts_with("node_id:") {
                             *v = serde_json::Value::String(format!("node_id:{}", s));
@@ -273,17 +295,18 @@ fn default_nulls(value: &mut serde_json::Value) {
             for (key, v) in map.iter_mut() {
                 if v.is_null() {
                     match key.as_str() {
-                        "language" | "module" | "namespace" | "repository" |
-                        "primary_owner" | "team" | "knowledge_debt" | "risk_level" |
-                        "created_at" | "last_modified" | "location" |
-                        "last_query" | "last_query_time" => {
+                        "language" | "module" | "namespace" | "repository" | "primary_owner"
+                        | "team" | "knowledge_debt" | "risk_level" | "created_at"
+                        | "last_modified" | "location" | "last_query" | "last_query_time" => {
                             *v = serde_json::Value::String(String::new());
                         }
                         "loc" | "last_modified_days_ago" => {
                             *v = serde_json::Value::Number(serde_json::Number::from(0));
                         }
                         "test_coverage" => {
-                            *v = serde_json::Value::Number(serde_json::Number::from_f64(0.0).unwrap());
+                            *v = serde_json::Value::Number(
+                                serde_json::Number::from_f64(0.0).unwrap(),
+                            );
                         }
                         _ => {}
                     }
@@ -317,17 +340,26 @@ fn round_precision(value: &mut serde_json::Value) {
             for (key, v) in map.iter_mut() {
                 let k = key.as_str();
                 // 4 decimal places: ratios and densities (0.0–1.0 range)
-                if k == "graph_density" || k == "average_degree" || k == "hotspot_score" || k == "coupling_score" {
+                if k == "graph_density"
+                    || k == "average_degree"
+                    || k == "hotspot_score"
+                    || k == "coupling_score"
+                {
                     if let Some(f) = v.as_f64() {
                         *v = serde_json::json!((f * 10000.0).round() / 10000.0);
                     }
                 }
                 // 2 decimal places: percentage-style scores (0.0–100.0 range)
-                else if k == "health_score" || k == "overall_score"
-                    || k == "architecture_score" || k == "ownership_score"
-                    || k == "traceability_score" || k == "retention_score"
-                    || k == "evidence_score" || k == "security_score"
-                    || k == "approval_score" || k == "drift_score"
+                else if k == "health_score"
+                    || k == "overall_score"
+                    || k == "architecture_score"
+                    || k == "ownership_score"
+                    || k == "traceability_score"
+                    || k == "retention_score"
+                    || k == "evidence_score"
+                    || k == "security_score"
+                    || k == "approval_score"
+                    || k == "drift_score"
                     || k.ends_with("_score")
                     || k.ends_with("_term")
                     || k.ends_with("_bonus")
@@ -385,7 +417,11 @@ fn strip_details_uuids(value: &mut serde_json::Value) {
                     } else {
                         s.clone()
                     };
-                    *s = if cleaned.is_empty() { s.clone() } else { cleaned };
+                    *s = if cleaned.is_empty() {
+                        s.clone()
+                    } else {
+                        cleaned
+                    };
                 }
             }
             for v in map.values_mut() {
@@ -402,33 +438,58 @@ fn strip_details_uuids(value: &mut serde_json::Value) {
 }
 
 fn transform_relationships(node_val: &mut serde_json::Value) {
-    if let Some(rels) = node_val.get_mut("relationships").and_then(|r| r.as_object_mut()) {
+    if let Some(rels) = node_val
+        .get_mut("relationships")
+        .and_then(|r| r.as_object_mut())
+    {
         for (_rel_type, arr) in rels.iter_mut() {
             if let Some(citations) = arr.as_array_mut() {
                 for citation in citations.iter_mut() {
                     if let Some(cit_obj) = citation.as_object_mut() {
-                        if let Some(id_val) = cit_obj.get("id").and_then(|v| v.as_str()).map(|s| s.to_string()) {
+                        if let Some(id_val) = cit_obj
+                            .get("id")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string())
+                        {
                             let (new_id, new_title) = if id_val.starts_with("unresolved_") {
                                 let mut clean_path = id_val.as_str();
-                                let exts = [".rs_", ".ts_", ".js_", ".jsx_", ".tsx_", ".go_", ".py_", ".c_", ".cpp_", ".h_", ".hpp_", ".cs_", ".java_", ".sql_", ".md_"];
+                                let exts = [
+                                    ".rs_", ".ts_", ".js_", ".jsx_", ".tsx_", ".go_", ".py_",
+                                    ".c_", ".cpp_", ".h_", ".hpp_", ".cs_", ".java_", ".sql_",
+                                    ".md_",
+                                ];
                                 for ext in exts.iter() {
                                     if let Some(idx) = id_val.find(ext) {
                                         clean_path = &id_val[idx + ext.len()..];
                                         break;
                                     }
                                 }
-                                let normalized = clean_path.replace("\r\n", " ").replace("\n", " ").split_whitespace().collect::<Vec<_>>().join(" ");
+                                let normalized = clean_path
+                                    .replace("\r\n", " ")
+                                    .replace("\n", " ")
+                                    .split_whitespace()
+                                    .collect::<Vec<_>>()
+                                    .join(" ");
                                 (normalized.clone(), normalized)
                             } else {
-                                let prefixed = if id_val.starts_with("node_id:") { id_val.clone() } else { format!("node_id:{}", id_val) };
-                                let mut existing_title = cit_obj.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                                let prefixed = if id_val.starts_with("node_id:") {
+                                    id_val.clone()
+                                } else {
+                                    format!("node_id:{}", id_val)
+                                };
+                                let mut existing_title = cit_obj
+                                    .get("title")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("")
+                                    .to_string();
                                 if existing_title == id_val || existing_title.is_empty() {
                                     existing_title = prefixed.clone();
                                 }
                                 (prefixed.clone(), existing_title)
                             };
                             cit_obj.insert("id".to_string(), serde_json::Value::String(new_id));
-                            cit_obj.insert("title".to_string(), serde_json::Value::String(new_title));
+                            cit_obj
+                                .insert("title".to_string(), serde_json::Value::String(new_title));
                         }
                     }
                 }
@@ -561,7 +622,10 @@ struct GovernanceQueryInput {
 
 impl GovernanceQueryInput {
     fn resolve_id(&self, store: &ares_store::db::Store) -> Result<String, String> {
-        if self.node_id.starts_with("0") || self.node_id.starts_with("file:") || self.node_id.len() == 36 {
+        if self.node_id.starts_with("0")
+            || self.node_id.starts_with("file:")
+            || self.node_id.len() == 36
+        {
             return Ok(ares_core::canonicalize_node_id(&self.node_id));
         }
         let repo = ares_store::repositories::graph::SqliteGraphRepository::new(store.clone());
@@ -804,7 +868,14 @@ async fn main() -> Result<(), BoxError> {
                             "mode": insight.mode,
                             "metadata": insight.metadata,
                         });
-                        Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_why_exists", response, 0)).unwrap()))
+                        Ok(CallToolResult::text(
+                            serde_json::to_string(&wrap_with_envelope(
+                                "ares_why_exists",
+                                response,
+                                0,
+                            ))
+                            .unwrap(),
+                        ))
                     }
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
                         "Failed to explain why entity exists",
@@ -814,9 +885,6 @@ async fn main() -> Result<(), BoxError> {
             }
         })
         .build();
-
-
-
 
     // Create the Impact tool
     let intelligence_facade_impact = intelligence_facade.clone();
@@ -977,21 +1045,22 @@ async fn main() -> Result<(), BoxError> {
             let facade = facade_compliance.clone();
             async move {
                 track_session_call(&session, "ares_compliance", &input);
-                
-                let resolved_project_id = resolve_project(&session, input.workspace_root.as_deref(), Some(input.project_id.as_str()).filter(|s| !s.is_empty()));
+
+                let resolved_project_id = resolve_project(
+                    &session,
+                    input.workspace_root.as_deref(),
+                    Some(input.project_id.as_str()).filter(|s| !s.is_empty()),
+                );
 
                 let node_id_str = match input.resolve_id(&store) {
                     Ok(id) => id,
                     Err(e) => return Err(tower_mcp::Error::invalid_params(e)),
                 };
                 let node_id = ares_core::NodeId::from(node_id_str);
-                
+
                 let governance = facade.get_governance();
                 match governance
-                    .is_compliant(
-                        &ares_core::ProjectId::from(resolved_project_id),
-                        &node_id,
-                    )
+                    .is_compliant(&ares_core::ProjectId::from(resolved_project_id), &node_id)
                     .await
                 {
                     Ok(result) => {
@@ -1001,7 +1070,8 @@ async fn main() -> Result<(), BoxError> {
                             serde_json::to_value(&result).unwrap_or_default()
                         };
                         let ref_val = input.node_id.clone();
-                        let evidence = serde_json::json!([{"type": "compliance_check", "ref": ref_val}]);
+                        let evidence =
+                            serde_json::json!([{"type": "compliance_check", "ref": ref_val}]);
                         let conf = 0.6;
                         if let Some(obj) = payload.as_object_mut() {
                             obj.insert("evidence".to_string(), evidence);
@@ -1036,13 +1106,18 @@ async fn main() -> Result<(), BoxError> {
             async move {
                 track_session_call(&session, "ares_scorecard", &input);
                 let governance = facade.get_governance();
-                let proj_id = resolve_project(&session, input.workspace_root.as_deref(), input.project_id.as_deref());
+                let proj_id = resolve_project(
+                    &session,
+                    input.workspace_root.as_deref(),
+                    input.project_id.as_deref(),
+                );
                 match governance
                     .get_scorecard(&ares_core::ProjectId::from(proj_id.clone()))
                     .await
                 {
                     Ok(result) => {
-                        let evidence = serde_json::json!([{"type": "scorecard_computation", "ref": proj_id}]);
+                        let evidence =
+                            serde_json::json!([{"type": "scorecard_computation", "ref": proj_id}]);
                         let conf = 0.6;
                         let mut payload = serde_json::to_value(&result).unwrap_or_default();
                         if let Some(obj) = payload.as_object_mut() {
@@ -1052,12 +1127,12 @@ async fn main() -> Result<(), BoxError> {
                         serde_json::to_string(&wrap_with_envelope("ares_scorecard", payload, 0))
                             .map(CallToolResult::text)
                             .map_err(|e| {
-                            tower_mcp::Error::internal(format_mcp_error(
-                                "Failed to serialize scorecard",
-                                &e.to_string(),
-                            ))
-                        })
-                    },
+                                tower_mcp::Error::internal(format_mcp_error(
+                                    "Failed to serialize scorecard",
+                                    &e.to_string(),
+                                ))
+                            })
+                    }
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
                         "Failed to retrieve scorecard",
                         &e.to_string(),
@@ -1182,7 +1257,11 @@ async fn main() -> Result<(), BoxError> {
             let store = store_cov.clone();
             async move {
                 track_session_call(&session, "ares_coverage", &input);
-                let project_name = resolve_project(&session, input.workspace_root.as_deref(), input.project_id.as_deref());
+                let project_name = resolve_project(
+                    &session,
+                    input.workspace_root.as_deref(),
+                    input.project_id.as_deref(),
+                );
                 let project_id = ares_core::ProjectId::from(project_name);
                 let req_store = ares_requirements::storage::RequirementStore::new(store.clone());
                 let reqs = match req_store.list(
@@ -1542,7 +1621,10 @@ async fn main() -> Result<(), BoxError> {
                         "evidence": [{"type": "search_query", "ref": input.query.clone()}],
                         "query_time_ms": start.elapsed().as_millis() as i64
                     });
-                    return Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_search", inner, elapsed)).unwrap()));
+                    return Ok(CallToolResult::text(
+                        serde_json::to_string(&wrap_with_envelope("ares_search", inner, elapsed))
+                            .unwrap(),
+                    ));
                 }
                 let repo =
                     ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
@@ -1554,17 +1636,21 @@ async fn main() -> Result<(), BoxError> {
                 let project_id = ares_core::ProjectId::from(project_name);
                 let query_lower = input.query.to_lowercase();
                 let terms: Vec<&str> = query_lower.split_whitespace().collect();
-                
+
                 let mut results = Vec::new();
                 if let Ok(all) = repo.get_all_nodes(&project_id) {
                     let mut matched: Vec<_> = all
                         .into_iter()
                         .filter(|n| {
                             let label_lower = n.label.to_lowercase();
-                            let fp_lower = n.file_path.as_ref().map(|s| s.to_lowercase()).unwrap_or_default();
-                            terms.iter().all(|&term| {
-                                label_lower.contains(term) || fp_lower.contains(term)
-                            })
+                            let fp_lower = n
+                                .file_path
+                                .as_ref()
+                                .map(|s| s.to_lowercase())
+                                .unwrap_or_default();
+                            terms
+                                .iter()
+                                .all(|&term| label_lower.contains(term) || fp_lower.contains(term))
                         })
                         .collect();
                     matched.truncate(input.limit);
@@ -1621,7 +1707,10 @@ async fn main() -> Result<(), BoxError> {
                         "confidence": 0.6,
                         "query_time_ms": start.elapsed().as_millis() as i64
                     });
-                    Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_search", inner, elapsed)).unwrap()))
+                    Ok(CallToolResult::text(
+                        serde_json::to_string(&wrap_with_envelope("ares_search", inner, elapsed))
+                            .unwrap(),
+                    ))
                 }
             }
         })
@@ -1674,7 +1763,7 @@ async fn main() -> Result<(), BoxError> {
                                 let date_str = chrono::DateTime::from_timestamp_micros(*ts)
                                     .map(|dt| dt.to_rfc3339())
                                     .unwrap_or_else(|| ts.to_string());
-                                
+
                                 events.push(serde_json::json!({
                                     "date": date_str,
                                     "type": "commit",
@@ -1692,7 +1781,11 @@ async fn main() -> Result<(), BoxError> {
                 } else {
                     let author_set: std::collections::HashSet<String> = events
                         .iter()
-                        .filter_map(|e| e.get("author").and_then(|a| a.as_str()).map(|s| s.to_string()))
+                        .filter_map(|e| {
+                            e.get("author")
+                                .and_then(|a| a.as_str())
+                                .map(|s| s.to_string())
+                        })
                         .collect();
                     format!(
                         "{} commits by {} contributor{}. {}",
@@ -1730,7 +1823,10 @@ async fn main() -> Result<(), BoxError> {
                         "evidence": [{"type": "git_history", "ref": input.file_path.clone()}],
                         "query_time_ms": start.elapsed().as_millis() as i64
                 });
-                Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_timeline", inner, elapsed)).unwrap()))
+                Ok(CallToolResult::text(
+                    serde_json::to_string(&wrap_with_envelope("ares_timeline", inner, elapsed))
+                        .unwrap(),
+                ))
             }
         })
         .build();
@@ -1850,7 +1946,10 @@ async fn main() -> Result<(), BoxError> {
                         "evidence": [{"type": "impact_graph", "ref": input.file_a.clone()}],
                         "query_time_ms": start.elapsed().as_millis() as i64
                 });
-                Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_compare", inner, elapsed)).unwrap()))
+                Ok(CallToolResult::text(
+                    serde_json::to_string(&wrap_with_envelope("ares_compare", inner, elapsed))
+                        .unwrap(),
+                ))
             }
         })
         .build();
@@ -2065,10 +2164,14 @@ async fn main() -> Result<(), BoxError> {
                 track_session_call(&session, "ares_record_decision", &input);
                 // Validate required fields
                 if input.title.trim().is_empty() {
-                    return Err(tower_mcp::Error::invalid_params("title is required and must not be empty"));
+                    return Err(tower_mcp::Error::invalid_params(
+                        "title is required and must not be empty",
+                    ));
                 }
                 if input.description.trim().is_empty() {
-                    return Err(tower_mcp::Error::invalid_params("description is required and must not be empty"));
+                    return Err(tower_mcp::Error::invalid_params(
+                        "description is required and must not be empty",
+                    ));
                 }
                 let repo =
                     ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
@@ -2148,7 +2251,8 @@ async fn main() -> Result<(), BoxError> {
                         "node_id": node_id.as_str(),
                         "evidence": [{"type": "agent_analysis", "ref": node_id.to_string()}],
                         "query_time_ms": start.elapsed().as_millis() as i64
-                    })).unwrap_or_default(),
+                    }))
+                    .unwrap_or_default(),
                 ))
             }
         })
@@ -2167,10 +2271,14 @@ async fn main() -> Result<(), BoxError> {
                 let start = std::time::Instant::now();
                 track_session_call(&session, "ares_record_requirement", &input);
                 if input.title.trim().is_empty() {
-                    return Err(tower_mcp::Error::invalid_params("title is required and must not be empty"));
+                    return Err(tower_mcp::Error::invalid_params(
+                        "title is required and must not be empty",
+                    ));
                 }
                 if input.description.trim().is_empty() {
-                    return Err(tower_mcp::Error::invalid_params("description is required and must not be empty"));
+                    return Err(tower_mcp::Error::invalid_params(
+                        "description is required and must not be empty",
+                    ));
                 }
                 let repo =
                     ares_store::repositories::graph::SqliteGraphRepository::new(store_arc.clone());
@@ -2250,7 +2358,8 @@ async fn main() -> Result<(), BoxError> {
                         "node_id": node_id.as_str(),
                         "evidence": [{"type": "agent_analysis", "ref": node_id.to_string()}],
                         "query_time_ms": start.elapsed().as_millis() as i64
-                    })).unwrap_or_default(),
+                    }))
+                    .unwrap_or_default(),
                 ))
             }
         })
@@ -2279,17 +2388,22 @@ async fn main() -> Result<(), BoxError> {
                     let file_id = ares_core::NodeId::from(file_id_str);
                     if let Ok(Some(mut node)) = repo.get_node(&file_id) {
                         if let Some(obj) = node.properties.as_object_mut() {
-                            let mut annotations = obj.remove("annotations").unwrap_or_else(|| serde_json::json!({}));
+                            let mut annotations = obj
+                                .remove("annotations")
+                                .unwrap_or_else(|| serde_json::json!({}));
                             if let Some(ann_obj) = annotations.as_object_mut() {
                                 ann_obj.insert(input.key.clone(), serde_json::json!(input.value));
                             } else {
                                 let mut new_ann_obj = serde_json::Map::new();
-                                new_ann_obj.insert(input.key.clone(), serde_json::json!(input.value));
+                                new_ann_obj
+                                    .insert(input.key.clone(), serde_json::json!(input.value));
                                 annotations = serde_json::Value::Object(new_ann_obj);
                             }
                             obj.insert("annotations".to_string(), annotations);
                             node.updated_at = std::time::SystemTime::now()
-                                .duration_since(std::time::UNIX_EPOCH).unwrap().as_micros() as i64;
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_micros() as i64;
                             if repo.upsert_node(node).is_ok() {
                                 Some(serde_json::json!({
                                     "status": "added",
@@ -2326,7 +2440,9 @@ async fn main() -> Result<(), BoxError> {
                     }),
                 };
 
-                Ok(CallToolResult::text(serde_json::to_string(&response).unwrap_or_default()))
+                Ok(CallToolResult::text(
+                    serde_json::to_string(&response).unwrap_or_default(),
+                ))
             }
         })
         .build();
@@ -2529,51 +2645,65 @@ async fn main() -> Result<(), BoxError> {
         })
         .build();
 
-      let store_gaps = app_state.store.clone();
-      let session_clone_gaps_tool = session_state.clone();
-      let gaps_tool = ToolBuilder::new("ares_gaps")
-          .description("Evaluates knowledge gaps in the traceability graph")
-          .handler(move |input: ProjectQueryInput| {
-              let store = store_gaps.clone();
-              let session = session_clone_gaps_tool.clone();
-              async move {
-                  track_session_call(&session, "ares_gaps", &input);
-                  let project_name = resolve_project(&session, input.workspace_root.as_deref(), input.project_id.as_deref());
-                  let project_id = ares_core::ProjectId::from(project_name);
-                  let repo = ares_store::repositories::gaps::SqliteGapRepository::new(store.clone());
-                  let mut all_gaps = Vec::new();
-                  if let Ok(mut g) = repo.get_code_without_decision(&project_id, 30) { all_gaps.append(&mut g); }
-                  if let Ok(mut g) = repo.get_decisions_without_code(&project_id, 7) { all_gaps.append(&mut g); }
-                  if let Ok(mut g) = repo.get_orphaned_requirements(&project_id) { all_gaps.append(&mut g); }
-                  if let Ok(mut g) = repo.get_stale_decisions(&project_id, 30) { all_gaps.append(&mut g); }
-                  if let Ok(mut g) = repo.get_unknown_ownership(&project_id) { all_gaps.append(&mut g); }
-                  let mut gaps_val = serde_json::to_value(&all_gaps).unwrap_or_default();
-                  prefix_node_ids(&mut gaps_val);
-                  strip_details_uuids(&mut gaps_val);
-                  let evidence = serde_json::json!([{"type": "gap_analysis", "ref": "workspace"}]);
-                  let conf = 0.6;
-                  let payload = serde_json::json!({
-                      "gaps": gaps_val,
-                      "gap_count": all_gaps.len(),
-                      "evidence": evidence,
-                      "confidence": conf
-                  });
-                  serde_json::to_string(&wrap_with_envelope("ares_gaps", payload, 0))
-                      .map(CallToolResult::text)
-                      .map_err(|e| {
-                          tower_mcp::Error::internal(format_mcp_error(
-                              "Failed to serialize gaps evaluation",
-                              &e.to_string(),
-                          ))
-                      })
-              }
-          })
-          .build();
+    let store_gaps = app_state.store.clone();
+    let session_clone_gaps_tool = session_state.clone();
+    let gaps_tool = ToolBuilder::new("ares_gaps")
+        .description("Evaluates knowledge gaps in the traceability graph")
+        .handler(move |input: ProjectQueryInput| {
+            let store = store_gaps.clone();
+            let session = session_clone_gaps_tool.clone();
+            async move {
+                track_session_call(&session, "ares_gaps", &input);
+                let project_name = resolve_project(
+                    &session,
+                    input.workspace_root.as_deref(),
+                    input.project_id.as_deref(),
+                );
+                let project_id = ares_core::ProjectId::from(project_name);
+                let repo = ares_store::repositories::gaps::SqliteGapRepository::new(store.clone());
+                let mut all_gaps = Vec::new();
+                if let Ok(mut g) = repo.get_code_without_decision(&project_id, 30) {
+                    all_gaps.append(&mut g);
+                }
+                if let Ok(mut g) = repo.get_decisions_without_code(&project_id, 7) {
+                    all_gaps.append(&mut g);
+                }
+                if let Ok(mut g) = repo.get_orphaned_requirements(&project_id) {
+                    all_gaps.append(&mut g);
+                }
+                if let Ok(mut g) = repo.get_stale_decisions(&project_id, 30) {
+                    all_gaps.append(&mut g);
+                }
+                if let Ok(mut g) = repo.get_unknown_ownership(&project_id) {
+                    all_gaps.append(&mut g);
+                }
+                let mut gaps_val = serde_json::to_value(&all_gaps).unwrap_or_default();
+                prefix_node_ids(&mut gaps_val);
+                strip_details_uuids(&mut gaps_val);
+                let evidence = serde_json::json!([{"type": "gap_analysis", "ref": "workspace"}]);
+                let conf = 0.6;
+                let payload = serde_json::json!({
+                    "gaps": gaps_val,
+                    "gap_count": all_gaps.len(),
+                    "evidence": evidence,
+                    "confidence": conf
+                });
+                serde_json::to_string(&wrap_with_envelope("ares_gaps", payload, 0))
+                    .map(CallToolResult::text)
+                    .map_err(|e| {
+                        tower_mcp::Error::internal(format_mcp_error(
+                            "Failed to serialize gaps evaluation",
+                            &e.to_string(),
+                        ))
+                    })
+            }
+        })
+        .build();
 
-      let store_sim = app_state.store.clone();
-      let session_clone_sim = session_state.clone();
+    let store_sim = app_state.store.clone();
+    let session_clone_sim = session_state.clone();
 
-      let simulate_tool = ToolBuilder::new("ares_simulate")
+    let simulate_tool = ToolBuilder::new("ares_simulate")
           .description("Performs mutation analysis only. Simulates structural changes (e.g., removing a node) to project coverage drops, new gaps, and drift before they happen.")
           .handler(move |input: SimulationInput| {
               let session = session_clone_sim.clone();
@@ -2751,15 +2881,19 @@ async fn main() -> Result<(), BoxError> {
                     60,
                 ) {
                     Ok(original_payload) => {
-                        let mut payload = serde_json::to_value(&original_payload).unwrap_or_default();
+                        let mut payload =
+                            serde_json::to_value(&original_payload).unwrap_or_default();
 
                         // Step 1: Build UUID → file_path map BEFORE transforms strip node IDs
-                        let mut uuid_to_path: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+                        let mut uuid_to_path: std::collections::HashMap<String, String> =
+                            std::collections::HashMap::new();
                         if let Some(nodes) = payload.get("nodes").and_then(|n| n.as_array()) {
                             for node in nodes {
                                 if let (Some(id), Some(fp)) = (
                                     node.get("id").and_then(|v| v.as_str()),
-                                    node.get("file_path").and_then(|v| v.as_str()).filter(|s| !s.is_empty())
+                                    node.get("file_path")
+                                        .and_then(|v| v.as_str())
+                                        .filter(|s| !s.is_empty()),
                                 ) {
                                     uuid_to_path.insert(id.to_string(), fp.to_string());
                                 }
@@ -2768,17 +2902,29 @@ async fn main() -> Result<(), BoxError> {
 
                         // Step 2: Resolve edge UUIDs → file_paths, rename to from/to
                         // Must happen BEFORE prefix_node_ids would touch them
-                        if let Some(edges) = payload.get_mut("edges").and_then(|e| e.as_array_mut()) {
+                        if let Some(edges) = payload.get_mut("edges").and_then(|e| e.as_array_mut())
+                        {
                             for edge in edges.iter_mut() {
                                 if let Some(obj) = edge.as_object_mut() {
-                                    for (old_key, new_key) in [("from_node_id", "from"), ("to_node_id", "to")] {
+                                    for (old_key, new_key) in
+                                        [("from_node_id", "from"), ("to_node_id", "to")]
+                                    {
                                         if let Some(val) = obj.remove(old_key) {
                                             if let Some(s) = val.as_str() {
-                                                let resolved = uuid_to_path.get(s)
-                                                    .or_else(|| s.strip_prefix("node_id:").and_then(|k| uuid_to_path.get(k)))
+                                                let resolved = uuid_to_path
+                                                    .get(s)
+                                                    .or_else(|| {
+                                                        s.strip_prefix("node_id:")
+                                                            .and_then(|k| uuid_to_path.get(k))
+                                                    })
                                                     .map(|v| v.as_str())
-                                                    .unwrap_or_else(|| s.strip_prefix("node_id:").unwrap_or(s));
-                                                obj.insert(new_key.to_string(), serde_json::Value::String(resolved.to_string()));
+                                                    .unwrap_or_else(|| {
+                                                        s.strip_prefix("node_id:").unwrap_or(s)
+                                                    });
+                                                obj.insert(
+                                                    new_key.to_string(),
+                                                    serde_json::Value::String(resolved.to_string()),
+                                                );
                                             }
                                         }
                                     }
@@ -2791,41 +2937,53 @@ async fn main() -> Result<(), BoxError> {
                         // Do NOT call prefix_node_ids — edges now use from/to with file_paths
 
                         // Step 4: Restore node id as file_path (transform stripped the UUID id)
-                        if let Some(nodes) = payload.get_mut("nodes").and_then(|n| n.as_array_mut()) {
+                        if let Some(nodes) = payload.get_mut("nodes").and_then(|n| n.as_array_mut())
+                        {
                             for node in nodes.iter_mut() {
                                 if let Some(obj) = node.as_object_mut() {
-                                    let display = obj.get("file_path").and_then(|v| v.as_str())
+                                    let display = obj
+                                        .get("file_path")
+                                        .and_then(|v| v.as_str())
                                         .filter(|s| !s.is_empty())
                                         .or_else(|| obj.get("label").and_then(|v| v.as_str()))
                                         .unwrap_or("")
                                         .to_string();
-                                    obj.insert("id".to_string(), serde_json::Value::String(display.clone()));
+                                    obj.insert(
+                                        "id".to_string(),
+                                        serde_json::Value::String(display.clone()),
+                                    );
                                     // Fix null file_path on project/folder nodes
                                     if obj.get("file_path").map_or(false, |v| v.is_null()) {
-                                        obj.insert("file_path".to_string(), serde_json::Value::String(display.clone()));
+                                        obj.insert(
+                                            "file_path".to_string(),
+                                            serde_json::Value::String(display.clone()),
+                                        );
                                     }
                                 }
                             }
                         }
 
                         // Step 5: Deduplicate nodes and edges
-                        if let Some(nodes) = payload.get_mut("nodes").and_then(|n| n.as_array_mut()) {
+                        if let Some(nodes) = payload.get_mut("nodes").and_then(|n| n.as_array_mut())
+                        {
                             let mut seen = std::collections::HashSet::new();
                             nodes.retain(|n| {
-                                n.get("id").and_then(|v| v.as_str())
+                                n.get("id")
+                                    .and_then(|v| v.as_str())
                                     .map(|id| seen.insert(id.to_string()))
                                     .unwrap_or(false)
                             });
                         }
-                        if let Some(edges) = payload.get_mut("edges").and_then(|e| e.as_array_mut()) {
+                        if let Some(edges) = payload.get_mut("edges").and_then(|e| e.as_array_mut())
+                        {
                             let mut seen = std::collections::HashSet::new();
                             edges.retain(|e| {
-                                e.get("from").and_then(|v| v.as_str()).zip(
-                                    e.get("to").and_then(|v| v.as_str())
-                                ).zip(
-                                    e.get("edge_type").and_then(|v| v.as_str())
-                                ).map(|((s, t), tp)| seen.insert(format!("{}:{}:{}", s, t, tp)))
-                                .unwrap_or(false)
+                                e.get("from")
+                                    .and_then(|v| v.as_str())
+                                    .zip(e.get("to").and_then(|v| v.as_str()))
+                                    .zip(e.get("edge_type").and_then(|v| v.as_str()))
+                                    .map(|((s, t), tp)| seen.insert(format!("{}:{}:{}", s, t, tp)))
+                                    .unwrap_or(false)
                             });
                         }
 
@@ -2833,23 +2991,36 @@ async fn main() -> Result<(), BoxError> {
                         let node_id_set: std::collections::HashSet<String> = payload
                             .get("nodes")
                             .and_then(|n| n.as_array())
-                            .map(|arr| arr.iter()
-                                .filter_map(|n| n.get("id").and_then(|v| v.as_str()).map(|s| s.to_string()))
-                                .collect())
+                            .map(|arr| {
+                                arr.iter()
+                                    .filter_map(|n| {
+                                        n.get("id").and_then(|v| v.as_str()).map(|s| s.to_string())
+                                    })
+                                    .collect()
+                            })
                             .unwrap_or_default();
-                        if let Some(edges) = payload.get_mut("edges").and_then(|e| e.as_array_mut()) {
+                        if let Some(edges) = payload.get_mut("edges").and_then(|e| e.as_array_mut())
+                        {
                             edges.retain(|e| {
-                                let from_ok = e.get("from").and_then(|v| v.as_str()).map_or(false, |s| node_id_set.contains(s));
-                                let to_ok = e.get("to").and_then(|v| v.as_str()).map_or(false, |s| node_id_set.contains(s));
+                                let from_ok = e
+                                    .get("from")
+                                    .and_then(|v| v.as_str())
+                                    .map_or(false, |s| node_id_set.contains(s));
+                                let to_ok = e
+                                    .get("to")
+                                    .and_then(|v| v.as_str())
+                                    .map_or(false, |s| node_id_set.contains(s));
                                 from_ok && to_ok
                             });
                         }
 
                         // Step 7: Filter visual noise — remove contained_in (redundant with contains)
                         // and self-loops (from == to) that confuse the layout algorithm
-                        if let Some(edges) = payload.get_mut("edges").and_then(|e| e.as_array_mut()) {
+                        if let Some(edges) = payload.get_mut("edges").and_then(|e| e.as_array_mut())
+                        {
                             edges.retain(|e| {
-                                let edge_type = e.get("edge_type").and_then(|v| v.as_str()).unwrap_or("");
+                                let edge_type =
+                                    e.get("edge_type").and_then(|v| v.as_str()).unwrap_or("");
                                 let from = e.get("from").and_then(|v| v.as_str()).unwrap_or("");
                                 let to = e.get("to").and_then(|v| v.as_str()).unwrap_or("");
                                 // Keep contains/defines/imports/calls/depends_on — skip contained_in
@@ -2866,23 +3037,31 @@ async fn main() -> Result<(), BoxError> {
 
                         // Fix total_nodes_listed: actual count instead of "partial" string
                         if let Some(obj) = payload.as_object_mut() {
-                            obj.insert("total_nodes_listed".to_string(), serde_json::json!(node_id_set.len()));
+                            obj.insert(
+                                "total_nodes_listed".to_string(),
+                                serde_json::json!(node_id_set.len()),
+                            );
                         }
 
-                        let evidence = serde_json::json!([{"type": "graph_query", "ref": "workspace"}]);
+                        let evidence =
+                            serde_json::json!([{"type": "graph_query", "ref": "workspace"}]);
                         let conf = 0.6;
                         if let Some(obj) = payload.as_object_mut() {
                             obj.insert("evidence".to_string(), evidence);
                             obj.insert("confidence".to_string(), serde_json::json!(conf));
                         }
-                        serde_json::to_string(&wrap_with_envelope("ares_graph_root", payload, start.elapsed().as_millis() as u64))
-                            .map(CallToolResult::text)
-                            .map_err(|e| {
-                                tower_mcp::Error::internal(format_mcp_error(
-                                    "Failed to serialize graph root response",
-                                    &e.to_string(),
-                                ))
-                            })
+                        serde_json::to_string(&wrap_with_envelope(
+                            "ares_graph_root",
+                            payload,
+                            start.elapsed().as_millis() as u64,
+                        ))
+                        .map(CallToolResult::text)
+                        .map_err(|e| {
+                            tower_mcp::Error::internal(format_mcp_error(
+                                "Failed to serialize graph root response",
+                                &e.to_string(),
+                            ))
+                        })
                     }
                     Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
                         "Failed to retrieve graph root",
@@ -3161,7 +3340,10 @@ async fn main() -> Result<(), BoxError> {
                     "bookmarks": bookmarks,
                     "pins": pins
                 });
-                Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_workspace_list", response, 0)).unwrap_or_default()))
+                Ok(CallToolResult::text(
+                    serde_json::to_string(&wrap_with_envelope("ares_workspace_list", response, 0))
+                        .unwrap_or_default(),
+                ))
             }
         })
         .build();
@@ -3299,28 +3481,28 @@ async fn main() -> Result<(), BoxError> {
     let store_health = app_state.store.clone();
     let session_clone_health_tool = session_state.clone();
 
-
-
-
-
-
     let store_dead = app_state.store.clone();
     let dead_code_tool = ToolBuilder::new("ares_dead_code")
-        .description("Finds dead code in the repository by detecting nodes without incoming dependencies.")
+        .description(
+            "Finds dead code in the repository by detecting nodes without incoming dependencies.",
+        )
         .handler(move |_input: EmptyInput| {
             let store = store_dead.clone();
             async move {
                 match ares_intelligence::dead_code::find_dead_code(&store, 30).await {
                     Ok(report) => {
-                        let evidence = serde_json::json!([{"type": "graph_scan", "ref": "workspace"}]);
+                        let evidence =
+                            serde_json::json!([{"type": "graph_scan", "ref": "workspace"}]);
                         let conf = 0.6;
                         let mut payload = serde_json::to_value(&report).unwrap_or_default();
                         // Move warning string into caveats array (correct envelope field)
-                        let warning_caveat = if let Some(serde_json::Value::Object(obj)) = Some(&mut payload) {
-                            obj.remove("warning").and_then(|v| v.as_str().map(|s| s.to_string()))
-                        } else {
-                            None
-                        };
+                        let warning_caveat =
+                            if let Some(serde_json::Value::Object(obj)) = Some(&mut payload) {
+                                obj.remove("warning")
+                                    .and_then(|v| v.as_str().map(|s| s.to_string()))
+                            } else {
+                                None
+                            };
                         if let Some(obj) = payload.as_object_mut() {
                             obj.insert("evidence".to_string(), evidence);
                             obj.insert("confidence".to_string(), serde_json::json!(conf));
@@ -3328,12 +3510,23 @@ async fn main() -> Result<(), BoxError> {
                                 obj.insert("caveats".to_string(), serde_json::json!([warn]));
                             }
                         }
-                        Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_dead_code", payload, 0)).unwrap_or_default()))
-                    },
-                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed dead code", &e.to_string()))),
+                        Ok(CallToolResult::text(
+                            serde_json::to_string(&wrap_with_envelope(
+                                "ares_dead_code",
+                                payload,
+                                0,
+                            ))
+                            .unwrap_or_default(),
+                        ))
+                    }
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
+                        "Failed dead code",
+                        &e.to_string(),
+                    ))),
                 }
             }
-        }).build();
+        })
+        .build();
 
     let store_ctxf = app_state.store.clone();
     let pp_ctxf = project_path.clone();
@@ -3346,22 +3539,38 @@ async fn main() -> Result<(), BoxError> {
             let pid = pid_ctxf.clone();
             async move {
                 let start = std::time::Instant::now();
-                match ares_intelligence::context_file::generate_context_file(&store, &pp, &pid, None).await {
+                match ares_intelligence::context_file::generate_context_file(
+                    &store, &pp, &pid, None,
+                )
+                .await
+                {
                     Ok(report) => {
                         let elapsed = start.elapsed().as_millis() as u64;
-                        let evidence = serde_json::json!([{"type": "context_generation", "ref": "workspace"}]);
+                        let evidence =
+                            serde_json::json!([{"type": "context_generation", "ref": "workspace"}]);
                         let conf = 0.6;
                         let inner = serde_json::json!( {
                             "evidence": evidence,
                             "confidence": conf,
                             "result": report
                         });
-                        Ok(CallToolResult::text(serde_json::to_string(&wrap_with_envelope("ares_generate_context_file", inner, elapsed)).unwrap_or_default()))
-                    },
-                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error("Failed context file", &e.to_string()))),
+                        Ok(CallToolResult::text(
+                            serde_json::to_string(&wrap_with_envelope(
+                                "ares_generate_context_file",
+                                inner,
+                                elapsed,
+                            ))
+                            .unwrap_or_default(),
+                        ))
+                    }
+                    Err(e) => Err(tower_mcp::Error::internal(format_mcp_error(
+                        "Failed context file",
+                        &e.to_string(),
+                    ))),
                 }
             }
-        }).build();
+        })
+        .build();
 
     let store_brf = app_state.store.clone();
     let pp_brf = project_path.clone();
@@ -3539,8 +3748,13 @@ fn transform_graph_for_agent(value: &mut serde_json::Value) {
                         if let Some(lang) = props.remove("language") {
                             n.insert("language".to_string(), lang);
                         }
-                        if let (Some(sl), Some(el)) = (props.remove("start_line"), props.remove("end_line")) {
-                            n.insert("lines".to_string(), serde_json::Value::String(format!("{}-{}", sl, el)));
+                        if let (Some(sl), Some(el)) =
+                            (props.remove("start_line"), props.remove("end_line"))
+                        {
+                            n.insert(
+                                "lines".to_string(),
+                                serde_json::Value::String(format!("{}-{}", sl, el)),
+                            );
                         }
                         if let Some(ib) = props.remove("introduced_by") {
                             n.insert("introduced_by".to_string(), ib);
@@ -3579,37 +3793,49 @@ fn transform_graph_for_agent(value: &mut serde_json::Value) {
     }
 }
 
-fn build_shortest_path_answer(mut payload: serde_json::Value) -> (serde_json::Value, Vec<serde_json::Value>) {
+fn build_shortest_path_answer(
+    mut payload: serde_json::Value,
+) -> (serde_json::Value, Vec<serde_json::Value>) {
     let mut node_map = std::collections::HashMap::new();
     if let Some(nodes) = payload.get("nodes").and_then(|n| n.as_array()) {
         for n in nodes {
             if let Some(id) = n.get("id").and_then(|i| i.as_str()) {
-                let lbl = n.get("label").and_then(|l| l.as_str()).unwrap_or("").to_string();
+                let lbl = n
+                    .get("label")
+                    .and_then(|l| l.as_str())
+                    .unwrap_or("")
+                    .to_string();
                 node_map.insert(id.to_string(), lbl);
             }
         }
     }
-    
+
     transform_graph_for_agent(&mut payload);
-    
+
     let mut path = Vec::new();
     if let Some(nodes) = payload.get_mut("nodes").and_then(|n| n.as_array_mut()) {
         for n in nodes {
             path.push(n.take());
         }
     }
-    
+
     let mut hops = Vec::new();
     if let Some(edges) = payload.get_mut("edges").and_then(|e| e.as_array_mut()) {
         for e in edges {
             if let Some(obj) = e.as_object_mut() {
-                let from_id = obj.remove("from_node_id").and_then(|v| v.as_str().map(|s| s.to_string())).unwrap_or_default();
-                let to_id = obj.remove("to_node_id").and_then(|v| v.as_str().map(|s| s.to_string())).unwrap_or_default();
+                let from_id = obj
+                    .remove("from_node_id")
+                    .and_then(|v| v.as_str().map(|s| s.to_string()))
+                    .unwrap_or_default();
+                let to_id = obj
+                    .remove("to_node_id")
+                    .and_then(|v| v.as_str().map(|s| s.to_string()))
+                    .unwrap_or_default();
                 let via = obj.remove("edge_type").unwrap_or(serde_json::json!(""));
-                
+
                 let from_lbl = node_map.get(&from_id).cloned().unwrap_or(from_id);
                 let to_lbl = node_map.get(&to_id).cloned().unwrap_or(to_id);
-                
+
                 obj.insert("from".to_string(), serde_json::json!(from_lbl));
                 obj.insert("to".to_string(), serde_json::json!(to_lbl));
                 obj.insert("via".to_string(), via);
@@ -3617,7 +3843,7 @@ fn build_shortest_path_answer(mut payload: serde_json::Value) -> (serde_json::Va
             }
         }
     }
-    
+
     let final_answer = serde_json::json!({
         "path": path,
         "hops": hops,
@@ -3629,16 +3855,34 @@ fn build_shortest_path_answer(mut payload: serde_json::Value) -> (serde_json::Va
         let from = hop.get("from").and_then(|v| v.as_str()).unwrap_or("");
         let to = hop.get("to").and_then(|v| v.as_str()).unwrap_or("");
         let via = hop.get("via").and_then(|v| v.as_str()).unwrap_or("");
-        
-        let path_from = if let Some(pn) = path.iter().find(|n| n.get("label").and_then(|l| l.as_str()) == Some(from)) {
+
+        let path_from = if let Some(pn) = path
+            .iter()
+            .find(|n| n.get("label").and_then(|l| l.as_str()) == Some(from))
+        {
             let fp = pn.get("file_path").and_then(|f| f.as_str()).unwrap_or(from);
-            if fp.ends_with(from) { fp.to_string() } else { format!("{}:{}", fp, from) }
-        } else { from.to_string() };
-        
-        let path_to = if let Some(pn) = path.iter().find(|n| n.get("label").and_then(|l| l.as_str()) == Some(to)) {
+            if fp.ends_with(from) {
+                fp.to_string()
+            } else {
+                format!("{}:{}", fp, from)
+            }
+        } else {
+            from.to_string()
+        };
+
+        let path_to = if let Some(pn) = path
+            .iter()
+            .find(|n| n.get("label").and_then(|l| l.as_str()) == Some(to))
+        {
             let fp = pn.get("file_path").and_then(|f| f.as_str()).unwrap_or(to);
-            if fp.ends_with(to) { fp.to_string() } else { format!("{}:{}", fp, to) }
-        } else { to.to_string() };
+            if fp.ends_with(to) {
+                fp.to_string()
+            } else {
+                format!("{}:{}", fp, to)
+            }
+        } else {
+            to.to_string()
+        };
 
         evidence.push(serde_json::json!({
             "type": "graph_edge",
@@ -3649,7 +3893,10 @@ fn build_shortest_path_answer(mut payload: serde_json::Value) -> (serde_json::Va
     (final_answer, evidence)
 }
 
-fn build_neighbors_answer(mut payload: serde_json::Value, target_id_str: &str) -> (serde_json::Value, Vec<serde_json::Value>) {
+fn build_neighbors_answer(
+    mut payload: serde_json::Value,
+    target_id_str: &str,
+) -> (serde_json::Value, Vec<serde_json::Value>) {
     let mut id_to_idx = std::collections::HashMap::new();
     if let Some(nodes) = payload.get("nodes").and_then(|n| n.as_array()) {
         for (idx, n) in nodes.iter().enumerate() {
@@ -3658,15 +3905,26 @@ fn build_neighbors_answer(mut payload: serde_json::Value, target_id_str: &str) -
             }
         }
     }
-    
+
     transform_graph_for_agent(&mut payload);
-    
-    let nodes = payload.get("nodes").and_then(|n| n.as_array()).cloned().unwrap_or_default();
-    
+
+    let nodes = payload
+        .get("nodes")
+        .and_then(|n| n.as_array())
+        .cloned()
+        .unwrap_or_default();
+
     let mut target_path = target_id_str.to_string();
     if let Some(&idx) = id_to_idx.get(target_id_str) {
-        if let (Some(fp), Some(lbl)) = (nodes[idx].get("file_path").and_then(|f| f.as_str()), nodes[idx].get("label").and_then(|l| l.as_str())) {
-            target_path = if fp.ends_with(lbl) { fp.to_string() } else { format!("{}:{}", fp, lbl) };
+        if let (Some(fp), Some(lbl)) = (
+            nodes[idx].get("file_path").and_then(|f| f.as_str()),
+            nodes[idx].get("label").and_then(|l| l.as_str()),
+        ) {
+            target_path = if fp.ends_with(lbl) {
+                fp.to_string()
+            } else {
+                format!("{}:{}", fp, lbl)
+            };
         }
     }
 
@@ -3674,10 +3932,16 @@ fn build_neighbors_answer(mut payload: serde_json::Value, target_id_str: &str) -
     if let Some(edges) = payload.get_mut("edges").and_then(|e| e.as_array_mut()) {
         for e in edges {
             if let Some(obj) = e.as_object_mut() {
-                let from_id = obj.remove("from_node_id").and_then(|v| v.as_str().map(|s| s.to_string())).unwrap_or_default();
-                let to_id = obj.remove("to_node_id").and_then(|v| v.as_str().map(|s| s.to_string())).unwrap_or_default();
+                let from_id = obj
+                    .remove("from_node_id")
+                    .and_then(|v| v.as_str().map(|s| s.to_string()))
+                    .unwrap_or_default();
+                let to_id = obj
+                    .remove("to_node_id")
+                    .and_then(|v| v.as_str().map(|s| s.to_string()))
+                    .unwrap_or_default();
                 let rel = obj.remove("edge_type").unwrap_or(serde_json::json!(""));
-                
+
                 let mut neighbor_obj = None;
                 if from_id == target_id_str {
                     if let Some(&idx) = id_to_idx.get(&to_id) {
@@ -3700,23 +3964,26 @@ fn build_neighbors_answer(mut payload: serde_json::Value, target_id_str: &str) -
                         neighbor_obj = Some(n_obj);
                     }
                 }
-                
+
                 if let Some(n) = neighbor_obj {
                     neighbors.push(serde_json::Value::Object(n));
                 }
             }
         }
     }
-    
+
     let mut truncated = false;
     let mut caveats = Vec::new();
     let total_found = neighbors.len();
     if neighbors.len() > 50 {
         neighbors.truncate(50);
         truncated = true;
-        caveats.push(serde_json::json!(format!("results truncated; {} total neighbors found", total_found)));
+        caveats.push(serde_json::json!(format!(
+            "results truncated; {} total neighbors found",
+            total_found
+        )));
     }
-    
+
     let final_answer = serde_json::json!({
         "target": target_path,
         "neighbors": neighbors,
@@ -3731,10 +3998,14 @@ fn build_neighbors_answer(mut payload: serde_json::Value, target_id_str: &str) -
     for n in &neighbors {
         let n_path = n.get("file_path").and_then(|v| v.as_str()).unwrap_or("");
         let lbl = n.get("label").and_then(|v| v.as_str()).unwrap_or("");
-        let node_desc = if n_path.ends_with(lbl) { n_path.to_string() } else { format!("{}:{}", n_path, lbl) };
+        let node_desc = if n_path.ends_with(lbl) {
+            n_path.to_string()
+        } else {
+            format!("{}:{}", n_path, lbl)
+        };
         let rel = n.get("relationship").and_then(|v| v.as_str()).unwrap_or("");
         let dir = n.get("direction").and_then(|v| v.as_str()).unwrap_or("");
-        
+
         let r = if dir == "outgoing" {
             format!("{}:{}\u{2192}{}", target_path, rel, node_desc)
         } else {

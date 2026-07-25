@@ -204,7 +204,8 @@ impl LanguageExtractor for RubyExtractor {
             };
 
             let file_key = file_path.replace('/', "_").replace('\\', "_");
-            let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, r.name));
+            let unresolved_node_id =
+                ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, r.name));
             let expected_type = match r.ref_type {
                 RefType::Call => NodeType::Method,
             };

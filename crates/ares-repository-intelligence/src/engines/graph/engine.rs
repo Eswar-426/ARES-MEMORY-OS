@@ -118,10 +118,12 @@ impl RepositoryGraphEngine {
             } else {
                 edge.from_node_id.as_str()
             };
-            
+
             let mut title_str = target_id_str.to_string();
             if !target_id_str.starts_with("unresolved_") {
-                if let Ok(Some(target_node)) = repo.get_node(&ares_core::NodeId::from(target_id_str)) {
+                if let Ok(Some(target_node)) =
+                    repo.get_node(&ares_core::NodeId::from(target_id_str))
+                {
                     if let Some(file_path) = target_node.file_path {
                         title_str = file_path;
                     } else if !target_node.label.is_empty() {

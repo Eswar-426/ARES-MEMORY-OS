@@ -1,13 +1,12 @@
 use ares_core::{GraphEdge, GraphNode, NodeId, ProjectId};
 
-
 pub mod cpp;
 pub mod csharp;
-pub mod php;
-pub mod kotlin;
 pub mod go;
 pub mod java;
 pub mod javascript;
+pub mod kotlin;
+pub mod php;
 pub mod python;
 pub mod ruby;
 pub mod rust;

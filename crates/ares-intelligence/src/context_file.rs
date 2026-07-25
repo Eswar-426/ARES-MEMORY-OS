@@ -1,10 +1,10 @@
+use crate::co_change::HiddenCoupling;
+use crate::hotspots::Hotspot;
 use ares_core::AresError;
 use ares_store::Store;
 use serde::Serialize;
-use std::path::PathBuf;
 use std::collections::HashMap;
-use crate::hotspots::Hotspot;
-use crate::co_change::HiddenCoupling;
+use std::path::PathBuf;
 
 #[derive(Serialize)]
 pub struct ContextFile {
@@ -68,17 +68,21 @@ pub async fn generate_context_file(
     let project_id = ares_core::ProjectId::from(project_name.to_string());
 
     // Get project overview stats
-    let total_files: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM graph_nodes WHERE node_type = 'file'",
-        [],
-        |row| row.get::<usize, i64>(0),
-    ).unwrap_or(0);
+    let total_files: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM graph_nodes WHERE node_type = 'file'",
+            [],
+            |row| row.get::<usize, i64>(0),
+        )
+        .unwrap_or(0);
 
-    let total_functions: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM graph_nodes WHERE node_type IN ('function', 'method')",
-        [],
-        |row| row.get::<usize, i64>(0),
-    ).unwrap_or(0);
+    let total_functions: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM graph_nodes WHERE node_type IN ('function', 'method')",
+            [],
+            |row| row.get::<usize, i64>(0),
+        )
+        .unwrap_or(0);
 
     let module_count: i64 = conn.query_row(
         "SELECT COUNT(DISTINCT substr(file_path, 1, instr(file_path, '/') - 1)) FROM graph_nodes WHERE node_type = 'file' AND instr(file_path, '/') > 0",
@@ -88,10 +92,14 @@ pub async fn generate_context_file(
 
     // Get technology stack from file extensions
     let mut ext_counts: HashMap<String, i64> = HashMap::new();
-    if let Ok(mut stmt) = conn.prepare("SELECT file_path FROM graph_nodes WHERE node_type = 'file'") {
+    if let Ok(mut stmt) = conn.prepare("SELECT file_path FROM graph_nodes WHERE node_type = 'file'")
+    {
         if let Ok(rows) = stmt.query_map([], |row| row.get::<usize, String>(0)) {
             for path in rows.flatten() {
-                if let Some(ext) = std::path::Path::new(&path).extension().and_then(|e| e.to_str()) {
+                if let Some(ext) = std::path::Path::new(&path)
+                    .extension()
+                    .and_then(|e| e.to_str())
+                {
                     *ext_counts.entry(ext.to_lowercase()).or_insert(0) += 1;
                 }
             }
@@ -99,21 +107,47 @@ pub async fn generate_context_file(
     }
 
     let ext_map: HashMap<&str, &str> = [
-        ("rs", "Rust"), ("py", "Python"), ("ts", "TypeScript"), ("tsx", "TypeScript/React"),
-        ("js", "JavaScript"), ("jsx", "JavaScript/React"), ("go", "Go"), ("java", "Java"),
-        ("c", "C"), ("cpp", "C++"), ("cc", "C++"), ("cxx", "C++"), ("h", "C/C++"),
-        ("rb", "Ruby"), ("cs", "C#"), ("php", "PHP"), ("kt", "Kotlin"),
-        ("toml", "TOML"), ("yaml", "YAML"), ("yml", "YAML"), ("json", "JSON"),
-        ("md", "Markdown"), ("sql", "SQL"), ("ps1", "PowerShell")
-    ].iter().copied().collect();
+        ("rs", "Rust"),
+        ("py", "Python"),
+        ("ts", "TypeScript"),
+        ("tsx", "TypeScript/React"),
+        ("js", "JavaScript"),
+        ("jsx", "JavaScript/React"),
+        ("go", "Go"),
+        ("java", "Java"),
+        ("c", "C"),
+        ("cpp", "C++"),
+        ("cc", "C++"),
+        ("cxx", "C++"),
+        ("h", "C/C++"),
+        ("rb", "Ruby"),
+        ("cs", "C#"),
+        ("php", "PHP"),
+        ("kt", "Kotlin"),
+        ("toml", "TOML"),
+        ("yaml", "YAML"),
+        ("yml", "YAML"),
+        ("json", "JSON"),
+        ("md", "Markdown"),
+        ("sql", "SQL"),
+        ("ps1", "PowerShell"),
+    ]
+    .iter()
+    .copied()
+    .collect();
 
     let primary_language = if let Some((ext, _)) = ext_counts.iter().max_by_key(|(_, c)| *c) {
-        ext_map.get(ext.as_str()).copied().unwrap_or(ext).to_string()
+        ext_map
+            .get(ext.as_str())
+            .copied()
+            .unwrap_or(ext)
+            .to_string()
     } else {
         "Unknown".to_string()
     };
 
-    let mut tech_stack: Vec<String> = ext_counts.keys()
+    let mut tech_stack: Vec<String> = ext_counts
+        .keys()
         .filter_map(|ext| ext_map.get(ext.as_str()).map(|&s| s.to_string()))
         .collect();
     tech_stack.sort();
@@ -122,7 +156,10 @@ pub async fn generate_context_file(
         tech_stack.push("Unknown".to_string());
     }
 
-    let health_score = repo.calculate_health_score(&project_id).map(|h| h.overall).unwrap_or(100.0);
+    let health_score = repo
+        .calculate_health_score(&project_id)
+        .map(|h| h.overall)
+        .unwrap_or(100.0);
 
     let mut entry_points = Vec::new();
     if let Ok(mut stmt) = conn.prepare(
@@ -131,7 +168,7 @@ pub async fn generate_context_file(
          LEFT JOIN graph_edges e ON e.to_node_id = n.id AND e.valid_until IS NULL \
          WHERE n.node_type = 'file' AND n.file_path IS NOT NULL \
          GROUP BY n.id \
-         ORDER BY inbound DESC LIMIT 5"
+         ORDER BY inbound DESC LIMIT 5",
     ) {
         if let Ok(rows) = stmt.query_map([], |row| {
             Ok(EntryPoint {
@@ -208,7 +245,10 @@ pub async fn generate_context_file(
     let mut known_gaps = Vec::new();
     if let Ok(files) = repo.get_code_without_decision(&project_id, 10) {
         if !files.is_empty() {
-            known_gaps.push(format!("{} files without recorded decisions. Use ARES: Record Decision.", files.len()));
+            known_gaps.push(format!(
+                "{} files without recorded decisions. Use ARES: Record Decision.",
+                files.len()
+            ));
         }
     }
     if let Ok(files) = repo.get_unknown_ownership(&project_id) {
@@ -223,19 +263,50 @@ pub async fn generate_context_file(
     }
 
     let hotspots = crate::hotspots::calculate_hotspots(&conn, 10).unwrap_or_default();
-    let hidden_coupling = crate::co_change::detect_hidden_coupling(&conn, 90, 3, 20).unwrap_or_default();
+    let hidden_coupling =
+        crate::co_change::detect_hidden_coupling(&conn, 90, 3, 20).unwrap_or_default();
 
     let mcp_tools = vec![
-        ToolEntry { name: "ares_briefing".to_string(), description: "Full project state for new sessions".to_string() },
-        ToolEntry { name: "ares_why_exists".to_string(), description: "Why any file or function exists".to_string() },
-        ToolEntry { name: "ares_impact".to_string(), description: "What breaks if you change something".to_string() },
-        ToolEntry { name: "ares_who_owns".to_string(), description: "Who is responsible for a file".to_string() },
-        ToolEntry { name: "ares_decisions".to_string(), description: "Recorded architectural decisions".to_string() },
-        ToolEntry { name: "ares_health_check".to_string(), description: "Repository memory health score".to_string() },
-        ToolEntry { name: "ares_dead_code".to_string(), description: "Files and functions with no callers".to_string() },
-        ToolEntry { name: "ares_simulate".to_string(), description: "What-if change impact prediction".to_string() },
-        ToolEntry { name: "ares_record_decision".to_string(), description: "Record an architectural decision".to_string() },
-        ToolEntry { name: "ares_generate_context_file".to_string(), description: "Generate a CLAUDE.md file for instant orientation".to_string() },
+        ToolEntry {
+            name: "ares_briefing".to_string(),
+            description: "Full project state for new sessions".to_string(),
+        },
+        ToolEntry {
+            name: "ares_why_exists".to_string(),
+            description: "Why any file or function exists".to_string(),
+        },
+        ToolEntry {
+            name: "ares_impact".to_string(),
+            description: "What breaks if you change something".to_string(),
+        },
+        ToolEntry {
+            name: "ares_who_owns".to_string(),
+            description: "Who is responsible for a file".to_string(),
+        },
+        ToolEntry {
+            name: "ares_decisions".to_string(),
+            description: "Recorded architectural decisions".to_string(),
+        },
+        ToolEntry {
+            name: "ares_health_check".to_string(),
+            description: "Repository memory health score".to_string(),
+        },
+        ToolEntry {
+            name: "ares_dead_code".to_string(),
+            description: "Files and functions with no callers".to_string(),
+        },
+        ToolEntry {
+            name: "ares_simulate".to_string(),
+            description: "What-if change impact prediction".to_string(),
+        },
+        ToolEntry {
+            name: "ares_record_decision".to_string(),
+            description: "Record an architectural decision".to_string(),
+        },
+        ToolEntry {
+            name: "ares_generate_context_file".to_string(),
+            description: "Generate a CLAUDE.md file for instant orientation".to_string(),
+        },
     ];
 
     let what_this_project_is = format!(
@@ -278,7 +349,10 @@ fn generate_markdown(ctx: &ContextFile) -> String {
 
     md.push_str(&format!("# ARES Memory: {}\n\n", ctx.project_name));
     md.push_str("*Generated by ARES Memory OS — updated on every ingest*\n");
-    md.push_str(&format!("*Last updated: {} | Health score: {:.0}/100*\n\n", ctx.timestamp, ctx.health_score));
+    md.push_str(&format!(
+        "*Last updated: {} | Health score: {:.0}/100*\n\n",
+        ctx.timestamp, ctx.health_score
+    ));
 
     md.push_str("## What this project is\n\n");
     md.push_str(&ctx.what_this_project_is);
@@ -307,7 +381,10 @@ fn generate_markdown(ctx: &ContextFile) -> String {
         md.push_str("No critical files detected.\n\n");
     } else {
         for cf in &ctx.critical_files {
-            md.push_str(&format!("- `{}` — {} dependencies\n", cf.path, cf.outbound_count));
+            md.push_str(&format!(
+                "- `{}` — {} dependencies\n",
+                cf.path, cf.outbound_count
+            ));
         }
         md.push('\n');
     }
@@ -342,7 +419,10 @@ fn generate_markdown(ctx: &ContextFile) -> String {
         md.push_str("No ownership information available.\n\n");
     } else {
         for owner in &ctx.ownership {
-            md.push_str(&format!("- {} ({:.1}% of files)\n", owner.name, owner.file_percentage));
+            md.push_str(&format!(
+                "- {} ({:.1}% of files)\n",
+                owner.name, owner.file_percentage
+            ));
         }
         md.push('\n');
     }

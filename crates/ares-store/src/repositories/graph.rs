@@ -410,10 +410,7 @@ impl SqliteGraphRepository {
         rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)
     }
 
-    pub fn get_nodes_by_file_path(
-        &self,
-        file_path: &str,
-    ) -> Result<Vec<GraphNode>, AresError> {
+    pub fn get_nodes_by_file_path(&self, file_path: &str) -> Result<Vec<GraphNode>, AresError> {
         let conn = self.store.get_conn()?;
         let mut stmt = conn
             .prepare(
@@ -450,10 +447,7 @@ impl SqliteGraphRepository {
         rows.collect::<Result<Vec<_>, _>>().map_err(AresError::db)
     }
 
-    pub fn get_nodes_by_path_fragment(
-        &self,
-        fragment: &str,
-    ) -> Result<Vec<GraphNode>, AresError> {
+    pub fn get_nodes_by_path_fragment(&self, fragment: &str) -> Result<Vec<GraphNode>, AresError> {
         let conn = self.store.get_conn()?;
         let mut stmt = conn
             .prepare(
@@ -1231,12 +1225,12 @@ impl SqliteGraphRepository {
             if path_nodes.len() >= 2 {
                 let mut edge_params: Vec<&dyn rusqlite::ToSql> = Vec::new();
                 let mut or_clauses = Vec::new();
-                
+
                 for _window in path_nodes.windows(2) {
                     or_clauses.push("(from_node_id = ? AND to_node_id = ?)");
                     // To avoid lifetime issues with dynamic borrowing, we need to bind the references
                 }
-                
+
                 // Let's bind the params properly
                 // We map them directly to `&dyn ToSql`
                 for window in path_nodes.windows(2) {
@@ -1250,7 +1244,7 @@ impl SqliteGraphRepository {
                      WHERE ({}) AND valid_until IS NULL",
                     or_clauses.join(" OR ")
                 );
-                
+
                 let mut edge_stmt = conn.prepare(&esql).map_err(AresError::db)?;
                 let mut edge_rows = edge_stmt
                     .query(rusqlite::params_from_iter(edge_params))

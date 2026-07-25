@@ -91,7 +91,8 @@ impl SqliteGapRepository {
                 "SELECT COUNT(*) FROM graph_nodes WHERE project_id = ?1 AND node_type = 'decision'",
                 params![project_id.as_str()],
                 |row| row.get(0),
-            ).map_err(|e| AresError::Database(e.to_string()))?;
+            )
+            .map_err(|e| AresError::Database(e.to_string()))?;
 
         let decisions_with_requirements: i64 = conn.query_row(
             "SELECT COUNT(DISTINCT d.id) FROM graph_nodes d
@@ -128,7 +129,8 @@ impl SqliteGapRepository {
              WHERE project_id = ?1 AND node_type = 'decision' AND created_at > ?2",
                 params![project_id.as_str(), threshold],
                 |row| row.get(0),
-            ).map_err(|e| AresError::Database(e.to_string()))?;
+            )
+            .map_err(|e| AresError::Database(e.to_string()))?;
 
         let stale_decisions = total_decisions - fresh_decisions;
 
@@ -151,7 +153,11 @@ impl SqliteGapRepository {
                 ((decisions_with_requirements as f64) / (total_decisions as f64)).min(1.0)
             };
             let freshness = if stale_decisions == 0 {
-                if fresh_decisions > 0 { 1.0 } else { 0.5 }
+                if fresh_decisions > 0 {
+                    1.0
+                } else {
+                    0.5
+                }
             } else {
                 ((fresh_decisions as f64) / (stale_decisions as f64)).min(1.0)
             };
@@ -180,7 +186,11 @@ impl SqliteGapRepository {
         let fresh_decisions_term = if total_decisions == 0 {
             0.0
         } else if stale_decisions == 0 {
-            if fresh_decisions > 0 { 100.0 } else { 0.0 }
+            if fresh_decisions > 0 {
+                100.0
+            } else {
+                0.0
+            }
         } else {
             (fresh_decisions as f64 / stale_decisions as f64) * 100.0
         };

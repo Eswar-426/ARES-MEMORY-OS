@@ -103,7 +103,8 @@ impl DeterministicInference for ImpactGenerator {
 
         // ── Risk ─────────────────────────────────────────────────
         let dep_count = deps.len();
-        let is_entry_point = evidence.entity_label.ends_with("main.rs") || evidence.entity_label.ends_with("lib.rs");
+        let is_entry_point =
+            evidence.entity_label.ends_with("main.rs") || evidence.entity_label.ends_with("lib.rs");
 
         let risk = if is_entry_point {
             "HIGH (entry point)"
@@ -160,7 +161,10 @@ impl DeterministicInference for ImpactGenerator {
                 vec![format!("{} modules depend on this entity", dep_count)]
             },
             recommendations: if is_entry_point {
-                vec!["Do not remove entry points unless decommissioning the entire package.".to_string()]
+                vec![
+                    "Do not remove entry points unless decommissioning the entire package."
+                        .to_string(),
+                ]
             } else if dep_count > 5 {
                 vec!["Consider refactoring to reduce tight coupling.".to_string()]
             } else {

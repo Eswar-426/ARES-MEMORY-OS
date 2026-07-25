@@ -687,7 +687,8 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         println!("\nCompleted in {}", format_duration(elapsed));
     }
 
-    let project_id = args.path
+    let project_id = args
+        .path
         .file_name()
         .and_then(|n| n.to_str())
         .filter(|s| !s.is_empty() && *s != ".")
@@ -704,7 +705,9 @@ pub async fn handle_ingest(args: IngestArgs) -> Result<(), AresError> {
         workspace_root,
         &project_id,
         None,
-    ).await {
+    )
+    .await
+    {
         eprintln!("Warning: Failed to auto-generate CLAUDE.md: {}", e);
     } else {
         println!("✓ Generated .ares/CLAUDE.md");

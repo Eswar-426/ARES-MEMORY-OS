@@ -68,12 +68,11 @@ pub fn count_decayed_decisions(conn: &Connection) -> Result<(i64, i64), String> 
     "#;
 
     if let Ok(mut stmt) = conn.prepare(sql) {
-        let rows = stmt.query_map([], |row| {
-            Ok((
-                row.get::<usize, String>(0)?,
-                row.get::<usize, i64>(1)?,
-            ))
-        }).map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok((row.get::<usize, String>(0)?, row.get::<usize, i64>(1)?))
+            })
+            .map_err(|e| e.to_string())?;
 
         for row in rows.flatten() {
             let (_id, created_at) = row;
@@ -86,9 +85,11 @@ pub fn count_decayed_decisions(conn: &Connection) -> Result<(i64, i64), String> 
                  WHERE e.from_node_id = ?1
                  AND e.edge_type IN ('affects', 'relates_to')
                  AND n.node_type = 'file'
-                 LIMIT 10"
+                 LIMIT 10",
             ) {
-                if let Ok(f_rows) = f_stmt.query_map(rusqlite::params![_id], |r| r.get::<usize, String>(0)) {
+                if let Ok(f_rows) =
+                    f_stmt.query_map(rusqlite::params![_id], |r| r.get::<usize, String>(0))
+                {
                     for f in f_rows.flatten() {
                         files.push(f);
                     }
@@ -108,10 +109,7 @@ pub fn count_decayed_decisions(conn: &Connection) -> Result<(i64, i64), String> 
 }
 
 /// Enrich a JSON evidence array: add decay_score/staleness to decision-shaped items.
-pub fn enrich_evidence_with_decay(
-    conn: &Connection,
-    evidence: &mut [serde_json::Value],
-) {
+pub fn enrich_evidence_with_decay(conn: &Connection, evidence: &mut [serde_json::Value]) {
     for item in evidence.iter_mut() {
         // Look for decision-shaped evidence: has "date" or "created_at" and "files" fields
         let date_val = item.get("created_at").or_else(|| item.get("date"));
@@ -141,7 +139,10 @@ pub fn enrich_evidence_with_decay(
 
             let decay = calculate_decision_decay(conn, ts, &files);
             if let Some(obj) = item.as_object_mut() {
-                obj.insert("decay_score".to_string(), serde_json::json!(decay.decay_score));
+                obj.insert(
+                    "decay_score".to_string(),
+                    serde_json::json!(decay.decay_score),
+                );
                 obj.insert("staleness".to_string(), serde_json::json!(decay.staleness));
             }
         }

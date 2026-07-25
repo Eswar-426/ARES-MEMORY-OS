@@ -51,9 +51,8 @@ impl SymbolResolver {
                             for name_variant in
                                 &[format!("{}.rs", signature.name), signature.name.clone()]
                             {
-                                if let Ok(file_candidates) = self
-                                    .graph_repo
-                                    .get_nodes_by_name(project_id, name_variant)
+                                if let Ok(file_candidates) =
+                                    self.graph_repo.get_nodes_by_name(project_id, name_variant)
                                 {
                                     file_matches.extend(file_candidates.into_iter().filter(|n| {
                                         n.properties.get("unresolved").is_none()
@@ -111,20 +110,20 @@ impl SymbolResolver {
                                             .file_path
                                             .as_ref()
                                             .and_then(|p| {
-                                                std::path::Path::new(p)
-                                                    .parent()
-                                                    .map(|pp| pp.to_string_lossy().to_string()
-                                                        == declaring_dir)
+                                                std::path::Path::new(p).parent().map(|pp| {
+                                                    pp.to_string_lossy().to_string()
+                                                        == declaring_dir
+                                                })
                                             })
                                             .unwrap_or(false);
                                         let b_same = b
                                             .file_path
                                             .as_ref()
                                             .and_then(|p| {
-                                                std::path::Path::new(p)
-                                                    .parent()
-                                                    .map(|pp| pp.to_string_lossy().to_string()
-                                                        == declaring_dir)
+                                                std::path::Path::new(p).parent().map(|pp| {
+                                                    pp.to_string_lossy().to_string()
+                                                        == declaring_dir
+                                                })
                                             })
                                             .unwrap_or(false);
                                         b_same.cmp(&a_same)
@@ -148,16 +147,23 @@ impl SymbolResolver {
                             let separators = ["::", "/"];
                             for sep in &separators {
                                 if signature.name.contains(sep) {
-                                    let crate_segment = signature.name.split(*sep).next().unwrap_or("");
+                                    let crate_segment =
+                                        signature.name.split(*sep).next().unwrap_or("");
                                     if !crate_segment.is_empty() {
-                                        for variant in &[crate_segment.to_string(), crate_segment.replace("_", "-")] {
-                                            if let Ok(matches) = self.graph_repo.get_nodes_by_path_fragment(variant) {
+                                        for variant in &[
+                                            crate_segment.to_string(),
+                                            crate_segment.replace("_", "-"),
+                                        ] {
+                                            if let Ok(matches) =
+                                                self.graph_repo.get_nodes_by_path_fragment(variant)
+                                            {
                                                 let lib_matches: Vec<_> = matches
                                                     .into_iter()
                                                     .filter(|n| {
                                                         n.properties.get("unresolved").is_none()
                                                             && n.node_type == NodeType::File
-                                                            && n.file_path.as_ref()
+                                                            && n.file_path
+                                                                .as_ref()
                                                                 .map(|fp| fp.ends_with("lib.rs"))
                                                                 .unwrap_or(false)
                                                     })
@@ -168,19 +174,21 @@ impl SymbolResolver {
                                                 }
                                             }
                                         }
-                                        if !candidates.is_empty() { break; }
+                                        if !candidates.is_empty() {
+                                            break;
+                                        }
                                     }
                                 }
                             }
                         }
                         // ── End cross-crate resolution ────────────────
-                        
+
                         if best_match.is_none() && !candidates.is_empty() {
                             best_match = if candidates.len() == 1 {
                                 Some(candidates[0].clone())
                             } else {
                                 // Apply resolution priority
-                                
+
                                 // 1. Exact module path
                                 let by_mod = candidates.clone();
                                 if let Some(_mod_path) = signature.module_path {

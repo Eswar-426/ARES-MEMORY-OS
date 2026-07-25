@@ -67,7 +67,10 @@ pub struct LastSession {
     pub recommended_next: String,
 }
 
-pub async fn generate_briefing(store: &Store, workspace_root: &str) -> Result<BriefingPackage, AresError> {
+pub async fn generate_briefing(
+    store: &Store,
+    workspace_root: &str,
+) -> Result<BriefingPackage, AresError> {
     let conn = store.get_conn()?;
 
     // ── Project Snapshot ──────────────────────────────────────
@@ -76,44 +79,82 @@ pub async fn generate_briefing(store: &Store, workspace_root: &str) -> Result<Br
         .and_then(|n| n.to_str())
         .unwrap_or("unknown");
 
-    let total_files: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM graph_nodes WHERE node_type = 'file'", [], |r| r.get(0)
-    ).unwrap_or(0);
+    let total_files: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM graph_nodes WHERE node_type = 'file'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
-    let total_functions: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM graph_nodes WHERE node_type IN ('function', 'method')", [], |r| r.get(0)
-    ).unwrap_or(0);
+    let total_functions: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM graph_nodes WHERE node_type IN ('function', 'method')",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
     // Technology stack from file extensions
     let mut ext_counts: HashMap<String, i64> = HashMap::new();
-    if let Ok(mut stmt) = conn.prepare("SELECT file_path FROM graph_nodes WHERE node_type = 'file'") {
+    if let Ok(mut stmt) = conn.prepare("SELECT file_path FROM graph_nodes WHERE node_type = 'file'")
+    {
         if let Ok(rows) = stmt.query_map([], |row| row.get::<usize, String>(0)) {
             for path in rows.flatten() {
-                if let Some(ext) = std::path::Path::new(&path).extension().and_then(|e| e.to_str()) {
+                if let Some(ext) = std::path::Path::new(&path)
+                    .extension()
+                    .and_then(|e| e.to_str())
+                {
                     *ext_counts.entry(ext.to_lowercase()).or_insert(0) += 1;
                 }
             }
         }
     }
     let ext_map: HashMap<&str, &str> = [
-        ("rs", "Rust"), ("py", "Python"), ("ts", "TypeScript"), ("tsx", "TypeScript/React"),
-        ("js", "JavaScript"), ("jsx", "JavaScript/React"), ("go", "Go"), ("java", "Java"),
-        ("c", "C"), ("cpp", "C++"), ("cc", "C++"), ("cxx", "C++"), ("h", "C/C++"),
-        ("rb", "Ruby"), ("cs", "C#"), ("php", "PHP"), ("kt", "Kotlin"),
-        ("toml", "TOML"), ("yaml", "YAML"), ("yml", "YAML"), ("json", "JSON"),
-        ("md", "Markdown"), ("sql", "SQL"), ("ps1", "PowerShell")
-    ].iter().copied().collect();
+        ("rs", "Rust"),
+        ("py", "Python"),
+        ("ts", "TypeScript"),
+        ("tsx", "TypeScript/React"),
+        ("js", "JavaScript"),
+        ("jsx", "JavaScript/React"),
+        ("go", "Go"),
+        ("java", "Java"),
+        ("c", "C"),
+        ("cpp", "C++"),
+        ("cc", "C++"),
+        ("cxx", "C++"),
+        ("h", "C/C++"),
+        ("rb", "Ruby"),
+        ("cs", "C#"),
+        ("php", "PHP"),
+        ("kt", "Kotlin"),
+        ("toml", "TOML"),
+        ("yaml", "YAML"),
+        ("yml", "YAML"),
+        ("json", "JSON"),
+        ("md", "Markdown"),
+        ("sql", "SQL"),
+        ("ps1", "PowerShell"),
+    ]
+    .iter()
+    .copied()
+    .collect();
 
     // Primary language: most common file extension
     let primary_language = if let Some((ext, _)) = ext_counts.iter().max_by_key(|(_, c)| *c) {
-        ext_map.get(ext.as_str()).copied().unwrap_or(ext).to_string()
+        ext_map
+            .get(ext.as_str())
+            .copied()
+            .unwrap_or(ext)
+            .to_string()
     } else {
         "Unknown".to_string()
     };
-    
+
     let mut sorted_exts: Vec<_> = ext_counts.iter().collect();
     sorted_exts.sort_by_key(|(_, &c)| std::cmp::Reverse(c));
-    let mut tech_stack: Vec<String> = sorted_exts.into_iter()
+    let mut tech_stack: Vec<String> = sorted_exts
+        .into_iter()
         .filter_map(|(ext, _)| ext_map.get(ext.as_str()).map(|&s| s.to_string()))
         .collect();
     tech_stack.dedup();
@@ -160,22 +201,31 @@ pub async fn generate_briefing(store: &Store, workspace_root: &str) -> Result<Br
 
     let repo = ares_store::repositories::gaps::SqliteGapRepository::new(store.clone());
     let project_id = ares_core::ProjectId::from(project_name.to_string());
-    let health_score = repo.calculate_health_score(&project_id).map(|h| h.overall).unwrap_or(100.0);
+    let health_score = repo
+        .calculate_health_score(&project_id)
+        .map(|h| h.overall)
+        .unwrap_or(100.0);
 
     let architecture_summary = format!(
         "{} files, {} functions across {} modules. Primary language: {}. Health: {}/100.",
-        total_files, total_functions, module_count, primary_language, health_score.round() as i32
+        total_files,
+        total_functions,
+        module_count,
+        primary_language,
+        health_score.round() as i32
     );
 
     // ── Recent Activity (7 days) ──────────────────────────────
     let since_days: i64 = 7;
     let since_ts = (chrono::Utc::now().timestamp() - (since_days * 86400)) * 1_000_000;
 
-    let commits_analyzed: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM graph_nodes WHERE node_type = 'commit' AND created_at > ?1",
-        [since_ts],
-        |r| r.get(0)
-    ).unwrap_or(0);
+    let commits_analyzed: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM graph_nodes WHERE node_type = 'commit' AND created_at > ?1",
+            [since_ts],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
 
     let files_changed: Vec<String> = if let Ok(mut stmt) = conn.prepare("SELECT DISTINCT n.file_path FROM graph_nodes n JOIN graph_edges e ON (e.from_node_id = n.id OR e.to_node_id = n.id) JOIN graph_nodes c ON (e.from_node_id = c.id OR e.to_node_id = c.id) WHERE n.node_type = 'file' AND c.node_type = 'commit' AND e.edge_type = 'touches' AND c.created_at > ?1 ORDER BY n.file_path LIMIT 50") {
         if let Ok(rows) = stmt.query_map([since_ts], |r| r.get::<usize, String>(0)) {
@@ -218,7 +268,8 @@ pub async fn generate_briefing(store: &Store, workspace_root: &str) -> Result<Br
     let _recent_summary = if commits_analyzed > 0 {
         format!(
             "{} commits in the last {} days. {} files modified.",
-            commits_analyzed, since_days,
+            commits_analyzed,
+            since_days,
             files_changed.len()
         )
     } else {
@@ -226,10 +277,11 @@ pub async fn generate_briefing(store: &Store, workspace_root: &str) -> Result<Br
     };
 
     // ── Agent Handoff ────────────────────────────────────────
-    let sessions_available: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM agent_sessions",
-        [], |r| r.get::<usize, i64>(0)
-    ).unwrap_or(0);
+    let sessions_available: i64 = conn
+        .query_row("SELECT COUNT(*) FROM agent_sessions", [], |r| {
+            r.get::<usize, i64>(0)
+        })
+        .unwrap_or(0);
 
     let last_session: Option<LastSession> = if sessions_available > 0 {
         conn.query_row(
@@ -258,12 +310,22 @@ pub async fn generate_briefing(store: &Store, workspace_root: &str) -> Result<Br
 
     // ── Critical Gaps ─────────────────────────────────────────
     let mut all_gaps = Vec::new();
-    if let Ok(mut gaps) = repo.get_code_without_decision(&project_id, 30) { all_gaps.append(&mut gaps); }
-    if let Ok(mut gaps) = repo.get_decisions_without_code(&project_id, 7) { all_gaps.append(&mut gaps); }
-    if let Ok(mut gaps) = repo.get_orphaned_requirements(&project_id) { all_gaps.append(&mut gaps); }
-    if let Ok(mut gaps) = repo.get_stale_decisions(&project_id, 30) { all_gaps.append(&mut gaps); }
-    if let Ok(mut gaps) = repo.get_unknown_ownership(&project_id) { all_gaps.append(&mut gaps); }
-    
+    if let Ok(mut gaps) = repo.get_code_without_decision(&project_id, 30) {
+        all_gaps.append(&mut gaps);
+    }
+    if let Ok(mut gaps) = repo.get_decisions_without_code(&project_id, 7) {
+        all_gaps.append(&mut gaps);
+    }
+    if let Ok(mut gaps) = repo.get_orphaned_requirements(&project_id) {
+        all_gaps.append(&mut gaps);
+    }
+    if let Ok(mut gaps) = repo.get_stale_decisions(&project_id, 30) {
+        all_gaps.append(&mut gaps);
+    }
+    if let Ok(mut gaps) = repo.get_unknown_ownership(&project_id) {
+        all_gaps.append(&mut gaps);
+    }
+
     let critical_gaps: Vec<String> = all_gaps.into_iter().take(5).map(|g| g.details).collect();
 
     // ── Recommended First Action ──────────────────────────────
@@ -301,7 +363,10 @@ pub async fn generate_briefing(store: &Store, workspace_root: &str) -> Result<Br
             files_changed,
             decisions_recorded,
             most_active_module,
-            summary: format!("{} commits analyzed, {} files modified in the last 7 days", commits_analyzed, files_changed_count),
+            summary: format!(
+                "{} commits analyzed, {} files modified in the last 7 days",
+                commits_analyzed, files_changed_count
+            ),
         },
         agent_handoff: AgentHandoff {
             sessions_available,
@@ -316,11 +381,13 @@ pub async fn generate_briefing(store: &Store, workspace_root: &str) -> Result<Br
 
 fn get_owner_for_file(conn: &rusqlite::Connection, file_path: &str) -> String {
     // Try to find owner through: file → touches → commit → authored_by → person
-    let file_id: String = conn.query_row(
-        "SELECT id FROM graph_nodes WHERE file_path = ?1 AND node_type = 'file' LIMIT 1",
-        [file_path],
-        |r| r.get::<usize, String>(0)
-    ).unwrap_or_default();
+    let file_id: String = conn
+        .query_row(
+            "SELECT id FROM graph_nodes WHERE file_path = ?1 AND node_type = 'file' LIMIT 1",
+            [file_path],
+            |r| r.get::<usize, String>(0),
+        )
+        .unwrap_or_default();
 
     let commit_ids: Vec<String> = if let Ok(mut stmt) = conn.prepare("SELECT DISTINCT from_node_id FROM graph_edges WHERE to_node_id = ?1 AND edge_type = 'touches' LIMIT 20") {
         if let Ok(rows) = stmt.query_map([&file_id], |r| r.get::<usize, String>(0)) {
@@ -344,8 +411,6 @@ fn get_owner_for_file(conn: &rusqlite::Connection, file_path: &str) -> String {
 
     "Unknown".to_string()
 }
-
-
 
 fn compute_recommended_action(
     health_score: f64,
@@ -388,18 +453,25 @@ fn compute_recommended_action(
 }
 
 fn get_context_freshness(conn: &rusqlite::Connection) -> f64 {
-    let max_ts: i64 = conn.query_row(
-        "SELECT MAX(created_at) FROM graph_nodes",
-        [], |r| r.get::<usize, i64>(0)
-    ).unwrap_or(0);
+    let max_ts: i64 = conn
+        .query_row("SELECT MAX(created_at) FROM graph_nodes", [], |r| {
+            r.get::<usize, i64>(0)
+        })
+        .unwrap_or(0);
 
-    if max_ts == 0 { return 999.0; }
-    
+    if max_ts == 0 {
+        return 999.0;
+    }
+
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_micros() as i64;
-        
+
     let hours = (now - max_ts) as f64 / 3_600_000_000.0;
-    if hours < 0.0 { 999.0 } else { hours }
+    if hours < 0.0 {
+        999.0
+    } else {
+        hours
+    }
 }

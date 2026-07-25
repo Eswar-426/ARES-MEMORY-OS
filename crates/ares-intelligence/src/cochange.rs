@@ -69,15 +69,18 @@ pub fn detect_hidden_coupling(
         .map_err(|e| AresError::Database(format!("co-change pair query: {}", e)))?;
 
     let rows = stmt
-        .query_map(rusqlite::params![cutoff_micros, min_count, limit as i64], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, String>(3)?,
-                row.get::<_, i64>(4)?,
-            ))
-        })
+        .query_map(
+            rusqlite::params![cutoff_micros, min_count, limit as i64],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, i64>(4)?,
+                ))
+            },
+        )
         .map_err(|e| AresError::Database(format!("co-change iteration: {}", e)))?;
 
     // Step 2: Check each pair for explicit dependency edges
@@ -101,14 +104,23 @@ pub fn detect_hidden_coupling(
     let mut pairs: Vec<CoChangePair> = Vec::new();
 
     for row_result in rows {
-        let (id_a, path_a, id_b, path_b, count) = row_result
-            .map_err(|e| AresError::Database(format!("co-change row read: {}", e)))?;
+        let (id_a, path_a, id_b, path_b, count) =
+            row_result.map_err(|e| AresError::Database(format!("co-change row read: {}", e)))?;
 
         // Skip noise files that change with everything
         let noise_suffixes = [
-            "Cargo.toml", "Cargo.lock", "package.json", "package-lock.json",
-            "yarn.lock", "pnpm-lock.yaml", "go.sum", "go.mod",
-            ".gitignore", "README.md", "CHANGELOG.md", "LICENSE",
+            "Cargo.toml",
+            "Cargo.lock",
+            "package.json",
+            "package-lock.json",
+            "yarn.lock",
+            "pnpm-lock.yaml",
+            "go.sum",
+            "go.mod",
+            ".gitignore",
+            "README.md",
+            "CHANGELOG.md",
+            "LICENSE",
         ];
         let a_name = path_a.rsplit('/').next().unwrap_or(&path_a);
         let b_name = path_b.rsplit('/').next().unwrap_or(&path_b);

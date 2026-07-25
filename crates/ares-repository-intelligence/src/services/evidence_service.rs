@@ -230,7 +230,14 @@ impl EvidenceService {
                                 continue;
                             }
                             let etype2 = child_edge.edge_type.as_str();
-                            if etype2 == "defines" || etype2 == "contains" || etype2 == "contained_in" || etype2 == "constructs" || etype2 == "invokes" || etype2 == "implements" || etype2 == "calls" {
+                            if etype2 == "defines"
+                                || etype2 == "contains"
+                                || etype2 == "contained_in"
+                                || etype2 == "constructs"
+                                || etype2 == "invokes"
+                                || etype2 == "implements"
+                                || etype2 == "calls"
+                            {
                                 continue;
                             }
                             let ntype2 = neighbor.node_type.as_str();
