@@ -59,7 +59,12 @@ impl LanguageExtractor for CSharpExtractor {
     ) -> Result<ExtractionResult, Box<dyn std::error::Error + Send + Sync>> {
         let query = match &self.query {
             Some(q) => q,
-            None => return Ok(ExtractionResult { nodes: Vec::new(), edges: Vec::new() }),
+            None => {
+                return Ok(ExtractionResult {
+                    nodes: Vec::new(),
+                    edges: Vec::new(),
+                })
+            }
         };
 
         let mut parser = Parser::new();
@@ -121,8 +126,7 @@ impl LanguageExtractor for CSharpExtractor {
 
             if !name.is_empty() {
                 if let Some(node_type) = node_type_opt {
-                    if node_type == NodeType::Tag && capture_names_contains_import(&m, query)
-                    {
+                    if node_type == NodeType::Tag && capture_names_contains_import(&m, query) {
                         let import_path = name
                             .replace("using", "")
                             .replace("static", "")
@@ -130,7 +134,10 @@ impl LanguageExtractor for CSharpExtractor {
                             .trim()
                             .to_string();
                         let file_key = file_path.replace('/', "_").replace('\\', "_");
-                        let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, import_path));
+                        let unresolved_node_id = ares_core::NodeId::from(format!(
+                            "unresolved_{}_{}",
+                            file_key, import_path
+                        ));
                         let signature = ares_core::types::node::SymbolSignature {
                             name: import_path.clone(),
                             file_path: Some(file_path.to_string()),
@@ -266,7 +273,8 @@ impl LanguageExtractor for CSharpExtractor {
             };
 
             let file_key = file_path.replace('/', "_").replace('\\', "_");
-            let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, r.name));
+            let unresolved_node_id =
+                ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, r.name));
             let expected_type = match r.ref_type {
                 RefType::Call => NodeType::Method,
                 RefType::Construct => NodeType::Struct,
@@ -361,12 +369,12 @@ mod tests {
         let mut import_paths = Vec::new();
         for edge in &result.edges {
             if edge.edge_type == ares_core::EdgeType::Imports {
-                import_paths.push(edge.source.replace("import:", ""));
+                import_paths.push(edge.to_node_id.as_str().to_string());
             }
         }
 
-        assert!(import_paths.contains(&"System.Collections.Generic".to_string()));
-        assert!(import_paths.contains(&"Example.MyClass".to_string()));
+        assert!(import_paths.iter().any(|p| p.ends_with("system.collections.generic")));
+        assert!(import_paths.iter().any(|p| p.ends_with("example.myclass")));
 
         let mut class_found = false;
         let mut method_found = false;

@@ -122,7 +122,10 @@ impl LanguageExtractor for JavaExtractor {
                             .trim()
                             .to_string();
                         let file_key = file_path.replace('/', "_").replace('\\', "_");
-                        let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, import_path));
+                        let unresolved_node_id = ares_core::NodeId::from(format!(
+                            "unresolved_{}_{}",
+                            file_key, import_path
+                        ));
                         let signature = ares_core::types::node::SymbolSignature {
                             name: import_path.clone(),
                             file_path: Some(file_path.to_string()),
@@ -258,7 +261,8 @@ impl LanguageExtractor for JavaExtractor {
             };
 
             let file_key = file_path.replace('/', "_").replace('\\', "_");
-            let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, r.name));
+            let unresolved_node_id =
+                ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, r.name));
             let expected_type = match r.ref_type {
                 RefType::Call => NodeType::Method,
                 RefType::Construct => NodeType::Struct,
@@ -351,12 +355,12 @@ mod tests {
         let mut import_paths = Vec::new();
         for edge in &result.edges {
             if edge.edge_type == ares_core::EdgeType::Imports {
-                import_paths.push(edge.source.replace("import:", ""));
+                import_paths.push(edge.to_node_id.as_str().to_string());
             }
         }
 
-        assert!(import_paths.contains(&"java.util.HashMap".to_string()));
-        assert!(import_paths.contains(&"com.example.MyClass".to_string()));
+        assert!(import_paths.iter().any(|p| p.ends_with("java.util.hashmap")));
+        assert!(import_paths.iter().any(|p| p.ends_with("com.example.myclass")));
 
         let mut class_found = false;
         let mut method_found = false;

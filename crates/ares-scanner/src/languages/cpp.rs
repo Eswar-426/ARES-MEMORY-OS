@@ -128,7 +128,10 @@ impl LanguageExtractor for CppExtractor {
                             .trim()
                             .to_string();
                         let file_key = file_path.replace('/', "_").replace('\\', "_");
-                        let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, import_path));
+                        let unresolved_node_id = ares_core::NodeId::from(format!(
+                            "unresolved_{}_{}",
+                            file_key, import_path
+                        ));
                         let signature = ares_core::types::node::SymbolSignature {
                             name: import_path.clone(),
                             file_path: Some(file_path.to_string()),
@@ -263,7 +266,8 @@ impl LanguageExtractor for CppExtractor {
             };
 
             let file_key = file_path.replace('/', "_").replace('\\', "_");
-            let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, r.name));
+            let unresolved_node_id =
+                ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, r.name));
             let expected_type = match r.ref_type {
                 RefType::Call => NodeType::Function,
                 RefType::Construct => NodeType::Struct,
@@ -358,12 +362,12 @@ mod tests {
         let mut import_paths = Vec::new();
         for edge in &result.edges {
             if edge.edge_type == ares_core::EdgeType::Imports {
-                import_paths.push(edge.source.replace("import:", ""));
+                import_paths.push(edge.to_node_id.as_str().to_string());
             }
         }
 
-        assert!(import_paths.contains(&"iostream".to_string()));
-        assert!(import_paths.contains(&"my_header.h".to_string()));
+        assert!(import_paths.iter().any(|p| p.ends_with("iostream")));
+        assert!(import_paths.iter().any(|p| p.ends_with("my_header.h")));
 
         let mut class_found = false;
         let mut method_found = false;

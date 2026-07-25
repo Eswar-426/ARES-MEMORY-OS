@@ -134,10 +134,8 @@ impl LanguageExtractor for RustExtractor {
                             .find(|c| self.query.capture_names()[c.index as usize] == "module");
                         let is_external = module_capture
                             .map(|c| {
-                                let mod_text = c
-                                    .node
-                                    .utf8_text(source_code.as_bytes())
-                                    .unwrap_or("");
+                                let mod_text =
+                                    c.node.utf8_text(source_code.as_bytes()).unwrap_or("");
                                 // External: "mod foo;" or "pub mod foo;" — no curly brace
                                 // Inline:  "mod foo { ... }" — has curly brace
                                 !mod_text.contains('{')
@@ -146,7 +144,10 @@ impl LanguageExtractor for RustExtractor {
 
                         if is_external {
                             let file_key = file_path.replace('/', "_").replace('\\', "_");
-                            let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, name));
+                            let unresolved_node_id = ares_core::NodeId::from(format!(
+                                "unresolved_{}_{}",
+                                file_key, name
+                            ));
                             let signature = ares_core::types::node::SymbolSignature {
                                 name: name.clone(),
                                 file_path: Some(file_path.to_string()),
@@ -198,7 +199,10 @@ impl LanguageExtractor for RustExtractor {
                         let import_path =
                             name.replace("use ", "").replace(";", "").trim().to_string();
                         let file_key = file_path.replace('/', "_").replace('\\', "_");
-                        let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, import_path));
+                        let unresolved_node_id = ares_core::NodeId::from(format!(
+                            "unresolved_{}_{}",
+                            file_key, import_path
+                        ));
                         let signature = ares_core::types::node::SymbolSignature {
                             name: import_path.clone(),
                             file_path: Some(file_path.to_string()),
@@ -336,7 +340,8 @@ impl LanguageExtractor for RustExtractor {
             };
 
             let file_key = file_path.replace('/', "_").replace('\\', "_");
-            let unresolved_node_id = ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, r.name));
+            let unresolved_node_id =
+                ares_core::NodeId::from(format!("unresolved_{}_{}", file_key, r.name));
             let expected_type = match r.ref_type {
                 RefType::Call => NodeType::Function,
                 RefType::MethodCall => NodeType::Method,
@@ -434,13 +439,13 @@ mod tests {
         let mut import_paths = Vec::new();
         for edge in result.edges {
             if edge.edge_type == ares_core::EdgeType::Imports {
-                import_paths.push(edge.source.replace("import:", ""));
+                import_paths.push(edge.to_node_id.as_str().to_string());
             }
         }
 
         assert_eq!(import_paths.len(), 2);
-        assert!(import_paths.contains(&"std::collections::HashMap".to_string()));
-        assert!(import_paths.contains(&"crate::memory::builder".to_string()));
+        assert!(import_paths.iter().any(|p| p.ends_with("std::collections::hashmap")));
+        assert!(import_paths.iter().any(|p| p.ends_with("crate::memory::builder")));
     }
 
     #[test]
@@ -476,11 +481,11 @@ mod tests {
             .edges
             .iter()
             .filter(|e| e.edge_type == ares_core::EdgeType::Imports)
-            .map(|e| e.source.as_str())
+            .map(|e| e.to_node_id.as_str())
             .collect();
         assert_eq!(import_sources.len(), 2);
-        assert!(import_sources.contains(&"mod_decl:graph"));
-        assert!(import_sources.contains(&"mod_decl:engine"));
+        assert!(import_sources.iter().any(|p| p.ends_with("_graph")));
+        assert!(import_sources.iter().any(|p| p.ends_with("_engine")));
 
         // Inline module must produce Defines edge, NOT Imports
         let defines_targets: Vec<String> = result
