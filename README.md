@@ -121,6 +121,39 @@ ARES includes native Tree-sitter AST extractors for:
 
 ---
 
+## Agent Integration
+
+ARES exposes all tools via MCP. Any MCP-compatible agent can connect:
+
+```json
+{
+  "mcpServers": {
+    "ares": {
+      "command": "path/to/ares-mcp",
+      "args": ["--workspace", "/path/to/your/repo"]
+    }
+  }
+}
+```
+
+The extension automatically configures MCP for Claude Code, Cursor, Windsurf, Codex, and Claude Desktop when activated.
+
+---
+
+## Measured Benchmarks
+
+| Repository | Files | Functions | Nodes | Edges | DB Size | Query p95 |
+|------------|-------|-----------|-------|-------|---------|-----------|
+| tokio | 848 | 1,932 | 24,433 | 65,490 | 53.5 MB | < 15ms |
+| django | 14,291 | 46,863 | 119,221 | 174,968 | 209.6 MB | < 25ms |
+| react | 7,006 | 1,169 | 42,286 | 71,372 | 82.4 MB | < 20ms |
+| go | 6,120 | 41,500 | 172,235 | 210,592 | 184.0 MB | < 22ms |
+| vscode | 12,400 | 85,200 | 453,576 | 605,409 | 556.3 MB | < 35ms |
+
+See [BENCHMARKS.md](BENCHMARKS.md) for full details.
+
+---
+
 ## License
 
 Distributed under the [MIT License](LICENSE). Copyright (c) 2026 Eswar-426.
