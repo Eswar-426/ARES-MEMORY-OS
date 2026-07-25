@@ -144,11 +144,11 @@ The extension automatically configures MCP for Claude Code, Cursor, Windsurf, Co
 
 | Repository | Files | Functions | Nodes | Edges | DB Size | Query p95 |
 |------------|-------|-----------|-------|-------|---------|-----------|
-| tokio | 848 | 1,932 | 24,433 | 65,490 | 53.5 MB | < 15ms |
-| django | 14,291 | 46,863 | 119,221 | 174,968 | 209.6 MB | < 25ms |
-| react | 7,006 | 1,169 | 42,286 | 71,372 | 82.4 MB | < 20ms |
-| go | 6,120 | 41,500 | 172,235 | 210,592 | 184.0 MB | < 22ms |
-| vscode | 12,400 | 85,200 | 453,576 | 605,409 | 556.3 MB | < 35ms |
+| tokio | 864 | 16,132 | 24,433 | 65,490 | 53.5 MB | < 15ms |
+| django | 14,291 | 54,600 | 119,221 | 174,968 | 209.6 MB | < 25ms |
+| react | 7,206 | 21,898 | 42,286 | 71,372 | 82.4 MB | < 20ms |
+| go | 15,520 | 106,275 | 172,235 | 210,592 | 184.0 MB | < 22ms |
+| vscode | 28,312 | 226,667 | 453,576 | 605,409 | 556.3 MB | < 35ms |
 
 See [BENCHMARKS.md](BENCHMARKS.md) for full details.
 

@@ -10,12 +10,12 @@ All benchmarks measured on Windows 11 / Intel i5 / NVMe SSD / `ares` v0.1.0 rele
 
 | Repository | Files | Functions | Graph Nodes | Graph Edges | DB Size (MB) | Ingest Time | Query Latency (p95) |
 |------------|-------|-----------|-------------|-------------|--------------|-------------|----------------------|
-| **tokio** | 848 | 1,932 | 24,433 | 65,490 | 53.54 MB | ~2m 10s | < 15ms |
-| **django-full2** | 14,291 | 46,863 | 119,221 | 174,968 | 209.59 MB | ~9m 40s | < 25ms |
-| **react** | 7,006 | 1,169 | 42,286 | 71,372 | 82.36 MB | ~5m 15s | < 20ms |
-| **go** | 6,120 | 41,500 | 172,235 | 210,592 | 184.04 MB | ~6m 50s | < 22ms |
-| **vscode** | 12,400 | 85,200 | 453,576 | 605,409 | 556.29 MB | ~18m 30s | < 35ms |
-| **ARES_Memory_os** | 1,619 | 7,199 | 29,753 | 65,065 | 83.61 MB | ~42s | < 8ms |
+| **tokio** | 864 | 16,132 | 24,433 | 65,490 | 53.54 MB | ~2m 10s | < 15ms |
+| **django-full2** | 14,291 | 54,600 | 119,221 | 174,968 | 209.59 MB | ~9m 40s | < 25ms |
+| **react** | 7,206 | 21,898 | 42,286 | 71,372 | 82.36 MB | ~5m 15s | < 20ms |
+| **go** | 15,520 | 106,275 | 172,235 | 210,592 | 184.04 MB | ~6m 50s | < 22ms |
+| **vscode** | 28,312 | 226,667 | 453,576 | 605,409 | 556.29 MB | ~18m 30s | < 35ms |
+| **ARES_Memory_os** | 1,634 | 15,805 | 30,672 | 68,723 | 90.91 MB | ~42s | < 8ms |
 
 \* tokio, django-full2, and react are full clones (4,554 / 34,751 / 21,561 total commits respectively). ARES analyzes the 500 most recent first-parent commits during ingestion. go and vscode are shallow clones (`--depth 1`) with only 1 commit available.
 
