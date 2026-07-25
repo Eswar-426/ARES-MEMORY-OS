@@ -156,6 +156,9 @@ Files in unsupported languages are still indexed for git history and file-level 
 `ares_graph_root` · `ares_graph_neighbors` · `ares_graph_shortest_path` · `ares_graph_search` · `ares_graph_metadata` · `ares_graph_statistics`
 
 ### Session & Workspace (10)
+
+![Session Briefing View](https://raw.githubusercontent.com/Eswar-426/ARES-MEMORY-OS/main/docs/screenshots/briefing.png)
+
 `ares_briefing` · `ares_generate_context_file` · `ares_chat` · `ares_end_session` · `ares_session_context` · `ares_workspace_pin` · `ares_workspace_bookmark` · `ares_workspace_navigate` · `ares_workspace_record_navigation` · `ares_workspace_list`
 
 ---
