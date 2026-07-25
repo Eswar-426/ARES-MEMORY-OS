@@ -24,7 +24,7 @@ ARES parses your repository into a queryable knowledge graph — AST relationshi
 2. Download `ares-memory-vscode-0.1.0.vsix`
 3. In VS Code: `Extensions` → `...` → `Install from VSIX`
 
-No Rust toolchain required. This release includes Windows binaries. macOS and Linux builds are planned for v0.1.1 (see Known Limitations).
+The extension bundles native binaries for Windows, macOS, and Linux. No Rust toolchain required.
 
 ---
 
