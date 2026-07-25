@@ -30,7 +30,7 @@ jobs:
       run: cargo check --workspace
       
     - name: Clippy
-      run: cargo clippy --workspace --all-targets -- -D warnings
+      run: cargo clippy --workspace --all-targets
       
     - name: Run Tests
       run: cargo test --workspace

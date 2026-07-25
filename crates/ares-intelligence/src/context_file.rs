@@ -299,7 +299,7 @@ fn generate_markdown(ctx: &ContextFile) -> String {
             }
             md.push_str(&format!(" ({} inbound dependencies)\n", ep.inbound_count));
         }
-        md.push_str("\n");
+        md.push('\n');
     }
 
     md.push_str("## Critical files (high blast radius — change carefully)\n\n");
@@ -309,7 +309,7 @@ fn generate_markdown(ctx: &ContextFile) -> String {
         for cf in &ctx.critical_files {
             md.push_str(&format!("- `{}` — {} dependencies\n", cf.path, cf.outbound_count));
         }
-        md.push_str("\n");
+        md.push('\n');
     }
 
     md.push_str("## Hotspots (high churn × complexity — bug-prone)\n\n");
@@ -322,7 +322,7 @@ fn generate_markdown(ctx: &ContextFile) -> String {
                 h.path, h.hotspot_score, h.commits_30_days, h.complexity_proxy, h.recommendation
             ));
         }
-        md.push_str("\n");
+        md.push('\n');
     }
 
     if !ctx.hidden_coupling.is_empty() {
@@ -334,7 +334,7 @@ fn generate_markdown(ctx: &ContextFile) -> String {
                 c.file_a, c.file_b, c.co_change_count, c.period_days
             ));
         }
-        md.push_str("\n");
+        md.push('\n');
     }
 
     md.push_str("## Ownership\n\n");
@@ -344,7 +344,7 @@ fn generate_markdown(ctx: &ContextFile) -> String {
         for owner in &ctx.ownership {
             md.push_str(&format!("- {} ({:.1}% of files)\n", owner.name, owner.file_percentage));
         }
-        md.push_str("\n");
+        md.push('\n');
     }
 
     md.push_str("## Recent decisions (last 30 days)\n\n");
@@ -354,7 +354,7 @@ fn generate_markdown(ctx: &ContextFile) -> String {
         for dec in &ctx.recent_decisions {
             md.push_str(&format!("- **{}** ({})\n", dec.summary, dec.date));
         }
-        md.push_str("\n");
+        md.push('\n');
     }
 
     md.push_str("## Known knowledge gaps\n\n");
@@ -364,7 +364,7 @@ fn generate_markdown(ctx: &ContextFile) -> String {
         for gap in &ctx.known_gaps {
             md.push_str(&format!("- {}\n", gap));
         }
-        md.push_str("\n");
+        md.push('\n');
     }
 
     md.push_str("## ARES MCP tools available\n\n");
@@ -373,7 +373,7 @@ fn generate_markdown(ctx: &ContextFile) -> String {
     for tool in &ctx.mcp_tools {
         md.push_str(&format!("| `{}` | {} |\n", tool.name, tool.description));
     }
-    md.push_str("\n");
+    md.push('\n');
 
     md.push_str("## How to query ARES\n\n");
     md.push_str("Ask: \"Run ares_why_exists on [file path]\"\n");

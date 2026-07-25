@@ -110,7 +110,7 @@ pub fn count_decayed_decisions(conn: &Connection) -> Result<(i64, i64), String> 
 /// Enrich a JSON evidence array: add decay_score/staleness to decision-shaped items.
 pub fn enrich_evidence_with_decay(
     conn: &Connection,
-    evidence: &mut Vec<serde_json::Value>,
+    evidence: &mut [serde_json::Value],
 ) {
     for item in evidence.iter_mut() {
         // Look for decision-shaped evidence: has "date" or "created_at" and "files" fields

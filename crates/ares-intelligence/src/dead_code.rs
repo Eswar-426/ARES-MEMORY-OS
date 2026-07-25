@@ -63,19 +63,17 @@ pub async fn find_dead_code(
         ))
     }).map_err(|e| AresError::validation(e.to_string()))?;
 
-    for row in rows {
-        if let Ok((path, created_at, lang)) = row {
-            let age_days = calculate_age_days(&created_at);
-            let language = lang.unwrap_or_else(|| {
-                path.rsplit('.').next().unwrap_or("unknown").to_string()
-            });
-            dead_files.push(DeadFile {
-                path,
-                age_days,
-                language,
-                recommendation: "Safe to delete if not a public API entry point".to_string(),
-            });
-        }
+    for (path, created_at, lang) in rows.flatten() {
+        let age_days = calculate_age_days(&created_at);
+        let language = lang.unwrap_or_else(|| {
+            path.rsplit('.').next().unwrap_or("unknown").to_string()
+        });
+        dead_files.push(DeadFile {
+            path,
+            age_days,
+            language,
+            recommendation: "Safe to delete if not a public API entry point".to_string(),
+        });
     }
 
     // --- Dead Functions ---
@@ -110,19 +108,17 @@ pub async fn find_dead_code(
         ))
     }).map_err(|e| AresError::validation(e.to_string()))?;
 
-    for row in rows {
-        if let Ok((path, name, created_at)) = row {
-            if excluded_names.contains(&name.as_str()) {
-                continue;
-            }
-            let age_days = calculate_age_days(&created_at);
-            dead_functions.push(DeadFunction {
-                path,
-                function_name: name,
-                age_days,
-                recommendation: "Consider removing or making private".to_string(),
-            });
+    for (path, name, created_at) in rows.flatten() {
+        if excluded_names.contains(&name.as_str()) {
+            continue;
         }
+        let age_days = calculate_age_days(&created_at);
+        dead_functions.push(DeadFunction {
+            path,
+            function_name: name,
+            age_days,
+            recommendation: "Consider removing or making private".to_string(),
+        });
     }
 
     let total_dead_files = dead_files.len() as i64;

@@ -1232,7 +1232,7 @@ impl SqliteGraphRepository {
                 let mut edge_params: Vec<&dyn rusqlite::ToSql> = Vec::new();
                 let mut or_clauses = Vec::new();
                 
-                for window in path_nodes.windows(2) {
+                for _window in path_nodes.windows(2) {
                     or_clauses.push("(from_node_id = ? AND to_node_id = ?)");
                     // To avoid lifetime issues with dynamic borrowing, we need to bind the references
                 }

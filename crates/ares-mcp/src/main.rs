@@ -227,7 +227,7 @@ fn wrap_with_envelope(
         }
     }
 
-    let mut envelope = serde_json::json!({
+    let envelope = serde_json::json!({
         "tool": tool_name,
         "schema_version": "1.0",
         "status": status,

@@ -130,7 +130,7 @@ impl RepositoryGraphEngine {
                 }
             }
 
-            let mut cit = crate::core::response::Citation {
+            let cit = crate::core::response::Citation {
                 kind: edge_type_str.clone(),
                 id: target_id_str.to_string(),
                 title: title_str,

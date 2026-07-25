@@ -73,9 +73,7 @@ pub fn detect_hidden_coupling(
         for row in rows.flatten() {
             let (file_a, file_b, count, has_dep) = row;
             couplings.push(HiddenCoupling {
-                risk: format!(
-                    "These files change together but have no declared dependency. Consider adding explicit coupling or investigating the relationship."
-                ),
+                risk: "These files change together but have no declared dependency. Consider adding explicit coupling or investigating the relationship.".to_string(),
                 file_a,
                 file_b,
                 co_change_count: count,

@@ -188,4 +188,4 @@ See [BENCHMARKS.md](https://github.com/Eswar-426/ARES-MEMORY-OS/blob/main/BENCHM
 
 ## License
 
-MIT — [Eswar-426](https://github.com/Eswar-426)
+[LICENSE](https://github.com/Eswar-426/ARES-MEMORY-OS/blob/main/LICENSE) — [Eswar-426](https://github.com/Eswar-426)
