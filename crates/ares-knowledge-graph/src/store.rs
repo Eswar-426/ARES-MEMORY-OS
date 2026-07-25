@@ -17,7 +17,7 @@ impl KnowledgeGraphStore {
         self.store.clone()
     }
 
-    /// Upserts a KnowledgeNode into graph_entities.
+    /// Upserts a KnowledgeNode into graph_nodes and graph_entities.
     /// This is strictly idempotent because it uses INSERT OR REPLACE on the identical node ID.
     pub fn upsert_node(&self, node: &KnowledgeNode) -> Result<(), AresError> {
         let conn = self.store.get_conn()?;
@@ -30,7 +30,27 @@ impl KnowledgeGraphStore {
             .unwrap_or(serde_json::json!("code_artifact"))
             .as_str()
             .unwrap_or("code_artifact")
-            .to_string();
+            .to_lowercase();
+
+        let project_id = "default";
+        let _ = conn.execute(
+            "INSERT OR IGNORE INTO projects (id, name, root_path, primary_language, domain, maturity, created_at, updated_at) VALUES (?1, 'default', '/', 'rust', 'domain', 'greenfield', 0, 0)",
+            params![project_id],
+        );
+
+        let _ = conn.execute(
+            "INSERT OR REPLACE INTO graph_nodes (
+                id, project_id, node_type, label, properties, created_at, updated_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)",
+            params![
+                node.id,
+                project_id,
+                node_type_str,
+                node.name,
+                props_str,
+                node.created_at
+            ],
+        );
 
         conn.execute(
             "INSERT OR REPLACE INTO graph_entities (
@@ -49,7 +69,7 @@ impl KnowledgeGraphStore {
         Ok(())
     }
 
-    /// Upserts a KnowledgeEdge into graph_relationships.
+    /// Upserts a KnowledgeEdge into graph_edges and graph_relationships.
     /// This is strictly idempotent assuming edge IDs are deterministic.
     pub fn upsert_edge(&self, edge: &KnowledgeEdge) -> Result<(), AresError> {
         let conn = self.store.get_conn()?;
@@ -62,7 +82,28 @@ impl KnowledgeGraphStore {
             .unwrap_or(serde_json::json!("references"))
             .as_str()
             .unwrap_or("references")
-            .to_string();
+            .to_lowercase();
+
+        let project_id = "default";
+        let _ = conn.execute(
+            "INSERT OR IGNORE INTO projects (id, name, root_path, primary_language, domain, maturity, created_at, updated_at) VALUES (?1, 'default', '/', 'rust', 'domain', 'greenfield', 0, 0)",
+            params![project_id],
+        );
+
+        let _ = conn.execute(
+            "INSERT OR REPLACE INTO graph_edges (
+                id, project_id, from_node_id, to_node_id, edge_type, confidence, source, valid_from, created_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'scanner', 0, ?7)",
+            params![
+                edge.id,
+                project_id,
+                edge.source_id,
+                edge.target_id,
+                edge_type_str,
+                edge.confidence,
+                edge.created_at
+            ],
+        );
 
         conn.execute(
             "INSERT OR REPLACE INTO graph_relationships (

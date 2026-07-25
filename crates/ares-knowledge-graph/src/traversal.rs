@@ -33,7 +33,10 @@ impl TraversalEngine {
         let conn = self.store.get_raw_store().get_conn()?;
         let mut stmt = conn
             .prepare(
-                "SELECT id, node_type, label, properties, created_at FROM graph_nodes WHERE id = ?",
+                "SELECT id, node_type, label, properties, created_at FROM graph_nodes WHERE id = ?1
+                 UNION ALL
+                 SELECT id, entity_type, name, properties, created_at FROM graph_entities WHERE id = ?1
+                 LIMIT 1",
             )
             .map_err(|e| AresError::Database(e.to_string()))?;
 
@@ -74,23 +77,18 @@ impl TraversalEngine {
         direction_downstream: bool,
     ) -> Result<Vec<KnowledgeEdge>, AresError> {
         let conn = self.store.get_raw_store().get_conn()?;
-        // Schema: graph_edges has from_node_id, to_node_id, edge_type, confidence, source, created_at
-        // Edge semantics: from_node_id = dependent/source, to_node_id = dependency/target
-        //   e.g. file A imports file B → from_node_id=A, to_node_id=B, edge_type=imports
-        //
-        // downstream = find DEPENDENTS (things that depend ON this node)
-        //   → query incoming edges: WHERE to_node_id = ?  (we are the target)
-        //   → next hop is from_node_id (the dependent)
-        //
-        // upstream = find DEPENDENCIES (things this node depends on)
-        //   → query outgoing edges: WHERE from_node_id = ?  (we are the source)
-        //   → next hop is to_node_id (the dependency)
         let query = if direction_downstream {
             "SELECT id, from_node_id, to_node_id, edge_type, confidence, source, created_at
-             FROM graph_edges WHERE to_node_id = ? AND valid_until IS NULL"
+             FROM graph_edges WHERE from_node_id = ?1 AND valid_until IS NULL
+             UNION ALL
+             SELECT id, source_entity, target_entity, relationship_type, confidence_score, 'scanner', created_at
+             FROM graph_relationships WHERE source_entity = ?1"
         } else {
             "SELECT id, from_node_id, to_node_id, edge_type, confidence, source, created_at
-             FROM graph_edges WHERE from_node_id = ? AND valid_until IS NULL"
+             FROM graph_edges WHERE to_node_id = ?1 AND valid_until IS NULL
+             UNION ALL
+             SELECT id, source_entity, target_entity, relationship_type, confidence_score, 'scanner', created_at
+             FROM graph_relationships WHERE target_entity = ?1"
         };
         let mut stmt = conn
             .prepare(query)
@@ -160,9 +158,9 @@ impl TraversalEngine {
                     // AFTER fix: downstream follows source_id (the dependent),
                     // upstream follows target_id (the dependency)
                     let next_node = if direction_downstream {
-                        &edge.source_id
-                    } else {
                         &edge.target_id
+                    } else {
+                        &edge.source_id
                     };
 
                     if !visited_edges.contains(&edge.id) {
@@ -219,7 +217,7 @@ impl MemoryTraversal for TraversalEngine {
 
             let edges = self.load_adjacent_edges(&curr, true)?;
             for edge in edges {
-                let next_id = &edge.source_id; // downstream: follow the dependent
+                let next_id = &edge.target_id; // downstream: follow target_id
                 if !visited.contains(next_id) {
                     visited.insert(next_id.clone());
                     parent_map.insert(next_id.clone(), (curr.clone(), edge.clone()));
