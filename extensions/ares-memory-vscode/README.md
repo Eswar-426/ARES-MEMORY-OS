@@ -2,13 +2,13 @@
 
 Deterministic repository intelligence for AI coding agents. Zero LLM required.
 
-![ARES Knowledge Graph Explorer](https://raw.githubusercontent.com/Eswar-426/ARES-MEMORY-OS/main/docs/screenshots/graph-explorer.png)
-
 ---
 
 ## What It Does
 
 ARES parses your repository into a queryable knowledge graph — AST relationships, git history, contributor ownership, and architectural decisions across 11 programming languages. When an AI agent asks *"What breaks if I change this trait?"*, ARES traverses the actual dependency graph and returns the exact blast radius — not a guess.
+
+![ARES Knowledge Graph Explorer](https://raw.githubusercontent.com/Eswar-426/ARES-MEMORY-OS/main/docs/screenshots/graph-explorer.png)
 
 ---
 
@@ -57,7 +57,8 @@ The extension activates on any workspace open (`activationEvents: ["*"]`). If `a
 
 ### Intelligence Queries
 
-![ARES Why Exists Architecture View](https://raw.githubusercontent.com/Eswar-426/ARES-MEMORY-OS/main/docs/screenshots/why-exists.png)
+![Why Exists Analysis View](https://raw.githubusercontent.com/Eswar-426/ARES-MEMORY-OS/main/docs/screenshots/why-exists.png)
+
 | Command | Description |
 |---------|-------------|
 | `ARES: Why Exists` | Why does this file exist? Creation context and evolution |
@@ -80,7 +81,7 @@ The extension activates on any workspace open (`activationEvents: ["*"]`). If `a
 
 ### Visualization
 
-![ARES Graph Explorer Visualization](https://raw.githubusercontent.com/Eswar-426/ARES-MEMORY-OS/main/docs/screenshots/graph-explorer-3.png)
+![Interactive Graph Explorer](https://raw.githubusercontent.com/Eswar-426/ARES-MEMORY-OS/main/docs/screenshots/graph-explorer-3.png)
 | Command | Description |
 |---------|-------------|
 | `ARES: Open Graph Explorer` | Interactive graph visualization |
