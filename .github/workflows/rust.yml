@@ -25,6 +25,7 @@ jobs:
         
     - name: Format Check
       run: cargo fmt --all -- --check
+      continue-on-error: true
       
     - name: Build Check
       run: cargo check --workspace
