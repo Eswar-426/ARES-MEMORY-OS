@@ -7,7 +7,7 @@ use ares_traceability::{test_utils::TestGraphBuilder, TraceTargetType};
 #[test]
 fn test_full_trace_coverage() {
     let graph = TestGraphBuilder::new()
-        .link_rel("REQ-1", "DEC-1", TraceTargetType::Decision, "Satisfies")
+        .link_rel("req-1", "DEC-1", TraceTargetType::Decision, "Satisfies")
         .link_rel("DEC-1", "CODE-1", TraceTargetType::Code, "Implements")
         .link_rel("CODE-1", "TEST-1", TraceTargetType::Test, "Validates")
         .link_rel(
@@ -20,7 +20,7 @@ fn test_full_trace_coverage() {
 
     let resolver = TraceAnalysisEngine::new(&graph);
     let engine = RequirementCoverageEngine::new();
-    let req_id = RequirementId::from("REQ-1");
+    let req_id = RequirementId::from("req-1");
     let status = RequirementStatus::Approved;
 
     let coverage = engine.evaluate(&req_id, &status, true, &resolver);
@@ -32,14 +32,14 @@ fn test_full_trace_coverage() {
 #[test]
 fn test_partial_trace_coverage() {
     let graph = TestGraphBuilder::new()
-        .link_rel("REQ-2", "DEC-2", TraceTargetType::Decision, "Satisfies")
+        .link_rel("req-2", "DEC-2", TraceTargetType::Decision, "Satisfies")
         .link_rel("DEC-2", "CODE-2", TraceTargetType::Code, "Implements")
         // Missing Test and Metric
         .build();
 
     let resolver = TraceAnalysisEngine::new(&graph);
     let engine = RequirementCoverageEngine::new();
-    let req_id = RequirementId::from("REQ-2");
+    let req_id = RequirementId::from("req-2");
     let status = RequirementStatus::Approved;
 
     let coverage = engine.evaluate(&req_id, &status, true, &resolver);
